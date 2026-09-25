@@ -17,3 +17,4 @@ export * from "./model/RowNode";
 export * from "./model/TabGroupNode";
 export * from "./model/TabNode";
 export * from "./model/TabSetNode";
+export * from "./undo/UndoManager";
