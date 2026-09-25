@@ -24,6 +24,8 @@ export interface DropIndicatorState {
     showEdges: boolean;
     /** seconds a style may take to animate between targets */
     tabDragSpeed: number;
+    /** the pointer is over a target that a drop rule refused (the outline is hidden) */
+    refused: boolean;
 }
 
 export interface DropIndicatorProps
@@ -53,6 +55,7 @@ export function DropIndicator(props: DropIndicatorProps) {
         dragging: indicator.dragging,
         showEdges: indicator.showEdges,
         tabDragSpeed: indicator.tabDragSpeed,
+        refused: indicator.refused,
     };
     const { rect } = indicator;
     return useRenderElement("div", rest, {
@@ -67,6 +70,7 @@ export function DropIndicator(props: DropIndicatorProps) {
                 "drop-kind": indicator.visible ? indicator.kind : undefined,
                 visible: indicator.visible,
                 dragging: indicator.dragging,
+                "drop-refused": indicator.refused,
             }),
             children,
         },

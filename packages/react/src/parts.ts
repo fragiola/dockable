@@ -1,5 +1,6 @@
 export { DragSource } from "./DragSource";
 export { DropIndicator } from "./DropIndicator";
+export { DropZone } from "./DropZone";
 export { Panel } from "./Panel";
 export { Panels } from "./Panels";
 export { Popout } from "./Popout";

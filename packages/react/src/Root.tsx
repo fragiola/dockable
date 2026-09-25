@@ -7,6 +7,7 @@ import {
     Model,
     matchesKey,
     type OnAction,
+    type OnAllowDrop,
     type OnExternalDrag,
     type OnModelChange,
     type PopoutCallback,
@@ -34,6 +35,8 @@ export interface RootState {
     maximized: boolean;
     /** a node of this layout is being dragged */
     dragging: boolean;
+    /** the drag is over a target of the main layout that a drop rule refused */
+    refused: boolean;
 }
 
 export interface RootProps extends DivPrimitiveProps<RootState> {
@@ -71,6 +74,12 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
      * `onDrop`.
      */
     onExternalDrag?: OnExternalDrag | undefined;
+    /**
+     * decides whether a drag may drop at a target: return `false` to refuse it (the outline hides,
+     * the target gets `data-drop-refused`). The same rule as `model.setOnAllowDrop`, which it
+     * sets while given; removing the prop restores the model's own rule.
+     */
+    onAllowDrop?: OnAllowDrop | undefined;
     children?: React.ReactNode;
 }
 
@@ -94,6 +103,7 @@ export function Root(props: RootProps) {
         onPopoutOpen,
         onPopoutClose,
         onExternalDrag,
+        onAllowDrop,
         children,
         ...rest
     } = props;
@@ -105,6 +115,7 @@ export function Root(props: RootProps) {
         realtimeResize,
         tabDragSpeed,
         onExternalDrag,
+        onAllowDrop,
         popout: {
             popoutURL,
             supportsPopout,
@@ -121,6 +132,12 @@ export function Root(props: RootProps) {
         },
     });
     const dragState = useDragState();
+    const manager = engine.getDragDropManager();
+    const refused = React.useSyncExternalStore(
+        manager.subscribe,
+        () => manager.getIndicatorState().refused,
+        () => false,
+    );
     const revision = React.useSyncExternalStore(
         engine.subscribe,
         engine.getSnapshot,
@@ -238,6 +255,7 @@ export function Root(props: RootProps) {
     const state: RootState = {
         maximized: model.getMaximizedTabset(Model.MAIN_LAYOUT_ID) !== undefined,
         dragging: dragState !== undefined && dragState.mainEngine === engine,
+        refused,
     };
     const element = useRenderElement("div", rest, {
         state,
@@ -247,6 +265,7 @@ export function Root(props: RootProps) {
                 "layout-path": "/layout",
                 maximized: state.maximized,
                 dragging: state.dragging,
+                "drop-refused": state.refused,
             }),
             children,
         },
