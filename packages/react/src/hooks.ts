@@ -72,8 +72,10 @@ export interface TabSetDropState {
     target: boolean;
     /** while it is the target: where the drag would dock */
     location: DropLocation | undefined;
-    /** while it is the target: the drop goes into its tab strip (at `index`) */
+    /** while it is the target: the drop goes into its tab strip, at `index` */
     strip: boolean;
+    /** for a strip drop: the insertion index among the tabset's children, else -1 */
+    index: number;
     /** the current drag is over this tabset, but a drop rule refuses it */
     refused: boolean;
 }
@@ -82,6 +84,7 @@ const NO_DROP: TabSetDropState = {
     target: false,
     location: undefined,
     strip: false,
+    index: -1,
     refused: false,
 };
 
@@ -105,7 +108,9 @@ export function useTabSetDropState(
             if (indicator.visible && indicator.targetTabSetId === tabsetId) {
                 const strip =
                     indicator.location === "center" && indicator.index >= 0;
-                return `${indicator.location}${strip ? ":strip" : ""}`;
+                return strip
+                    ? `${indicator.location}:${indicator.index}`
+                    : indicator.location;
             }
             return "";
         },
@@ -114,11 +119,12 @@ export function useTabSetDropState(
     return React.useMemo(() => {
         if (key === "") return NO_DROP;
         if (key === "refused") return { ...NO_DROP, refused: true };
-        const [location, strip] = key.split(":");
+        const [location, index] = key.split(":");
         return {
             target: true,
             location: location as DropLocation,
-            strip: strip === "strip",
+            strip: index !== undefined,
+            index: index === undefined ? -1 : Number(index),
             refused: false,
         };
     }, [key]);

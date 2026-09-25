@@ -1,14 +1,9 @@
 "use client";
 
-import {
-    type DropLocation,
-    type IJsonModel,
-    Model,
-    TabSetNode,
-} from "@fragiola/dockable";
-import { Dockable, useDockable } from "@fragiola/dockable-react";
+import { type DropLocation, type IJsonModel, Model } from "@fragiola/dockable";
+import { Dockable } from "@fragiola/dockable-react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
-import { type ComponentProps, useState, useSyncExternalStore } from "react";
+import { type ComponentProps, useState } from "react";
 import { cn } from "@/lib/cn";
 import { Card } from "../_kit/card";
 import { getLabel } from "../_kit/labels";
@@ -65,50 +60,13 @@ const ARROWS: Partial<Record<DropLocation, typeof ArrowUp>> = {
 };
 
 /**
- * The tabset the drop indicator is over, if any. The package does not say which tabset is the
- * target (gap 8), so this reads the indicator's rect from the core's drag-and-drop state and
- * finds the tabset that contains its centre.
+ * The splitters and the tabset recursion, from the kit. The tabset the drag would drop into (or
+ * beside) has `data-drop-target` (and `data-drop-location`), so it is styled from data alone.
  */
-function useDropTargetTabset(): string | undefined {
-    const { engine, model, layoutId } = useDockable();
-    const manager = engine.getDragDropManager();
-    const indicator = useSyncExternalStore(
-        manager.subscribe,
-        manager.getIndicatorState,
-        manager.getIndicatorState,
-    );
-    if (!indicator.visible || indicator.kind !== "rect") {
-        return undefined;
-    }
-    const centre = indicator.rect.getCenter();
-    let target: string | undefined;
-    model.visitLayoutNodes(layoutId, (node) => {
-        if (
-            node instanceof TabSetNode &&
-            node.getRect().contains(centre.x, centre.y)
-        ) {
-            target = node.getId();
-        }
-    });
-    return target;
-}
-
-/** The root row, with the target tabset highlighted (a class, since the kit's tabset takes no
- * extra attributes). */
-function Layout() {
-    const target = useDropTargetTabset();
-    const { renderNode, renderSplitter } = createRenderNode({
-        tabsetClassName: (tabset) =>
-            tabset.getId() === target
-                ? "ring-2 ring-palette-ring ring-inset"
-                : "",
-    });
-    return (
-        <Dockable.Row renderSplitter={renderSplitter}>
-            {renderNode}
-        </Dockable.Row>
-    );
-}
+const { renderNode, renderSplitter } = createRenderNode({
+    tabsetClassName:
+        "data-drop-target:ring-2 data-drop-target:ring-palette-ring data-drop-target:ring-inset",
+});
 
 export default function DragAndDrop() {
     const [model] = useState(() => Model.fromJson(json));
@@ -125,7 +83,9 @@ export default function DragAndDrop() {
                     "[&_[role=tabpanel]]:transition-opacity data-dragging:[&_[role=tabpanel]]:opacity-60",
                 )}
             >
-                <Layout />
+                <Dockable.Row renderSplitter={renderSplitter}>
+                    {renderNode}
+                </Dockable.Row>
                 <Dockable.Panels>
                     {(tab) => (
                         <Dockable.Panel

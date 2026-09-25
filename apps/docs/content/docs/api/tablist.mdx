@@ -35,6 +35,8 @@ hit-testing).
 | field | type | description |
 | --- | --- | --- |
 | `orientation` | `"horizontal" \| "vertical"` | the `orientation` prop |
+| `dropTarget` | `boolean` | the current drag would drop into this tab strip |
+| `dropIndex` | `number \| undefined` | while it is the drop target: the insertion index in the strip |
 
 ## Data attributes and ARIA
 
@@ -42,6 +44,8 @@ hit-testing).
 | --- | --- |
 | `data-layout-path` | `<tabset path>/tabstrip`, e.g. `/ts0/tabstrip` |
 | `data-orientation` | `"horizontal"` or `"vertical"` |
+| `data-drop-target` | the current drag would drop into this tab strip |
+| `data-drop-index` | while it is the drop target: the insertion index among the tabset's children |
 | `role` | `"tablist"` |
 | `aria-orientation` | the orientation |
 | `aria-keyshortcuts` | the `focusNextTabset`/`focusPreviousTabset` bindings, when set |

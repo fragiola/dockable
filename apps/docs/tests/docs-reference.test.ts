@@ -39,6 +39,7 @@ const MODULE_PAGES: Record<string, string> = {
     "./Splitter": "splitter",
     "./DragSource": "drag-source",
     "./DropIndicator": "drop-indicator",
+    "./DropZone": "drop-zone",
     "./Popout": "popout",
     "./hooks": "hooks",
     "./context": "hooks",
@@ -240,7 +241,7 @@ describe("the React reference", () => {
             const slug = MODULE_PAGES[module] ?? "";
             if (slug === "panels") continue; // renders no element
             // lives outside any layout: its page says it has no layout path
-            if (slug === "drag-source") continue;
+            if (slug === "drag-source" || slug === "drop-zone") continue;
             expect(page(slug), `api/${slug}.mdx`).toContain(
                 "`data-layout-path`",
             );

@@ -3,7 +3,6 @@
 // see LICENSE.
 import {
     getTabStripPath,
-    type LayoutEngine,
     type TabNode,
     toAriaKeyShortcuts,
 } from "@fragiola/dockable";
@@ -61,7 +60,7 @@ export function TabList(props: TabListProps) {
             .join(" ") || undefined;
 
     const drop = useTabSetDropState(engine, tabset.getId());
-    const dropIndex = useDropIndex(engine, drop.strip);
+    const dropIndex = drop.strip ? drop.index : undefined;
     const state: TabListState = {
         orientation,
         dropTarget: drop.strip,
@@ -95,18 +94,4 @@ export function TabList(props: TabListProps) {
             {element}
         </TabListContext.Provider>
     );
-}
-
-/** The strip insertion index of the current drag, while this strip is its target. */
-function useDropIndex(
-    engine: LayoutEngine,
-    isTarget: boolean,
-): number | undefined {
-    const manager = engine.getDragDropManager();
-    const index = React.useSyncExternalStore(
-        manager.subscribe,
-        () => (isTarget ? manager.getIndicatorState().index : -1),
-        () => -1,
-    );
-    return isTarget && index >= 0 ? index : undefined;
 }

@@ -13,6 +13,7 @@
         "splitter",
         "drag-source",
         "drop-indicator",
+        "drop-zone",
         "popout",
         "hooks",
         "---Core (@fragiola/dockable)---",

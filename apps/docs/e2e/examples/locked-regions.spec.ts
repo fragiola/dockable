@@ -86,3 +86,32 @@ test("a tab that belongs to the region can still be dropped there", async ({
         "API reference",
     ]);
 });
+
+test("a refused target marks the root and the tabset, and shows why", async ({
+    page,
+}) => {
+    await openExample(page, "locked-regions");
+    await startDrag(page, path(page, "/ts1/tb0")); // "Draft" is not a reference tab
+    await moveDragTo(page, await centre(path(page, "/ts1/content")));
+    await expect(path(page, "/layout")).not.toHaveAttribute(
+        "data-drop-refused",
+    );
+
+    await moveDragTo(page, await centre(path(page, "/ts0/content")));
+    await expect(path(page, "/layout")).toHaveAttribute(
+        "data-drop-refused",
+        "",
+    );
+    await expect(path(page, "/ts0")).toHaveAttribute("data-drop-refused", "");
+    await expect(
+        page.getByTestId("stage").getByText("Not allowed here"),
+    ).toBeVisible();
+
+    await page.mouse.up();
+    await expect(path(page, "/layout")).not.toHaveAttribute(
+        "data-drop-refused",
+    );
+    await expect(
+        page.getByTestId("stage").getByText("Not allowed here"),
+    ).toBeHidden();
+});

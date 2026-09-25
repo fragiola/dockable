@@ -19,7 +19,7 @@ use and the Epic that will remove it, when one is scheduled.
 | 5 | In **RTL, splitter drags and keyboard resizing are wrong** (a drag jumps the first tabset to full width, arrows do nothing), and edge and side drops are physical (`left` docks before, whichever side that renders on). | None. RTL renders correctly, but do not ship an RTL layout that users resize or rearrange. | not scheduled yet |
 | 6 | Styling **every splitter** the same way needs `renderSplitter` on every `Row` (root, nested, and inside `Popout`). | Pass `renderSplitter` to every `Row` (the examples' kit builds the recursion once), or style `[role="separator"]` from a stylesheet. | not scheduled yet |
 | 7 | A **pop out button** for a tabset's selected tab has no primitive: `data-popout-enabled` is on `Tab` only. | The button reads `tabset.getSelectedNode()?.isEnablePopout()` and `mainEngine.isSupportsPopout()`. See [Popouts](/docs/guides/popouts). | Epic [#20](https://github.com/fragiola/dockable/issues/20) (`PopoutTrigger`) |
-| 8 | No **drop-target state** on the tabset under the pointer (only the drop indicator knows where a drop would land). | The drop indicator alone shows the target. | Epic [#19](https://github.com/fragiola/dockable/issues/19) (`data-drop-target`) |
+| 8 | ~~No drop-target state on the tabset under the pointer.~~ **Solved**: `data-drop-target` and `data-drop-location` on `TabSet`, `data-drop-target` and `data-drop-index` on `TabList`. See [Drop zones and drop feedback](/docs/guides/drop-zones). | None needed. | Epic [#19](https://github.com/fragiola/dockable/issues/19) (done) |
 | 9 | No way to make a splitter's **hit area** wider than its visible thickness. | A 1px splitter with a centred `::after` grab area, `relative z-10`; the engine measures the 1px element, so the split maths is exact. See [Splitters](/docs/guides/splitters). | not scheduled yet |
 | 10 | A drop **before the first tab** is refused when that tab is flush with the tabset's edge (the edge belongs to the tabset's side drop). | Pad the start of the tab list (`padding-inline-start`, `ps-1` or more). | not scheduled yet |
 | 11 | A thin tab strip at the top of the layout falls inside the **10px top-edge docking band**, so a drop aimed at the strip docks to the layout edge. | Give tab lists a minimum height of about 30px. | Epic [#21](https://github.com/fragiola/dockable/issues/21) (`edgeDockMargin` / `EdgeIndicator`) |
@@ -32,7 +32,6 @@ use and the Epic that will remove it, when one is scheduled.
 | **Borders** (collapsible side panels, overlay borders, edge indicators) | the model reads, saves and applies border actions, but no primitive renders them | Epic [#21](https://github.com/fragiola/dockable/issues/21) |
 | **Floats** (in-page floating windows) | not rendered. The model keeps `"float"` layouts, so avoid `popoutTab(id, "float")` and the `"float"` popout close policy: a floated layout is invisible | not scheduled yet |
 | **Drag between windows and layouts**: main window ↔ popout, popout ↔ popout, and between two separate `Dockable.Root`s | not supported; a tab moves between windows only through actions (pop out, dock back) | Epic [#20](https://github.com/fragiola/dockable/issues/20) |
-| **Drop control**: custom drop zones, feedback for refused drops, `onAllowDrop` as a `Root` prop | drop rules work today through attributes and `model.setOnAllowDrop` ([Restricting drops](/docs/guides/restricting-drops)); the visuals and zones do not exist | Epic [#19](https://github.com/fragiola/dockable/issues/19) |
 | **Popping out a whole tabset** | `Actions.popoutTabset` exists in the model; the window path is part of full popout support | Epic [#20](https://github.com/fragiola/dockable/issues/20) |
 | **Tab groups** (pills grouping tabs in a strip) | model only; no primitive renders groups | not scheduled yet |
 | **Tab overflow primitive** (measuring which tabs are hidden) | build it yourself ([Tab overflow](/docs/guides/tab-overflow)) | not scheduled yet |
@@ -75,10 +74,6 @@ scheduled yet. Until then, treat RTL layouts as display-only.
 The examples hit a few more rough edges. Each is worked around (and commented) in the example
 named, and all of them are listed in `docs/docs-examples-gaps.md` in the repository.
 
-- **Refused drops keep the last indicator.** When the pointer moves onto a target that
-  `setOnAllowDrop` refuses, the drop indicator stays on the last accepted target (the drop itself
-  does not happen). See [`locked-regions`](/examples/locked-regions/). The Drop control Epic
-  (#19) fixes it.
 - **UI outside the root and the engine.** `useDockable()` only works inside `Dockable.Root`.
   Outside it, `LayoutEngine.of(model)` returns the mounted engine; it changes when the model does,
   so read it when you act rather than keeping it. See [`widget-sidebar`](/examples/widget-sidebar/).

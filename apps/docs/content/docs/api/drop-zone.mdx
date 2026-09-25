@@ -1,0 +1,64 @@
+---
+title: Dockable.DropZone
+description: A place, inside or outside the layout, where a drag of the layout can be dropped for you to handle.
+---
+
+"A place, inside or outside the layout, where a drag of the layout can be dropped for you to
+handle: a trash can that closes the tab, an "open to the right" pad, a region of the page. While a
+drag it takes is over it, the layout shows no outline, and a drop calls `onDrop` with the dragged
+node instead of moving it."
+
+```tsx
+<Dockable.DropZone
+    model={model}
+    accepts={(node) => node instanceof TabNode && node.isEnableClose()}
+    onDrop={(node) => LayoutEngine.of(model)?.doAction(Actions.deleteTab(node.getId()))}
+    className="opacity-50 data-drop-active:opacity-100 data-drop-over:bg-red-600"
+>
+    Trash
+</Dockable.DropZone>
+```
+
+Nothing moves by itself: `onDrop` receives the node, and the zone dispatches the action it stands
+for. Dispatch through the engine (`LayoutEngine.of(model)`, or `useDockable().engine` inside the
+root) so `onAction` sees it.
+
+## Props
+
+`DropZoneProps` extends the [common primitive props](/docs/api/root#common-props) (its `onDrop`
+replaces the element's native drop handler).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `model` | `Model` | required | the model whose drags the zone takes |
+| `accepts` | `(dragNode: Node) => boolean` | every drag of the model | whether the zone takes this drag |
+| `onDrop` | `(dragNode: Node, event: DragEvent) => void` | required | called when the drag is dropped on the zone, with the dragged node. Nothing is moved: dispatch the action you want (e.g. `Actions.deleteTab`) |
+| `children` | `ReactNode` | none | the zone's content; the primitive renders no text of its own |
+
+## State
+
+`DropZoneState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `over` | `boolean` | a drag the zone takes is over it |
+| `active` | `boolean` | a drag the zone would take is in progress |
+
+## Data attributes
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | none: a drop zone is not part of a layout, so it has no layout path (select it by your own `data-testid` or role) |
+| `data-drop-active` | a drag the zone would take is in progress (show the zone, arm it) |
+| `data-drop-over` | that drag is over the zone |
+
+## Notes
+
+- A zone can sit anywhere in the page's document: beside the layout, above it, or inside
+  `Dockable.Root` as an overlay. It does not work across windows (a zone in the main document does
+  not take a drag inside a popout).
+- For a new-tab drag (a [`Dockable.DragSource`](/docs/api/drag-source) or a file dragged from the
+  OS), the node is a temporary tab that is not in the model yet.
+- `useDropZone({ model, accepts, onDrop })` is the lower layer ([hooks](/docs/api/hooks#usedropzone)),
+  and the core's `engine.registerDropZone(element, { accepts, onDrop, onOverChange })` the one
+  under it, for other frameworks.

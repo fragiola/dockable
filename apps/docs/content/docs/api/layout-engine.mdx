@@ -35,6 +35,7 @@ engine.doAction(Actions.selectTab("t1"));
 | `getPopoutManager()` | the popout windows of the model (owned by the main engine) |
 | `getDragDropManager()` | the drag-and-drop state machine of this layout (`addTabWithDragAndDrop(event, json, onDrop?, dragImage?)` starts a new-tab drag from any element) |
 | `getOnExternalDrag()` | the `onExternalDrag` handler (set on the main engine) |
+| `registerDropZone(element, options)` | makes `element` (anywhere in the document) a drop zone for this model's drags: `{ accepts?, onDrop, onOverChange? }`. While a drag the zone accepts is over it, the layouts hide their outline; a drop calls `onDrop` with the dragged node instead of moving it. Returns the unregister function |
 | `getCurrentDocument()`, `getCurrentWindow()`, `getWindowId()` | the document and window the layout renders in |
 | `getLayoutRef()` | the root element, once attached |
 
@@ -93,6 +94,7 @@ a resize or splitter drag does not require a re-render."
 | `realtimeResize` | true (default) to resize live while a splitter is dragged; false to preview and commit on release |
 | `tabDragSpeed` | seconds a view may take to animate the drop outline (default 0.3) |
 | `onExternalDrag` | `OnExternalDrag`: accepts foreign drags (files, links, other libraries) as new tabs (main engine only; popout layouts use the main engine's) |
+| `onAllowDrop` | `OnAllowDrop`: whether a drag may drop at a target, like `model.setOnAllowDrop`, which it sets while given (main engine only); removing it restores the model's previous rule |
 | `popout` | popout windows (main engine only): `popoutURL`, `supportsPopout`, `closePolicy`, `title`, `onPopoutOpen`, `onPopoutClose` |
 
 ## Helpers exported with it

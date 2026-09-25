@@ -60,7 +60,12 @@ is `"center"`, `"top"`, …), the tab `index`, the outline `rect` and the `kind`
 
 Set it once, right after creating the model. It belongs to the model instance: a new model
 (after [undo/redo](/docs/guides/undo-redo) or [restoring](/docs/guides/persistence)) needs it set
-again.
+again. Or pass the same function as `onAllowDrop` to `Dockable.Root`: the root sets it on whatever
+model it renders, and restores the model's own rule when the prop goes away.
+
+```tsx
+<Dockable.Root model={model} onAllowDrop={allowDrop}>
+```
 
 ```tsx
 const [model] = useState(() => {
@@ -85,14 +90,9 @@ const onAction = (action: Action) => {
 };
 ```
 
-## What is not there yet
+## Feedback for a refused target
 
-- **Visual feedback for a refused target.** A refused target simply shows no indicator; there is
-  no "refused" state to style, and no `onAllowDrop` prop on `Root` (you call
-  `model.setOnAllowDrop`).
-- **Drop-target state on the tabset** (`data-drop-target`), to highlight the tabset under the
-  pointer.
-- **Custom drop zones** outside the layout (a trash can that closes the dropped tab).
-
-All three are Epic [#19](https://github.com/fragiola/dockable/issues/19). See
-[Limitations](/docs/limitations).
+Over a target that a rule refuses, the outline hides, the browser shows its "not allowed" cursor,
+and `Dockable.Root`, `DropIndicator` and the refusing `TabSet` get `data-drop-refused`. Style them
+to say why: see [Drop zones and drop feedback](/docs/guides/drop-zones#refused-drops) and the
+`locked-regions` example above.
