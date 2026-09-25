@@ -239,9 +239,12 @@ function App() {
                 </Dockable.Row>
                 <Dockable.Panels>
                     {(tab) => (
+                        // the panel sits over the tabset's content area but outside the tabset, so
+                        // the tabset's rounded corners do not clip it: round its bottom corners to
+                        // the tabset's inner radius (rounded-md minus the 1px border)
                         <Dockable.Panel
                             node={tab}
-                            className="palette-surface bg-palette-base text-palette-contrast"
+                            className="palette-surface overflow-hidden rounded-b-[calc(var(--radius-md)-1px)] bg-palette-base text-palette-contrast"
                         >
                             <Card tab={tab} />
                         </Dockable.Panel>
