@@ -303,6 +303,19 @@ export abstract class Node {
         dragNode: Node & IDraggable,
         dropInfo: DropInfo | undefined,
     ): boolean {
+        const allowed = this.isDockAllowed(dragNode, dropInfo);
+        if (!allowed && dropInfo != null) {
+            // remembered so the view can show that a target exists here but refuses the drop
+            this.model.recordRefusedDrop(dropInfo.node);
+        }
+        return allowed;
+    }
+
+    /** @internal */
+    private isDockAllowed(
+        dragNode: Node & IDraggable,
+        dropInfo: DropInfo | undefined,
+    ): boolean {
         if (dropInfo != null) {
             if (
                 dropInfo.location === DockLocation.CENTER &&

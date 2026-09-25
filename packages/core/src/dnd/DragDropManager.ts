@@ -12,6 +12,11 @@
 //   `onAction`; the drop callback receives the new tab, or `undefined` when the action was vetoed.
 //   An external drag also ends when it leaves every layout (its source is outside the page, so no
 //   `dragend` reaches the document);
+// - the indicator state also names the targeted tabset (`targetTabSetId`, `index` for strip drops)
+//   and reports a target that a drop rule refused (`refused`, `refusedTabSetId`), hiding the
+//   outline instead of leaving the last accepted one on screen;
+// - drop zones: consumer elements registered with `registerDropZone` take a layout drag and hand
+//   the dragged node to the consumer (FlexLayout has no equivalent);
 // - the overlay border reveal during a drag is not ported (borders slice).
 import type { LayoutEngine } from "../engine/LayoutEngine";
 import { Actions } from "../model/Actions";
@@ -20,11 +25,13 @@ import { DockLocation } from "../model/DockLocation";
 import type { DropInfo, DropKind } from "../model/DropInfo";
 import type { IDraggable } from "../model/IDraggable";
 import type { IJsonTabNode } from "../model/IJsonModel";
+import type { Model } from "../model/Model";
 import type { ModelLayout } from "../model/ModelLayout";
 import type { Node } from "../model/Node";
 import { Orientation } from "../model/Orientation";
 import { Rect } from "../model/Rect";
 import { RowNode } from "../model/RowNode";
+import { TabGroupNode } from "../model/TabGroupNode";
 import { TabNode } from "../model/TabNode";
 import { TabSetNode } from "../model/TabSetNode";
 import { enablePointerOnIFrames } from "../splitter/SplitterController";
@@ -53,6 +60,38 @@ export interface IDropIndicatorState {
     readonly showEdges: boolean;
     /** seconds a view may take to animate the outline between targets (the core never animates) */
     readonly tabDragSpeed: number;
+    /** the id of the drop target node (a tabset, a row for edge drops, a border, a tab group) */
+    readonly targetNodeId: string | undefined;
+    /** the id of the tabset the drop goes into or beside (also for strip and group drops) */
+    readonly targetTabSetId: string | undefined;
+    /** the insertion index in the target's tab strip, or -1 for a drop on the content area */
+    readonly index: number;
+    /** the pointer is over a target that a drop rule refused (`onAllowDrop`, `enableDrop`, …) */
+    readonly refused: boolean;
+    /** the id of the tabset that refused the drop, when it was a tabset */
+    readonly refusedTabSetId: string | undefined;
+}
+
+/** Options of a drop zone: a consumer element that takes a layout drag. */
+export interface IDropZoneOptions {
+    /** whether the zone takes this drag (default: every drag of the zone's model) */
+    accepts?: ((dragNode: Node & IDraggable) => boolean) | undefined;
+    /**
+     * called when the drag is dropped on the zone, with the dragged node. The layout does not move
+     * anything: dispatch the action you want (e.g. `Actions.deleteTab`). For a new-tab drag (an add
+     * or external drag) the node is a temporary tab that is not in the model.
+     */
+    onDrop: (dragNode: Node & IDraggable, event: DragEventLike) => void;
+    /** called when the pointer enters (`true`) or leaves (`false`) the zone during a drag it takes */
+    onOverChange?: ((over: boolean) => void) | undefined;
+}
+
+interface DropZone {
+    element: Element;
+    model: Model;
+    options: IDropZoneOptions;
+    enterCount: number;
+    over: boolean;
 }
 
 /**
@@ -147,6 +186,7 @@ const HIDDEN_RECT = Rect.empty();
 export class DragDropManager {
     private static dragState: DragState | undefined = undefined;
     private static readonly dragListeners = new Set<() => void>();
+    private static readonly dropZones = new Set<DropZone>();
 
     private readonly engine: LayoutEngine;
     private dragEnterCount = 0;
@@ -184,6 +224,12 @@ export class DragDropManager {
             return;
         }
         DragDropManager.dragState = state;
+        if (state === undefined) {
+            for (const zone of DragDropManager.dropZones) {
+                DragDropManager.setZoneOver(zone, false);
+                zone.enterCount = 0;
+            }
+        }
         for (const listener of [...DragDropManager.dragListeners]) {
             listener();
         }
@@ -214,6 +260,11 @@ export class DragDropManager {
             dragNodeId: undefined,
             showEdges: false,
             tabDragSpeed: this.engine.getTabDragSpeed(),
+            targetNodeId: undefined,
+            targetTabSetId: undefined,
+            index: -1,
+            refused: false,
+            refusedTabSetId: undefined,
         };
     }
 
@@ -227,7 +278,12 @@ export class DragDropManager {
             prev.dragging === next.dragging &&
             prev.dragNodeId === next.dragNodeId &&
             prev.showEdges === next.showEdges &&
-            prev.tabDragSpeed === next.tabDragSpeed
+            prev.tabDragSpeed === next.tabDragSpeed &&
+            prev.targetNodeId === next.targetNodeId &&
+            prev.targetTabSetId === next.targetTabSetId &&
+            prev.index === next.index &&
+            prev.refused === next.refused &&
+            prev.refusedTabSetId === next.refusedTabSetId
         ) {
             return;
         }
@@ -615,6 +671,11 @@ export class DragDropManager {
             dragNodeId: dragState.dragNode?.getId(),
             showEdges,
             tabDragSpeed: this.engine.getTabDragSpeed(),
+            targetNodeId: undefined,
+            targetTabSetId: undefined,
+            index: -1,
+            refused: false,
+            refusedTabSetId: undefined,
         });
     };
 
@@ -645,26 +706,43 @@ export class DragDropManager {
         const x = event.clientX - root.x;
         const y = event.clientY - root.y;
 
-        const dropInfo = this.engine
-            .getModel()
-            .findDropTargetNode(
-                this.engine.getLayoutId(),
-                dragState.dragNode,
-                x,
-                y,
-                this.isExcludeCenter(),
-            );
-        if (!dropInfo) {
-            return;
-        }
+        const model = this.engine.getModel();
+        model.beginDropProbe();
+        let dropInfo = model.findDropTargetNode(
+            this.engine.getLayoutId(),
+            dragState.dragNode,
+            x,
+            y,
+            this.isExcludeCenter(),
+        );
         // a floating panel's layout can split a tabset or dock to a layout edge (the root row),
         // never dock to the center or into a border
         if (
+            dropInfo &&
             dragState.dockFloatToMain &&
             (dropInfo.location === DockLocation.CENTER ||
                 (!(dropInfo.node instanceof TabSetNode) &&
                     !(dropInfo.node instanceof RowNode)))
         ) {
+            dropInfo = undefined;
+        }
+        if (!dropInfo) {
+            // no target here: hide the outline (rather than leave the last one on screen), and
+            // report a target that a drop rule refused
+            const refusedNode = model.getRefusedDrop();
+            if (refusedNode && event.dataTransfer) {
+                event.dataTransfer.dropEffect = "none";
+            }
+            this.dropInfo = undefined;
+            this.setIndicator({
+                ...this.indicator,
+                visible: false,
+                targetNodeId: undefined,
+                targetTabSetId: undefined,
+                index: -1,
+                refused: refusedNode !== undefined,
+                refusedTabSetId: tabSetOf(refusedNode)?.getId(),
+            });
             return;
         }
         event.preventDefault(); // can drop so prevent default (which is cannot drop)
@@ -679,6 +757,11 @@ export class DragDropManager {
             rect: dropInfo.rect.clone(),
             location: dropInfo.location.getName() as DropLocation,
             kind: dropInfo.kind,
+            targetNodeId: dropInfo.node.getId(),
+            targetTabSetId: tabSetOf(dropInfo.node)?.getId(),
+            index: dropInfo.index,
+            refused: false,
+            refusedTabSetId: undefined,
         });
     };
 
@@ -776,6 +859,120 @@ export class DragDropManager {
         this.dragEnterCount = 0;
     };
 
+    /** Hides this layout's outline without ending the drag (the pointer is over a drop zone). */
+    hideIndicator() {
+        this.dropInfo = undefined;
+        if (this.indicator.visible || this.indicator.refused) {
+            this.setIndicator({
+                ...this.indicator,
+                visible: false,
+                targetNodeId: undefined,
+                targetTabSetId: undefined,
+                index: -1,
+                refused: false,
+                refusedTabSetId: undefined,
+            });
+        }
+    }
+
+    // *********************************************************************************
+    // Drop zones
+    // *********************************************************************************
+
+    /**
+     * Makes `element` (anywhere in the document, inside or outside a layout root) a drop zone for
+     * drags of `model`'s layouts. While a drag the zone accepts is over it, the layouts show no
+     * outline, and a drop calls `onDrop` with the dragged node instead of moving anything.
+     * Returns the function that unregisters the zone.
+     */
+    static registerDropZone(
+        model: Model,
+        element: Element,
+        options: IDropZoneOptions,
+    ): () => void {
+        const zone: DropZone = {
+            element,
+            model,
+            options,
+            enterCount: 0,
+            over: false,
+        };
+        DragDropManager.dropZones.add(zone);
+        const accepts = () => {
+            const state = DragDropManager.dragState;
+            return (
+                state?.dragNode !== undefined &&
+                state.mainEngine.getModel() === model &&
+                (zone.options.accepts?.(state.dragNode) ?? true)
+            );
+        };
+        const onEnter = (event: Event) => {
+            if (!accepts()) return;
+            // the zone takes the drag: the layouts under or around it must not
+            event.stopPropagation();
+            event.preventDefault();
+            zone.enterCount++;
+            DragDropManager.setZoneOver(zone, true);
+            DragDropManager.hideIndicators(model);
+        };
+        const onOver = (event: Event) => {
+            if (!accepts()) return;
+            event.stopPropagation();
+            event.preventDefault();
+            const dataTransfer = (event as DragEvent).dataTransfer;
+            if (dataTransfer) {
+                dataTransfer.dropEffect = DragDropManager.dragState?.isNewTab()
+                    ? "copy"
+                    : "move";
+            }
+            DragDropManager.setZoneOver(zone, true);
+            DragDropManager.hideIndicators(model);
+        };
+        const onLeave = (event: Event) => {
+            if (!zone.over) return;
+            event.stopPropagation();
+            zone.enterCount = Math.max(0, zone.enterCount - 1);
+            if (zone.enterCount === 0) {
+                DragDropManager.setZoneOver(zone, false);
+            }
+        };
+        const onDrop = (event: Event) => {
+            const state = DragDropManager.dragState;
+            if (!accepts() || !state?.dragNode) return;
+            event.stopPropagation();
+            event.preventDefault();
+            DragDropManager.setZoneOver(zone, false);
+            zone.options.onDrop(state.dragNode, event as DragEvent);
+            // the drag is over: the source's dragend (if any) finds nothing left to end
+            state.mainEngine.getDragDropManager().clearDragMain();
+            DragDropManager.setDragState(undefined);
+        };
+        element.addEventListener("dragenter", onEnter);
+        element.addEventListener("dragover", onOver);
+        element.addEventListener("dragleave", onLeave);
+        element.addEventListener("drop", onDrop);
+        return () => {
+            element.removeEventListener("dragenter", onEnter);
+            element.removeEventListener("dragover", onOver);
+            element.removeEventListener("dragleave", onLeave);
+            element.removeEventListener("drop", onDrop);
+            DragDropManager.dropZones.delete(zone);
+        };
+    }
+
+    private static setZoneOver(zone: DropZone, over: boolean) {
+        if (zone.over !== over) {
+            zone.over = over;
+            zone.options.onOverChange?.(over);
+        }
+    }
+
+    private static hideIndicators(model: Model) {
+        for (const [, layout] of model.getLayouts()) {
+            managerOf(layout)?.hideIndicator();
+        }
+    }
+
     getDragEnterCount() {
         return this.dragEnterCount;
     }
@@ -789,6 +986,18 @@ export class DragDropManager {
         this.removeLostDragGuard?.();
         this.listeners.clear();
     }
+}
+
+/** The tabset a drop target belongs to: itself, or the tabset holding a tab group. */
+function tabSetOf(node: Node | undefined): TabSetNode | undefined {
+    if (node instanceof TabSetNode) {
+        return node;
+    }
+    if (node instanceof TabGroupNode) {
+        const parent = node.getParent();
+        return parent instanceof TabSetNode ? parent : undefined;
+    }
+    return undefined;
 }
 
 function managerOf(layout: ModelLayout): DragDropManager | undefined {

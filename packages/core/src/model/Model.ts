@@ -113,7 +113,11 @@ export class Model {
     /** @internal */
     private splitterSize?: number;
     /** @internal */
-    private onAllowDrop?: (dragNode: Node, dropInfo: DropInfo) => boolean;
+    private onAllowDrop?:
+        | ((dragNode: Node, dropInfo: DropInfo) => boolean)
+        | undefined;
+    /** the first drop target a drop rule refused during the current hit test */
+    private refusedDrop: Node | undefined;
     /** @internal */
     private onCreateTabSet?: (tabNode?: TabNode) => ITabSetAttributes;
     /** @internal */
@@ -1056,10 +1060,12 @@ export class Model {
 
     /**
      * Sets a function to allow/deny dropping a node
-     * @param onAllowDrop function that takes the drag node and DropInfo and returns true if the drop is allowed
+     * @param onAllowDrop function that takes the drag node and DropInfo and returns true if the drop is allowed (`undefined` removes it)
      */
     setOnAllowDrop(
-        onAllowDrop: (dragNode: Node, dropInfo: DropInfo) => boolean,
+        onAllowDrop:
+            | ((dragNode: Node, dropInfo: DropInfo) => boolean)
+            | undefined,
     ) {
         this.onAllowDrop = onAllowDrop;
     }
@@ -1248,6 +1254,21 @@ export class Model {
     /** @internal */
     getOnAllowDrop() {
         return this.onAllowDrop;
+    }
+
+    /** @internal starts a drop hit test: forgets the target refused by the previous one */
+    beginDropProbe() {
+        this.refusedDrop = undefined;
+    }
+
+    /** @internal a drop rule (`onAllowDrop`, `enableDrop`, `enableDivide`, pinned tabs) refused `node` */
+    recordRefusedDrop(node: Node) {
+        this.refusedDrop ??= node;
+    }
+
+    /** @internal the first target refused since {@link beginDropProbe} */
+    getRefusedDrop(): Node | undefined {
+        return this.refusedDrop;
     }
 
     /** @internal */
