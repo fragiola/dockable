@@ -13,6 +13,7 @@ export {
 } from "./hooks";
 export type { PanelProps, PanelState } from "./Panel";
 export type { PanelsProps } from "./Panels";
+export type { PopoutProps, PopoutState } from "./Popout";
 export * as Dockable from "./parts";
 export type { RootProps, RootState } from "./Root";
 export type { RowProps, RowSplitterProps, RowState } from "./Row";

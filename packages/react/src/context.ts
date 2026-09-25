@@ -3,6 +3,8 @@ import type {
     IKeyMap,
     LayoutEngine,
     Model,
+    ModelLayout,
+    PopoutCallback,
 } from "@fragiola/dockable";
 import * as React from "react";
 
@@ -31,6 +33,15 @@ export interface DockableContextValue {
     layers: ReadonlyMap<string, PanelLayer>;
     /** adds (or, with `null`, removes) the panel layer of a layout */
     setLayer: (layoutId: string, layer: PanelLayer | null) => void;
+    /** the window callbacks `Dockable.Popout` registers with the root */
+    popoutHooks: { current: PopoutHooks };
+}
+
+/** Window callbacks a `Dockable.Popout` contributes. */
+export interface PopoutHooks {
+    title?: ((layout: ModelLayout) => string | undefined) | undefined;
+    onOpen?: PopoutCallback | undefined;
+    onClose?: PopoutCallback | undefined;
 }
 
 export const DockableContext = React.createContext<DockableContextValue | null>(

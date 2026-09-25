@@ -5,6 +5,8 @@ import {
     matchesKey,
     type OnAction,
     type OnModelChange,
+    type PopoutCallback,
+    type PopoutClosePolicy,
     resolveKeyMap,
 } from "@fragiola/dockable";
 import * as React from "react";
@@ -14,6 +16,7 @@ import {
     type GetLabel,
     LayoutContext,
     type PanelLayer,
+    type PopoutHooks,
 } from "./context";
 import { useDragState } from "./hooks";
 import {
@@ -47,6 +50,16 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
     realtimeResize?: boolean | undefined;
     /** seconds a view may take to animate the drop indicator (exposed as data; default 0.3) */
     tabDragSpeed?: number | undefined;
+    /** the popout host page (default `"popout.html"`); the window layout's id is passed as `?id=` */
+    popoutURL?: string | undefined;
+    /** whether window layouts open as popouts; default: a desktop pointer is present */
+    supportsPopout?: boolean | undefined;
+    /** what closing a popout window does; default `"dock"` (its tabs move back to the main layout) */
+    popoutClosePolicy?: PopoutClosePolicy | undefined;
+    /** a popout document is ready, before its content renders */
+    onPopoutOpen?: PopoutCallback | undefined;
+    /** a popout window is closing */
+    onPopoutClose?: PopoutCallback | undefined;
     children?: React.ReactNode;
 }
 
@@ -64,15 +77,35 @@ export function Root(props: RootProps) {
         keyMap,
         realtimeResize,
         tabDragSpeed,
+        popoutURL,
+        supportsPopout,
+        popoutClosePolicy,
+        onPopoutOpen,
+        onPopoutClose,
         children,
         ...rest
     } = props;
+    const popoutHooks = React.useRef<PopoutHooks>({});
     const engine = React.useMemo(() => createLayoutEngine({ model }), [model]);
     engine.setOptions({
         onAction,
         onModelChange,
         realtimeResize,
         tabDragSpeed,
+        popout: {
+            popoutURL,
+            supportsPopout,
+            closePolicy: popoutClosePolicy,
+            title: (layout) => popoutHooks.current.title?.(layout),
+            onPopoutOpen: (layout, win, doc) => {
+                onPopoutOpen?.(layout, win, doc);
+                popoutHooks.current.onOpen?.(layout, win, doc);
+            },
+            onPopoutClose: (layout, win, doc) => {
+                onPopoutClose?.(layout, win, doc);
+                popoutHooks.current.onClose?.(layout, win, doc);
+            },
+        },
     });
     const dragState = useDragState();
     const revision = React.useSyncExternalStore(
@@ -180,6 +213,7 @@ export function Root(props: RootProps) {
             keyMap: resolvedKeyMap,
             layers,
             setLayer,
+            popoutHooks,
         }),
         [engine, model, revision, getLabel, resolvedKeyMap, layers, setLayer],
     );

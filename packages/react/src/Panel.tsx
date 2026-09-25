@@ -174,7 +174,12 @@ export function Panel(props: PanelProps) {
     );
 
     const moveable = mainEngine.getMoveableElement(node);
-    const windowId = node.getLayout().getWindowId() ?? "";
+    // with enableWindowReMount the content is keyed by its window, so it remounts when it changes
+    // window; while a new window is still opening (no id yet) the last window's key is kept, so
+    // the move remounts once
+    const lastWindowId = React.useRef("");
+    const windowId = node.getLayout().getWindowId() ?? lastWindowId.current;
+    lastWindowId.current = windowId;
     const contentKey =
         node.getId() + (node.isEnableWindowReMount() ? windowId : "");
 

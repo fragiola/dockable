@@ -151,3 +151,20 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
 - **No text in drag images.** The drag image is an element the adapter provides (the dragged
   `Dockable.Tab` by default); with none, the browser default is used.
 - `data-dragging` marks the dragged `Tab` and the `Root` while a drag of the layout is active.
+
+## Popout contract
+
+- **The core owns the windows** (`PopoutManager`, owned by the main engine): `window.open`
+  (idempotent per layout; a release is deferred so a StrictMode remount keeps one window), the
+  load sequence (rect convergence, `lang`/`dir`, the `data-dockable-popout` content root,
+  `onPopoutOpen`), style mirroring (`<link>`, `<style>` including in-place edits, CSSOM rules
+  polled, `adoptedStyleSheets`), the close paths, and a sub-engine per window layout.
+- **React only portals** into the content root once it is ready (`Dockable.Popout`), and the
+  moveable elements are re-parented across documents with `appendChild` (never cloned), so the
+  content keeps its state.
+- **Close policy (deviation from FlexLayout).** FlexLayout's `Actions.closePopout` turns a closed
+  popout into a float. Floats are a later slice, so the default policy here is `"dock"`: closing
+  the window moves its tabs into the main layout's active tabset (else its first). The
+  `"float"` policy (FlexLayout parity) exists and is tested; the float slice flips the default.
+- Nothing names or titles the window unless the consumer passes a title.
+- The host page (`popoutURL`, default `popout.html`) receives the layout id as `?id=`.

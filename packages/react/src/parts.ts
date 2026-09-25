@@ -1,6 +1,7 @@
 export { DropIndicator } from "./DropIndicator";
 export { Panel } from "./Panel";
 export { Panels } from "./Panels";
+export { Popout } from "./Popout";
 export { Root } from "./Root";
 export { Row } from "./Row";
 export { Splitter } from "./Splitter";
