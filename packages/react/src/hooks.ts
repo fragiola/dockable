@@ -7,10 +7,12 @@ import {
     DragDropManager,
     type DragState,
     type IDraggable,
+    type IJsonTabNode,
     type ISplitterAria,
     type ISplitterState,
-    type LayoutEngine,
+    LayoutEngine,
     type Model,
+    type NewTabDropped,
     type Node,
     type RowNode,
     type SplitterController,
@@ -202,5 +204,83 @@ export function useDragNode(
         dragging:
             dragState?.dragNode !== undefined &&
             dragState.dragNode.getId() === node.getId(),
+    };
+}
+
+export interface UseDragSourceOptions {
+    /** the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) */
+    model: Model;
+    /**
+     * the tab a drop creates. A function is called at each drag start, so every drop can get a
+     * fresh name or config.
+     */
+    json: IJsonTabNode | (() => IJsonTabNode);
+    /** called after the drop with the created tab, or `undefined` when `onAction` vetoed it */
+    onDrop?: NewTabDropped | undefined;
+    /** no drag starts while true */
+    disabled?: boolean | undefined;
+}
+
+export interface UseDragSourceResult {
+    /** whether the element is draggable */
+    draggable: boolean;
+    onDragStart: (event: React.DragEvent<HTMLElement>) => void;
+    onDragEnd: (event: React.DragEvent<HTMLElement>) => void;
+    /** callback ref for the element used as the drag image (the dragged element by default) */
+    ref: React.RefCallback<HTMLElement>;
+    /** a drag started by this source is in progress */
+    dragging: boolean;
+}
+
+/**
+ * The lower layer of `Dockable.DragSource`: turns any element, inside or outside the layout (a
+ * sidebar item, a palette entry), into a source of new tabs. Dropping it on the layout dispatches
+ * `Actions.addTab(json, …)` through the engine, so `onAction` and `onAllowDrop` apply. Spread
+ * `draggable`, `onDragStart` and `onDragEnd` on the element.
+ */
+export function useDragSource(
+    options: UseDragSourceOptions,
+): UseDragSourceResult {
+    const { model, json, onDrop, disabled = false } = options;
+    const imageRef = React.useRef<HTMLElement | null>(null);
+    const started = React.useRef<DragState | undefined>(undefined);
+    const dragState = useDragState();
+
+    const onDragStart = (event: React.DragEvent<HTMLElement>) => {
+        const engine = LayoutEngine.of(model);
+        if (disabled || !engine) {
+            // no layout to drop into (not mounted yet): no native drag either
+            event.preventDefault();
+            return;
+        }
+        event.stopPropagation(); // an enclosing draggable must not start its own drag
+        const manager = engine.getDragDropManager();
+        manager.addTabWithDragAndDrop(
+            event.nativeEvent,
+            typeof json === "function" ? json() : json,
+            onDrop,
+            imageRef.current ?? event.currentTarget,
+        );
+        started.current = DragDropManager.getDragState();
+    };
+    const onDragEnd = () => {
+        if (
+            started.current !== undefined &&
+            DragDropManager.getDragState() === started.current
+        ) {
+            LayoutEngine.of(model)?.getDragDropManager().onDragEnded();
+        }
+        started.current = undefined;
+    };
+    const ref = React.useCallback((element: HTMLElement | null) => {
+        imageRef.current = element;
+    }, []);
+
+    return {
+        draggable: !disabled,
+        onDragStart,
+        onDragEnd,
+        ref,
+        dragging: dragState !== undefined && dragState === started.current,
     };
 }

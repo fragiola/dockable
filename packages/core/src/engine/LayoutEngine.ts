@@ -134,6 +134,16 @@ export class LayoutEngine {
     };
     private readonly teardown: (() => void)[] = [];
 
+    /**
+     * The engine driving `model`'s main layout, once a view has created it (e.g. a mounted
+     * `Dockable.Root`). UI outside the layout (a sidebar of drag sources, a toolbar) uses it to
+     * dispatch through `onAction` or to start a drag.
+     */
+    static of(model: Model): LayoutEngine | undefined {
+        const controller = model.getMainLayout().getController();
+        return controller instanceof LayoutEngine ? controller : undefined;
+    }
+
     constructor(options: ILayoutEngineOptions) {
         this.model = options.model;
         this.layoutId = options.layoutId ?? Model.MAIN_LAYOUT_ID;
