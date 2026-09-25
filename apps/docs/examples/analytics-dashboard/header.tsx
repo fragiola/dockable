@@ -13,8 +13,8 @@ import { useRef } from "react";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
-import { usePopupTheme } from "../_kit/example-theme";
 import * as styles from "../_kit/styles";
+import { usePopupTheme } from "../_kit/theme";
 import { type Filters, REGIONS, WIDGETS } from "./data";
 
 // The header OUTSIDE the layout: shared filters (read by every widget through context), the

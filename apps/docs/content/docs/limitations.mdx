@@ -71,6 +71,25 @@ scheduled yet. Until then, treat RTL layouts as display-only.
 - **The label map** (`Partial<Record<DockableLabel, string>>`) is kept complete by hand as new
   parts add keys.
 
+## Found while writing the examples
+
+The examples hit a few more rough edges. Each is worked around (and commented) in the example
+named, and all of them are listed in `docs/docs-examples-gaps.md` in the repository.
+
+- **Refused drops keep the last indicator.** When the pointer moves onto a target that
+  `setOnAllowDrop` refuses, the drop indicator stays on the last accepted target (the drop itself
+  does not happen). See [`locked-regions`](/examples/locked-regions/). The Drop control Epic
+  (#19) fixes it.
+- **UI outside the root has no engine.** `useDockable()` only works inside `Dockable.Root`, so a
+  toolbar outside it gets the engine from a small child component. See
+  [`add-tabs`](/examples/add-tabs/).
+- **An input inside a tab** gets the tab's keyboard handling and dragging: stop key propagation
+  and set `draggable={false}` while editing. See [`rename-tabs`](/examples/rename-tabs/).
+- **No overflow state on `TabList`**: measure it yourself. See
+  [`overflow-select`](/examples/overflow-select/).
+- **`render` functions and refs**: `RenderedProps.ref` is typed for any `HTMLElement`, so
+  spreading the props onto a `<div>` needs a cast.
+
 ## Found something else?
 
 [Open an issue](https://github.com/fragiola/dockable/issues). A gap you work around in your app

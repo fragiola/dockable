@@ -12,9 +12,9 @@ import { useEffect, useRef, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/cn";
-import { usePopupTheme } from "../_kit/example-theme";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
+import { usePopupTheme } from "../_kit/theme";
 import {
     EventsPanel,
     OverviewPanel,

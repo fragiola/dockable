@@ -16,8 +16,8 @@ import { Card } from "../_kit/card";
 import { ChartPanel } from "../_kit/charts";
 import { CustomTabSet, tabsetShape } from "../_kit/custom-tabs";
 import { DockLayout, KitTab } from "../_kit/layout";
-import { useStageTheme } from "../_kit/stage-theme";
 import * as styles from "../_kit/styles";
+import { useStageTheme } from "../_kit/theme";
 
 // Fragiola palettes, scoped per tabset. A palette class sets six roles (base, soft, line,
 // contrast, accent, ring) as CSS variables, and every `bg-palette-*`/`text-palette-*` inside

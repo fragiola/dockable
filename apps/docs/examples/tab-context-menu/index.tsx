@@ -17,8 +17,8 @@ import { TabParts, withTabElement } from "../_kit/custom-tabs";
 import { label } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import { RenameField } from "../_kit/rename-field";
-import { useStageTheme } from "../_kit/stage-theme";
 import * as styles from "../_kit/styles";
+import { useStageTheme } from "../_kit/theme";
 
 // A Fragiola ContextMenu on every tab. The package provides the actions and the state to decide
 // what is available; the menu (and its text) is the consumer's. The tab IS the menu's trigger:

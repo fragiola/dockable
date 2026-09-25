@@ -16,10 +16,10 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/cn";
 import { Card } from "../_kit/card";
 import { EngineBridge } from "../_kit/engine-bridge";
-import { usePopupTheme } from "../_kit/example-theme";
 import { label } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
+import { usePopupTheme } from "../_kit/theme";
 import { appendToLog, initialLayout, type LogEntry } from "./actions";
 import { ActionLog, JsonEditor, type Veto, VetoControl } from "./panels";
 

@@ -15,7 +15,7 @@ import { Chart } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import { Table } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
-import { useExampleTheme } from "../_kit/charts";
+import { useExampleTheme } from "../_kit/theme";
 import {
     type Level,
     type OpsEvent,

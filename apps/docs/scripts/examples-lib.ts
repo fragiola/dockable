@@ -67,8 +67,10 @@ export async function readMeta(slug: string): Promise<ExampleMeta> {
     return validateMeta(slug, module.default);
 }
 
+// Statements start a line (so an import written inside a string, e.g. a demo file's
+// contents, is not taken for one); dynamic imports can appear anywhere.
 const SPECIFIER =
-    /(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
+    /^\s*(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/gm;
 
 /** The module specifiers a source file imports (static, re-exports and dynamic). */
 export function importsOf(source: string): string[] {

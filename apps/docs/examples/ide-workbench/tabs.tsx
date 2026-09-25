@@ -14,9 +14,9 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { ContextMenu } from "@/components/ui/context-menu";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
-import { usePopupTheme } from "../_kit/example-theme";
 import { label } from "../_kit/labels";
 import * as styles from "../_kit/styles";
+import { usePopupTheme } from "../_kit/theme";
 import { FileIcon } from "./explorer";
 import { editorConfig } from "./workspace";
 

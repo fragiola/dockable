@@ -1,48 +1,12 @@
 "use client";
 
 import type { EChartsOption } from "echarts";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef } from "react";
 import { Chart } from "@/components/ui/chart";
 import { cn } from "@/lib/cn";
+import { useExampleTheme } from "./theme";
 
 // Demo content: a Fragiola UI chart that fills its panel and follows the example theme.
-
-/**
- * The theme of the nearest `[data-example-theme]` ancestor, kept up to date. The Fragiola chart
- * re-reads its colours when the page's `data-theme` changes, not when a subtree's theme does, so
- * a chart is keyed on this to redraw with the new palette.
- */
-export function useExampleTheme(ref: React.RefObject<HTMLElement | null>) {
-    const [theme, setTheme] = useState<string | undefined>(undefined);
-    useEffect(() => {
-        let observer: MutationObserver | undefined;
-        let frame = 0;
-        // A panel's content is portalled into the tab's moveable element, which the engine
-        // attaches to the layout after the first commit: until then there is no themed
-        // ancestor to find. Retry each frame until there is.
-        const attach = () => {
-            const themed = ref.current?.closest<HTMLElement>(
-                "[data-example-theme]",
-            );
-            if (!themed) {
-                frame = requestAnimationFrame(attach);
-                return;
-            }
-            const read = () => setTheme(themed.dataset.exampleTheme);
-            read();
-            observer = new MutationObserver(read);
-            observer.observe(themed, {
-                attributeFilter: ["data-example-theme"],
-            });
-        };
-        attach();
-        return () => {
-            cancelAnimationFrame(frame);
-            observer?.disconnect();
-        };
-    }, [ref]);
-    return theme;
-}
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
 

@@ -9,12 +9,12 @@ import {
     Model,
     type TabNode,
 } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
 import { ChartLine, ScrollText, Table2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { ChartPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
+import { EngineBridge } from "../_kit/engine-bridge";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
@@ -48,22 +48,6 @@ const KINDS = [
     { component: "table", name: "Table", icon: Table2 },
     { component: "log", name: "Log", icon: ScrollText },
 ] as const;
-
-/**
- * Hands the layout's engine to the toolbar. The toolbar lives outside `Dockable.Root`, where
- * `useDockable()` cannot reach, so this component (rendered inside the Root, as a child of
- * `DockLayout`) passes the engine up. Dispatching through `engine.doAction` rather than
- * `model.doAction` keeps every change interceptable by `onAction`.
- */
-function EngineBridge({
-    onEngine,
-}: {
-    onEngine: (engine: LayoutEngine) => void;
-}) {
-    const { engine } = useDockable();
-    useEffect(() => onEngine(engine), [engine, onEngine]);
-    return null;
-}
 
 function Content({ tab }: { tab: TabNode }) {
     switch (tab.getComponent()) {

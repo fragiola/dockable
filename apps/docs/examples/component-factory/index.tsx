@@ -14,8 +14,8 @@ import { type ReactNode, useEffect, useState } from "react";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { PanelBody } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
-import { useStageTheme } from "../_kit/stage-theme";
 import * as styles from "../_kit/styles";
+import { useStageTheme } from "../_kit/theme";
 import { FACTORY, type Kind, TEMPLATES } from "./factory";
 
 // Tabs whose `component` field selects their content (see factory.tsx). Content renders on

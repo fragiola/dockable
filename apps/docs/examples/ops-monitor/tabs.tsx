@@ -12,8 +12,8 @@ import {
 import { useRef } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
-import { usePopupTheme } from "../_kit/example-theme";
 import * as styles from "../_kit/styles";
+import { usePopupTheme } from "../_kit/theme";
 import { LEVEL_PALETTE, type ServiceConfig } from "./panels";
 
 // The console's tabsets. A service tab reads the status its panel wrote into its config and

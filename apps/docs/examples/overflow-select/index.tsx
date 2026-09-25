@@ -12,8 +12,8 @@ import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
 import { Card } from "../_kit/card";
 import { DockLayout, KitTab } from "../_kit/layout";
-import { useStageTheme } from "../_kit/stage-theme";
 import * as styles from "../_kit/styles";
+import { useStageTheme } from "../_kit/theme";
 
 // When the tabs do not fit, the strip is replaced by a Fragiola Select listing them. The package
 // has no overflow UI: the consumer measures and decides.

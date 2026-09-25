@@ -19,8 +19,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
 import { PanelBody } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
-import { useStageTheme } from "../_kit/stage-theme";
 import * as styles from "../_kit/styles";
+import { useStageTheme } from "../_kit/theme";
 
 // Stop drops into part of the layout, in three layers:
 //
