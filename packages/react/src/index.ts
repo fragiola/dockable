@@ -1,19 +1,25 @@
 export type { GetLabel } from "./context";
 export type { DragSourceProps, DragSourceState } from "./DragSource";
 export type { DropIndicatorProps, DropIndicatorState } from "./DropIndicator";
+export type { DropZoneProps, DropZoneState } from "./DropZone";
 export {
+    type TabSetDropState,
     type TabSetState,
     type UseDockableResult,
     type UseDragNodeResult,
     type UseDragSourceOptions,
     type UseDragSourceResult,
+    type UseDropZoneOptions,
+    type UseDropZoneResult,
     type UseSplitterResult,
     type UseTabSetResult,
     useDockable,
     useDragNode,
     useDragSource,
+    useDropZone,
     useSplitter,
     useTabSet,
+    useTabSetDropState,
 } from "./hooks";
 export type { PanelProps, PanelState } from "./Panel";
 export type { PanelsProps } from "./Panels";

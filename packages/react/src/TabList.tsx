@@ -12,6 +12,7 @@ import {
     useDockableContext,
     useLayoutContext,
 } from "./context";
+import { useTabSetDropState } from "./hooks";
 import { useTabSetNode } from "./TabSet";
 import {
     type DivPrimitiveProps,
@@ -21,6 +22,10 @@ import {
 
 export interface TabListState {
     orientation: "horizontal" | "vertical";
+    /** the current drag would drop into this tab strip */
+    dropTarget: boolean;
+    /** while it is the drop target: the insertion index in the strip */
+    dropIndex: number | undefined;
 }
 
 export interface TabListProps extends DivPrimitiveProps<TabListState> {
@@ -54,7 +59,13 @@ export function TabList(props: TabListProps) {
             .filter(Boolean)
             .join(" ") || undefined;
 
-    const state: TabListState = { orientation };
+    const drop = useTabSetDropState(engine, tabset.getId());
+    const dropIndex = drop.strip ? drop.index : undefined;
+    const state: TabListState = {
+        orientation,
+        dropTarget: drop.strip,
+        dropIndex,
+    };
     const tabs = tabset
         .getTabNodes()
         .map((tab) => (
@@ -72,6 +83,8 @@ export function TabList(props: TabListProps) {
             ...dataAttributes({
                 "layout-path": getTabStripPath(tabset),
                 orientation,
+                "drop-target": state.dropTarget,
+                "drop-index": dropIndex,
             }),
             children: tabs,
         },

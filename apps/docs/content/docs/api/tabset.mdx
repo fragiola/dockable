@@ -37,6 +37,9 @@ first for a strip at the bottom.
 | `maximized` | `boolean` | the tabset is maximized |
 | `hidden` | `boolean` | another tabset of the layout is maximized, so this one is hidden |
 | `empty` | `boolean` | the tabset has no tabs |
+| `dropTarget` | `boolean` | the current drag would drop into or beside this tabset (its content, strip or a group) |
+| `dropLocation` | `"center" \| "top" \| "bottom" \| "left" \| "right" \| undefined` | while it is the drop target: where the drag would dock relative to it |
+| `dropRefused` | `boolean` | the current drag is over this tabset, but a drop rule refuses it |
 
 ## Data attributes
 
@@ -46,6 +49,9 @@ first for a strip at the bottom.
 | `data-active` | the model's active tabset |
 | `data-maximized` | maximized |
 | `data-empty` | no tabs |
+| `data-drop-target` | the current drag would drop into or beside this tabset |
+| `data-drop-location` | while it is the drop target: `"center"`, `"top"`, `"bottom"`, `"left"` or `"right"` |
+| `data-drop-refused` | the current drag is over this tabset, but a drop rule refuses it |
 
 ## Structural style
 

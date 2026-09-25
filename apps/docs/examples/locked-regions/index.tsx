@@ -13,10 +13,9 @@ import {
     type TabSetNode,
 } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
-import { Lock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Ban, Lock } from "lucide-react";
+import { useState } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
-import { cn } from "@/lib/cn";
 import { PanelBody } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
@@ -24,17 +23,16 @@ import { useStageTheme } from "../_kit/theme";
 
 // Stop drops into part of the layout, in three layers:
 //
-// 1. `model.setOnAllowDrop(fn)`: the core asks it for every drop target under the pointer. Here
-//    the "Reference" tabset takes only tabs whose `config.region` is "reference" (in its strip,
-//    its centre or its sides), and the layout's edge beside a locked tabset refuses docking. A
-//    refused target gets no drop indicator, and the browser shows its "not allowed" cursor.
+// 1. `onAllowDrop` on `Dockable.Root` (the same rule as `model.setOnAllowDrop`): the core asks it
+//    for every drop target under the pointer. Here the "Reference" tabset takes only tabs whose
+//    `config.region` is "reference" (in its strip, its centre or its sides), and the layout's edge
+//    beside a locked tabset refuses docking. Over a refused target the outline hides, the browser
+//    shows its "not allowed" cursor, and the target tabset and the root get `data-drop-refused`.
 // 2. Model attributes: the "Console" tabset has `enableDrop: false` (nothing merges into it) and
 //    `enableDivide: false` (nothing splits it), and its tabs `enableDrag: false`.
 // 3. `onAction` as a safety net: an action that still tries to move a tab into the reference
 //    region (from code, not from a drag) is vetoed by returning `undefined`.
 //
-// Custom drop zones and richer feedback for refused drops come with the Drop control Epic:
-// https://github.com/fragiola/dockable/issues/19
 
 const REFERENCE = "reference";
 const CONSOLE = "console";
@@ -131,47 +129,6 @@ function allowDrop(dragNode: Node, dropInfo: DropInfo): boolean {
     return true;
 }
 
-/**
- * The core keeps showing the last accepted target's indicator while the pointer is over a refused
- * one (it just stops accepting the drop). This listens after the engine (on the document, where
- * the event arrives after the root's own listener) and reports whether the last `dragover` was
- * refused, so the example can hide the indicator. Workaround for a gap: see the gap report.
- */
-function useRefusedDrag(onChange: (refused: boolean) => void) {
-    const { engine } = useDockable();
-    useEffect(() => {
-        const root = engine.getLayoutRef();
-        const doc = root?.ownerDocument;
-        if (!root || !doc) {
-            return;
-        }
-        const onDragOver = (event: DragEvent) => {
-            if (root.contains(event.target as globalThis.Node)) {
-                // the engine calls preventDefault on a dragover it accepts
-                onChange(!event.defaultPrevented);
-            }
-        };
-        const reset = () => onChange(false);
-        doc.addEventListener("dragover", onDragOver);
-        doc.addEventListener("drop", reset);
-        doc.addEventListener("dragend", reset);
-        return () => {
-            doc.removeEventListener("dragover", onDragOver);
-            doc.removeEventListener("drop", reset);
-            doc.removeEventListener("dragend", reset);
-        };
-    }, [engine, onChange]);
-}
-
-function RefusedDragWatcher({
-    onChange,
-}: {
-    onChange: (refused: boolean) => void;
-}) {
-    useRefusedDrag(onChange);
-    return null;
-}
-
 /** A lock on locked tabsets, with a Fragiola tooltip saying why. */
 function LockBadge({ tabset }: { tabset: TabSetNode }) {
     const [themeRef, theme] = useStageTheme();
@@ -233,12 +190,7 @@ function DocPanel({ tab }: { tab: TabNode }) {
 }
 
 export default function LockedRegions() {
-    const [model] = useState(() => {
-        const created = Model.fromJson(json);
-        created.setOnAllowDrop(allowDrop);
-        return created;
-    });
-    const [refused, setRefused] = useState(false);
+    const [model] = useState(() => Model.fromJson(json));
     const [notice, setNotice] = useState<string | undefined>(undefined);
 
     // the safety net: a move into the reference region that the drop rule did not stop
@@ -273,11 +225,11 @@ export default function LockedRegions() {
                 model={model}
                 onAction={onAction}
                 renderActions={(tabset) => <LockBadge tabset={tabset} />}
+                rootProps={{ onAllowDrop: allowDrop }}
                 tabsetClassName={(tabset) =>
-                    LOCKED.has(tabset.getId()) ? "border-dashed" : ""
+                    // a tabset refusing the current drag is marked by data-drop-refused
+                    `${LOCKED.has(tabset.getId()) ? "border-dashed" : ""} data-drop-refused:opacity-60`
                 }
-                // hide the stale indicator over a refused target (see useRefusedDrag)
-                className={cn(refused && "[&_[data-drop-kind]]:invisible")}
                 renderContent={(tab) =>
                     tab.getComponent() === "doc" ? (
                         <DocPanel tab={tab} />
@@ -291,7 +243,14 @@ export default function LockedRegions() {
                     )
                 }
             >
-                <RefusedDragWatcher onChange={setRefused} />
+                {/* inside the root: shown while the root has data-drop-refused */}
+                <div
+                    role="status"
+                    className="palette-danger pointer-events-none absolute start-1/2 top-3 z-30 hidden -translate-x-1/2 items-center gap-2 rounded-full bg-palette-base px-3 py-1.5 text-sm text-palette-contrast shadow-md in-data-drop-refused:flex rtl:translate-x-1/2"
+                >
+                    <Ban aria-hidden className="size-4" />
+                    Not allowed here
+                </div>
             </DockLayout>
         </>
     );

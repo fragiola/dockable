@@ -37,6 +37,7 @@ The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting
 | `onPopoutOpen` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
 | `onPopoutClose` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout window is closing |
 | `onExternalDrag` | `(event: DragEvent) => { json: IJsonTabNode; onDrop?: (node, event) => void } \| undefined` | none | accepts a drag that did not start in a layout (files, links, text, another library's element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called when the drag enters the layout (once per entry), when only `event.dataTransfer.types` is readable; read the data in `onDrop`. See [External drag](/docs/guides/external-drag) |
+| `onAllowDrop` | `(dragNode: Node, dropInfo: DropInfo) => boolean` | none | decides whether a drag may drop at a target: return `false` to refuse it (the outline hides, the target gets `data-drop-refused`). The same rule as `model.setOnAllowDrop`, which it sets while given; removing the prop restores the model's own rule |
 | `children` | `ReactNode` | none | the layout: a `Row`, `Panels`, `DropIndicator`, `Popout`, and anything else |
 
 `GetLabel` is `(key: DockableLabel, ...args: (string | number)[]) => string | undefined`; see
@@ -50,6 +51,7 @@ The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting
 | --- | --- | --- |
 | `maximized` | `boolean` | a tabset of the main layout is maximized |
 | `dragging` | `boolean` | a node of this layout is being dragged |
+| `refused` | `boolean` | the drag is over a target of the main layout that a drop rule refused |
 
 ## Data attributes
 
@@ -58,6 +60,7 @@ The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting
 | `data-layout-path` | always `"/layout"` |
 | `data-maximized` | a tabset of the main layout is maximized |
 | `data-dragging` | a node of this layout is being dragged |
+| `data-drop-refused` | the drag is over a target that a drop rule refused |
 
 ## Structural style
 

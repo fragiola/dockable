@@ -2,9 +2,14 @@
 // and src/view/layout/LayoutInternal.tsx (the measure-and-position cycle, moveable element
 // handling and the observers that drive them), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
-import { DragDropManager, type OnExternalDrag } from "../dnd/DragDropManager";
+import {
+    DragDropManager,
+    type IDropZoneOptions,
+    type OnExternalDrag,
+} from "../dnd/DragDropManager";
 import { type Action, Actions } from "../model/Actions";
 import { BorderNode } from "../model/BorderNode";
+import type { DropInfo } from "../model/DropInfo";
 import type { ILayoutType } from "../model/IJsonModel";
 import { Model, type ModelChangeListener } from "../model/Model";
 import type { ModelLayout } from "../model/ModelLayout";
@@ -59,7 +64,15 @@ export interface ILayoutEngineOptions {
     popout?: IPopoutOptions;
     /** accepts foreign drags (files, links, other libraries) as new tabs (main engine only) */
     onExternalDrag?: OnExternalDrag;
+    /**
+     * decides whether a drag may drop at a target, like `model.setOnAllowDrop`, which it sets while
+     * given (main engine only). Removing it restores the model's previous rule.
+     */
+    onAllowDrop?: OnAllowDrop;
 }
+
+/** Whether `dragNode` may be dropped as `dropInfo` describes. */
+export type OnAllowDrop = (dragNode: Node, dropInfo: DropInfo) => boolean;
 
 /** Attribute that marks the element hosting a tab's content. */
 export const MOVEABLE_ATTRIBUTE = "data-dockable-moveable";
@@ -101,6 +114,11 @@ export class LayoutEngine {
     private realtimeResize: boolean;
     private tabDragSpeed: number;
     private onExternalDragHandler: OnExternalDrag | undefined;
+    private onAllowDropHandler: OnAllowDrop | undefined;
+    // the model's rule before this engine installed its own, restored when the option goes away
+    private previousAllowDrop: OnAllowDrop | undefined;
+    private readonly allowDrop: OnAllowDrop = (dragNode, dropInfo) =>
+        this.onAllowDropHandler?.(dragNode, dropInfo) ?? true;
     private readonly dragDropManager: DragDropManager;
     private readonly popoutManager: PopoutManager | undefined;
 
@@ -155,6 +173,7 @@ export class LayoutEngine {
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
         this.onExternalDragHandler = options.onExternalDrag;
         this.dragDropManager = new DragDropManager(this);
+        this.setOnAllowDrop(options.onAllowDrop);
         if (this.mainEngine === this) {
             this.popoutManager = new PopoutManager(this);
             this.popoutManager.setOptions(options.popout ?? {});
@@ -176,14 +195,47 @@ export class LayoutEngine {
             | "tabDragSpeed"
             | "popout"
             | "onExternalDrag"
+            | "onAllowDrop"
         >,
     ) {
+        this.setOnAllowDrop(options.onAllowDrop);
         this.popoutManager?.setOptions(options.popout ?? {});
         this.onActionHandler = options.onAction;
         this.onModelChangeHandler = options.onModelChange;
         this.realtimeResize = options.realtimeResize ?? true;
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
         this.onExternalDragHandler = options.onExternalDrag;
+    }
+
+    /**
+     * Installs (or removes) the engine's drop rule on the model. Only the main engine does: popout
+     * layouts share the model and its rule.
+     */
+    private setOnAllowDrop(handler: OnAllowDrop | undefined) {
+        if (this.mainEngine !== this) {
+            return;
+        }
+        const installed = this.model.getOnAllowDrop() === this.allowDrop;
+        if (handler) {
+            if (!installed) {
+                this.previousAllowDrop = this.model.getOnAllowDrop();
+                this.model.setOnAllowDrop(this.allowDrop);
+            }
+        } else if (installed) {
+            this.model.setOnAllowDrop(this.previousAllowDrop);
+            this.previousAllowDrop = undefined;
+        }
+        this.onAllowDropHandler = handler;
+    }
+
+    /**
+     * Makes `element` a drop zone for this model's drags: while a drag the zone accepts is over it,
+     * the layouts show no outline, and a drop calls `options.onDrop` with the dragged node instead
+     * of moving anything. The element can be anywhere in the document, inside or outside a layout
+     * root. Returns the function that unregisters it.
+     */
+    registerDropZone(element: Element, options: IDropZoneOptions): () => void {
+        return DragDropManager.registerDropZone(this.model, element, options);
     }
 
     /** The handler that accepts foreign drags (set on the main engine). */
@@ -359,6 +411,7 @@ export class LayoutEngine {
 
     /** Detaches and forgets everything. The engine must not be used afterwards. */
     dispose() {
+        this.setOnAllowDrop(undefined);
         this.detachRoot();
         this.dragDropManager.dispose();
         this.popoutManager?.dispose();

@@ -41,6 +41,11 @@ With Tailwind v4 the same attributes are variants: `data-selected:bg-palette-sof
 | `data-visible` | `DropIndicator` | a drop target is under the pointer |
 | `data-drop-location` | `DropIndicator` | while visible: `"center"`, `"top"`, `"bottom"`, `"left"` or `"right"` |
 | `data-drop-kind` | `DropIndicator` | while visible: `"edge"` for a drop at the outer edge of a row, `"rect"` otherwise |
+| `data-drop-target` | `TabSet`, `TabList` | the current drag would drop into or beside this tabset (into this strip, for `TabList`) |
+| `data-drop-location` | `TabSet` | while it is the drop target: where the drag would dock |
+| `data-drop-index` | `TabList` | while it is the drop target: the insertion index |
+| `data-drop-refused` | `Root`, `DropIndicator`, `TabSet` | the drag is over a target that a drop rule refused (on `TabSet`: this one) |
+| `data-drop-active`, `data-drop-over` | `DropZone` | a drag the zone takes is in progress / over it |
 
 Two attributes mark elements the **core** creates, not the primitives:
 
@@ -70,8 +75,7 @@ Some states you might want are not on the element. Each has a workaround:
   `active`. Use an ancestor selector: `.tabset[data-active] .tab[data-selected]`, or Tailwind's
   `in-data-active:` (gap 1);
 - **a panel's tabset state**: panels are not inside their tabset, so no selector reaches them
-  from it (gap 2);
-- **the tabset under a drag** (drop target): only the drop indicator knows it (gap 8, Epic
-  [#19](https://github.com/fragiola/dockable/issues/19)).
+  from it (gap 2).
+
 
 See [Limitations](/docs/limitations).

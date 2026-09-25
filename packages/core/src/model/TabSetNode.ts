@@ -442,7 +442,9 @@ export class TabSetNode extends Node implements IDraggable, IDropTarget {
                 const centerValid = !excludeCenter && this.isEnableDrop();
                 const edgesValid = this.isEnableDivide();
                 if (!centerValid && !edgesValid) {
-                    return undefined; // neither a merge nor a split is possible
+                    // neither a merge nor a split is possible: a target that refuses the drop
+                    this.model.recordRefusedDrop(this);
+                    return undefined;
                 } else if (centerValid && edgesValid) {
                     dockLocation = DockLocation.getLocation(
                         this.contentRect!,

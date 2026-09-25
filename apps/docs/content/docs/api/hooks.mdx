@@ -1,6 +1,6 @@
 ---
 title: Hooks
-description: useDockable, useTabSet, useSplitter, useDragNode and useDragSource - the lower layer under the primitives.
+description: useDockable, useTabSet, useSplitter, useDragNode, useDragSource, useDropZone and useTabSetDropState - the lower layer under the primitives.
 ---
 
 The primitives are built on four hooks, exported as the lower layer. Use `useDockable` all the
@@ -79,6 +79,9 @@ the tabset to `TabList`/`TabSetContent`, which only `Dockable.TabSet` does. Pref
 | `maximized` | `boolean` | the tabset is maximized |
 | `hidden` | `boolean` | another tabset of the layout is maximized, so this one is hidden |
 | `empty` | `boolean` | the tabset has no tabs |
+| `dropTarget` | `boolean` | the current drag would drop into or beside this tabset (its content, strip or a group) |
+| `dropLocation` | `DropLocation \| undefined` | while it is the drop target: where the drag would dock relative to it |
+| `dropRefused` | `boolean` | the current drag is over this tabset, but a drop rule refuses it |
 
 ## useSplitter
 
@@ -199,8 +202,59 @@ inside `Dockable.Root`.
 | `ref` | `RefCallback<HTMLElement>` | callback ref for the element used as the drag image (the dragged element by default) |
 | `dragging` | `boolean` | a drag started by this source is in progress |
 
+## useDropZone
+
+"The lower layer of `Dockable.DropZone`: makes an element, inside or outside the layout, a place
+where a drag of the layout can be dropped for the consumer to handle (a trash can, an "open to
+the right" pad). Attach `ref` to the element."
+
+```tsx
+const zone = useDropZone({
+    model,
+    onDrop: (node) => engine.doAction(Actions.deleteTab(node.getId())),
+});
+return <div ref={zone.ref} data-over={zone.over ? "" : undefined}>Trash</div>;
+```
+
+`useDropZone(options: UseDropZoneOptions): UseDropZoneResult`. It does not need to run inside
+`Dockable.Root`.
+
+`UseDropZoneOptions`:
+
+| field | type | description |
+| --- | --- | --- |
+| `model` | `Model` | the model whose drags the zone takes |
+| `accepts` | `(dragNode: Node) => boolean` | whether the zone takes this drag (default: every drag of the model) |
+| `onDrop` | `(dragNode: Node, event: DragEvent) => void` | called when the drag is dropped on the zone, with the dragged node. Nothing is moved: dispatch the action you want |
+
+`UseDropZoneResult`:
+
+| field | type | description |
+| --- | --- | --- |
+| `ref` | `RefCallback<HTMLElement>` | callback ref for the zone's element |
+| `over` | `boolean` | a drag the zone takes is over it |
+| `active` | `boolean` | a drag the zone would take is in progress |
+
+## useTabSetDropState
+
+`useTabSetDropState(engine, tabsetId): TabSetDropState`: whether the current drag targets (or is
+refused by) a tabset, from the engine's indicator state. It re-renders only when the answer for
+that tabset changes, not on every pointer move. `Dockable.TabSet` and `Dockable.TabList` use it for
+their `data-drop-*` attributes; use it for anything they do not cover (an insertion caret between
+two tabs).
+
+`TabSetDropState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `target` | `boolean` | the current drag would drop into or beside this tabset |
+| `location` | `DropLocation \| undefined` | while it is the target: where the drag would dock |
+| `strip` | `boolean` | while it is the target: the drop goes into its tab strip, at `index` |
+| `index` | `number` | for a strip drop: the insertion index among the tabset's children, else -1 |
+| `refused` | `boolean` | the current drag is over this tabset, but a drop rule refuses it |
+
 ## Types
 
 Also exported: `TabSetState`, `UseDockableResult`, `UseTabSetResult`, `UseSplitterResult`,
-`UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`, and `GetLabel` (`(key: DockableLabel, ...args: (string | number)[]) => string
+`UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`, `UseDropZoneOptions`, `UseDropZoneResult`, `TabSetDropState`, and `GetLabel` (`(key: DockableLabel, ...args: (string | number)[]) => string
 | undefined`).

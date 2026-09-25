@@ -20,7 +20,9 @@ test("drop into a tabset and at the layout's edge", async ({ page }) => {
     await expect(indicator).toBeVisible();
     await expect(indicator).toHaveAttribute("data-drop-kind", "rect");
     await expect(indicator).toHaveAttribute("data-drop-location", "center");
-    // the target tabset is highlighted while it is the target
+    // the target tabset is marked, and highlighted, while it is the target
+    await expect(target).toHaveAttribute("data-drop-target", "");
+    await expect(target).toHaveAttribute("data-drop-location", "center");
     expect(await shadow(target)).not.toBe(idle);
     await page.mouse.up();
     await expect(path(page, "/r1/ts0/tabstrip").getByRole("tab")).toHaveText([

@@ -8,6 +8,7 @@ import {
     DragDropManager,
     type LayoutEngine,
     Model,
+    type OnAllowDrop,
     type OnExternalDrag,
     type RowNode,
     type TabNode,
@@ -57,6 +58,7 @@ function setup(
         json?: Parameters<typeof freshModel>[0];
         onAction?: (a: Action) => Action | undefined;
         onExternalDrag?: OnExternalDrag;
+        onAllowDrop?: OnAllowDrop;
     } = {},
 ) {
     const model = freshModel(options.json);
@@ -72,6 +74,7 @@ function setup(
                 return action;
             }),
         onExternalDrag: options.onExternalDrag,
+        onAllowDrop: options.onAllowDrop,
     });
     engines.push(engine);
     const dom = mountTwoTabsets(engine, rects);
@@ -921,5 +924,333 @@ describe("external drags (onExternalDrag)", () => {
         dragAndDrop(s, "t0", 312, 185);
         expect(onExternalDrag).not.toHaveBeenCalled();
         expect(s.actions[0]?.type).toBe(Actions.MOVE_NODE);
+    });
+});
+
+/** starts dragging `dragNodeId` and moves over (x, y) without dropping; returns the dragover event */
+function dragOverAt(
+    s: ReturnType<typeof setup>,
+    dragNodeId: string,
+    x: number,
+    y: number,
+) {
+    s.manager.setDragNode(
+        dragEvent("dragstart", 40, 35),
+        node<TabNode>(s.model, dragNodeId),
+    );
+    s.root.dispatchEvent(dragEvent("dragenter", x, y));
+    const over = dragEvent("dragover", x, y);
+    s.root.dispatchEvent(over);
+    return over;
+}
+
+describe("drop target state", () => {
+    it("names the targeted tabset and the content drop", () => {
+        const s = setup();
+        dragOverAt(s, "t0", 312, 185);
+        const state = s.manager.getIndicatorState();
+        expect(state).toMatchObject({
+            visible: true,
+            targetNodeId: "ts1",
+            targetTabSetId: "ts1",
+            index: -1,
+            refused: false,
+        });
+    });
+
+    it("gives the insertion index of a strip drop", () => {
+        const s = setup();
+        dragOverAt(s, "t2", 72, 35);
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            targetTabSetId: "ts0",
+            location: "center",
+            index: 1,
+        });
+    });
+
+    it("names the row, and no tabset, for a layout edge drop", () => {
+        const s = setup();
+        dragOverAt(s, "t2", 12, 170);
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            kind: "edge",
+            targetNodeId: "row",
+            targetTabSetId: undefined,
+        });
+    });
+
+    it("moves with the pointer and clears when the drag ends", () => {
+        const s = setup();
+        dragOverAt(s, "t0", 312, 185);
+        expect(s.manager.getIndicatorState().targetTabSetId).toBe("ts1");
+        s.root.dispatchEvent(dragEvent("dragover", 100, 185));
+        expect(s.manager.getIndicatorState().targetTabSetId).toBe("ts0");
+        s.manager.onDragEnded();
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            targetTabSetId: undefined,
+            targetNodeId: undefined,
+            refused: false,
+        });
+    });
+});
+
+describe("refused drops", () => {
+    it("hides the outline and reports the refusing tabset", () => {
+        const s = setup();
+        s.model.setOnAllowDrop(
+            (_drag, dropInfo) => dropInfo.node.getId() !== "ts1",
+        );
+        // first over an accepted target, then over the refused one
+        dragOverAt(s, "t0", 100, 185);
+        expect(s.manager.getIndicatorState().visible).toBe(true);
+        const over = dragEvent("dragover", 312, 185);
+        s.root.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(false);
+        expect(over.dataTransfer?.dropEffect).toBe("none");
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            visible: false,
+            refused: true,
+            refusedTabSetId: "ts1",
+            targetTabSetId: undefined,
+        });
+        // and back over an accepted target
+        s.root.dispatchEvent(dragEvent("dragover", 100, 185));
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            visible: true,
+            refused: false,
+            refusedTabSetId: undefined,
+        });
+    });
+
+    it("drops nothing on a refused target", () => {
+        const s = setup();
+        s.model.setOnAllowDrop(
+            (_drag, dropInfo) => dropInfo.node.getId() !== "ts1",
+        );
+        dragOverAt(s, "t0", 312, 185);
+        s.root.dispatchEvent(dragEvent("drop", 312, 185));
+        expect(s.actions).toHaveLength(0);
+    });
+
+    it("reports tabsets that refuse through their attributes", () => {
+        const s = setup({
+            json: {
+                global: {},
+                layout: {
+                    type: "row",
+                    id: "row",
+                    children: [
+                        {
+                            type: "tabset",
+                            id: "ts0",
+                            children: [
+                                { type: "tab", id: "t0", name: "One" },
+                                { type: "tab", id: "t1", name: "Two" },
+                            ],
+                        },
+                        {
+                            type: "tabset",
+                            id: "ts1",
+                            enableDrop: false,
+                            enableDivide: false,
+                            children: [
+                                { type: "tab", id: "t2", name: "Three" },
+                            ],
+                        },
+                    ],
+                },
+            },
+        });
+        dragOverAt(s, "t0", 312, 185);
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            visible: false,
+            refused: true,
+            refusedTabSetId: "ts1",
+        });
+    });
+
+    it("is not refused where there is simply no target", () => {
+        const s = setup();
+        dragOverAt(s, "t0", 312, 185);
+        // outside every tabset rect (below the layout)
+        s.root.dispatchEvent(dragEvent("dragover", 312, 900));
+        expect(s.manager.getIndicatorState().refused).toBe(false);
+    });
+});
+
+describe("the engine's onAllowDrop option", () => {
+    const refuseTs1: OnAllowDrop = (_drag, dropInfo) =>
+        dropInfo.node.getId() !== "ts1";
+
+    it("behaves like model.setOnAllowDrop", () => {
+        const viaModel = setup();
+        viaModel.model.setOnAllowDrop(refuseTs1);
+        dragOverAt(viaModel, "t0", 312, 185);
+        const modelState = viaModel.manager.getIndicatorState();
+        viaModel.manager.onDragEnded();
+
+        const viaEngine = setup({ onAllowDrop: refuseTs1 });
+        dragOverAt(viaEngine, "t0", 312, 185);
+        const engineState = viaEngine.manager.getIndicatorState();
+
+        expect(engineState.refused).toBe(true);
+        expect(engineState).toMatchObject({
+            visible: modelState.visible,
+            refused: modelState.refused,
+            refusedTabSetId: modelState.refusedTabSetId,
+        });
+    });
+
+    it("follows the latest handler, and restores the model's own rule when removed", () => {
+        const own = vi.fn(() => true);
+        const s = setup();
+        s.model.setOnAllowDrop(own);
+        const first = vi.fn(() => true);
+        const second = vi.fn(() => false);
+        s.engine.setOptions({ onAllowDrop: first });
+        s.engine.setOptions({ onAllowDrop: second });
+        dragOverAt(s, "t0", 312, 185);
+        expect(first).not.toHaveBeenCalled();
+        expect(second).toHaveBeenCalled();
+        expect(s.manager.getIndicatorState().refused).toBe(true);
+        s.manager.onDragEnded();
+
+        s.engine.setOptions({});
+        dragOverAt(s, "t0", 312, 185);
+        expect(own).toHaveBeenCalled();
+        expect(s.manager.getIndicatorState().visible).toBe(true);
+    });
+
+    it("restores the model's rule when the engine is disposed", () => {
+        const own = () => true;
+        const s = setup();
+        s.model.setOnAllowDrop(own);
+        s.engine.setOptions({ onAllowDrop: () => false });
+        s.engine.dispose();
+        expect(s.model.getOnAllowDrop()).toBe(own);
+    });
+});
+
+describe("drop zones", () => {
+    function zone(
+        s: ReturnType<typeof setup>,
+        options: Partial<Parameters<LayoutEngine["registerDropZone"]>[1]> = {},
+    ) {
+        const element = document.body.appendChild(
+            document.createElement("div"),
+        );
+        const onDrop = vi.fn();
+        const onOverChange = vi.fn();
+        const unregister = s.engine.registerDropZone(element, {
+            onDrop,
+            onOverChange,
+            ...options,
+        });
+        return { element, onDrop, onOverChange, unregister };
+    }
+
+    it("takes a layout drag: hides the outline, and hands the node to onDrop without moving it", () => {
+        const s = setup();
+        const z = zone(s);
+        dragOverAt(s, "t0", 312, 185);
+        expect(s.manager.getIndicatorState().visible).toBe(true);
+
+        z.element.dispatchEvent(dragEvent("dragenter", 0, 0));
+        const over = dragEvent("dragover", 0, 0);
+        z.element.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(true);
+        expect(z.onOverChange).toHaveBeenLastCalledWith(true);
+        expect(s.manager.getIndicatorState().visible).toBe(false);
+
+        const drop = dragEvent("drop", 0, 0);
+        z.element.dispatchEvent(drop);
+        expect(z.onDrop).toHaveBeenCalledWith(node(s.model, "t0"), drop);
+        expect(z.onOverChange).toHaveBeenLastCalledWith(false);
+        expect(s.actions).toHaveLength(0);
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        z.unregister();
+    });
+
+    it("tracks enter and leave across its children", () => {
+        const s = setup();
+        const z = zone(s);
+        const child = z.element.appendChild(document.createElement("span"));
+        dragOverAt(s, "t0", 312, 185);
+        z.element.dispatchEvent(dragEvent("dragenter", 0, 0));
+        child.dispatchEvent(dragEvent("dragenter", 0, 0));
+        z.element.dispatchEvent(dragEvent("dragleave", 0, 0));
+        expect(z.onOverChange).toHaveBeenLastCalledWith(true);
+        child.dispatchEvent(dragEvent("dragleave", 0, 0));
+        expect(z.onOverChange).toHaveBeenLastCalledWith(false);
+        z.unregister();
+    });
+
+    it("ignores drags it does not accept, drags of another model, and no drag at all", () => {
+        const s = setup();
+        const z = zone(s, { accepts: (dragNode) => dragNode.getId() !== "t0" });
+        const idle = dragEvent("dragover", 0, 0);
+        z.element.dispatchEvent(idle);
+        expect(idle.defaultPrevented).toBe(false);
+
+        dragOverAt(s, "t0", 312, 185);
+        const refused = dragEvent("dragover", 0, 0);
+        z.element.dispatchEvent(refused);
+        z.element.dispatchEvent(dragEvent("drop", 0, 0));
+        expect(refused.defaultPrevented).toBe(false);
+        expect(z.onDrop).not.toHaveBeenCalled();
+        s.manager.onDragEnded();
+
+        const other = setup();
+        const foreign = zone(other);
+        dragOverAt(s, "t1", 312, 185);
+        const crossModel = dragEvent("dragover", 0, 0);
+        foreign.element.dispatchEvent(crossModel);
+        expect(crossModel.defaultPrevented).toBe(false);
+        z.unregister();
+        foreign.unregister();
+    });
+
+    it("takes an external drag that moves on from the layout, and ends it when it leaves", () => {
+        const s = setup({
+            onExternalDrag: () => ({
+                json: { type: "tab" as const, name: "report.csv" },
+            }),
+        });
+        const z = zone(s);
+        const other = zone(s);
+        // a foreign drag over the layout…
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+        // …moves onto the zone: the zone's dragenter fires before the root's dragleave
+        z.element.dispatchEvent(dragEvent("dragenter", 0, 0));
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+        const drop = dragEvent("drop", 0, 0);
+        z.element.dispatchEvent(drop);
+        expect(z.onDrop).toHaveBeenCalledTimes(1);
+        const dropped = z.onDrop.mock.calls[0]?.[0] as TabNode | undefined;
+        expect(dropped?.getName()).toBe("report.csv");
+        expect(DragDropManager.getDragState()).toBeUndefined();
+
+        // another foreign drag: layout → zone → out of the page
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        other.element.dispatchEvent(dragEvent("dragenter", 0, 0));
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+        other.element.dispatchEvent(dragEvent("dragleave", 0, 0));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(other.onDrop).not.toHaveBeenCalled();
+        z.unregister();
+        other.unregister();
+    });
+
+    it("stops listening once unregistered", () => {
+        const s = setup();
+        const z = zone(s);
+        z.unregister();
+        dragOverAt(s, "t0", 312, 185);
+        const over = dragEvent("dragover", 0, 0);
+        z.element.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(false);
+        expect(z.onOverChange).not.toHaveBeenCalled();
     });
 });

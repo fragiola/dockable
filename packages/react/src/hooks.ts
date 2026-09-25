@@ -6,7 +6,9 @@ import {
     createSplitterController,
     DragDropManager,
     type DragState,
+    type DropLocation,
     type IDraggable,
+    type IDropZoneOptions,
     type IJsonTabNode,
     type ISplitterAria,
     type ISplitterState,
@@ -57,6 +59,79 @@ export interface TabSetState {
     hidden: boolean;
     /** the tabset has no tabs */
     empty: boolean;
+    /** the current drag would drop into or beside this tabset (its content, strip or a group) */
+    dropTarget: boolean;
+    /** while it is the drop target: where the drag would dock relative to it */
+    dropLocation: DropLocation | undefined;
+    /** the current drag is over this tabset, but a drop rule refuses it */
+    dropRefused: boolean;
+}
+
+export interface TabSetDropState {
+    /** the current drag would drop into or beside this tabset */
+    target: boolean;
+    /** while it is the target: where the drag would dock */
+    location: DropLocation | undefined;
+    /** while it is the target: the drop goes into its tab strip, at `index` */
+    strip: boolean;
+    /** for a strip drop: the insertion index among the tabset's children, else -1 */
+    index: number;
+    /** the current drag is over this tabset, but a drop rule refuses it */
+    refused: boolean;
+}
+
+const NO_DROP: TabSetDropState = {
+    target: false,
+    location: undefined,
+    strip: false,
+    index: -1,
+    refused: false,
+};
+
+/**
+ * Whether the current drag targets (or is refused by) `tabsetId`, from the engine's indicator
+ * state. The snapshot is a string, so tabsets re-render only when their own answer changes, not
+ * on every pointer move.
+ */
+export function useTabSetDropState(
+    engine: LayoutEngine,
+    tabsetId: string,
+): TabSetDropState {
+    const manager = engine.getDragDropManager();
+    const key = React.useSyncExternalStore(
+        manager.subscribe,
+        () => {
+            const indicator = manager.getIndicatorState();
+            if (indicator.refused && indicator.refusedTabSetId === tabsetId) {
+                return "refused";
+            }
+            if (indicator.visible && indicator.targetTabSetId === tabsetId) {
+                // a strip drop targets the tabset itself (a drop into a tab group targets the
+                // group, and its index counts inside the group)
+                const strip =
+                    indicator.location === "center" &&
+                    indicator.index >= 0 &&
+                    indicator.targetNodeId === tabsetId;
+                return strip
+                    ? `${indicator.location}:${indicator.index}`
+                    : indicator.location;
+            }
+            return "";
+        },
+        () => "",
+    );
+    return React.useMemo(() => {
+        if (key === "") return NO_DROP;
+        if (key === "refused") return { ...NO_DROP, refused: true };
+        const [location, index] = key.split(":");
+        return {
+            target: true,
+            location: location as DropLocation,
+            strip: index !== undefined,
+            index: index === undefined ? -1 : Number(index),
+            refused: false,
+        };
+    }, [key]);
 }
 
 export interface UseTabSetResult {
@@ -81,11 +156,15 @@ function isAuxEvent(event: React.PointerEvent | React.MouseEvent) {
 export function useTabSet(node: TabSetNode): UseTabSetResult {
     const { engine, layoutId } = useLayoutContext("useTabSet");
     const maximizedTabset = node.getModel().getMaximizedTabset(layoutId);
+    const drop = useTabSetDropState(engine, node.getId());
     const state: TabSetState = {
         active: node.isActive(),
         maximized: node.isMaximized(),
         hidden: maximizedTabset !== undefined && maximizedTabset !== node,
         empty: node.getChildren().length === 0,
+        dropTarget: drop.target,
+        dropLocation: drop.location,
+        dropRefused: drop.refused,
     };
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
@@ -283,4 +362,62 @@ export function useDragSource(
         ref,
         dragging: dragState !== undefined && dragState === started.current,
     };
+}
+
+export interface UseDropZoneOptions {
+    /** the model whose drags the zone takes */
+    model: Model;
+    /** whether the zone takes this drag (default: every drag of the model) */
+    accepts?: IDropZoneOptions["accepts"];
+    /**
+     * called when the drag is dropped on the zone, with the dragged node. Nothing is moved: dispatch
+     * the action you want (e.g. `Actions.deleteTab`). For a new-tab drag (a `Dockable.DragSource`
+     * or a foreign drag) the node is a temporary tab that is not in the model.
+     */
+    onDrop: IDropZoneOptions["onDrop"];
+}
+
+export interface UseDropZoneResult {
+    /** callback ref for the zone's element */
+    ref: React.RefCallback<HTMLElement>;
+    /** a drag the zone takes is over it */
+    over: boolean;
+    /** a drag the zone would take is in progress */
+    active: boolean;
+}
+
+/**
+ * The lower layer of `Dockable.DropZone`: makes an element, inside or outside the layout, a place
+ * where a drag of the layout can be dropped for the consumer to handle (a trash can, an "open to
+ * the right" pad). Attach `ref` to the element.
+ */
+export function useDropZone(options: UseDropZoneOptions): UseDropZoneResult {
+    const { model } = options;
+    const latest = React.useRef(options);
+    latest.current = options;
+    const [element, setElement] = React.useState<HTMLElement | null>(null);
+    const [over, setOver] = React.useState(false);
+    const dragState = useDragState();
+
+    React.useLayoutEffect(() => {
+        if (!element) {
+            return;
+        }
+        const unregister = DragDropManager.registerDropZone(model, element, {
+            accepts: (dragNode) => latest.current.accepts?.(dragNode) ?? true,
+            onDrop: (dragNode, event) => latest.current.onDrop(dragNode, event),
+            onOverChange: setOver,
+        });
+        return () => {
+            unregister();
+            setOver(false);
+        };
+    }, [model, element]);
+
+    const dragNode = dragState?.dragNode;
+    const active =
+        dragNode !== undefined &&
+        dragState?.mainEngine.getModel() === model &&
+        (options.accepts?.(dragNode) ?? true);
+    return { ref: setElement, over: over && active, active };
 }

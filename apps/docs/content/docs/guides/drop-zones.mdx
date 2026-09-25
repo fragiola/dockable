@@ -1,0 +1,83 @@
+---
+title: Drop zones and drop feedback
+description: Custom places to drop a tab, and the data that tells you where a drag would land.
+---
+
+A drag of the layout tells you, as data, where it would land and whether it may: the targeted
+tabset, the side it would dock to, the insertion point in a tab strip, and a target that a rule
+refused. And the drop does not have to land in the layout: a drop zone takes it and hands you the
+tab.
+
+## Drop zones
+
+A `Dockable.DropZone` is an element that takes a drag of the layout. It can sit anywhere in the
+page:
+
+<Example slug="drop-zones" />
+
+```tsx
+import { Actions, LayoutEngine, TabNode } from "@fragiola/dockable";
+import { Dockable } from "@fragiola/dockable-react";
+
+<Dockable.DropZone
+    model={model}
+    // take closable tabs only
+    accepts={(node) => node instanceof TabNode && node.isEnableClose()}
+    onDrop={(node) => LayoutEngine.of(model)?.doAction(Actions.deleteTab(node.getId()))}
+    className="opacity-50 data-drop-active:opacity-100 data-drop-over:bg-palette-base"
+>
+    Close
+</Dockable.DropZone>
+```
+
+- **`data-drop-active`** is on the zone while a drag it would take is in progress: arm it, or show
+  it only then.
+- **`data-drop-over`** is on it while the pointer is over it. The layout hides its outline
+  meanwhile, since the drop will not land in it.
+- **`onDrop`** receives the dragged node. Nothing moves by itself: dispatch the action the zone
+  stands for (close, move, pop out, open in another view…). Go through the engine so `onAction`
+  sees it.
+
+## Where the drag would land
+
+While a drag is over the layout, the targeted tabset has `data-drop-target`, and
+`data-drop-location` says where the drag would dock: `center`, `top`, `bottom`, `left` or `right`.
+A drop into a tab strip also marks the `TabList` with `data-drop-target` and gives
+`data-drop-index`, the insertion point.
+
+<Example slug="drop-target-highlight" />
+
+```tsx
+<Dockable.TabSet
+    node={tabset}
+    className={[
+        "data-drop-target:ring-2 data-drop-target:ring-palette-ring",
+        "data-[drop-location=left]:shadow-[inset_4px_0_0_var(--palette-ring)]",
+    ].join(" ")}
+>
+```
+
+To draw an insertion caret between two tabs, read the same state from React:
+`useTabSetDropState(engine, tabsetId)` returns `{ target, location, strip, index, refused }`, and a
+tab whose position equals `index` gets the caret. The state only changes when the answer for that
+tabset changes, so tabsets do not re-render on every pointer move.
+
+## Refused drops
+
+A rule refuses a target when [`onAllowDrop`](/docs/guides/restricting-drops) returns false, or when
+the target's attributes (`enableDrop`, `enableDivide`) allow neither a merge nor a split. Over a
+refused target:
+
+- the outline hides (`DropIndicator` is not visible) and the browser shows its "not allowed"
+  cursor;
+- `Dockable.Root` and `DropIndicator` get **`data-drop-refused`**;
+- the refusing tabset gets **`data-drop-refused`** too.
+
+```tsx
+<Dockable.Root model={model} onAllowDrop={allowDrop}>
+    {/* … */}
+    <div className="hidden in-data-drop-refused:block">Not allowed here</div>
+</Dockable.Root>
+```
+
+The [`locked-regions`](/examples/locked-regions/) example shows a "not allowed" badge this way.
