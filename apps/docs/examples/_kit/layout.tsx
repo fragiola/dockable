@@ -212,15 +212,21 @@ function usePopoutTheme(root: React.RefObject<HTMLElement | null>) {
 
     useEffect(() => {
         const themed = root.current?.closest("[data-example-theme]");
-        if (!themed) {
-            return;
-        }
+        const page = root.current?.ownerDocument.documentElement;
         const observer = new MutationObserver(() => {
             for (const doc of documents.current) {
                 apply(doc);
             }
         });
-        observer.observe(themed, { attributeFilter: ["data-example-theme"] });
+        // the example's theme, and the page's light/dark (the palettes read both)
+        if (themed) {
+            observer.observe(themed, {
+                attributeFilter: ["data-example-theme"],
+            });
+        }
+        if (page) {
+            observer.observe(page, { attributeFilter: ["data-theme"] });
+        }
         return () => observer.disconnect();
     }, [root, apply]);
 

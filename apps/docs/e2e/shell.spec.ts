@@ -138,3 +138,31 @@ test("small screens get drawers for the list and the code", async ({
     );
     expect(width).toBeLessThanOrEqual(375);
 });
+
+test("fullscreen keeps the examples' menus visible", async ({ page }) => {
+    await openExample(page, "tab-context-menu");
+    await page.getByRole("button", { name: "Fullscreen" }).click();
+    const stage = page.getByTestId("stage");
+    const viewport = page.viewportSize();
+    const box = await stage.boundingBox();
+    expect(box?.width).toBeGreaterThan((viewport?.width ?? 0) - 40);
+    // a menu portalled into <body> still paints over the stage
+    await stage
+        .locator('[data-layout-path="/ts0/tb0"]')
+        .click({ button: "right" });
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("stage")).toBeVisible();
+});
+
+test("the install command lists what the example imports", async ({ page }) => {
+    await openExample(page, "component-factory", { code: true });
+    const install = page
+        .getByRole("complementary", { name: "Example code" })
+        .locator("code")
+        .first();
+    await expect(install).toContainText("lucide-react");
+    await expect(install).toContainText("/r/input.json");
+    await expect(install).not.toContainText("/r/fields.json");
+});

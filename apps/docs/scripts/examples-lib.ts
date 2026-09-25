@@ -17,6 +17,8 @@ export interface ExampleEntry {
     files: string[];
     /** the Fragiola UI registry items it imports (install them with the registry CLI) */
     registry: string[];
+    /** other npm packages it imports directly */
+    packages: string[];
 }
 
 /** Every folder under examples/ with an index.tsx, except the `_` ones (kit, themes). */
@@ -96,13 +98,28 @@ function resolveRelative(from: string, specifier: string): string | undefined {
     );
 }
 
-/** `@/components/ui/select` → `select`: the registry item a vendored import comes from. */
+/**
+ * The Fragiola UI registry item a vendored import comes from (`@/components/ui/select` →
+ * `select`, `@/components/atoms/fields` → `input`). Read from the header that
+ * scripts/vendor-fragiola.ts writes on every vendored file, so it is exact.
+ */
 export function registryItemOf(specifier: string): string | undefined {
-    const match =
-        /^@\/components\/(?:ui|atoms)\/([^/]+)/.exec(specifier) ??
-        /^@\/lib\/(cn)$/.exec(specifier);
-    return match?.[1];
+    if (!specifier.startsWith("@/")) return undefined;
+    const base = join(APP_ROOT, specifier.slice(2));
+    const file = [
+        `${base}.tsx`,
+        `${base}.ts`,
+        join(base, "index.tsx"),
+        join(base, "index.ts"),
+    ].find((candidate) => existsSync(candidate));
+    if (!file) return undefined;
+    const header = readFileSync(file, "utf-8").slice(0, 400);
+    return /registry \([^)]*\/r\/([a-z0-9-]+)\.json/.exec(header)?.[1];
 }
+
+/** npm packages an example imports that the consumer installs themselves (not React, not
+ * Dockable, not a registry item's own dependency). */
+const OWN_PACKAGES = new Set(["lucide-react"]);
 
 /**
  * The example's files: its index.tsx and everything reachable through relative imports, all
@@ -111,10 +128,12 @@ export function registryItemOf(specifier: string): string | undefined {
 export function collectFiles(slug: string): {
     files: string[];
     registry: string[];
+    packages: string[];
 } {
     const entry = join(EXAMPLES_DIR, slug, "index.tsx");
     const seen = new Set<string>();
     const registry = new Set<string>();
+    const packages = new Set<string>();
     const queue = [entry];
     while (queue.length > 0) {
         const file = queue.shift();
@@ -134,6 +153,8 @@ export function collectFiles(slug: string): {
                     );
                 }
                 queue.push(target);
+            } else if (OWN_PACKAGES.has(specifier)) {
+                packages.add(specifier);
             } else {
                 const item = registryItemOf(specifier);
                 if (item) registry.add(item);
@@ -146,6 +167,7 @@ export function collectFiles(slug: string): {
     return {
         files: first === undefined ? [] : [first, ...rest.sort()],
         registry: [...registry].sort(),
+        packages: [...packages].sort(),
     };
 }
 

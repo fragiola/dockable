@@ -8,4 +8,6 @@ export interface ExampleEntry {
     files: string[];
     /** the Fragiola UI registry items it imports */
     registry: string[];
+    /** other npm packages it imports directly (e.g. lucide-react) */
+    packages: string[];
 }

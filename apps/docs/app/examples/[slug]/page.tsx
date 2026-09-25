@@ -37,8 +37,13 @@ async function sourceFile(file: string): Promise<SourceFile> {
     };
 }
 
-function setupCommand(registry: string[]): string {
-    const lines = ["pnpm add @fragiola/dockable @fragiola/dockable-react"];
+function setupCommand(registry: string[], packages: string[]): string {
+    const lines = [
+        [
+            "pnpm add @fragiola/dockable @fragiola/dockable-react",
+            ...packages,
+        ].join(" "),
+    ];
     if (registry.length > 0) {
         lines.push(
             `pnpm dlx shadcn@latest add ${registry
@@ -75,7 +80,7 @@ export default async function ExamplePage(props: {
             example={example}
             files={files}
             themeFiles={themeFiles}
-            setup={setupCommand(example.registry)}
+            setup={setupCommand(example.registry, example.packages)}
         />
     );
 }

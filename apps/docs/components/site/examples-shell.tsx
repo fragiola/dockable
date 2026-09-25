@@ -234,18 +234,37 @@ export function ExamplesShell({
         }
     }, [state, ready]);
 
+    // Fullscreen puts the whole page in fullscreen and lays the stage over it,
+    // rather than making the stage the fullscreen element: the examples' menus,
+    // selects, tooltips and dialogs portal into <body>, and a browser paints
+    // nothing outside the fullscreen element. Escape (or leaving fullscreen)
+    // restores the page.
     useEffect(() => {
-        const onChange = () =>
-            setFullscreen(document.fullscreenElement === stageFrame.current);
+        const onChange = () => {
+            if (!document.fullscreenElement) setFullscreen(false);
+        };
+        const onKey = (event: KeyboardEvent) => {
+            // an example that handles Escape itself (a menu, maximize) prevents it
+            if (event.key === "Escape" && !event.defaultPrevented)
+                setFullscreen(false);
+        };
         document.addEventListener("fullscreenchange", onChange);
-        return () => document.removeEventListener("fullscreenchange", onChange);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("fullscreenchange", onChange);
+            document.removeEventListener("keydown", onKey);
+        };
     }, []);
 
     const toggleFullscreen = () => {
-        if (document.fullscreenElement) {
-            void document.exitFullscreen();
+        if (fullscreen) {
+            setFullscreen(false);
+            if (document.fullscreenElement) void document.exitFullscreen();
         } else {
-            void stageFrame.current?.requestFullscreen?.();
+            setFullscreen(true);
+            void document.documentElement.requestFullscreen?.().catch(() => {
+                // not allowed (an iframe, a browser setting): the overlay still works
+            });
         }
     };
 
@@ -395,7 +414,8 @@ export function ExamplesShell({
 
                     <div
                         ref={stageFrame}
-                        className="flex min-h-0 flex-1 bg-palette-soft p-2 md:p-3"
+                        data-fullscreen={fullscreen ? "" : undefined}
+                        className="flex min-h-0 flex-1 bg-palette-soft p-2 data-fullscreen:fixed data-fullscreen:inset-0 data-fullscreen:z-40 md:p-3"
                     >
                         <div
                             data-testid="stage"

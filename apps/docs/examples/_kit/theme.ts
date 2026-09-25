@@ -16,13 +16,21 @@ import {
  * the layout after the first commit: until then there is no themed ancestor, so the hook
  * retries each frame until there is.
  */
-export function useExampleTheme(ref: RefObject<HTMLElement | null>) {
+export function useExampleTheme(
+    ref: RefObject<HTMLElement | null>,
+    element?: HTMLElement | null,
+) {
     const [theme, setTheme] = useState<string | undefined>(undefined);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: `element` re-runs the effect when a callback ref attaches
     useEffect(() => {
         let observer: MutationObserver | undefined;
         let frame = 0;
         const attach = () => {
-            const themed = ref.current?.closest<HTMLElement>(
+            // no element (yet): nothing to theme; a callback ref re-runs this through `element`
+            if (!ref.current) {
+                return;
+            }
+            const themed = ref.current.closest<HTMLElement>(
                 "[data-example-theme]",
             );
             if (!themed) {
@@ -41,7 +49,7 @@ export function useExampleTheme(ref: RefObject<HTMLElement | null>) {
             cancelAnimationFrame(frame);
             observer?.disconnect();
         };
-    }, [ref]);
+    }, [ref, element]);
     return theme;
 }
 
@@ -60,10 +68,12 @@ export function usePopupTheme(ref: RefObject<HTMLElement | null>) {
  * element inside the stage and `data-example-theme={theme}` on the popup.
  */
 export function useStageTheme() {
-    const element = useRef<HTMLElement | null>(null);
-    const theme = useExampleTheme(element);
+    const current = useRef<HTMLElement | null>(null);
+    const [element, setElement] = useState<HTMLElement | null>(null);
+    const theme = useExampleTheme(current, element);
     const ref = useCallback((node: HTMLElement | null) => {
-        element.current = node;
+        current.current = node;
+        setElement(node);
     }, []);
     return [ref, theme] as const;
 }
