@@ -1228,9 +1228,8 @@ describe("drop zones", () => {
         const drop = dragEvent("drop", 0, 0);
         z.element.dispatchEvent(drop);
         expect(z.onDrop).toHaveBeenCalledTimes(1);
-        expect((z.onDrop.mock.calls[0]?.[0] as TabNode).getName()).toBe(
-            "report.csv",
-        );
+        const dropped = z.onDrop.mock.calls[0]?.[0] as TabNode | undefined;
+        expect(dropped?.getName()).toBe("report.csv");
         expect(DragDropManager.getDragState()).toBeUndefined();
 
         // another foreign drag: layout → zone → out of the page

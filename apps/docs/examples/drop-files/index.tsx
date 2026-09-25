@@ -85,6 +85,8 @@ function ImagePreview({ file }: { file: File }) {
         return () => URL.revokeObjectURL(objectUrl);
     }, [file]);
     return url ? (
+        // a plain <img>: the source is a local object URL, which an image optimizer cannot fetch
+        // biome-ignore lint/performance/noImgElement: an object URL of a dropped file
         <img
             src={url}
             alt={file.name}

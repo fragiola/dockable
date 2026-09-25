@@ -213,7 +213,8 @@ describe("Dockable.DropZone", () => {
             zone.dispatchEvent(dragEvent("drop"));
         });
         expect(onDrop).toHaveBeenCalledTimes(1);
-        expect((onDrop.mock.calls[0]?.[0] as Node).getId()).toBe("t1");
+        const dropped = onDrop.mock.calls[0]?.[0] as Node | undefined;
+        expect(dropped?.getId()).toBe("t1");
         expect(JSON.stringify(model.toJson())).toBe(before);
         expect(zone).not.toHaveAttribute("data-drop-over");
         expect(zone).not.toHaveAttribute("data-drop-active");
