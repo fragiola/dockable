@@ -67,7 +67,11 @@ export function KitTab({
     children?: ReactNode;
 }) {
     return (
-        <Dockable.Tab node={node} className={cn(styles.tab, className)}>
+        <Dockable.Tab
+            node={node}
+            data-kit-tab=""
+            className={cn(styles.tab, className)}
+        >
             {children ?? (
                 <span data-tab-label className={styles.tabLabel}>
                     {node.getName()}
@@ -101,6 +105,7 @@ export function KitTabSet({
         <div className={styles.tabsetHeader}>
             <Dockable.TabList
                 aria-label={node.getName() ?? "Tabs"}
+                data-kit-tablist=""
                 className={styles.tabList}
             >
                 {(tab) => (
@@ -125,6 +130,7 @@ export function KitTabSet({
     return (
         <Dockable.TabSet
             node={node}
+            data-kit-tabset=""
             className={cn(
                 styles.tabset,
                 resolve(options.tabsetClassName, node),
@@ -290,6 +296,7 @@ export function DockLayout(props: DockLayoutProps) {
                     {(tab) => (
                         <Dockable.Panel
                             node={tab}
+                            data-kit-panel=""
                             className={cn(
                                 styles.panel,
                                 resolve(panelClassName, tab),

@@ -78,7 +78,7 @@ export const panel =
  * ignores the pseudo-element. `relative z-10` keeps the grab area above the tabsets it overlaps.
  */
 export const splitter = [
-    "relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
+    "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
     "after:absolute after:transition-colors after:duration-(--dk-motion)",
     "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
     // side-by-side children: a vertical bar
@@ -95,8 +95,9 @@ export const splitter = [
 /** The grip drawn in the middle of a splitter, for themes that set `--dk-grip: block`. */
 export const splitterGrip = [
     "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
-    "in-data-[orientation=vertical]:h-8 in-data-[orientation=vertical]:w-1",
-    "in-data-[orientation=horizontal]:h-1 in-data-[orientation=horizontal]:w-8",
+    // group-data (the splitter itself), not in-data: an enclosing Row has data-orientation too
+    "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
+    "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
 ].join(" ");
 
 /**

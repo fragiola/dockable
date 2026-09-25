@@ -8,8 +8,8 @@
         (base, soft, line, contrast, accent, ring). A palette that omitted one
         would inherit it from the page and leak across the theme boundary;
      3. the chart series derivation and the hover direction for this scheme;
-     4. a few plain-CSS flourishes keyed on data-* and ARIA, the same hooks
-        any stylesheet can use.
+     4. a few plain-CSS flourishes keyed on the package's data-* and on the
+        kit's markers (data-kit-*), so markup outside the kit is left alone.
 
    Specificity: the palette rules are ":root [data-example-theme="paper"] .palette-x", which ties
    with Fragiola's own ":root[data-theme] .palette-x" and wins by coming
@@ -128,7 +128,7 @@
 /* ── Flourishes: plain CSS on the package's data-* and ARIA ─────────────── */
 
 /* Pill tabs float in the strip instead of sitting on its edge. */
-[data-example-theme="paper"] [role="tab"] {
+[data-example-theme="paper"] [data-kit-tab] {
     height: calc(var(--dk-tab-height) - 0.75rem);
     margin-block: 0.375rem;
     border-radius: var(--dk-tab-radius);
@@ -145,6 +145,6 @@
 }
 
 /* The tab strip loses its rule: the card's shadow separates enough. */
-[data-example-theme="paper"] [role="tablist"] {
+[data-example-theme="paper"] [data-kit-tablist] {
     align-items: center;
 }
