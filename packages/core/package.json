@@ -1,0 +1,41 @@
+{
+    "name": "@fragiola/dockable",
+    "version": "0.0.0",
+    "description": "Headless layout manager for dockable panels: model, actions, layout engine, drag and drop, popout.",
+    "license": "MIT",
+    "type": "module",
+    "author": {
+        "name": "Mauro de Souza",
+        "email": "maurodesouza.me@gmail.com",
+        "url": "https://github.com/maurodesouza"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/fragiola/dockable.git",
+        "directory": "packages/core"
+    },
+    "sideEffects": false,
+    "exports": {
+        ".": {
+            "development": "./src/index.ts",
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsdown",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run"
+    },
+    "devDependencies": {
+        "jsdom": "30.0.1",
+        "tsdown": "0.23.0",
+        "typescript": "7.0.2",
+        "vitest": "4.1.11"
+    }
+}
