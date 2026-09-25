@@ -2,7 +2,7 @@
 // and src/view/layout/LayoutInternal.tsx (the measure-and-position cycle, moveable element
 // handling and the observers that drive them), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
-import { DragDropManager } from "../dnd/DragDropManager";
+import { DragDropManager, type OnExternalDrag } from "../dnd/DragDropManager";
 import { type Action, Actions } from "../model/Actions";
 import { BorderNode } from "../model/BorderNode";
 import type { ILayoutType } from "../model/IJsonModel";
@@ -57,6 +57,8 @@ export interface ILayoutEngineOptions {
     tabDragSpeed?: number;
     /** popout windows (main engine only) */
     popout?: IPopoutOptions;
+    /** accepts foreign drags (files, links, other libraries) as new tabs (main engine only) */
+    onExternalDrag?: OnExternalDrag;
 }
 
 /** Attribute that marks the element hosting a tab's content. */
@@ -98,6 +100,7 @@ export class LayoutEngine {
     private onModelChangeHandler: OnModelChange | undefined;
     private realtimeResize: boolean;
     private tabDragSpeed: number;
+    private onExternalDragHandler: OnExternalDrag | undefined;
     private readonly dragDropManager: DragDropManager;
     private readonly popoutManager: PopoutManager | undefined;
 
@@ -140,6 +143,7 @@ export class LayoutEngine {
         this.onModelChangeHandler = options.onModelChange;
         this.realtimeResize = options.realtimeResize ?? true;
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
+        this.onExternalDragHandler = options.onExternalDrag;
         this.dragDropManager = new DragDropManager(this);
         if (this.mainEngine === this) {
             this.popoutManager = new PopoutManager(this);
@@ -161,6 +165,7 @@ export class LayoutEngine {
             | "realtimeResize"
             | "tabDragSpeed"
             | "popout"
+            | "onExternalDrag"
         >,
     ) {
         this.popoutManager?.setOptions(options.popout ?? {});
@@ -168,6 +173,12 @@ export class LayoutEngine {
         this.onModelChangeHandler = options.onModelChange;
         this.realtimeResize = options.realtimeResize ?? true;
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
+        this.onExternalDragHandler = options.onExternalDrag;
+    }
+
+    /** The handler that accepts foreign drags (set on the main engine). */
+    getOnExternalDrag(): OnExternalDrag | undefined {
+        return this.onExternalDragHandler;
     }
 
     /** Calls `listener` when adapters should re-render. Returns the unsubscribe function. */

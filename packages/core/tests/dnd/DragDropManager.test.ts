@@ -8,6 +8,7 @@ import {
     DragDropManager,
     type LayoutEngine,
     Model,
+    type OnExternalDrag,
     type RowNode,
     type TabNode,
     type TabSetNode,
@@ -55,6 +56,7 @@ function setup(
     options: {
         json?: Parameters<typeof freshModel>[0];
         onAction?: (a: Action) => Action | undefined;
+        onExternalDrag?: OnExternalDrag;
     } = {},
 ) {
     const model = freshModel(options.json);
@@ -69,6 +71,7 @@ function setup(
                 actions.push(action);
                 return action;
             }),
+        onExternalDrag: options.onExternalDrag,
     });
     engines.push(engine);
     const dom = mountTwoTabsets(engine, rects);
@@ -687,5 +690,178 @@ describe("lost drag", () => {
         );
         s.panels.t1.dispatchEvent(dragEvent("dragend", 0, 0));
         expect(DragDropManager.getDragState()).toBeUndefined();
+    });
+});
+
+describe("add drags (a consumer element dragged in)", () => {
+    const json = { type: "tab", name: "Revenue", component: "chart" } as const;
+
+    function addDragAndDrop(
+        s: ReturnType<typeof setup>,
+        x: number,
+        y: number,
+        onDrop?: Parameters<DragDropManager["addTabWithDragAndDrop"]>[2],
+    ) {
+        const start = dragEvent("dragstart", 0, 0);
+        s.manager.addTabWithDragAndDrop(start, { ...json }, onDrop);
+        s.root.dispatchEvent(dragEvent("dragenter", x, y));
+        const over = dragEvent("dragover", x, y);
+        s.root.dispatchEvent(over);
+        s.root.dispatchEvent(dragEvent("drop", x, y));
+        return { start, over };
+    }
+
+    it("records an add drag without adding anything to the model", () => {
+        const s = setup();
+        const start = dragEvent("dragstart", 0, 0);
+        s.manager.addTabWithDragAndDrop(start, { ...json });
+        const state = DragDropManager.getDragState();
+        expect(state?.dragSource).toBe("add");
+        expect(state?.isNewTab()).toBe(true);
+        expect(state?.dragNode?.getModel()).toBe(s.model);
+        expect(start.dataTransfer?.setData).toHaveBeenCalledWith(
+            "text/plain",
+            DRAG_MARKER,
+        );
+        expect(start.dataTransfer?.effectAllowed).toBe("copy");
+        expect(
+            s.model.getNodeById(state?.dragNode?.getId() ?? ""),
+        ).toBeUndefined();
+    });
+
+    it("adds a tab in the centre of a tabset through Actions.addTab, and reports it", () => {
+        const s = setup();
+        const onDrop = vi.fn();
+        const { over } = addDragAndDrop(s, 312, 185, onDrop);
+        expect(over.defaultPrevented).toBe(true);
+        expect(over.dataTransfer?.dropEffect).toBe("copy");
+        expect(s.actions.map((a) => a.type)).toEqual([Actions.ADD_TAB]);
+        expect(s.actions[0]?.data).toMatchObject({
+            toNode: "ts1",
+            location: "center",
+        });
+        const children = node<TabSetNode>(s.model, "ts1").getChildren();
+        expect(children).toHaveLength(2);
+        const added = children[1] as TabNode;
+        expect(added.getName()).toBe("Revenue");
+        expect(onDrop).toHaveBeenCalledWith(added, expect.anything());
+        expect(DragDropManager.getDragState()).toBeUndefined();
+    });
+
+    it("adds a tab on a tabset edge and at the layout edge", () => {
+        const s = setup();
+        addDragAndDrop(s, 220, 185); // left edge of ts1
+        expect(s.actions[0]?.data).toMatchObject({
+            toNode: "ts1",
+            location: "left",
+        });
+        const layoutEdge = setup();
+        addDragAndDrop(layoutEdge, 12, 170); // within 10px of the root's left edge
+        expect(layoutEdge.actions[0]?.type).toBe(Actions.ADD_TAB);
+        expect(layoutEdge.actions[0]?.data).toMatchObject({
+            toNode: "row",
+            location: "left",
+        });
+    });
+
+    it("reports undefined when onAction vetoes the add", () => {
+        const s = setup({ onAction: () => undefined });
+        const onDrop = vi.fn();
+        addDragAndDrop(s, 312, 185, onDrop);
+        expect(onDrop).toHaveBeenCalledWith(undefined, expect.anything());
+        expect(node<TabSetNode>(s.model, "ts1").getChildren()).toHaveLength(1);
+    });
+
+    it("honours the model's onAllowDrop", () => {
+        const s = setup();
+        s.model.setOnAllowDrop(
+            (_dragNode, dropInfo) => dropInfo.node.getId() !== "ts1",
+        );
+        const onDrop = vi.fn();
+        const { over } = addDragAndDrop(s, 312, 185, onDrop);
+        expect(over.defaultPrevented).toBe(false);
+        expect(onDrop).not.toHaveBeenCalled();
+        expect(s.actions).toHaveLength(0);
+    });
+
+    it("leaves the model untouched when the drag is cancelled", () => {
+        const s = setup();
+        s.manager.addTabWithDragAndDrop(dragEvent("dragstart", 0, 0), {
+            ...json,
+        });
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+        s.manager.onDragEnded(); // the source's dragend
+        expect(s.actions).toHaveLength(0);
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(s.manager.getIndicatorState().dragging).toBe(false);
+    });
+});
+
+describe("external drags (onExternalDrag)", () => {
+    it("ignores foreign drags without a handler, or when the handler declines", () => {
+        const none = setup();
+        none.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        none.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+
+        const declined = vi.fn(() => undefined);
+        const s = setup({ onExternalDrag: declined });
+        const over = dragEvent("dragover", 312, 185);
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(over);
+        expect(declined).toHaveBeenCalledTimes(1);
+        expect(over.defaultPrevented).toBe(false);
+        expect(DragDropManager.getDragState()).toBeUndefined();
+    });
+
+    it("turns an accepted foreign drag into a new tab on drop", () => {
+        const onDrop = vi.fn();
+        const s = setup({
+            onExternalDrag: () => ({
+                json: { type: "tab", name: "report.csv", component: "file" },
+                onDrop,
+            }),
+        });
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+        const over = dragEvent("dragover", 312, 185);
+        s.root.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(true);
+        expect(s.manager.getIndicatorState().visible).toBe(true);
+        const drop = dragEvent("drop", 312, 185);
+        s.root.dispatchEvent(drop);
+        const added = node<TabSetNode>(
+            s.model,
+            "ts1",
+        ).getChildren()[1] as TabNode;
+        expect(added.getName()).toBe("report.csv");
+        expect(onDrop).toHaveBeenCalledWith(added, drop);
+        expect(DragDropManager.getDragState()).toBeUndefined();
+    });
+
+    it("ends an external drag that leaves the layout without dropping", () => {
+        const s = setup({
+            onExternalDrag: () => ({ json: { type: "tab", name: "x" } }),
+        });
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(s.actions).toHaveLength(0);
+        // the next foreign drag asks again
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+    });
+
+    it("does not treat a layout's own drag as external", () => {
+        const onExternalDrag = vi.fn(() => ({
+            json: { type: "tab" as const },
+        }));
+        const s = setup({ onExternalDrag });
+        dragAndDrop(s, "t0", 312, 185);
+        expect(onExternalDrag).not.toHaveBeenCalled();
+        expect(s.actions[0]?.type).toBe(Actions.MOVE_NODE);
     });
 });

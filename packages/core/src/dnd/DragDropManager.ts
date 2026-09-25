@@ -7,15 +7,19 @@
 //   a subscribable indicator state that a view renders (`Dockable.DropIndicator`);
 // - the drag image is an element the adapter provides (no React root rendered at dragstart, no
 //   generated text);
-// - external drags and "add" drags (DragSource.External / DragSource.Add, addTabWithDragAndDrop,
-//   onExternalDrag, fnNewNodeDropped, dragJson) are not ported (product decision), nor the overlay
-//   border reveal during a drag (borders slice).
+// - "add" drags (a consumer element dragged in, `addTabWithDragAndDrop`) and external drags (a
+//   foreign drag accepted by `onExternalDrag`) drop through `Actions.addTab`, interceptable by
+//   `onAction`; the drop callback receives the new tab, or `undefined` when the action was vetoed.
+//   An external drag also ends when it leaves every layout (its source is outside the page, so no
+//   `dragend` reaches the document);
+// - the overlay border reveal during a drag is not ported (borders slice).
 import type { LayoutEngine } from "../engine/LayoutEngine";
 import { Actions } from "../model/Actions";
 import { BorderNode } from "../model/BorderNode";
 import { DockLocation } from "../model/DockLocation";
 import type { DropInfo, DropKind } from "../model/DropInfo";
 import type { IDraggable } from "../model/IDraggable";
+import type { IJsonTabNode } from "../model/IJsonModel";
 import type { ModelLayout } from "../model/ModelLayout";
 import type { Node } from "../model/Node";
 import { Orientation } from "../model/Orientation";
@@ -51,8 +55,39 @@ export interface IDropIndicatorState {
     readonly tabDragSpeed: number;
 }
 
-/** How a drag started: a node of the layout, or a floating panel's whole layout. */
-export type DragSource = "internal" | "float";
+/**
+ * How a drag started: a node of the layout (`"internal"`), a floating panel's whole layout
+ * (`"float"`), a consumer element that adds a new tab (`"add"`), or a foreign drag accepted by
+ * `onExternalDrag` (`"external"`, e.g. files from the OS).
+ */
+export type DragSource = "internal" | "float" | "add" | "external";
+
+/**
+ * Called after an add or external drag was dropped: `node` is the tab the drop created, or
+ * `undefined` when `onAction` vetoed (or replaced) the `addTab` action.
+ */
+export type NewTabDropped = (
+    node: TabNode | undefined,
+    event: DragEventLike,
+) => void;
+
+/** What `onExternalDrag` returns to accept a foreign drag: the tab to create, and a callback. */
+export interface IExternalDrag {
+    /** the tab the drop creates */
+    json: IJsonTabNode;
+    /** called after the drop with the created tab (or `undefined` when vetoed) */
+    onDrop?: NewTabDropped | undefined;
+}
+
+/**
+ * Decides whether a drag that did not start in a layout (files, links, text, an element of
+ * another library) can be dropped into it. Return the tab to create, or `undefined` to ignore the
+ * drag. It is called on the first `dragenter`, when the data transfer exposes only its `types`
+ * (browsers hide the data itself until the drop): read the payload in `onDrop`.
+ */
+export type OnExternalDrag = (
+    event: DragEventLike,
+) => IExternalDrag | undefined;
 
 /** The drag in progress. There is one for the page, shared by every window of a model. */
 export class DragState {
@@ -64,6 +99,10 @@ export class DragState {
     readonly floatLayoutId: string | undefined;
     /** the floating panel window the drag came from; drops over it are rejected */
     readonly sourceFloatElement: Element | undefined;
+    /** the tab an add or external drag creates on drop */
+    readonly dragJson: IJsonTabNode | undefined;
+    /** called after an add or external drag was dropped */
+    readonly onNewTabDropped: NewTabDropped | undefined;
 
     constructor(
         mainEngine: LayoutEngine,
@@ -72,6 +111,8 @@ export class DragState {
         dockFloatToMain = false,
         floatLayoutId: string | undefined = undefined,
         sourceFloatElement: Element | undefined = undefined,
+        dragJson: IJsonTabNode | undefined = undefined,
+        onNewTabDropped: NewTabDropped | undefined = undefined,
     ) {
         this.mainEngine = mainEngine;
         this.dragSource = dragSource;
@@ -79,6 +120,13 @@ export class DragState {
         this.dockFloatToMain = dockFloatToMain;
         this.floatLayoutId = floatLayoutId;
         this.sourceFloatElement = sourceFloatElement;
+        this.dragJson = dragJson;
+        this.onNewTabDropped = onNewTabDropped;
+    }
+
+    /** true for drags that create a new tab on drop (add and external) */
+    isNewTab(): boolean {
+        return this.dragJson !== undefined;
     }
 }
 
@@ -281,6 +329,74 @@ export class DragDropManager {
         }
     }
 
+    /**
+     * Starts dragging a new tab from a consumer element (a sidebar item, a palette entry). Call
+     * from the element's `dragstart`, and call {@link onDragEnded} from its `dragend`. A drop
+     * dispatches `Actions.addTab(json, …)` through the engine, then calls `onDrop` with the new
+     * tab. `dragImage` is the element the browser snapshots; with none, the browser default (the
+     * source element) is used.
+     */
+    addTabWithDragAndDrop = (
+        event: DragEventLike,
+        json: IJsonTabNode,
+        onDrop?: NewTabDropped,
+        dragImage?: Element | null,
+    ) => {
+        const tempNode = TabNode.fromJson(json, this.engine.getModel(), false);
+        DragDropManager.setDragState(
+            new DragState(
+                this.engine.getMainEngine(),
+                "add",
+                tempNode,
+                false,
+                undefined,
+                undefined,
+                json,
+                onDrop,
+            ),
+        );
+        const dataTransfer = event.dataTransfer;
+        if (dataTransfer) {
+            dataTransfer.setData("text/plain", DRAG_MARKER);
+            dataTransfer.effectAllowed = "copy";
+            dataTransfer.dropEffect = "copy";
+        }
+        this.dragEnterCount = 0;
+        this.engine.getModel().sortLayouts(); // must have order windows, tabs, floats
+        this.installLostDragGuard();
+        if (dragImage) {
+            event.dataTransfer?.setDragImage(dragImage, 10, 10);
+        }
+    };
+
+    /** Asks the main engine's `onExternalDrag` whether a foreign drag can be dropped here. */
+    private startExternalDrag(event: DragEventLike) {
+        const onExternalDrag = this.engine.getMainEngine().getOnExternalDrag();
+        const external = onExternalDrag?.(event);
+        if (!external) {
+            return;
+        }
+        const tempNode = TabNode.fromJson(
+            external.json,
+            this.engine.getModel(),
+            false,
+        );
+        DragDropManager.setDragState(
+            new DragState(
+                this.engine.getMainEngine(),
+                "external",
+                tempNode,
+                false,
+                undefined,
+                undefined,
+                external.json,
+                external.onDrop,
+            ),
+        );
+        this.engine.getModel().sortLayouts(); // must have order windows, tabs, floats
+        this.installLostDragGuard();
+    }
+
     private initDataTransfer(event: DragEventLike) {
         const dataTransfer = event.dataTransfer;
         if (dataTransfer) {
@@ -401,6 +517,9 @@ export class DragDropManager {
 
     /** `dragenter` on the layout root */
     onDragEnterRaw = (event: DragEventLike) => {
+        if (!DragDropManager.dragState) {
+            this.startExternalDrag(event);
+        }
         this.dragEnterCount++;
         this.updateActive(event);
     };
@@ -546,6 +665,10 @@ export class DragDropManager {
             return;
         }
         event.preventDefault(); // can drop so prevent default (which is cannot drop)
+        if (dragState.isNewTab() && event.dataTransfer) {
+            // a new tab is a copy of what was dragged (and a file drag allows no "move")
+            event.dataTransfer.dropEffect = "copy";
+        }
         this.dropInfo = dropInfo;
         this.setIndicator({
             ...this.indicator,
@@ -572,11 +695,18 @@ export class DragDropManager {
             }
             if (!anyDragging) {
                 this.clearDragMain();
+                // an external drag's source is outside the page: no dragend will end it here
+                if (DragDropManager.dragState?.dragSource === "external") {
+                    this.onDragEnded();
+                }
             }
         }
     };
 
-    /** `drop` on the layout root: dispatches `Actions.moveNode` (or `dockFloatToLayout`) through the engine */
+    /**
+     * `drop` on the layout root: dispatches `Actions.moveNode` (or `dockFloatToLayout`, or `addTab`
+     * for add and external drags) through the engine
+     */
     onDrop = (event: DragEventLike) => {
         if (!this.belongsToDrag()) {
             return;
@@ -596,7 +726,20 @@ export class DragDropManager {
                     dropInfo = undefined;
                 }
             }
-            if (dropInfo && dragState.dragNode !== undefined) {
+            if (dropInfo && dragState.dragJson !== undefined) {
+                const added = this.engine.doAction(
+                    Actions.addTab(
+                        dragState.dragJson,
+                        dropInfo.node.getId(),
+                        dropInfo.location,
+                        dropInfo.index,
+                    ),
+                );
+                dragState.onNewTabDropped?.(
+                    added instanceof TabNode ? added : undefined,
+                    event,
+                );
+            } else if (dropInfo && dragState.dragNode !== undefined) {
                 if (
                     dragState.dockFloatToMain &&
                     dragState.floatLayoutId !== undefined
@@ -622,6 +765,7 @@ export class DragDropManager {
             }
 
             this.clearDragMain();
+            this.removeLostDragGuard?.();
             DragDropManager.setDragState(undefined);
         }
         this.dragEnterCount = 0;
