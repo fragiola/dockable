@@ -193,10 +193,20 @@ async function startDrag(page: Page, from: Locator) {
     await page.mouse.move(cf.x + 11, cf.y + 11);
 }
 
+/**
+ * moves an active drag to `point`. A step that crosses into another element can fire only
+ * dragenter/dragleave, so a 1px nudge at the end makes sure a dragover reports the final point
+ */
+async function moveDragTo(page: Page, point: { x: number; y: number }) {
+    await page.mouse.move(point.x, point.y, { steps: 10 });
+    await page.mouse.move(point.x + 1, point.y);
+    await page.mouse.move(point.x, point.y);
+    await page.waitForTimeout(50); // let dragover register before the drop
+}
+
 /** moves an active drag to `point` and drops it there */
 async function dropAt(page: Page, point: { x: number; y: number }) {
-    await page.mouse.move(point.x, point.y, { steps: 10 });
-    await page.waitForTimeout(50); // let dragover register before the drop
+    await moveDragTo(page, point);
     await page.mouse.up();
 }
 
@@ -247,9 +257,7 @@ export async function dragOver(
 ) {
     const tr = await waitForBox(to, "drag target");
     await startDrag(page, from);
-    const point = getLocation(tr, loc);
-    await page.mouse.move(point.x, point.y, { steps: 10 });
-    await page.waitForTimeout(50);
+    await moveDragTo(page, getLocation(tr, loc));
     return async () => {
         await page.mouse.up();
     };

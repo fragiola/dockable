@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -20,7 +21,8 @@ function pages(dir: string): Record<string, string> {
 }
 
 export default defineConfig(({ command }) => ({
-    plugins: [react()],
+    // Tailwind is a playground concern only (the styled example); no package depends on it
+    plugins: [react(), tailwindcss()],
     // In dev, resolve the workspace packages to their sources (the `development` export
     // condition) so the core and React sources hot-reload. The build uses `dist`.
     resolve: command === "serve" ? { conditions: ["development"] } : {},
