@@ -1,0 +1,126 @@
+// Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/model/DockLocation.ts.
+// Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+
+import { Orientation } from "./Orientation";
+import { Rect } from "./Rect";
+
+export class DockLocation {
+    static values = new Map<string, DockLocation>();
+    static TOP = new DockLocation("top", Orientation.VERT, 0);
+    static BOTTOM = new DockLocation("bottom", Orientation.VERT, 1);
+    static LEFT = new DockLocation("left", Orientation.HORZ, 0);
+    static RIGHT = new DockLocation("right", Orientation.HORZ, 1);
+    static CENTER = new DockLocation("center", Orientation.VERT, 0);
+
+    /** @internal */
+    static getByName(name: string): DockLocation {
+        const location = DockLocation.values.get(name);
+        if (location === undefined) {
+            throw new Error(`Error: unknown dock location "${name}"`);
+        }
+        return location;
+    }
+
+    /** @internal */
+    static getLocation(
+        rect: Rect,
+        x: number,
+        y: number,
+        excludeCenter: boolean = false,
+    ) {
+        if (!(rect.width > 0) || !(rect.height > 0)) {
+            return DockLocation.CENTER;
+        }
+        x = (x - rect.x) / rect.width;
+        y = (y - rect.y) / rect.height;
+
+        if (!excludeCenter && x >= 0.25 && x < 0.75 && y >= 0.25 && y < 0.75) {
+            return DockLocation.CENTER;
+        }
+
+        // Whether or not the point is in the bottom-left half of the rect
+        // +-----+
+        // |\    |
+        // |x\   |
+        // |xx\  |
+        // |xxx\ |
+        // |xxxx\|
+        // +-----+
+        const bl = y >= x;
+
+        // Whether or not the point is in the bottom-right half of the rect
+        // +-----+
+        // |    /|
+        // |   /x|
+        // |  /xx|
+        // | /xxx|
+        // |/xxxx|
+        // +-----+
+        const br = y >= 1 - x;
+
+        if (bl) {
+            return br ? DockLocation.BOTTOM : DockLocation.LEFT;
+        } else {
+            return br ? DockLocation.RIGHT : DockLocation.TOP;
+        }
+    }
+
+    /** @internal */
+    name: string;
+    /** @internal */
+    orientation: Orientation;
+    /** @internal */
+    indexPlus: number;
+
+    /** @internal */
+    constructor(_name: string, _orientation: Orientation, _indexPlus: number) {
+        this.name = _name;
+        this.orientation = _orientation;
+        this.indexPlus = _indexPlus;
+        DockLocation.values.set(this.name, this);
+    }
+
+    getName() {
+        return this.name;
+    }
+
+    getOrientation() {
+        return this.orientation;
+    }
+
+    /** @internal */
+    getDockRect(r: Rect) {
+        if (this === DockLocation.TOP) {
+            return new Rect(r.x, r.y, r.width, r.height / 2);
+        } else if (this === DockLocation.BOTTOM) {
+            return new Rect(
+                r.x,
+                r.getBottom() - r.height / 2,
+                r.width,
+                r.height / 2,
+            );
+        }
+        if (this === DockLocation.LEFT) {
+            return new Rect(r.x, r.y, r.width / 2, r.height);
+        } else if (this === DockLocation.RIGHT) {
+            return new Rect(
+                r.getRight() - r.width / 2,
+                r.y,
+                r.width / 2,
+                r.height,
+            );
+        } else {
+            return r.clone();
+        }
+    }
+
+    toString() {
+        return (
+            "(DockLocation: name=" +
+            this.name +
+            ", orientation=" +
+            this.orientation +
+            ")"
+        );
+    }
+}

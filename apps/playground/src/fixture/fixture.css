@@ -1,0 +1,47 @@
+/* Structural only: a sized root and a visible splitter thickness. No package ships CSS. */
+html,
+body {
+    margin: 0;
+    height: 100%;
+}
+
+#app {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+[data-layout-path="/layout"] {
+    flex: 1;
+}
+
+/* the splitter needs a thickness (the engine measures it) and, to be seen, a background */
+[role="separator"] {
+    background: #ccc;
+}
+
+[role="separator"][data-orientation="vertical"] {
+    width: 8px;
+    cursor: ew-resize;
+}
+
+[role="separator"][data-orientation="horizontal"] {
+    height: 8px;
+    cursor: ns-resize;
+}
+
+/* a tab strip as tall as FlexLayout's (its specs aim at the strip's centre, which must stay out of
+   the layout's 10px top-edge docking band) */
+[role="tablist"] {
+    display: flex;
+    min-height: 30px;
+    /* FlexLayout's strip drop only offers "before the first tab" when that tab is not flush with
+       the tabset's edge (the edge itself belongs to the tabset's left drop) */
+    padding-inline: 4px;
+}
+
+/* the drop outline must be seen to be useful */
+[data-layout-path="/outline"] {
+    background: rgb(0 0 255 / 0.2);
+}

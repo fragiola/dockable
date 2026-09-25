@@ -1,0 +1,8 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "customConditions": ["development"],
+        "types": ["node", "vite/client"]
+    },
+    "include": ["src", "fixtures", "examples", "e2e", "*.config.ts"]
+}

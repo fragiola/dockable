@@ -1,0 +1,317 @@
+// Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/model/Attributes.ts.
+// Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+
+/** @internal */
+const explicitSets = new WeakMap<Record<string, any>, Set<string>>();
+
+function markExplicit(obj: Record<string, any>, name: string) {
+    let set = explicitSets.get(obj);
+    if (!set) {
+        set = new Set();
+        explicitSets.set(obj, set);
+    }
+    set.add(name);
+}
+
+function unmarkExplicit(obj: Record<string, any>, name: string) {
+    explicitSets.get(obj)?.delete(name);
+}
+
+function isExplicit(obj: Record<string, any>, name: string): boolean {
+    return explicitSets.get(obj)?.has(name) ?? false;
+}
+
+/** @internal */
+export class Attributes {
+    attributes: Attribute[];
+    nameToAttribute: Map<string, Attribute>;
+
+    constructor() {
+        this.attributes = [];
+        this.nameToAttribute = new Map();
+    }
+
+    addWithAll(
+        name: string,
+        modelName: string | undefined,
+        defaultValue: any,
+        alwaysWriteJson?: boolean,
+    ) {
+        const attr = new Attribute(
+            name,
+            modelName,
+            defaultValue,
+            alwaysWriteJson,
+        );
+        this.attributes.push(attr);
+        this.nameToAttribute.set(name, attr);
+        return attr;
+    }
+
+    addInherited(name: string, modelName: string) {
+        return this.addWithAll(name, modelName, undefined, false);
+    }
+
+    add(name: string, defaultValue: any, alwaysWriteJson?: boolean) {
+        return this.addWithAll(name, undefined, defaultValue, alwaysWriteJson);
+    }
+
+    getAttributes() {
+        return this.attributes;
+    }
+
+    getModelName(name: string) {
+        const conversion = this.nameToAttribute.get(name);
+        if (conversion !== undefined) {
+            return conversion.modelName;
+        }
+        return undefined;
+    }
+
+    toJson(jsonObj: any, obj: any) {
+        for (const attr of this.attributes) {
+            const fromValue = obj[attr.name];
+            if (
+                attr.alwaysWriteJson ||
+                (fromValue !== undefined && fromValue !== attr.defaultValue) ||
+                (attr.preserveIfExplicit &&
+                    fromValue !== undefined &&
+                    isExplicit(obj, attr.name))
+            ) {
+                jsonObj[attr.name] = fromValue;
+            }
+        }
+    }
+
+    fromJson(jsonObj: any, obj: any) {
+        for (const attr of this.attributes) {
+            let fromValue = jsonObj[attr.name];
+            if (fromValue === undefined && attr.alias) {
+                fromValue = jsonObj[attr.alias];
+            }
+            if (fromValue === undefined) {
+                obj[attr.name] = attr.defaultValue;
+                unmarkExplicit(obj, attr.name);
+            } else {
+                obj[attr.name] = fromValue;
+                markExplicit(obj, attr.name);
+            }
+        }
+    }
+
+    update(jsonObj: any, obj: any) {
+        for (const attr of this.attributes) {
+            let key = attr.name;
+            if (
+                !Object.hasOwn(jsonObj, key) &&
+                attr.alias !== undefined &&
+                Object.hasOwn(jsonObj, attr.alias)
+            ) {
+                key = attr.alias;
+            }
+            if (Object.hasOwn(jsonObj, key)) {
+                const fromValue = jsonObj[key];
+                if (fromValue === undefined) {
+                    delete obj[attr.name];
+                    unmarkExplicit(obj, attr.name);
+                } else {
+                    obj[attr.name] = fromValue;
+                    markExplicit(obj, attr.name);
+                }
+            }
+        }
+    }
+
+    setDefaults(obj: any) {
+        for (const attr of this.attributes) {
+            obj[attr.name] = attr.defaultValue;
+            unmarkExplicit(obj, attr.name);
+        }
+    }
+
+    pairAttributes(type: string, childAttributes: Attributes) {
+        for (const attr of childAttributes.attributes) {
+            if (attr.modelName && this.nameToAttribute.has(attr.modelName)) {
+                const pairedAttr = this.nameToAttribute.get(attr.modelName)!;
+                pairedAttr.setpairedAttr(attr);
+                attr.setpairedAttr(pairedAttr);
+                pairedAttr.setPairedType(type);
+            }
+        }
+    }
+
+    toTypescriptInterface(
+        name: string,
+        parentAttributes: Attributes | undefined,
+    ) {
+        const lines = [];
+        const sorted = [...this.attributes].sort((a, b) =>
+            a.name.localeCompare(b.name),
+        );
+        lines.push(`export interface I${name}Attributes {`);
+        for (const c of sorted) {
+            let type = c.type;
+            let defaultValue: unknown;
+
+            let attr = c;
+            let inherited: string | undefined;
+            if (attr.defaultValue !== undefined) {
+                defaultValue = attr.defaultValue;
+            } else if (
+                attr.modelName !== undefined &&
+                parentAttributes !== undefined &&
+                parentAttributes.nameToAttribute.get(attr.modelName) !==
+                    undefined
+            ) {
+                inherited = attr.modelName;
+                attr = parentAttributes.nameToAttribute.get(inherited)!;
+                defaultValue = attr.defaultValue;
+                type = attr.type;
+            }
+
+            const defValue = JSON.stringify(defaultValue);
+
+            const required = attr.required ? "" : "?";
+
+            let sb = "\t/**\n\t  ";
+            if (c.description) {
+                sb += c.description;
+            } else if (c.pairedType && c.pairedAttr?.description) {
+                sb += `Value for ${c.pairedType} attribute ${c.pairedAttr.name} if not overridden`;
+                sb += "\n\n\t  ";
+                sb += c.pairedAttr?.description;
+            }
+            sb += "\n\n\t  ";
+            if (c.fixed) {
+                sb += `Fixed value: ${defValue}`;
+            } else if (inherited) {
+                sb += `Default: inherited from Global attribute ${c.modelName} (default ${defValue})`;
+            } else {
+                sb += `Default: ${defValue}`;
+            }
+            sb += "\n\t */";
+            lines.push(sb);
+            lines.push(`\t${c.name}${required}: ${type};\n`);
+        }
+        lines.push("}");
+
+        return lines.join("\n");
+    }
+}
+/** @internal the possible values of an attribute, with an optional display label */
+export interface IAttributeValue {
+    value: any;
+    label: string;
+}
+
+/** @internal */
+export class Attribute {
+    static NUMBER = "number";
+    static STRING = "string";
+    static BOOLEAN = "boolean";
+
+    name: string;
+    alias: string | undefined;
+    modelName?: string;
+    pairedAttr?: Attribute;
+    pairedType?: string;
+    defaultValue: any;
+    alwaysWriteJson?: boolean;
+    preserveIfExplicit?: boolean;
+    type?: string;
+    required: boolean;
+    fixed: boolean;
+    description?: string;
+    values?: IAttributeValue[];
+
+    constructor(
+        name: string,
+        modelName: string | undefined,
+        defaultValue: any,
+        alwaysWriteJson?: boolean,
+    ) {
+        this.name = name;
+        this.alias = undefined;
+        this.modelName = modelName;
+        this.defaultValue = defaultValue;
+        this.alwaysWriteJson = alwaysWriteJson;
+        this.required = false;
+        this.fixed = false;
+
+        this.type = "any";
+    }
+
+    setType(value: string) {
+        this.type = value;
+        return this;
+    }
+
+    /** @internal */
+    getEffectiveType() {
+        if (this.type !== "any") {
+            return this.type;
+        }
+        return this.pairedAttr?.type;
+    }
+
+    setAlias(value: string) {
+        this.alias = value;
+        return this;
+    }
+
+    setPreserveIfExplicit(value: boolean = true) {
+        this.preserveIfExplicit = value;
+        return this;
+    }
+
+    setDescription(value: string) {
+        this.description = value;
+    }
+
+    /** @internal */
+    setValues(values: Array<IAttributeValue | any>) {
+        this.values = values.map((v) => {
+            if (typeof v === "object" && v !== null && "value" in v) {
+                return {
+                    value: v.value,
+                    label: v.label !== undefined ? v.label : String(v.value),
+                };
+            }
+            return {
+                value: v,
+                label:
+                    typeof v === "string"
+                        ? v.charAt(0).toUpperCase() + v.slice(1)
+                        : String(v),
+            };
+        });
+        return this;
+    }
+
+    /** @internal */
+    getValues(): IAttributeValue[] | undefined {
+        if (this.values !== undefined) {
+            return this.values;
+        }
+        return this.pairedAttr?.values;
+    }
+
+    setRequired() {
+        this.required = true;
+        return this;
+    }
+
+    setFixed() {
+        this.fixed = true;
+        return this;
+    }
+
+    // sets modelAttr for nodes, and nodeAttr for model
+    setpairedAttr(value: Attribute) {
+        this.pairedAttr = value;
+    }
+
+    setPairedType(value: string) {
+        this.pairedType = value;
+    }
+}
