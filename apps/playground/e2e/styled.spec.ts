@@ -30,7 +30,7 @@ test.describe("styled example", () => {
         );
         expect(unselected).not.toBe(background);
         const splitter = findPath(page, "/s0");
-        await expect(splitter).toHaveCSS("width", "6px");
+        await expect(splitter).toHaveCSS("width", "1px"); // a 1px line, VS Code style
         await expect(splitter).toHaveAttribute("aria-label", "Resize");
     });
 
@@ -69,6 +69,34 @@ test.describe("styled example", () => {
         expect(edgeBorder).toBe("dashed"); // edge and rect drops are styled apart
         await drop();
         await expect(indicator).toBeHidden();
+    });
+
+    test("the 1px splitter has a wider grab area, shown as a band only while dragging", async ({
+        page,
+    }) => {
+        const splitter = findPath(page, "/s0");
+        const box = await waitForBox(splitter, "/s0");
+        const band = () =>
+            splitter.evaluate(
+                (el) => getComputedStyle(el, "::after").backgroundColor,
+            );
+        const idle = await band();
+        const before = await waitForBox(findPath(page, "/ts0"), "/ts0");
+
+        // press 2px beside the line: inside the ::after grab area (a quarter of the way down, away
+        // from the junction with the right column's own splitter)
+        const y = box.y + box.height / 4;
+        await page.mouse.move(box.x + box.width / 2 + 2, y);
+        await page.mouse.down();
+        await page.mouse.move(box.x - 60, y, { steps: 5 });
+        await expect(splitter).toHaveAttribute("data-dragging", "");
+        expect(await band()).not.toBe(idle);
+        await page.mouse.up();
+
+        await expect(splitter).not.toHaveAttribute("data-dragging");
+        expect(await band()).toBe(idle);
+        const after = await waitForBox(findPath(page, "/ts0"), "/ts0");
+        expect(after.width).toBeLessThan(before.width - 40);
     });
 
     test("the splitter keyboard resizes", async ({ page }) => {

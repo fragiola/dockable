@@ -59,14 +59,29 @@ const labels: Partial<Record<DockableLabel, string>> = {
     [DockableLabel.Splitter]: "Resize",
 };
 
-/** Splitters: thickness, hover, focus and drag state, all from data-* and pseudo-classes. */
+/**
+ * Splitters, VS Code style: a 1px line with a wider invisible grab area (the ::after, centred on
+ * the line), which shows as a 4px band only while dragging (or when focused from the keyboard).
+ * The engine measures the element (1px) for the split math and ignores the pseudo-element.
+ * relative + z-10 keep the grab area above the tabsets and panels it overlaps.
+ */
+const splitterClassName = [
+    "relative z-10 shrink-0 bg-palette-line outline-none",
+    "after:absolute after:bg-transparent",
+    "data-dragging:after:bg-palette-ring focus-visible:after:bg-palette-ring",
+    // vertical splitter (side by side children): 1px wide, 6px grab area, 4px band while dragging
+    "data-[orientation=vertical]:w-px data-[orientation=vertical]:cursor-ew-resize",
+    "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
+    "data-[orientation=vertical]:after:w-1.5 data-[orientation=vertical]:after:-translate-x-1/2",
+    "rtl:data-[orientation=vertical]:after:translate-x-1/2",
+    // horizontal splitter (stacked children)
+    "data-[orientation=horizontal]:h-px data-[orientation=horizontal]:cursor-ns-resize",
+    "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
+    "data-[orientation=horizontal]:after:h-1.5 data-[orientation=horizontal]:after:-translate-y-1/2",
+].join(" ");
+
 function renderSplitter(props: RowSplitterProps) {
-    return (
-        <Dockable.Splitter
-            {...props}
-            className="shrink-0 bg-palette-line outline-none transition-colors hover:bg-palette-ring focus-visible:bg-palette-ring data-dragging:bg-palette-ring data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:cursor-ns-resize data-[orientation=vertical]:w-1.5 data-[orientation=vertical]:cursor-ew-resize"
-        />
-    );
+    return <Dockable.Splitter {...props} className={splitterClassName} />;
 }
 
 /** The consumer's own pop out button: an inline SVG and an accessible name, no package text. */
@@ -106,7 +121,7 @@ function renderNode(child: TabSetNode | RowNode): ReactNode {
         return (
             <Dockable.TabSet
                 node={child}
-                className="group palette-raised m-1 rounded-md border border-palette-line bg-palette-base data-active:border-palette-ring"
+                className="group palette-raised bg-palette-base"
             >
                 <div className="flex items-stretch border-b border-palette-line">
                     <Dockable.TabList
@@ -239,12 +254,9 @@ function App() {
                 </Dockable.Row>
                 <Dockable.Panels>
                     {(tab) => (
-                        // the panel sits over the tabset's content area but outside the tabset, so
-                        // the tabset's rounded corners do not clip it: round its bottom corners to
-                        // the tabset's inner radius (rounded-md minus the 1px border)
                         <Dockable.Panel
                             node={tab}
-                            className="palette-surface overflow-hidden rounded-b-[calc(var(--radius-md)-1px)] bg-palette-base text-palette-contrast"
+                            className="palette-surface bg-palette-base text-palette-contrast"
                         >
                             <Card tab={tab} />
                         </Dockable.Panel>
