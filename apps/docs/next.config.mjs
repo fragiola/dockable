@@ -27,12 +27,10 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 // them first). In dev, the packages resolve to their sources — the same
 // intent as the playground's `development` export condition, which Turbopack
 // does not let us select, so it is spelled as aliases.
+// Turbopack resolves alias targets relative to `turbopack.root` (the workspace).
 const devAliases = {
-    "@fragiola/dockable": path.join(workspaceRoot, "packages/core/src/index.ts"),
-    "@fragiola/dockable-react": path.join(
-        workspaceRoot,
-        "packages/react/src/index.ts",
-    ),
+    "@fragiola/dockable": "./packages/core/src/index.ts",
+    "@fragiola/dockable-react": "./packages/react/src/index.ts",
 };
 
 const withMDX = createMDX();

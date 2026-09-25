@@ -6,7 +6,7 @@ const CI = Boolean(process.env.CI);
  * path, i.e. what gets deployed, not `next dev`. Build it first with
  * `NEXT_PUBLIC_BASE_PATH=/dockable pnpm --filter docs... build`. */
 export const BASE_PATH = "/dockable";
-const PORT = 4310;
+const PORT = Number(process.env.DOCS_E2E_PORT ?? 4310);
 
 export default defineConfig({
     testDir: "e2e",
