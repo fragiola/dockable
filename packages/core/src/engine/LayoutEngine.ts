@@ -2,6 +2,7 @@
 // and src/view/layout/LayoutInternal.tsx (the measure-and-position cycle, moveable element
 // handling and the observers that drive them), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+import { DragDropManager } from "../dnd/DragDropManager";
 import { type Action, Actions } from "../model/Actions";
 import { BorderNode } from "../model/BorderNode";
 import type { ILayoutType } from "../model/IJsonModel";
@@ -51,6 +52,8 @@ export interface ILayoutEngineOptions {
     measure?: MeasureFunction;
     /** true (default) to resize live while a splitter is dragged; false to preview and commit on release */
     realtimeResize?: boolean;
+    /** seconds a view may take to animate the drop outline (exposed as data; default 0.3) */
+    tabDragSpeed?: number;
 }
 
 /** Attribute that marks the element hosting a tab's content. */
@@ -91,6 +94,8 @@ export class LayoutEngine {
     private onActionHandler: OnAction | undefined;
     private onModelChangeHandler: OnModelChange | undefined;
     private realtimeResize: boolean;
+    private tabDragSpeed: number;
+    private readonly dragDropManager: DragDropManager;
 
     private layoutRef: HTMLElement | null = null;
     private moveablesHome: HTMLElement | null = null;
@@ -108,7 +113,7 @@ export class LayoutEngine {
         string,
         { node: TabNode; element: HTMLElement }
     > = new Map();
-    private readonly splitters: Map<HTMLElement, boolean> = new Map();
+    private readonly splitters: Map<HTMLElement, () => boolean> = new Map();
     // watches the root and the measured elements so css-driven geometry changes (e.g. a font-size
     // or theme change altering the tabstrip height without resizing the layout root) re-measure
     private geometryResizeObserver: ResizeObserver | undefined;
@@ -117,10 +122,6 @@ export class LayoutEngine {
     private revision = 0;
     private contentRevision = 0;
     private readonly listeners = new Set<() => void>();
-    private readonly scrollListeners = new Map<
-        string,
-        { element: HTMLElement; listener: () => void }
-    >();
     private readonly modelListener: ModelChangeListener = {
         onAfterAction: (action) => this.onModelChange(action),
     };
@@ -134,6 +135,8 @@ export class LayoutEngine {
         this.onActionHandler = options.onAction;
         this.onModelChangeHandler = options.onModelChange;
         this.realtimeResize = options.realtimeResize ?? true;
+        this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
+        this.dragDropManager = new DragDropManager(this);
         this.getLayout().setController(this);
     }
 
@@ -145,12 +148,13 @@ export class LayoutEngine {
     setOptions(
         options: Pick<
             ILayoutEngineOptions,
-            "onAction" | "onModelChange" | "realtimeResize"
+            "onAction" | "onModelChange" | "realtimeResize" | "tabDragSpeed"
         >,
     ) {
         this.onActionHandler = options.onAction;
         this.onModelChangeHandler = options.onModelChange;
         this.realtimeResize = options.realtimeResize ?? true;
+        this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
     }
 
     /** Calls `listener` when adapters should re-render. Returns the unsubscribe function. */
@@ -252,6 +256,25 @@ export class LayoutEngine {
             );
         }
 
+        // native drag listeners on the root (not framework events), so the same code path works
+        // when the root lives in a popout document
+        const dnd = this.dragDropManager;
+        const onDragEnter = (event: DragEvent) => dnd.onDragEnterRaw(event);
+        const onDragLeave = (event: DragEvent) => dnd.onDragLeaveRaw(event);
+        const onDragOver = (event: DragEvent) => dnd.onDragOver(event);
+        const onDrop = (event: DragEvent) => dnd.onDrop(event);
+        element.addEventListener("dragenter", onDragEnter);
+        element.addEventListener("dragleave", onDragLeave);
+        element.addEventListener("dragover", onDragOver);
+        element.addEventListener("drop", onDrop);
+        this.teardown.push(() => {
+            element.removeEventListener("dragenter", onDragEnter);
+            element.removeEventListener("dragleave", onDragLeave);
+            element.removeEventListener("dragover", onDragOver);
+            element.removeEventListener("drop", onDrop);
+            dnd.clearDragLocal();
+        });
+
         if (win) {
             // re-measure before paint to keep panels in sync with flex-resized rows
             if (win.ResizeObserver) {
@@ -302,10 +325,7 @@ export class LayoutEngine {
     /** Detaches and forgets everything. The engine must not be used afterwards. */
     dispose() {
         this.detachRoot();
-        for (const { element, listener } of this.scrollListeners.values()) {
-            element.removeEventListener("scroll", listener);
-        }
-        this.scrollListeners.clear();
+        this.dragDropManager.dispose();
         this.measurables.clear();
         this.tabPanels.clear();
         this.splitters.clear();
@@ -376,20 +396,21 @@ export class LayoutEngine {
     }
 
     /**
-     * Registers (or unregisters) a splitter element. Its thickness (width when `horizontal`, the
-     * splitter between side by side children; height otherwise) becomes the model's splitter size.
+     * Registers (or unregisters) a splitter element. Its thickness (width while `isHorizontal()`,
+     * i.e. the splitter sits between side by side children; height otherwise) becomes the model's
+     * splitter size. The orientation is read at every measure pass, since a row can flip it.
      */
     registerSplitter(
         element: HTMLElement,
-        horizontal: boolean,
+        isHorizontal: () => boolean,
         register = true,
     ) {
         const main = this.mainEngine;
         if (register) {
-            if (main.splitters.get(element) !== horizontal) {
-                main.splitters.set(element, horizontal);
+            if (!main.splitters.has(element)) {
                 this.geometryResizeObserver?.observe(element);
             }
+            main.splitters.set(element, isHorizontal);
         } else if (main.splitters.delete(element)) {
             this.geometryResizeObserver?.unobserve(element);
         }
@@ -534,26 +555,11 @@ export class LayoutEngine {
      */
     positionTabPanels() {
         for (const { node, element } of this.tabPanels.values()) {
-            const parent = node.getParent();
-            if (
-                !(parent instanceof TabSetNode || parent instanceof BorderNode)
-            ) {
+            if (!node.getParent()) {
                 continue; // the tab left the tree (it is being deleted)
             }
-            const rect = parent.getContentRect();
-
-            let visible = node.isSelected();
-            if (parent instanceof TabSetNode) {
-                if (
-                    this.model.getMaximizedTabset(this.layoutId) !==
-                        undefined &&
-                    !parent.isMaximized()
-                ) {
-                    visible = false;
-                }
-            } else if (!parent.isShowing()) {
-                visible = false;
-            }
+            const rect = node.getTabContainer().getContentRect();
+            const visible = isTabPanelVisible(node);
 
             rect.positionElement(element);
             element.style.display = visible ? "" : "none";
@@ -565,12 +571,12 @@ export class LayoutEngine {
 
     /** measures the splitter thickness and feeds it to the model; returns true on change */
     private syncSplitterSize(): boolean {
-        for (const [element, horizontal] of this.mainEngine.splitters) {
+        for (const [element, isHorizontal] of this.mainEngine.splitters) {
             if (!element.isConnected) {
                 continue;
             }
             const r = this.measureElement(element);
-            const size = horizontal ? r.width : r.height;
+            const size = isHorizontal() ? r.width : r.height;
             if (size <= 0) {
                 continue; // hidden (e.g. while a tabset is maximized)
             }
@@ -718,7 +724,13 @@ export class LayoutEngine {
         const children = row.getChildren();
         for (const [i, child] of children.entries()) {
             const weight = weights?.[i];
-            if (typeof weight !== "number" || !Number.isFinite(weight)) {
+            // the same guard as Model.applyAdjustWeights: a weight the model ignores must not be
+            // previewed either
+            if (
+                typeof weight !== "number" ||
+                !Number.isFinite(weight) ||
+                weight <= 0
+            ) {
                 continue;
             }
             const kind: MeasurableKind =
@@ -827,14 +839,18 @@ export class LayoutEngine {
             panel.appendChild(element);
             tab.restoreScrollPosition();
         }
-        const id = tab.getId();
-        const prev = this.mainEngine.scrollListeners.get(id);
-        if (prev?.element !== element) {
-            prev?.element.removeEventListener("scroll", prev.listener);
-            // keep the scroll position, so it can be restored after a move
-            const listener = () => tab.saveScrollPosition();
-            element.addEventListener("scroll", listener);
-            this.mainEngine.scrollListeners.set(id, { element, listener });
+        // keep the scroll position, so it can be restored after a move. One listener per element
+        // for its whole life: the element outlives engines (and models, through Model.fromJson's
+        // view state adoption), so the listener reads the element's current tab
+        const scroll = scrollTracking.get(element);
+        if (scroll) {
+            scroll.tab = tab;
+        } else {
+            const tracking = { tab };
+            element.addEventListener("scroll", () =>
+                tracking.tab.saveScrollPosition(),
+            );
+            scrollTracking.set(element, tracking);
         }
     }
 
@@ -970,6 +986,22 @@ export class LayoutEngine {
     }
 
     /** the layout root's rect in viewport coordinates */
+    /** the layout root's rect in viewport coordinates, measured now (not the per-pass cache) */
+    getFreshDomRect(): Rect {
+        this.cachedLayoutDomRect = undefined;
+        return this.getDomRect();
+    }
+
+    /** the drag-and-drop state machine of this layout */
+    getDragDropManager(): DragDropManager {
+        return this.dragDropManager;
+    }
+
+    /** seconds a view may take to animate the drop outline */
+    getTabDragSpeed(): number {
+        return this.mainEngine.tabDragSpeed;
+    }
+
     getDomRect(): Rect {
         if (this.cachedLayoutDomRect !== undefined) {
             return this.cachedLayoutDomRect;
@@ -1084,6 +1116,28 @@ export class LayoutEngine {
         }
     }
 }
+
+/**
+ * Whether a tab's panel is shown: the tab is selected, and neither hidden by another tabset of its
+ * layout being maximized nor by its border being hidden. Adapters use it for their visibility
+ * state, so it always matches what the engine displays.
+ */
+export function isTabPanelVisible(tab: TabNode): boolean {
+    if (!tab.getParent() || !tab.isSelected()) {
+        return false;
+    }
+    const container = tab.getTabContainer();
+    if (container instanceof TabSetNode) {
+        const maximized = tab
+            .getModel()
+            .getMaximizedTabset(container.getLayoutId());
+        return maximized === undefined || container.isMaximized();
+    }
+    return !(container instanceof BorderNode) || container.isShowing();
+}
+
+/** the scroll listener installed on each moveable element, and the tab it currently hosts */
+const scrollTracking = new WeakMap<HTMLElement, { tab: TabNode }>();
 
 /** Creates a {@link LayoutEngine} for a layout of `model` (the main layout by default). */
 export function createLayoutEngine(

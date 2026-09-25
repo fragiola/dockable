@@ -226,6 +226,83 @@ describe("SplitterController pointer drag", () => {
     });
 });
 
+describe("SplitterController pointer guards", () => {
+    it("drags with the primary button only", () => {
+        const { actions, splitter, controller } = setup(true);
+        splitter.addEventListener("pointerdown", controller.onPointerDown, {
+            once: true,
+        });
+        splitter.dispatchEvent(
+            new PointerEvent("pointerdown", {
+                bubbles: true,
+                clientX: 210,
+                clientY: 100,
+                pointerId: 1,
+                button: 2,
+            }),
+        );
+        expect(controller.getState().dragging).toBe(false);
+        pointer("pointermove", document, 260);
+        pointer("pointerup", document, 260);
+        expect(actions).toHaveLength(0);
+    });
+
+    it("commits nothing for a press without movement", () => {
+        const { actions, splitter, controller } = setup(true);
+        pointerDown(splitter, controller);
+        pointer("pointerup", document, 210);
+        expect(actions).toHaveLength(0);
+        expect(controller.getState().dragging).toBe(false);
+    });
+
+    it("follows only the pointer that started the drag", () => {
+        const { actions, splitter, controller } = setup(false);
+        pointerDown(splitter, controller);
+        document.dispatchEvent(
+            new PointerEvent("pointermove", {
+                bubbles: true,
+                clientX: 300,
+                clientY: 100,
+                pointerId: 2,
+            }),
+        );
+        expect(controller.getState().previewOffset).toBe(0);
+        document.dispatchEvent(
+            new PointerEvent("pointerup", {
+                bubbles: true,
+                clientX: 300,
+                clientY: 100,
+                pointerId: 2,
+            }),
+        );
+        expect(controller.getState().dragging).toBe(true);
+        pointer("pointermove", document, 240);
+        pointer("pointerup", document, 240);
+        expect(actions).toHaveLength(1);
+    });
+
+    it("dispose mid realtime drag commits the resize it already applied", () => {
+        const { actions, splitter, controller } = setup(true);
+        pointerDown(splitter, controller);
+        pointer("pointermove", document, 240);
+        controller.dispose();
+        expect(actions.at(-1)?.isAdjusting()).toBe(false);
+    });
+
+    it("measures the splitter along its current orientation", () => {
+        const { model, rects, engine, splitter } = setup(true);
+        engine.sync();
+        expect(model.getSplitterSize()).toBe(8);
+        // the row turns vertical: the same splitter is now a horizontal bar, 8px high
+        rects.set(splitter, 10, 180, 400, 8);
+        model.doAction(
+            Actions.updateModelAttributes({ rootOrientationVertical: true }),
+        );
+        engine.sync();
+        expect(model.getSplitterSize()).toBe(8);
+    });
+});
+
 describe("SplitterController keyboard", () => {
     it("moves by 10px with the arrow keys of its axis", () => {
         const { actions, controller } = setup();
@@ -325,7 +402,9 @@ describe("SplitterController ARIA", () => {
 
     it("registers its element for splitter-size discovery", () => {
         const { engine, splitter } = setup();
-        expect(engine.getRegistrations().splitters.get(splitter)).toBe(true);
+        expect(engine.getRegistrations().splitters.get(splitter)?.()).toBe(
+            true,
+        );
         controller?.attach(null);
         expect(engine.getRegistrations().splitters.has(splitter)).toBe(false);
     });

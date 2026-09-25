@@ -67,6 +67,8 @@ export class UndoManager {
                     this.modelBeforeAdjusting = JSON.stringify(model.toJson());
                 }
             } else {
+                // an ignored action (e.g. activating a tabset mid-drag) must not drop the snapshot of a
+                // gesture in progress: only the step that records it clears it
                 if (!this.ignoreActionTypes.includes(action.type)) {
                     this.undoBuffer.push(
                         this.modelBeforeAdjusting ??
@@ -76,9 +78,9 @@ export class UndoManager {
                         this.undoBuffer.shift();
                     }
                     this.redoBuffer = [];
+                    this.modelBeforeAdjusting = null;
                     this.notify();
                 }
-                this.modelBeforeAdjusting = null;
             }
         },
     };
@@ -171,6 +173,7 @@ export class UndoManager {
             return;
         }
         to.push(JSON.stringify(current.toJson()));
+        this.modelBeforeAdjusting = null;
         this.attach(Model.fromJson(JSON.parse(json), current));
         this.notify();
     }

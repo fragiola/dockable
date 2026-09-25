@@ -148,6 +148,30 @@ describe("UndoManager", () => {
         expect(model(undo).getNodeById("t3")).not.toBeUndefined();
     });
 
+    it("keeps the pre-gesture snapshot when an ignored action happens mid-gesture", () => {
+        const undo = new UndoManager(Model.fromJson(json));
+
+        model(undo).doAction(
+            Actions.moveNode("t1", "ts2", DockLocation.CENTER, -1).setAdjusting(
+                true,
+            ),
+        );
+        model(undo).doAction(Actions.setActiveTabset("ts2")); // ignored, mid-gesture
+        model(undo).doAction(
+            Actions.moveNode("t1", "ts2", DockLocation.CENTER, -1),
+        );
+        expect(undo.undoCount).toBe(1);
+
+        undo.undo();
+        // back to before the gesture, not to the mid-gesture state
+        expect(
+            model(undo)
+                .getNodeById("ts1")
+                ?.getChildren()
+                .map((c) => c.getId()),
+        ).toEqual(["t1"]);
+    });
+
     it("caps the undo buffer at maxBufferSize", () => {
         const undo = new UndoManager(Model.fromJson(json), {
             maxBufferSize: 2,

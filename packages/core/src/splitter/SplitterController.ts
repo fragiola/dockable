@@ -81,7 +81,12 @@ export function startDrag(
         }
     }
 
+    // only the pointer that started the drag moves or ends it (a second finger does not)
+    const pointerId = event.pointerId;
     const pointerMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) {
+            return;
+        }
         ev.preventDefault();
         drag(ev.clientX, ev.clientY);
     };
@@ -93,11 +98,17 @@ export function startDrag(
     };
 
     const pointerCancel = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) {
+            return;
+        }
         ev.preventDefault();
         removeListeners();
         dragCancel();
     };
-    const pointerUp = () => {
+    const pointerUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) {
+            return;
+        }
         removeListeners();
         dragEnd();
     };
@@ -126,6 +137,8 @@ export class SplitterController {
     private startPosition = 0;
     private pointerOffset = 0;
     private position = 0;
+    // a press without movement (e.g. a click to focus the splitter) commits nothing
+    private moved = false;
     private initials: {
         initialSizes: number[];
         sum: number;
@@ -152,9 +165,9 @@ export class SplitterController {
     }
 
     /** true when the splitter sits between side by side children (it moves along x) */
-    isHorizontal(): boolean {
+    isHorizontal = (): boolean => {
         return this.node.getOrientation() === Orientation.HORZ;
-    }
+    };
 
     /** true when the splitter must not render: row splitters are hidden while a tabset is maximized */
     isHidden(): boolean {
@@ -179,7 +192,7 @@ export class SplitterController {
             this.element.removeEventListener("touchstart", this.onTouchStart);
             this.engine.registerSplitter(
                 this.element,
-                this.isHorizontal(),
+                this.isHorizontal,
                 false,
             );
         }
@@ -189,7 +202,7 @@ export class SplitterController {
                 passive: false,
             });
             if (!(this.node instanceof BorderNode)) {
-                this.engine.registerSplitter(element, this.isHorizontal());
+                this.engine.registerSplitter(element, this.isHorizontal);
             }
         }
     }
@@ -245,6 +258,9 @@ export class SplitterController {
 
     /** Starts a pointer drag. Call from the splitter's `pointerdown`. */
     onPointerDown = (event: PointerEvent) => {
+        if (event.button !== 0) {
+            return; // only the primary button (or a touch/pen contact) drags
+        }
         event.stopPropagation();
         // the attached element, not event.currentTarget: adapters that delegate events (React)
         // report the delegation root as the current target
@@ -271,6 +287,7 @@ export class SplitterController {
         const horizontal = this.isHorizontal();
         this.startPosition = horizontal ? r.x : r.y;
         this.position = this.startPosition;
+        this.moved = false;
         this.pointerOffset = horizontal
             ? event.clientX - domRect.x - r.x
             : event.clientY - domRect.y - r.y;
@@ -366,6 +383,7 @@ export class SplitterController {
         const domRect = this.engine.getDomRect();
         const pointer = this.isHorizontal() ? x - domRect.x : y - domRect.y;
         this.position = this.getBoundPosition(pointer - this.pointerOffset);
+        this.moved = true;
 
         if (this.engine.isRealtimeResize()) {
             this.updateLayout(true);
@@ -379,7 +397,7 @@ export class SplitterController {
 
     private onDragEnd() {
         this.stopDrag = undefined;
-        if (this.state.dragging) {
+        if (this.state.dragging && this.moved) {
             this.updateLayout(false);
         }
         this.finishDrag();
@@ -390,7 +408,11 @@ export class SplitterController {
         // commit an in-progress realtime resize so the undo snapshot taken at drag start is
         // flushed here rather than leaking into the next action; a non-realtime drag only moved
         // the preview, so a cancelled drag leaves the model untouched
-        if (this.state.dragging && this.engine.isRealtimeResize()) {
+        if (
+            this.state.dragging &&
+            this.moved &&
+            this.engine.isRealtimeResize()
+        ) {
             this.updateLayout(false);
         }
         this.finishDrag();
@@ -407,13 +429,20 @@ export class SplitterController {
         this.setState(IDLE);
     }
 
-    /** clean up a drag interrupted by unmount or a new pointerdown: no commit */
+    /**
+     * clean up a drag interrupted by unmount or a new pointerdown. Like a cancel, a realtime drag
+     * that already moved is committed (else the model keeps adjusting weights and an undo manager
+     * keeps the pre-drag snapshot pending); an outline drag commits nothing.
+     */
     private cancelDrag() {
         if (this.stopDrag) {
             this.stopDrag();
             this.stopDrag = undefined;
         }
         if (this.state.dragging) {
+            if (this.moved && this.engine.isRealtimeResize()) {
+                this.updateLayout(false);
+            }
             const doc =
                 this.element?.ownerDocument ?? this.engine.getCurrentDocument();
             if (doc) {

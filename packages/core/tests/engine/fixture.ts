@@ -117,7 +117,7 @@ export function mountTwoTabsets(engine: LayoutEngine, rects: Rects) {
         "tabsetcontent",
         ts1content,
     );
-    engine.registerSplitter(splitter, true);
+    engine.registerSplitter(splitter, () => true);
     for (const [id, panel] of Object.entries(panels)) {
         engine.registerTabPanel(node<TabNode>(model, id), panel);
     }
