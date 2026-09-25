@@ -1209,6 +1209,41 @@ describe("drop zones", () => {
         foreign.unregister();
     });
 
+    it("takes an external drag that moves on from the layout, and ends it when it leaves", () => {
+        const s = setup({
+            onExternalDrag: () => ({
+                json: { type: "tab" as const, name: "report.csv" },
+            }),
+        });
+        const z = zone(s);
+        const other = zone(s);
+        // a foreign drag over the layout…
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+        // …moves onto the zone: the zone's dragenter fires before the root's dragleave
+        z.element.dispatchEvent(dragEvent("dragenter", 0, 0));
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+        const drop = dragEvent("drop", 0, 0);
+        z.element.dispatchEvent(drop);
+        expect(z.onDrop).toHaveBeenCalledTimes(1);
+        expect((z.onDrop.mock.calls[0]?.[0] as TabNode).getName()).toBe(
+            "report.csv",
+        );
+        expect(DragDropManager.getDragState()).toBeUndefined();
+
+        // another foreign drag: layout → zone → out of the page
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        other.element.dispatchEvent(dragEvent("dragenter", 0, 0));
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+        other.element.dispatchEvent(dragEvent("dragleave", 0, 0));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(other.onDrop).not.toHaveBeenCalled();
+        z.unregister();
+        other.unregister();
+    });
+
     it("stops listening once unregistered", () => {
         const s = setup();
         const z = zone(s);

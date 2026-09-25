@@ -106,8 +106,12 @@ export function useTabSetDropState(
                 return "refused";
             }
             if (indicator.visible && indicator.targetTabSetId === tabsetId) {
+                // a strip drop targets the tabset itself (a drop into a tab group targets the
+                // group, and its index counts inside the group)
                 const strip =
-                    indicator.location === "center" && indicator.index >= 0;
+                    indicator.location === "center" &&
+                    indicator.index >= 0 &&
+                    indicator.targetNodeId === tabsetId;
                 return strip
                     ? `${indicator.location}:${indicator.index}`
                     : indicator.location;

@@ -267,3 +267,28 @@ describe("Dockable.DropZone", () => {
         expect(zone).toHaveClass("armed");
     });
 });
+
+describe("tab group drops", () => {
+    it("mark the tabset as the target, but not its strip", () => {
+        const model = Model.fromJson(structuredClone(twoTabsets));
+        const { rerender } = render(<Layout model={model} />);
+        const manager = LayoutEngine.of(model)?.getDragDropManager();
+        if (!manager) throw new Error("no engine");
+        const idle = manager.getIndicatorState();
+        // a drop into a group of ts0: the group is the target node, its index counts inside it
+        vi.spyOn(manager, "getIndicatorState").mockReturnValue({
+            ...idle,
+            visible: true,
+            dragging: true,
+            location: "center",
+            index: 0,
+            targetNodeId: "a-group",
+            targetTabSetId: "ts0",
+        });
+        rerender(<Layout model={model} data-rerender="" />);
+        expect(path("/ts0")).toHaveAttribute("data-drop-target", "");
+        expect(path("/ts0/tabstrip")).not.toHaveAttribute("data-drop-target");
+        expect(path("/ts0/tabstrip")).not.toHaveAttribute("data-drop-index");
+        vi.restoreAllMocks();
+    });
+});

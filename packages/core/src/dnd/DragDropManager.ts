@@ -784,7 +784,8 @@ export class DragDropManager {
             }
             if (!anyDragging) {
                 this.clearDragMain();
-                if (external) {
+                // unless it moved on to a drop zone, which takes it from here
+                if (external && !DragDropManager.isOverAnyZone()) {
                     this.onDragEnded();
                 }
             }
@@ -934,6 +935,7 @@ export class DragDropManager {
             zone.enterCount = Math.max(0, zone.enterCount - 1);
             if (zone.enterCount === 0) {
                 DragDropManager.setZoneOver(zone, false);
+                DragDropManager.endExternalDragOutside(model);
             }
         };
         const onDrop = (event: Event) => {
@@ -958,6 +960,32 @@ export class DragDropManager {
             element.removeEventListener("drop", onDrop);
             DragDropManager.dropZones.delete(zone);
         };
+    }
+
+    private static isOverAnyZone(): boolean {
+        for (const zone of DragDropManager.dropZones) {
+            if (zone.over) return true;
+        }
+        return false;
+    }
+
+    /**
+     * An external drag has no dragend in this page: when it leaves a drop zone for a place that is
+     * neither a layout nor another zone, it is over.
+     */
+    private static endExternalDragOutside(model: Model) {
+        const state = DragDropManager.dragState;
+        if (
+            state?.dragSource !== "external" ||
+            state.mainEngine.getModel() !== model ||
+            DragDropManager.isOverAnyZone()
+        ) {
+            return;
+        }
+        for (const [, layout] of model.getLayouts()) {
+            if (managerOf(layout)?.isDragging()) return;
+        }
+        state.mainEngine.getDragDropManager().onDragEnded();
     }
 
     private static setZoneOver(zone: DropZone, over: boolean) {
