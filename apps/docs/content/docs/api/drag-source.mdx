@@ -1,0 +1,73 @@
+---
+title: Dockable.DragSource
+description: An element anywhere on the page that can be dragged into a layout to create a new tab.
+---
+
+"An element, anywhere on the page, that can be dragged into a layout to create a new tab: a
+sidebar of widgets, a file list, a palette. The drop dispatches `Actions.addTab` through the
+layout's engine (interceptable by `onAction`, filtered by `onAllowDrop`). It is itself the drag
+image."
+
+```tsx
+<Dockable.DragSource
+    model={model}
+    json={() => ({ type: "tab", name: "Revenue", component: "chart" })}
+    onDrop={(tab) => tab && console.log("added", tab.getId())}
+    render={<li />}
+    className="cursor-grab data-dragging:opacity-50"
+>
+    Revenue chart
+</Dockable.DragSource>
+```
+
+It does not have to live inside `Dockable.Root`: it finds the layout through its `model` (the
+root rendering that model must be mounted; before that, a drag does not start).
+
+## Props
+
+`DragSourceProps` extends the [common primitive props](/docs/api/root#common-props) (its `onDrop`
+replaces the element's native drop handler: a drag source is never a drop target).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `model` | `Model` | required | the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) |
+| `json` | `IJsonTabNode \| (() => IJsonTabNode)` | required | the tab a drop creates; a function is called at each drag start |
+| `onDrop` | `(node: TabNode \| undefined, event: DragEvent) => void` | none | called after the drop with the created tab, or `undefined` when `onAction` vetoed it |
+| `disabled` | `boolean` | `false` | no drag starts while true |
+| `children` | `ReactNode` | none | the source's content; the primitive renders no text of its own |
+
+## State
+
+`DragSourceState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `dragging` | `boolean` | a drag started by this source is in progress |
+| `disabled` | `boolean` | the source is disabled |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | none: a drag source is not part of a layout, so it has no layout path (select it by your own `data-testid` or role) |
+| `data-dragging` | a drag started by this source is in progress |
+| `data-disabled` | the source is disabled |
+| `aria-disabled` | `true` while disabled |
+| `draggable` | `true`, or `false` while disabled |
+
+While its drag is over a layout, that layout's `Dockable.Root` has `data-dragging` too.
+
+## Accessibility
+
+Native drag and drop has no keyboard path. Give the source a role and a name that fit your UI
+(`render={<button />}` makes it focusable), and offer the same action without a drag: a click that
+adds the tab to the active tabset through `LayoutEngine.of(model)?.doAction(Actions.addTab(…))`.
+The [widget sidebar](/examples/widget-sidebar/) example does both.
+
+## Notes
+
+- The drag image is the source element. Style `data-dragging` on it to show which one is moving.
+- `useDragSource` is the lower layer, for an element you render yourself: see
+  [hooks](/docs/api/hooks#usedragsource).
+- Foreign drags (files from the OS, links, another library's elements) do not need a source: see
+  [`onExternalDrag`](/docs/api/root#props) on `Dockable.Root`.

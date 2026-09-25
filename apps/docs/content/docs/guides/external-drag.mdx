@@ -1,0 +1,149 @@
+---
+title: External drag
+description: Drag things from outside the layout into it - a sidebar of widgets, a palette, files from the OS.
+---
+
+A tab does not have to exist before it is dragged. Two paths create one on drop:
+
+- **`Dockable.DragSource`**: an element of your page (a sidebar item, a palette entry) that
+  carries the tab to create.
+- **`onExternalDrag`** on `Dockable.Root`: accepts drags that did not start in your UI at all,
+  such as files from the OS, links, or another library's draggable elements.
+
+Both drop through `Actions.addTab`, so everything else keeps working: `onAction` sees (and may veto
+or replace) the add, [`setOnAllowDrop`](/docs/guides/restricting-drops) decides where it may land,
+the drop indicator follows the pointer, and the new tab can land in a tabset's centre, on its
+edges, in its tab strip or at the layout edge.
+
+<Example slug="widget-sidebar" />
+
+## A sidebar of widgets
+
+A `Dockable.DragSource` needs the layout's `model` and the tab to create. It does not have to be
+inside `Dockable.Root`:
+
+```tsx
+import { Model } from "@fragiola/dockable";
+import { Dockable } from "@fragiola/dockable-react";
+
+function Sidebar({ model }: { model: Model }) {
+    return (
+        <ul>
+            <Dockable.DragSource
+                model={model}
+                // a function builds the tab at each drag start
+                json={() => ({ type: "tab", name: "Revenue", component: "chart" })}
+                onDrop={(tab) => tab && console.log(`added ${tab.getName()}`)}
+                render={<li />}
+                className="cursor-grab data-dragging:opacity-50"
+            >
+                Revenue chart
+            </Dockable.DragSource>
+        </ul>
+    );
+}
+
+export function App() {
+    const [model] = useState(() => Model.fromJson(json));
+    return (
+        <div className="flex h-dvh">
+            <Sidebar model={model} />
+            <Dockable.Root model={model} className="flex-1">
+                {/* Row, Panels, DropIndicator… */}
+            </Dockable.Root>
+        </div>
+    );
+}
+```
+
+The panel renders the new tab like any other: pick the content from `tab.getComponent()` (and
+`tab.getConfig()`).
+
+While the drag is over the layout, the source has `data-dragging` and so does the root: style the
+tabsets as drop targets with `in-data-dragging:` (Tailwind) or
+`[data-layout-path="/layout"][data-dragging] [role="tablist"]` (CSS).
+
+### Keyboard users
+
+Native drag and drop cannot be done from the keyboard. Make the source a button and let a press do
+the same thing, into the active tabset:
+
+```tsx
+import { Actions, DockLocation, LayoutEngine } from "@fragiola/dockable";
+
+const addToActiveTabset = () => {
+    const engine = LayoutEngine.of(model); // the engine of the mounted layout
+    const target = model.getActiveTabset() ?? model.getFirstTabSet();
+    if (engine && target) {
+        engine.doAction(Actions.addTab(json, target.getId(), DockLocation.CENTER, -1, true));
+    }
+};
+
+<Dockable.DragSource model={model} json={json} render={<button type="button" onClick={addToActiveTabset} />}>
+    Revenue chart
+</Dockable.DragSource>
+```
+
+`LayoutEngine.of(model)` returns the engine of the mounted layout, so UI outside the root can
+dispatch through `onAction` instead of calling `model.doAction` directly.
+
+## Files and other foreign drags
+
+`onExternalDrag` is called on the first `dragenter` of a drag the layout did not start. Return the
+tab to create, or `undefined` to ignore the drag:
+
+```tsx
+<Dockable.Root
+    model={model}
+    onExternalDrag={(event) => {
+        // until the drop, browsers expose only the types, not the data
+        if (!event.dataTransfer?.types.includes("Files")) return undefined;
+        return {
+            json: { type: "tab", name: "File", component: "file" },
+            onDrop: (tab, drop) => {
+                const file = drop.dataTransfer?.files[0];
+                if (!tab || !file) return; // vetoed by onAction
+                LayoutEngine.of(model)?.doAction(Actions.renameTab(tab.getId(), file.name));
+                files.set(tab.getId(), file); // keep the File outside the model: it is not JSON
+            },
+        };
+    }}
+>
+```
+
+<Example slug="drop-files" />
+
+Read the payload (`files`, `getData("text/uri-list")`, …) in `onDrop`: during the drag the browser
+hides it. An external drag ends when it leaves every layout; the next one asks again.
+
+## Where a new tab may land
+
+`setOnAllowDrop` receives the dragged node, a temporary `TabNode` built from your `json`, so rules
+can read its component:
+
+```ts
+model.setOnAllowDrop((dragNode, dropInfo) => {
+    const kpi = dragNode instanceof TabNode && dragNode.getComponent()?.startsWith("kpi-");
+    const intoKpis = dropInfo.node.getId() === "kpis";
+    return kpi ? intoKpis && dropInfo.location === DockLocation.CENTER : !intoKpis;
+});
+```
+
+The same rule applies when a tab already in the layout is moved.
+
+<Example slug="dashboard-builder" />
+
+## Vetoing or replacing the add
+
+A drop dispatches `Actions.addTab(json, targetId, location, index)`. `onAction` receives it like
+any other action (`action.type === Actions.ADD_TAB`, the JSON in `action.data.json`): return it,
+return a replacement (a different JSON, for example), or return `undefined` to cancel the drop.
+`onDrop` then receives `undefined` instead of the tab.
+
+## Lower layers
+
+- `useDragSource({ model, json, onDrop, disabled })` is `Dockable.DragSource` without the element:
+  spread its `draggable`, `onDragStart` and `onDragEnd` on your own ([hooks](/docs/api/hooks#usedragsource)).
+- In the core, `engine.getDragDropManager().addTabWithDragAndDrop(event, json, onDrop?, dragImage?)`
+  starts a new-tab drag from a native `dragstart`, and `onDragEnded()` ends it from `dragend`. An
+  adapter for another framework calls these.

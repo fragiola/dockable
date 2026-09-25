@@ -1,6 +1,6 @@
 ---
 title: Hooks
-description: useDockable, useTabSet, useSplitter and useDragNode - the lower layer under the primitives.
+description: useDockable, useTabSet, useSplitter, useDragNode and useDragSource - the lower layer under the primitives.
 ---
 
 The primitives are built on four hooks, exported as the lower layer. Use `useDockable` all the
@@ -150,8 +150,57 @@ function TabSetDragHandle({ tabset }: { tabset: TabSetNode }) {
 | `ref` | `RefCallback<HTMLElement>` | callback ref for the element used as the drag image (the dragged element by default) |
 | `dragging` | `boolean` | this node is being dragged |
 
+## useDragSource
+
+"The lower layer of `Dockable.DragSource`: turns any element, inside or outside the layout (a
+sidebar item, a palette entry), into a source of new tabs. Dropping it on the layout dispatches
+`Actions.addTab(json, …)` through the engine, so `onAction` and `onAllowDrop` apply. Spread
+`draggable`, `onDragStart` and `onDragEnd` on the element."
+
+```tsx
+function PaletteEntry({ model }: { model: Model }) {
+    const drag = useDragSource({
+        model,
+        json: { type: "tab", name: "Orders", component: "table" },
+    });
+    return (
+        <li
+            ref={drag.ref}
+            draggable={drag.draggable}
+            onDragStart={drag.onDragStart}
+            onDragEnd={drag.onDragEnd}
+            data-dragging={drag.dragging ? "" : undefined}
+        >
+            Orders table
+        </li>
+    );
+}
+```
+
+`useDragSource(options: UseDragSourceOptions): UseDragSourceResult`. It does not need to run
+inside `Dockable.Root`.
+
+`UseDragSourceOptions`:
+
+| field | type | description |
+| --- | --- | --- |
+| `model` | `Model` | the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) |
+| `json` | `IJsonTabNode \| (() => IJsonTabNode)` | the tab a drop creates. A function is called at each drag start, so every drop can get a fresh name or config |
+| `onDrop` | `(node: TabNode \| undefined, event: DragEvent) => void` | called after the drop with the created tab, or `undefined` when `onAction` vetoed it |
+| `disabled` | `boolean` | no drag starts while true |
+
+`UseDragSourceResult`:
+
+| field | type | description |
+| --- | --- | --- |
+| `draggable` | `boolean` | whether the element is draggable |
+| `onDragStart` | `(event: DragEvent<HTMLElement>) => void` | starts the drag in the core (cancels it when disabled or no layout is mounted) |
+| `onDragEnd` | `(event: DragEvent<HTMLElement>) => void` | ends it |
+| `ref` | `RefCallback<HTMLElement>` | callback ref for the element used as the drag image (the dragged element by default) |
+| `dragging` | `boolean` | a drag started by this source is in progress |
+
 ## Types
 
 Also exported: `TabSetState`, `UseDockableResult`, `UseTabSetResult`, `UseSplitterResult`,
-`UseDragNodeResult`, and `GetLabel` (`(key: DockableLabel, ...args: (string | number)[]) => string
+`UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`, and `GetLabel` (`(key: DockableLabel, ...args: (string | number)[]) => string
 | undefined`).
