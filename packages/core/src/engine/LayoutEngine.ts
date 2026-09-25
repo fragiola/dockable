@@ -323,6 +323,7 @@ export class LayoutEngine {
         }
 
         this.updateRect();
+        this.popoutManager?.openPending();
     }
 
     /** Detaches the root element and releases every observer and listener. */

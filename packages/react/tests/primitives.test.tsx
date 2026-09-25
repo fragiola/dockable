@@ -406,6 +406,27 @@ describe("ref stability", () => {
     });
 });
 
+describe("inline callback refs", () => {
+    it("do not re-attach the primitive's ref on every render", () => {
+        const model = fresh();
+        const calls: (HTMLElement | null)[] = [];
+        function App() {
+            return (
+                <Dockable.Root model={model} ref={(el) => void calls.push(el)}>
+                    <Dockable.Row>{renderNode}</Dockable.Row>
+                </Dockable.Root>
+            );
+        }
+        const { rerender } = render(<App />);
+        rerender(<App />);
+        act(() => {
+            model.doAction(Actions.selectTab("t1"));
+        });
+        expect(calls.filter((el) => el !== null)).toHaveLength(1);
+        expect(calls).not.toContain(null);
+    });
+});
+
 describe("interaction", () => {
     it("selects a tab on click through onAction", () => {
         const onAction = vi.fn((action: Action) => action);

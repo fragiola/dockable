@@ -240,7 +240,8 @@ export class DragDropManager {
         }
         let x = 10;
         let y = 10;
-        const parent = node.getParent();
+        const parent =
+            node instanceof TabNode ? node.getTabContainer() : node.getParent();
         const isInVerticalBorder =
             parent instanceof BorderNode &&
             parent.getOrientation() === Orientation.HORZ;
@@ -292,6 +293,7 @@ export class DragDropManager {
     /** Ends the drag. Called on `dragend` from the drag source, or by the lost drag fallback. */
     onDragEnded = () => {
         this.clearDragMain();
+        this.removeLostDragGuard?.();
         DragDropManager.setDragState(undefined);
     };
 
@@ -414,7 +416,7 @@ export class DragDropManager {
         for (const [, layout] of this.engine.getModel().getLayouts()) {
             managerOf(layout)?.clearDragLocal();
         }
-        this.removeLostDragGuard?.();
+        // the lost-drag guard stays until the drag really ends (the pointer may come back)
     }
 
     clearDragLocal() {

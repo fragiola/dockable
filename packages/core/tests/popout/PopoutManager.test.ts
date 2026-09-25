@@ -205,6 +205,71 @@ describe("opening", () => {
     });
 });
 
+describe("opening edge cases", () => {
+    it("opens a layout asked for before the engine was attached, once it attaches", () => {
+        const model = Model.fromJson(structuredClone(json));
+        model.doAction(Actions.popoutTab("b", "window"));
+        const layout = [...model.getLayouts().values()].find(
+            (l) => !l.isMainLayout(),
+        );
+        if (!layout) throw new Error("no window layout");
+        engine = createLayoutEngine({
+            model,
+            popout: { supportsPopout: true },
+        });
+        const openSpy = vi
+            .spyOn(window, "open")
+            .mockImplementation(() => fakePopout());
+        engine.getPopoutManager().open(layout);
+        expect(openSpy).not.toHaveBeenCalled();
+
+        engine.attachRoot(
+            document.body.appendChild(document.createElement("div")),
+        );
+        expect(openSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("docks the tabs back when popouts are not supported", () => {
+        const { model, manager, layout, layoutId, openSpy } = setup({
+            supportsPopout: false,
+        });
+        manager.open(layout);
+        expect(openSpy).not.toHaveBeenCalled();
+        expect(model.getLayouts().has(layoutId)).toBe(false);
+    });
+
+    it("hands a named window over to a new manager without closing it (model swap)", async () => {
+        const first = setup();
+        first.manager.open(first.layout);
+        const win = first.opened[0] as Window;
+        await load(win);
+
+        // a second engine (a swapped-in model) reopens the same layout id: window.open returns the
+        // same named window
+        const model = Model.fromJson(first.model.toJson());
+        const second = createLayoutEngine({
+            model,
+            popout: { supportsPopout: true },
+        });
+        second.attachRoot(
+            document.body.appendChild(document.createElement("div")),
+        );
+        first.openSpy.mockImplementation(() => win);
+        const layout = model.getLayouts().get(first.layoutId);
+        if (!layout) throw new Error("no layout");
+        second.getPopoutManager().open(layout);
+
+        first.manager.release(first.layoutId);
+        await tick();
+        expect(win.close).not.toHaveBeenCalled(); // the old manager let go without closing
+        // the reload's beforeunload does not apply the old manager's close policy
+        win.dispatchEvent(new Event("beforeunload"));
+        expect(first.model.getLayouts().has(first.layoutId)).toBe(true);
+        expect(second.getPopoutManager().getWindow(first.layoutId)).toBe(win);
+        second.dispose();
+    });
+});
+
 describe("close policies", () => {
     it("dock (default): closing the window moves its tabs back into the main layout", async () => {
         const onPopoutClose = vi.fn();
@@ -264,7 +329,10 @@ describe("close policies", () => {
     it("the main window unloading closes every popout", async () => {
         const { manager, layout, opened } = setup();
         manager.open(layout);
+        // beforeunload alone does not close them: another handler may still cancel the unload
         window.dispatchEvent(new Event("beforeunload"));
+        expect(opened[0]?.close).not.toHaveBeenCalled();
+        window.dispatchEvent(new Event("pagehide"));
         expect(opened[0]?.close).toHaveBeenCalled();
         expect(manager.getOpenLayoutIds()).toEqual([]);
     });
@@ -299,6 +367,12 @@ describe("style mirroring", () => {
         expect(manager.getContentRoot(layoutId)).toBeDefined();
 
         // added, edited in place, removed
+        // a preload link is not a stylesheet: not mirrored
+        const preload = document.head.appendChild(
+            document.createElement("link"),
+        );
+        preload.rel = "modulepreload";
+        preload.href = "/x.js";
         const added = document.head.appendChild(
             document.createElement("style"),
         );
@@ -309,6 +383,7 @@ describe("style mirroring", () => {
                 (s) => s.textContent,
             ),
         ).toContain(".three {}");
+        expect(head.querySelector('link[rel="modulepreload"]')).toBeNull();
 
         // edit the text node in place, as css-in-js libraries do
         const text = style.firstChild;

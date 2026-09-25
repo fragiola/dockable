@@ -76,6 +76,9 @@ export function isDesktop(win: Window | undefined): boolean {
 
 const isLink = (element: Element): element is HTMLLinkElement =>
     element.tagName === "LINK";
+const isStylesheetLink = (element: Element): element is HTMLLinkElement =>
+    isLink(element) &&
+    (element.getAttribute("rel") ?? "").split(/\s+/).includes("stylesheet");
 const isStyle = (element: Element): element is HTMLStyleElement =>
     element.tagName === "STYLE";
 
@@ -86,7 +89,13 @@ const isStyle = (element: Element): element is HTMLStyleElement =>
  * {@link release}s it when the layout goes away.
  */
 export class PopoutManager {
+    // a named window is shared: after a model swap, a new manager's window.open(url, layoutId)
+    // returns (and reloads) the window the previous manager opened. Only the current owner may
+    // close it or react to its unload.
+    private static readonly owners = new WeakMap<Window, PopoutManager>();
     private readonly engine: LayoutEngine;
+    // layouts asked to open before the engine was attached to a window
+    private readonly pending = new Map<string, ModelLayout>();
     private options: IPopoutOptions = {};
     private readonly entries = new Map<string, PopoutEntry>();
     private readonly listeners = new Set<() => void>();
@@ -165,6 +174,14 @@ export class PopoutManager {
         }
         const mainWindow = this.engine.getCurrentWindow();
         if (!mainWindow) {
+            // the adapter may ask before the engine is attached: open once it is
+            this.pending.set(layoutId, layout);
+            return;
+        }
+        this.pending.delete(layoutId);
+        if (!this.isSupportsPopout()) {
+            // no native windows here: the window layout's tabs go back to the main layout
+            this.applyClosePolicy(layoutId);
             return;
         }
         const rect = layout.getRect();
@@ -195,6 +212,7 @@ export class PopoutManager {
             closing: false,
         };
         this.entries.set(layoutId, entry);
+        PopoutManager.owners.set(popout, this);
         this.watchMainUnload(mainWindow);
         popout.addEventListener("load", () => this.onLoad(entry, layout));
         this.notify();
@@ -205,6 +223,7 @@ export class PopoutManager {
      * unless the layout is opened again in the meantime (e.g. a StrictMode remount).
      */
     release(layoutId: string) {
+        this.pending.delete(layoutId);
         const entry = this.entries.get(layoutId);
         if (!entry || entry.releasePending) {
             return;
@@ -227,10 +246,13 @@ export class PopoutManager {
         this.entries.delete(layoutId);
         entry.cleanup?.();
         entry.engine.dispose();
-        try {
-            entry.window.close();
-        } catch {
-            // a window that is already gone
+        if (PopoutManager.owners.get(entry.window) === this) {
+            PopoutManager.owners.delete(entry.window);
+            try {
+                entry.window.close();
+            } catch {
+                // a window that is already gone
+            }
         }
         if (this.entries.size === 0) {
             this.removeMainUnload?.();
@@ -247,7 +269,15 @@ export class PopoutManager {
         this.listeners.clear();
     }
 
-    // the main window unloading closes every popout
+    /** Opens the layouts asked for before the engine was attached. Called by the engine on attach. */
+    openPending() {
+        for (const layout of [...this.pending.values()]) {
+            this.open(layout);
+        }
+    }
+
+    // the main window unloading closes every popout (pagehide, not beforeunload: another
+    // beforeunload handler may still cancel the unload)
     private watchMainUnload(mainWindow: Window) {
         if (this.removeMainUnload) {
             return;
@@ -257,9 +287,9 @@ export class PopoutManager {
                 this.close(layoutId);
             }
         };
-        mainWindow.addEventListener("beforeunload", onUnload);
+        mainWindow.addEventListener("pagehide", onUnload);
         this.removeMainUnload = () => {
-            mainWindow.removeEventListener("beforeunload", onUnload);
+            mainWindow.removeEventListener("pagehide", onUnload);
             this.removeMainUnload = undefined;
         };
     }
@@ -331,6 +361,11 @@ export class PopoutManager {
         // listen for popout unloading (needs to be after load for safari)
         const onPopoutBeforeUnload = () => {
             if (entry.closing || this.entries.get(entry.layoutId) !== entry) {
+                return;
+            }
+            if (PopoutManager.owners.get(popout) !== this) {
+                // another manager took the window over (a model swap reloads it): let go quietly
+                this.close(entry.layoutId);
                 return;
             }
             this.options.onPopoutClose?.(layout, popout, popoutDocument);
@@ -425,6 +460,8 @@ export class StyleMirror {
     private readonly lastRuleCount = new Map<HTMLElement, number>();
     private adoptedClone: HTMLStyleElement | undefined;
     private lastAdoptedSignature = "";
+    private lastAdoptedSheets: readonly CSSStyleSheet[] = [];
+    private lastAdoptedShape = "";
     private observer: MutationObserver | undefined;
     private pollTimer: number | undefined;
 
@@ -495,7 +532,7 @@ export class StyleMirror {
                 for (const addition of mutation.addedNodes) {
                     if (
                         addition.nodeType === 1 &&
-                        (isLink(addition as Element) ||
+                        (isStylesheetLink(addition as Element) ||
                             isStyle(addition as Element))
                     ) {
                         this.copyStyle(addition as HTMLElement);
@@ -508,6 +545,7 @@ export class StyleMirror {
                     if (popoutStyle) {
                         popoutStyle.remove();
                         this.styleMap.delete(removal as HTMLElement);
+                        this.lastRuleCount.delete(removal as HTMLElement);
                     }
                 }
             } else {
@@ -601,6 +639,26 @@ export class StyleMirror {
      */
     private syncAdopted() {
         const sheets = this.source.adoptedStyleSheets ?? [];
+        // serialize only when the set of sheets or their rule counts changed
+        let shape = "";
+        for (const sheet of sheets) {
+            let count = -1;
+            try {
+                count = sheet.cssRules.length;
+            } catch {
+                // unreadable rules are ignored
+            }
+            shape += `${count},`;
+        }
+        if (
+            sheets.length === this.lastAdoptedSheets.length &&
+            sheets.every((sheet, i) => sheet === this.lastAdoptedSheets[i]) &&
+            shape === this.lastAdoptedShape
+        ) {
+            return;
+        }
+        this.lastAdoptedSheets = [...sheets];
+        this.lastAdoptedShape = shape;
         let css = "";
         for (const sheet of sheets) {
             try {

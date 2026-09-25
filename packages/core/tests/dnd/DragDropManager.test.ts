@@ -652,6 +652,21 @@ describe("lost drag", () => {
         expect(s.manager.getIndicatorState().dragging).toBe(false);
     });
 
+    it("keeps the guard while the pointer is outside every layout", () => {
+        const s = setup();
+        s.manager.setDragNode(
+            dragEvent("dragstart", 40, 35),
+            node<TabNode>(s.model, "t0"),
+        );
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185)); // out over a toolbar
+        expect(DragDropManager.getDragState()).toBeDefined();
+        document.dispatchEvent(
+            new PointerEvent("pointermove", { bubbles: true, buttons: 0 }),
+        );
+        expect(DragDropManager.getDragState()).toBeUndefined();
+    });
+
     it("ends a drag on a new press", () => {
         const s = setup();
         s.manager.setDragNode(

@@ -90,12 +90,21 @@ export function useRenderElement<State>(
         render && typeof render !== "function"
             ? (render.props.ref as React.Ref<HTMLElement> | undefined)
             : undefined;
-    const ref = React.useMemo(() => {
-        const refs = [internalRef, externalRef, elementRef].filter(
-            (r) => r !== undefined && r !== null,
-        );
-        return refs.length > 1 ? mergeRefs(...refs) : refs[0];
-    }, [internalRef, externalRef, elementRef]);
+    // consumer refs are read when the element attaches, not memoized on their identity: an inline
+    // callback ref (a new function each render) must not make React detach and re-attach the
+    // primitive's own ref (and its registrations) on every render
+    const consumerRefs = React.useRef<(React.Ref<HTMLElement> | undefined)[]>(
+        [],
+    );
+    consumerRefs.current = [externalRef, elementRef];
+    const hasConsumerRef = externalRef != null || elementRef != null;
+    const ref = React.useMemo<React.Ref<HTMLElement> | undefined>(() => {
+        if (!hasConsumerRef) {
+            return internalRef;
+        }
+        return (element: HTMLElement | null) =>
+            mergeRefs(internalRef, ...consumerRefs.current)(element);
+    }, [internalRef, hasConsumerRef]);
 
     const resolvedClassName =
         typeof className === "function" ? className(options.state) : className;

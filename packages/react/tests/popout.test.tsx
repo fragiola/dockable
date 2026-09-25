@@ -209,6 +209,13 @@ describe("Dockable.Popout", () => {
         );
     });
 
+    it("opens the window of a window layout already in the model at mount", () => {
+        const model = Model.fromJson(structuredClone(twoTabsets));
+        model.doAction(Actions.popoutTab("t2", "window"));
+        render(<App model={model} />);
+        expect(window.open).toHaveBeenCalledTimes(1);
+    });
+
     it("marks tabs that can be popped out", () => {
         const model = Model.fromJson({
             global: {},

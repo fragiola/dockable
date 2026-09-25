@@ -179,7 +179,7 @@ export function Tab(props: TabProps) {
         selected,
         pinned: node.isPinned(),
         dragging: drag.dragging,
-        popoutEnabled: node.isEnablePopout(),
+        popoutEnabled: node.isEnablePopout() && engine.isSupportsPopout(),
     };
     return useRenderElement("div", rest, {
         state,

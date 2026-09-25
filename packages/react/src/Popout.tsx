@@ -51,9 +51,8 @@ export function Popout(props: PopoutProps) {
 
     popoutHooks.current = { title, onOpen, onClose };
 
-    if (!manager.isSupportsPopout()) {
-        return null;
-    }
+    // without popout support the core docks each window layout's tabs back (open applies the
+    // close policy), so the windows are still "opened" here
     const windows: ModelLayout[] = [];
     for (const layout of model.getLayouts().values()) {
         if (!layout.isMainLayout() && layout.getType() === "window") {

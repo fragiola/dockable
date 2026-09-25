@@ -123,7 +123,7 @@ export function Panel(props: PanelProps) {
     const state: PanelState = { selected, visible };
 
     const onPointerDown = () => {
-        const tabset = node.getParent();
+        const tabset = node.getTabContainer(); // the tabset, also for a tab inside a group
         if (tabset instanceof TabSetNode && !tabset.isActive()) {
             layoutEngine.doAction(
                 Actions.setActiveTabset(tabset.getId(), layoutId),
