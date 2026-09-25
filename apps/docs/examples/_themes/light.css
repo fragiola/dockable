@@ -1,0 +1,124 @@
+/* Theme "light" — Neutral and quiet: the reference look.
+
+   One file per theme, selected by data-example-theme="light" on any element
+   (the docs put it on the example stage; an app would put it on <body>).
+   It declares:
+     1. shape tokens (--dk-*) that the example kit's class names read;
+     2. the Fragiola palettes the examples use, each with all SIX roles
+        (base, soft, line, contrast, accent, ring). A palette that omitted one
+        would inherit it from the page and leak across the theme boundary;
+     3. the chart series derivation and the hover direction for this scheme;
+     4. a few plain-CSS flourishes keyed on data-* and ARIA, the same hooks
+        any stylesheet can use.
+
+   Specificity: the palette rules are ":root [data-example-theme="light"] .palette-x", which ties
+   with Fragiola's own ":root[data-theme] .palette-x" and wins by coming
+   later in the cascade, so a theme overrides the page's light/dark. */
+
+[data-example-theme="light"] {
+    color-scheme: light;
+    --palette-state-shift: -0.1;
+    --dk-font: var(--font-sans);
+    --dk-tab-font: var(--dk-font);
+    --dk-tab-size: 0.8125rem;
+    --dk-radius: 8px;
+    --dk-tab-radius: 6px;
+    --dk-tab-height: 2.25rem;
+    --dk-tab-gap: 2px;
+    --dk-gap: 6px;
+    --dk-border: 1px;
+    --dk-shadow: 0 1px 2px oklch(0 0 0 / 0.06);
+    --dk-splitter-size: 6px;
+    --dk-splitter-grab: 6px;
+    --dk-splitter-bg: transparent;
+    --dk-grip: none;
+    --dk-strip-padding: 0.375rem;
+    --dk-indicator-style: solid;
+    --dk-motion: 150ms;
+}
+
+:root [data-example-theme="light"] .palette-surface,
+:root [data-example-theme="light"].palette-surface {
+    --palette-base: oklch(0.96 0.003 250);
+    --palette-soft: oklch(0.93 0.004 250);
+    --palette-line: oklch(0.86 0.004 250);
+    --palette-contrast: oklch(0.15 0.01 250);
+    --palette-accent: oklch(0.3 0.01 250);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="light"] .palette-raised,
+:root [data-example-theme="light"].palette-raised {
+    --palette-base: oklch(1 0 0);
+    --palette-soft: oklch(0.955 0.004 250);
+    --palette-line: oklch(0.87 0.005 250);
+    --palette-contrast: oklch(0.15 0.01 250);
+    --palette-accent: oklch(0.28 0.01 250);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="light"] .palette-blue,
+:root [data-example-theme="light"].palette-blue {
+    --palette-base: oklch(0.55 0.2 250);
+    --palette-soft: oklch(0.94 0.06 250);
+    --palette-line: oklch(0.85 0.08 250);
+    --palette-contrast: oklch(1 0 0);
+    --palette-accent: oklch(0.45 0.18 250);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="light"] .palette-orange,
+:root [data-example-theme="light"].palette-orange {
+    --palette-base: oklch(0.68 0.17 55);
+    --palette-soft: oklch(0.94 0.08 70);
+    --palette-line: oklch(0.85 0.12 70);
+    --palette-contrast: oklch(0.2 0.05 55);
+    --palette-accent: oklch(0.45 0.15 55);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="light"] .palette-green,
+:root [data-example-theme="light"].palette-green {
+    --palette-base: oklch(0.52 0.16 150);
+    --palette-soft: oklch(0.94 0.07 150);
+    --palette-line: oklch(0.85 0.1 150);
+    --palette-contrast: oklch(1 0 0);
+    --palette-accent: oklch(0.42 0.14 150);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="light"] .palette-danger,
+:root [data-example-theme="light"].palette-danger {
+    --palette-base: oklch(0.55 0.2 25);
+    --palette-soft: oklch(0.94 0.07 25);
+    --palette-line: oklch(0.85 0.1 25);
+    --palette-contrast: oklch(1 0 0);
+    --palette-accent: oklch(0.45 0.18 25);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="light"] .palette-purple,
+:root [data-example-theme="light"].palette-purple {
+    --palette-base: oklch(0.55 0.2 300);
+    --palette-soft: oklch(0.94 0.06 300);
+    --palette-line: oklch(0.85 0.08 300);
+    --palette-contrast: oklch(1 0 0);
+    --palette-accent: oklch(0.45 0.18 300);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="light"] [class*="palette-"],
+:root [data-example-theme="light"][class*="palette-"] {
+    --chart-1: oklch(
+        from var(--palette-base) clamp(0.43, l, 0.68) max(c, 0.14) h
+    );
+    --chart-2: oklch(from var(--palette-base) 0.68 0.13 calc(h + 180));
+    --chart-3: oklch(from var(--palette-base) 0.5 0.19 calc(h - 70));
+    --chart-4: oklch(from var(--palette-base) 0.72 0.13 calc(h + 60));
+    --chart-5: oklch(from var(--palette-base) 0.56 0.19 calc(h - 150));
+    --chart-ramp-1: oklch(from var(--palette-base) 0.78 0.16 h);
+    --chart-ramp-2: oklch(from var(--palette-base) 0.68 0.16 h);
+    --chart-ramp-3: oklch(from var(--palette-base) 0.58 0.16 h);
+    --chart-ramp-4: oklch(from var(--palette-base) 0.48 0.16 h);
+    --chart-ramp-5: oklch(from var(--palette-base) 0.38 0.16 h);
+}

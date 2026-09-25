@@ -1,0 +1,149 @@
+/* Theme "ide" — A dense code-editor workbench: hairline splitters, square tabs, a line on the active tab.
+
+   One file per theme, selected by data-example-theme="ide" on any element
+   (the docs put it on the example stage; an app would put it on <body>).
+   It declares:
+     1. shape tokens (--dk-*) that the example kit's class names read;
+     2. the Fragiola palettes the examples use, each with all SIX roles
+        (base, soft, line, contrast, accent, ring). A palette that omitted one
+        would inherit it from the page and leak across the theme boundary;
+     3. the chart series derivation and the hover direction for this scheme;
+     4. a few plain-CSS flourishes keyed on data-* and ARIA, the same hooks
+        any stylesheet can use.
+
+   Specificity: the palette rules are ":root [data-example-theme="ide"] .palette-x", which ties
+   with Fragiola's own ":root[data-theme] .palette-x" and wins by coming
+   later in the cascade, so a theme overrides the page's light/dark. */
+
+[data-example-theme="ide"] {
+    color-scheme: dark;
+    --palette-state-shift: 0.1;
+    --dk-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --dk-tab-font:
+        ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --dk-tab-size: 0.75rem;
+    --dk-radius: 0px;
+    --dk-tab-radius: 0px;
+    --dk-tab-height: 1.75rem;
+    --dk-tab-gap: 0px;
+    --dk-gap: 0px;
+    --dk-border: 0px;
+    --dk-shadow: none;
+    --dk-splitter-size: 1px;
+    --dk-splitter-grab: 7px;
+    --dk-splitter-bg: var(--palette-line);
+    --dk-grip: none;
+    --dk-strip-padding: 0px;
+    --dk-indicator-style: solid;
+    --dk-motion: 80ms;
+}
+
+:root [data-example-theme="ide"] .palette-surface,
+:root [data-example-theme="ide"].palette-surface {
+    --palette-base: oklch(0.2 0.006 260);
+    --palette-soft: oklch(0.26 0.008 260);
+    --palette-line: oklch(0.32 0.008 260);
+    --palette-contrast: oklch(0.9 0.005 260);
+    --palette-accent: oklch(0.82 0.006 260);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="ide"] .palette-raised,
+:root [data-example-theme="ide"].palette-raised {
+    --palette-base: oklch(0.235 0.006 260);
+    --palette-soft: oklch(0.19 0.006 260);
+    --palette-line: oklch(0.32 0.008 260);
+    --palette-contrast: oklch(0.92 0.005 260);
+    --palette-accent: oklch(0.8 0.006 260);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="ide"] .palette-blue,
+:root [data-example-theme="ide"].palette-blue {
+    --palette-base: oklch(0.55 0.16 245);
+    --palette-soft: oklch(0.3 0.08 245);
+    --palette-line: oklch(0.42 0.1 245);
+    --palette-contrast: oklch(0.99 0 0);
+    --palette-accent: oklch(0.75 0.13 245);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="ide"] .palette-orange,
+:root [data-example-theme="ide"].palette-orange {
+    --palette-base: oklch(0.72 0.15 60);
+    --palette-soft: oklch(0.3 0.07 60);
+    --palette-line: oklch(0.42 0.09 60);
+    --palette-contrast: oklch(0.18 0.03 60);
+    --palette-accent: oklch(0.8 0.13 60);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="ide"] .palette-green,
+:root [data-example-theme="ide"].palette-green {
+    --palette-base: oklch(0.68 0.15 150);
+    --palette-soft: oklch(0.3 0.07 150);
+    --palette-line: oklch(0.42 0.09 150);
+    --palette-contrast: oklch(0.15 0.03 150);
+    --palette-accent: oklch(0.76 0.13 150);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="ide"] .palette-danger,
+:root [data-example-theme="ide"].palette-danger {
+    --palette-base: oklch(0.66 0.18 25);
+    --palette-soft: oklch(0.3 0.08 25);
+    --palette-line: oklch(0.42 0.1 25);
+    --palette-contrast: oklch(0.14 0.03 25);
+    --palette-accent: oklch(0.76 0.15 25);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="ide"] .palette-purple,
+:root [data-example-theme="ide"].palette-purple {
+    --palette-base: oklch(0.68 0.16 300);
+    --palette-soft: oklch(0.3 0.08 300);
+    --palette-line: oklch(0.42 0.1 300);
+    --palette-contrast: oklch(0.14 0.03 300);
+    --palette-accent: oklch(0.78 0.14 300);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="ide"] [class*="palette-"],
+:root [data-example-theme="ide"][class*="palette-"] {
+    --chart-1: oklch(
+        from var(--palette-base) clamp(0.52, l, 0.72) max(c, 0.13) h
+    );
+    --chart-2: oklch(from var(--palette-base) 0.62 0.13 calc(h + 180));
+    --chart-3: oklch(from var(--palette-base) 0.52 0.18 calc(h - 70));
+    --chart-4: oklch(from var(--palette-base) 0.66 0.13 calc(h + 60));
+    --chart-5: oklch(from var(--palette-base) 0.56 0.18 calc(h - 150));
+    --chart-ramp-1: oklch(from var(--palette-base) 0.48 0.15 h);
+    --chart-ramp-2: oklch(from var(--palette-base) 0.56 0.15 h);
+    --chart-ramp-3: oklch(from var(--palette-base) 0.64 0.15 h);
+    --chart-ramp-4: oklch(from var(--palette-base) 0.72 0.15 h);
+    --chart-ramp-5: oklch(from var(--palette-base) 0.8 0.15 h);
+}
+
+/* ── Flourishes: plain CSS on the package's data-* and ARIA ─────────────── */
+
+/* The selected tab of the ACTIVE tabset gets a line on top, the editor way:
+   `[data-active]` is on Dockable.TabSet, `[data-selected]` on Dockable.Tab. */
+[data-example-theme="ide"] [data-tab-marker] {
+    inset-inline: 0;
+    top: 0;
+    bottom: auto;
+    border-radius: 0;
+}
+
+/* Tabs are separated by hairlines, and the selected one merges with its panel. */
+[data-example-theme="ide"] [role="tab"] {
+    border-inline-end: 1px solid var(--palette-line);
+}
+
+[data-example-theme="ide"] [role="tab"][data-selected] {
+    background: var(--palette-base);
+}
+
+[data-example-theme="ide"] [role="tablist"] {
+    background: var(--palette-soft);
+}
