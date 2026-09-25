@@ -23,7 +23,8 @@
         "test": "vitest run",
         "build": "pnpm -r build",
         "e2e": "pnpm --filter playground e2e",
-        "dev": "pnpm --filter playground dev"
+        "dev": "pnpm --filter playground dev",
+        "docs:dev": "pnpm --filter docs dev"
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.10",

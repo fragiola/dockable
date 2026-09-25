@@ -1,0 +1,68 @@
+# Deploy the docs site (apps/docs) to GitHub Pages as a static export.
+# Adapted from fragiola/ui .github/workflows/deploy-pages.yml.
+#
+# One-time repository setup: Settings → Pages → Build and deployment →
+# Source: "GitHub Actions". Nothing else — no branch, no folder.
+#
+# `pnpm --filter docs... build` builds the docs app AND its workspace
+# dependencies (@fragiola/dockable, @fragiola/dockable-react) first, in
+# dependency order, so the site is built against their `dist`. The docs build
+# is `next build` with `output: "export"`, which writes apps/docs/out.
+# configure-pages provides the base path: "/dockable" for
+# fragiola.github.io/dockable, "" once a custom domain is set.
+
+name: Deploy docs to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push supersedes a queued one but never
+# cancels a deploy already in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pnpm version from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - run: pnpm --filter docs... build
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/docs/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
