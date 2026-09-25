@@ -1,0 +1,154 @@
+---
+title: Popouts
+description: Move tabs into native browser windows with live content - the host page, popoutURL, theming and the close policy.
+---
+
+A popout moves a tab into a **native browser window**. The content keeps its state: the tab's
+moveable element is re-parented into the new document with `appendChild`, never cloned, and its
+React tree stays where it was.
+
+<Example slug="popout" />
+
+## 1. Serve a host page
+
+The new window loads a host page, `popout.html` by default (relative to the current page). It
+can be an empty document; the core adds a `data-dockable-popout` content root to it:
+
+```html title="public/popout.html"
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <style>
+            body { height: 100%; }
+        </style>
+    </head>
+    <body></body>
+</html>
+```
+
+The window layout's id is passed as `?id=`. Nothing names or titles the window unless you pass a
+title.
+
+## 2. Point `popoutURL` at it
+
+```tsx
+<Dockable.Root model={model} popoutURL="/popout.html">
+```
+
+Under a **base path** (GitHub Pages, a sub-directory deploy), include it: the window is opened
+with `window.open`, which knows nothing about your router. This site uses
+`` `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/popout.html` ``.
+
+## 3. Render the windows
+
+`Dockable.Popout` goes once, directly under the root. For every window layout it opens a window
+and, once the window is ready (styles copied), portals your child function's result into it. A
+`Row` without `node` inside renders the window layout's root row:
+
+```tsx
+<Dockable.Root model={model} popoutURL="/popout.html">
+    <Dockable.Row>{renderNode}</Dockable.Row>
+    <Dockable.Panels>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
+    <Dockable.DropIndicator className="drop-indicator" />
+    <Dockable.Popout className="popout-root" title={(layout) => "My app"}>
+        {() => <Dockable.Row>{renderNode}</Dockable.Row>}
+    </Dockable.Popout>
+</Dockable.Root>
+```
+
+`Dockable.Panels` needs no change: it renders the panels of every layout, and each panel is
+positioned in its own window.
+
+## 4. Pop a tab out
+
+Allow it per tab (`enablePopout: true`, or `tabEnablePopout` globally), then dispatch
+`Actions.popoutTab`:
+
+```tsx
+function PopoutButton({ tabset }: { tabset: TabSetNode }) {
+    const { engine, mainEngine } = useDockable();
+    const selected = tabset.getSelectedNode() as TabNode | undefined;
+    // only in the main window, for a tab that allows it, where windows are supported
+    if (!selected?.isEnablePopout() || !mainEngine.isSupportsPopout() || tabset.getLayoutId() !== Model.MAIN_LAYOUT_ID) {
+        return null;
+    }
+    return (
+        <button type="button" aria-label={`Pop out ${selected.getName()}`} onClick={() => engine.doAction(Actions.popoutTab(selected.getId(), "window"))}>
+            <ExternalLinkIcon aria-hidden="true" />
+        </button>
+    );
+}
+```
+
+`Tab` exposes `data-popout-enabled` (the tab allows it and popouts are supported) if the button
+lives in the tab. A button for the tabset's selected tab has to compute it as above (gap 7).
+
+`supportsPopout` on `Root` decides whether windows open at all; the default is "a desktop
+pointer is present". Without support, window layouts are docked back immediately.
+
+## Theming the popout
+
+The core copies into the popout document: every `<link rel="stylesheet">`, every `<style>`
+(including later edits), CSSOM rules inserted at runtime (polled), `adoptedStyleSheets`, and the
+page's `lang` and `dir`.
+
+It does **not** copy other attributes of `<html>` and `<body>`. If your theme keys off
+`:root[data-theme]` or a body class, copy them in `onOpen`, which runs when the popout document
+is ready and before its content renders:
+
+```tsx
+<Dockable.Popout
+    onOpen={(_layout, _window, doc) => {
+        doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
+        doc.body.classList.add("palette-surface");
+    }}
+>
+```
+
+This is gap 3 in [Limitations](/docs/limitations), removed by Epic
+[#20](https://github.com/fragiola/dockable/issues/20). `onPopoutOpen`/`onPopoutClose` on `Root`
+receive the same `(layout, window, document)` arguments, for set-up that is not about rendering
+(a CSS-in-JS cache for the new document, analytics).
+
+## Closing a popout
+
+When the user closes a popout window, the **close policy** decides what happens to its tabs.
+Set it with `popoutClosePolicy` on `Root`:
+
+| policy | closing the window | |
+| --- | --- | --- |
+| `"dock"` (default) | moves its tabs into the main layout's active tabset (else its first), as `moveNode` actions (grouped with `Actions.group`) through `onAction` | Dockable's default |
+| `"float"` | dispatches `Actions.closePopout(layoutId)`, which turns the window layout into a float | FlexLayout's behaviour |
+
+Use the default. `"float"` exists for parity and is tested, but floats are not rendered yet, so a
+floated layout (and its tabs) is not visible today. For the same reason, **do not veto** the
+dock-back `moveNode` actions in `onAction` while a window closes: the tabs would stay in a
+window layout that has no window. Both cases are in [Limitations](/docs/limitations).
+
+Other ways a popout goes away:
+
+- the main page unloading (`pagehide`) closes every popout **without** applying the policy: the
+  model still has the window layouts, so a layout saved at that moment reopens them;
+- `Actions.closePopout(layoutId)` is FlexLayout's action and always converts the window into a
+  float. To close a window from code and keep its tabs visible, move them back instead.
+
+A "dock back" button inside popped-out content moves the tab home:
+
+```tsx
+const { mainEngine, model } = useDockable();
+const target = model.getActiveTabset() ?? model.getFirstTabSet();
+if (target) mainEngine.doAction(Actions.moveNode(tab.getId(), target.getId(), DockLocation.CENTER, -1));
+```
+
+## What works across windows, and what does not
+
+- **Works**: content state (counters, inputs, scroll) survives popping out and docking back;
+  splitters, tabs, keyboard and maximize work inside the window; the window's layout is saved by
+  `model.toJson()` under `subLayouts` and reopened by `Model.fromJson` (the browser may block a
+  window opened without a user gesture).
+- **Not yet**: dragging a tab between the main window and a popout, or between popouts, and
+  popping out a whole tabset (`Actions.popoutTabset`) are Epic
+  [#20](https://github.com/fragiola/dockable/issues/20).
+
+<Example slug="analytics-dashboard" />

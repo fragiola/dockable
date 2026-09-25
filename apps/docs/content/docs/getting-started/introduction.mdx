@@ -1,6 +1,79 @@
 ---
 title: Introduction
-description: A headless layout manager for dockable panels.
+description: A headless layout manager for dockable panels. It ships behaviour and accessibility, never styling.
 ---
 
-Dockable is a headless layout manager for dockable panels.
+Dockable is a layout manager for **dockable panels**: tabs grouped in tabsets, tabsets laid out
+in rows and columns, splitters between them, drag and drop to rearrange everything, and popout
+windows. It is **headless**: it gives you the behaviour, the accessibility and a set of
+composable primitives, and you decide what every pixel looks like.
+
+<Example slug="hello-layout" />
+
+## What "headless" means here
+
+The package does the hard parts and nothing else:
+
+- a **model** of the layout (a JSON tree of rows, tabsets and tabs) that changes only through
+  **actions** you can intercept;
+- a **layout engine** that measures the elements you render, positions the tab panels over
+  their tabsets and keeps tab content alive while it moves between tabsets and windows;
+- **drag and drop** with hit-testing, drop locations and a drop indicator *state*;
+- **splitters** with pointer and keyboard resizing;
+- **popout windows** that carry live content into a second browser window;
+- **undo/redo**, JSON serialization, and the WAI-ARIA patterns for tabs and separators.
+
+It ships **no CSS, no icons, no rendered menus and no text**:
+
+| never shipped | what you do instead |
+| --- | --- |
+| CSS, class names, themes | style the primitives with `className`/`style` (a value or a function of the state), and the `data-*` attributes they expose. Tailwind, CSS modules, plain CSS: nothing assumes one. See [Styling with plain CSS](/docs/guides/styling-css). |
+| Icons | every button is yours. Close, maximize or pop out buttons are plain elements that dispatch actions. |
+| Menus | the package gives you the actions; you render the menu with your own components. See [Menus](/docs/guides/menus). |
+| Text | a primitive renders only its children. Accessible names come from you (`aria-label`, children) or from [`getLabel`](/docs/getting-started/accessible-names). With neither, no text is rendered. |
+
+The only inline styles a primitive applies are **structural**: position, geometry, `display`
+and flex sizing. Everything cosmetic is yours. [The primitive contract](/docs/concepts/primitive-contract)
+spells out the rule.
+
+## The packages
+
+| package | contains | depends on |
+| --- | --- | --- |
+| `@fragiola/dockable` | the framework-agnostic core: model, actions, JSON serialization, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle, undo/redo | nothing (DOM only) |
+| `@fragiola/dockable-react` | composable React primitives over the core (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, …) and the hooks under them | `react` and `react-dom` ^19 (peers) |
+
+Every piece of logic that is not rendering lives in the core, so adapters for other frameworks
+can follow without duplicating behaviour.
+
+## Where it comes from
+
+Dockable is derived from [FlexLayout](https://github.com/caplin/FlexLayout)
+(`flexlayout-react` 0.11.0) by **Caplin Systems Ltd**, released under the **MIT licence**
+(© 2017 Caplin Systems Ltd). The model (`Model`, `Actions`, the node classes and the
+`IJsonModel` format), the drop hit-testing, the splitter math and the `data-layout-path` scheme
+are ported from it, and every ported file names FlexLayout, Caplin Systems Ltd and the licence
+in its header. The view is rewritten as headless primitives; FlexLayout's own markup, class
+names and default strings are not copied. Thank you to the FlexLayout authors: this project
+stands on their work.
+
+If you know FlexLayout, the JSON model and the action names will be familiar. What changes is
+the view: instead of one `<Layout factory={…} />` component with a theme, you compose
+primitives and own the markup.
+
+## Next steps
+
+<Cards>
+    <Card title="Installation" href="/docs/getting-started/installation">
+        Add the two packages to a React 19 app.
+    </Card>
+    <Card title="Your first layout" href="/docs/getting-started/first-layout">
+        From a JSON model to a resizable, draggable layout, step by step.
+    </Card>
+    <Card title="Concepts" href="/docs/concepts/model-and-actions">
+        The model, the geometry and the primitive contract.
+    </Card>
+    <Card title="Examples" href="/examples">
+        Live examples in five themes, with their full source.
+    </Card>
+</Cards>

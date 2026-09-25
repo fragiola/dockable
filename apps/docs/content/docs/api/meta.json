@@ -1,0 +1,25 @@
+{
+    "title": "API reference",
+    "pages": [
+        "---Primitives (@fragiola/dockable-react)---",
+        "root",
+        "row",
+        "tabset",
+        "tablist",
+        "tab",
+        "tabset-content",
+        "panels",
+        "panel",
+        "splitter",
+        "drop-indicator",
+        "popout",
+        "hooks",
+        "---Core (@fragiola/dockable)---",
+        "model",
+        "actions",
+        "json-model",
+        "layout-engine",
+        "undo-manager",
+        "labels"
+    ]
+}

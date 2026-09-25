@@ -1,0 +1,78 @@
+---
+title: Menus
+description: The package provides the actions and the label keys; you render the menu with your own components.
+---
+
+Dockable renders **no menus**. A tab context menu, a tabset "more" menu or an overflow menu is a
+component you write, whose items dispatch actions. This page lists the items a layout usually
+offers and the action behind each.
+
+<Example slug="tab-context-menu" />
+
+## A tab context menu
+
+Attach the menu to the `Tab` with `onContextMenu` (props are forwarded), or wrap the tab in your
+menu library's trigger with `render`. With Fragiola UI's `ContextMenu` (Base UI):
+
+```tsx
+import { Actions, type TabNode } from "@fragiola/dockable";
+import { Dockable, useDockable } from "@fragiola/dockable-react";
+import { ContextMenu } from "@/components/ui/context-menu";
+
+function TabWithMenu({ tab }: { tab: TabNode }) {
+    const { engine } = useDockable();
+    return (
+        <ContextMenu.Root>
+            <ContextMenu.Trigger render={<Dockable.Tab node={tab} />}>
+                {tab.getName()}
+            </ContextMenu.Trigger>
+            <ContextMenu.Content>
+                <ContextMenu.Item
+                    disabled={!tab.isCloseable()}
+                    onClick={() => engine.doAction(Actions.deleteTab(tab.getId()))}
+                >
+                    Close
+                </ContextMenu.Item>
+                <ContextMenu.Item onClick={() => engine.doAction(Actions.setTabPinned(tab.getId(), !tab.isPinned()))}>
+                    {tab.isPinned() ? "Unpin" : "Pin"}
+                </ContextMenu.Item>
+            </ContextMenu.Content>
+        </ContextMenu.Root>
+    );
+}
+```
+
+Read the component's source for its exact parts; the pattern (a trigger rendering the
+`Dockable.Tab`, items dispatching actions) is the same with any menu library. Make sure the
+trigger forwards the ref and props to the tab element, or wrap the tab in the trigger instead.
+
+## The usual items
+
+| item | action | show or enable when | label key |
+| --- | --- | --- | --- |
+| Close | `Actions.deleteTab(tab.getId())` | `tab.isCloseable()` | `Close_Tab` |
+| Close others | `Actions.group(others.map((t) => Actions.deleteTab(t.getId())))` | other closeable tabs exist | `Menu_Close_Others` |
+| Close to the right | `Actions.group(right.map(…))` | closeable tabs after it | `Menu_Close_Right` |
+| Close all | `Actions.group(all.map(…))` | closeable tabs exist | `Menu_Close_All` |
+| Rename | start your rename UI, then `Actions.renameTab(id, text)` | `tab.isEnableRename()` | `Menu_Rename` |
+| Pin / Unpin | `Actions.setTabPinned(id, !tab.isPinned())` | `tab.isEnablePin()` | `Menu_Pin`, `Menu_Unpin` |
+| Pop out | `Actions.popoutTab(id, "window")` | `tab.isEnablePopout()` and `mainEngine.isSupportsPopout()` | `Menu_Popout` |
+| Maximize / Restore | `Actions.maximizeToggle(tabset.getId())` | `tabset.isEnableMaximize()` | `Menu_Maximize`, `Menu_Restore` |
+
+Group the "close several" items with `Actions.group`, so they are one undo step and one
+`onModelChange`. Filter with `isCloseable()`: pinned tabs are not closeable.
+
+The **label keys** are members of `DockableLabel`. They have no text in the package; resolving
+them through the same `getLabel` you give `Dockable.Root` keeps every string of the layout in one
+map (see [Accessible names](/docs/getting-started/accessible-names)).
+
+## Menus and drags
+
+A context menu opened on a tab does not interfere with dragging (a drag starts from a primary
+button press and a move). Keep menu triggers from starting a drag of their own: a menu **button**
+inside a tab should stop `pointerdown` propagation, as the close button does in
+[Tabs](/docs/guides/tabs).
+
+## Overflow menus
+
+A menu listing a tabset's hidden tabs is covered in [Tab overflow](/docs/guides/tab-overflow).

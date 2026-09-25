@@ -1,0 +1,63 @@
+---
+title: Dockable.TabSet
+description: A tabset - a flex item of its row, sized by its weight. Pressing inside it makes it active.
+---
+
+"A tabset: a flex item of its row, sized by its weight. Pressing inside it makes it the active
+tabset. Place a `Dockable.TabList` and a `Dockable.TabSetContent` inside."
+
+```tsx
+<Dockable.TabSet node={tabset} className="tabset">
+    <Dockable.TabList aria-label={tabset.getName() ?? "Tabs"}>
+        {(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}
+    </Dockable.TabList>
+    <Dockable.TabSetContent />
+</Dockable.TabSet>
+```
+
+The tabset is a structural flex column, so child order is visual order: put `TabSetContent`
+first for a strip at the bottom.
+
+## Props
+
+`TabSetProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `node` | `TabSetNode` | required | the tabset to render |
+| `children` | `ReactNode` | none | the tab strip, the content area, and anything else (a header, buttons) |
+
+## State
+
+`TabSetState` (shared with [`useTabSet`](/docs/api/hooks#usetabset)):
+
+| field | type | description |
+| --- | --- | --- |
+| `active` | `boolean` | the tabset is the model's active tabset |
+| `maximized` | `boolean` | the tabset is maximized |
+| `hidden` | `boolean` | another tabset of the layout is maximized, so this one is hidden |
+| `empty` | `boolean` | the tabset has no tabs |
+
+## Data attributes
+
+| attribute | when |
+| --- | --- |
+| `data-layout-path` | the tabset's path: `/ts0`, `/r1/ts0`, … |
+| `data-active` | the model's active tabset |
+| `data-maximized` | maximized |
+| `data-empty` | no tabs |
+
+## Structural style
+
+`display: flex` (or `none` while `hidden`), `flex-direction: column`, `flex-basis: 0`,
+`flex-grow` from the weight, `min-*`/`max-*` from the model, `overflow: hidden`.
+
+## Behaviour
+
+A primary-button press anywhere inside it (without modifiers) dispatches
+`Actions.setActiveTabset` when it is not already active.
+
+## Children context
+
+`TabList` and `TabSetContent` must be rendered inside a `TabSet`: they read their tabset from
+it.

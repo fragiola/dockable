@@ -1,0 +1,234 @@
+---
+title: IJsonModel
+description: The JSON format of a layout - global, row, tabset and tab attributes.
+---
+
+A layout is an `IJsonModel` (FlexLayout's format). `Model.fromJson(json)` reads it and
+`model.toJson()` writes it. The attribute tables below are generated from the JSDoc in
+`packages/core/src/model/IJsonModel.ts`.
+
+```ts
+interface IJsonModel {
+    global?: IGlobalAttributes;
+    borders?: IJsonBorderNode[];
+    layout: IJsonRowNode; // the root row
+    subLayouts?: Record<string, IJsonSubLayout>; // popout windows
+}
+```
+
+```json
+{
+    "global": { "tabEnableClose": false, "tabSetMinWidth": 120 },
+    "layout": {
+        "type": "row",
+        "children": [
+            { "type": "tabset", "weight": 70, "children": [{ "type": "tab", "id": "editor", "name": "Editor", "component": "editor" }] },
+            {
+                "type": "row",
+                "weight": 30,
+                "children": [
+                    { "type": "tabset", "children": [{ "type": "tab", "name": "Outline", "component": "outline" }] },
+                    { "type": "tabset", "children": [{ "type": "tab", "name": "Console", "component": "console", "config": { "lines": 200 } }] }
+                ]
+            }
+        ]
+    }
+}
+```
+
+The top-level row is horizontal (unless `rootOrientationVertical`); a row inside a row takes the
+opposite orientation, so it acts as a column.
+
+## Which attributes Dockable acts on
+
+The model keeps every FlexLayout attribute, but the headless primitives render no chrome, so
+attributes that describe FlexLayout's built-in view are **data for your own rendering**: the
+model stores them and returns them from getters (`tab.getIcon()`, `tab.getHelpText()`,
+`tabset.getTabLocation()`, `tabset.isEnableTabWrap()`, …), and your recursion decides what to
+do with them. That includes `className`, `contentClassName`, `classNameTabStrip`, `icon`,
+`helpText`, `altName`, `closeType`, `tabLocation`, `enableTabStrip`, `enableTabWrap`,
+`enableTabScrollbar`, `enableActiveIcon`, `enableCloseButton`, `enableSingleTabStretch`,
+`enablePopoutIcon`, `enableFloatIcon` and `enableRename`.
+
+The engine and the primitives **do** act on: `weight`, the min/max sizes, `selected`,
+`active`, `maximized`, `enableDrag`, `enableDrop`, `enableDivide`, `enableClose` (the
+close key), `enableDeleteWhenEmpty`, `enableMaximize` (the model refuses to maximize),
+`autoSelectTab`, `pinned`, `enablePopout`, `enableRenderOnDemand`, `enableScrollbars`,
+`enableWindowReMount`, `enableEdgeDock` and `rootOrientationVertical`.
+
+Border attributes (`borders`, `border*` globals) and float, group and sub-layout-in-tab
+attributes are read and saved, but borders, floats and tab groups are not rendered yet (see
+[Limitations](/docs/limitations)).
+
+## Inheritance
+
+Many tab and tabset attributes have a global counterpart: `tabEnableClose` is the default of
+every tab's `enableClose`, `tabSetMinWidth` of every tabset's `minWidth`. A node's own value
+wins. The defaults below say "(global `…`)" when they come from one.
+
+## Tabset JSON
+
+`IJsonTabSetNode` adds, on top of the attributes below:
+
+| field | type | description |
+| --- | --- | --- |
+| `active` | `boolean` | marks this as the active tab set, read from initial json but must subsequently be set on the model (only one tab set can be active) |
+| `maximized` | `boolean` | marks this tab set as being maximized, read from initial json but must subsequently be set on the model (only one tab set can be maximized) |
+| `children` | `IJsonTabNode[]` | its tabs |
+
+## Global attributes
+
+`IGlobalAttributes`, under `global`. Change them at runtime with
+`Actions.updateModelAttributes`.
+
+| attribute | type | default | description |
+| --- | --- | --- | --- |
+| `borderAutoSelectTabWhenClosed` | `boolean` | `false` | whether to select new/moved tabs in border when the border is currently closed |
+| `borderAutoSelectTabWhenOpen` | `boolean` | `true` | whether to select new/moved tabs in border when the border is already open |
+| `borderClassName` | `string` | none | class applied to the border container |
+| `borderEnableAutoHide` | `boolean` | `false` | hide border if it has zero tabs; not related to the borderType 'overlay' mode (Visual Studio style auto hide), see the borderType attribute |
+| `borderEnableDrop` | `boolean` | `true` | whether tabs can be dropped into this border |
+| `borderEnableTabScrollbar` | `boolean` | `false` | whether to show a mini scrollbar for the tabs |
+| `borderLeftTabDirection` | `IBorderTabDirection` | `"up"` | the direction the left border tabs read: 'up' (default, text reads bottom to top) or 'down' (text reads top to bottom like the right border) |
+| `borderMaxSize` | `number` | `99999` | the maximum size of the tab area |
+| `borderMinSize` | `number` | `1` | the minimum size of the tab area |
+| `borderSize` | `number` | `200` | size of the tab area when selected |
+| `enableEdgeDock` | `boolean` | `true` | enable docking to the edges of the layout |
+| `enableEdgeDockIndicators` | `boolean` | `true` | show the edge indicators when dragging |
+| `enableRotateBorderIcons` | `boolean` | `true` | boolean indicating if tab icons should rotate with the text in the left and right borders |
+| `rootOrientationVertical` | `boolean` | `false` | the top level 'row' will layout horizontally by default, set this option true to make it layout vertically |
+| `tabBorderHeight` | `number` | `-1` | the height of this tab when shown in a border; -1 uses the border's default size |
+| `tabBorderWidth` | `number` | `-1` | the width of this tab when shown in a border; -1 uses the border's default size |
+| `tabClassName` | `string` | none | class applied to tab button |
+| `tabCloseType` | `ICloseType` | `1` | when the tab's close button is active: Visible (default) active if selected or hovered (note: mobile doesnt support hovered), Always: always active, Selected only active on selected tab (clicking on the x button on a non-selected tab will just select it) |
+| `tabContentClassName` | `string` | none | class applied to tab content |
+| `tabEnableClose` | `boolean` | `true` | whether the tab can be closed by the user via its close button |
+| `tabEnableDrag` | `boolean` | `true` | whether the user can drag the tab to a new location |
+| `tabEnableFloat` | `boolean` | `false` | whether the user can move the tab to a floating window via the context menu |
+| `tabEnableFloatIcon` | `boolean` | `false` | whether to show the float icon in the tabset header if this tab enables floating |
+| `tabEnablePin` | `boolean` | `false` | whether the user can pin/unpin the tab via the context menu |
+| `tabEnablePopout` | `boolean` | `false` | enable window popout (in popout capable browser), to show an icon in the tabset header also set the enablePopoutIcon attribute |
+| `tabEnablePopoutIcon` | `boolean` | `false` | whether to show the popout icon in the tabset header if this tab enables popouts |
+| `tabEnablePopoutOverlay` | `boolean` | `false` | if this tab will not work correctly in a popout window when the main window is backgrounded (inactive) then enabling this option will gray out this tab |
+| `tabEnableRename` | `boolean` | `false` | whether the user can rename the tab by double clicking |
+| `tabEnableRenderOnDemand` | `boolean` | `true` | whether to avoid rendering component until tab is visible |
+| `tabEnableScrollbars` | `boolean` | `true` | whether the tab will be hosted in a scrollable container |
+| `tabGroupType` | `ITabGroupType` | `"splitpill"` | how a tab group is visually indicated: 'splitpill' encloses the group's tabs in a pill (left/right caps), 'underline' draws a colored underline under each grouped tab |
+| `tabIcon` | `string` | none | the tab icon |
+| `tabMaxHeight` | `number` | `99999` | the maximum height (in px) of this tab |
+| `tabMaxWidth` | `number` | `99999` | the maximum width (in px) of this tab |
+| `tabMinHeight` | `number` | `1` | the minimum height (in px) of this tab |
+| `tabMinWidth` | `number` | `1` | the minimum width (in px) of this tab |
+| `tabSetAutoSelectTab` | `boolean` | `true` | whether to select new/moved tabs in tabset |
+| `tabSetClassNameTabStrip` | `string` | none | a class name to apply to the tab strip |
+| `tabSetEnableActiveIcon` | `boolean` | `false` | whether the active icon (*) should be displayed when the tabset is active |
+| `tabSetEnableClose` | `boolean` | `true` | whether this tabset can be closed |
+| `tabSetEnableCloseButton` | `boolean` | `false` | if the tabset can be closed then show a close button |
+| `tabSetEnableDeleteWhenEmpty` | `boolean` | `true` | whether to delete this tabset when it has no tabs |
+| `tabSetEnableDivide` | `boolean` | `true` | whether dropping on an edge of this tabset splits it to create a new tabset |
+| `tabSetEnableDrag` | `boolean` | `true` | whether the user can drag tabs out of this tabset |
+| `tabSetEnableDrop` | `boolean` | `true` | whether tabs can be dropped into this tabset |
+| `tabSetEnableMaximize` | `boolean` | `true` | whether the tabset can be maximized to fill the layout via the maximize button |
+| `tabSetEnableSingleTabStretch` | `boolean` | `false` | if the tabset has only a single tab then stretch the single tab to fill area and display in a header style |
+| `tabSetEnableTabGroups` | `boolean` | `false` | whether the tab group options are enabled in the context menu (default menus) |
+| `tabSetEnableTabScrollbar` | `boolean` | `false` | whether to show a mini scrollbar for the tabs |
+| `tabSetEnableTabStrip` | `boolean` | `true` | when enabled the tabset shows a tab strip and can host multiple tabs; when disabled the strip is hidden |
+| `tabSetEnableTabWrap` | `boolean` | `false` | wrap tabs onto multiple lines |
+| `tabSetMaxHeight` | `number` | `99999` | maximum height (in px) for this tabset |
+| `tabSetMaxWidth` | `number` | `99999` | maximum width (in px) for this tabset |
+| `tabSetMinHeight` | `number` | `1` | minimum height (in px) for this tabset |
+| `tabSetMinWidth` | `number` | `1` | minimum width (in px) for this tabset |
+| `tabSetTabLocation` | `ITabLocation` | `"top"` | the location of the tabs either top or bottom |
+
+## Row attributes
+
+`IRowAttributes` (`IJsonRowNode` adds `children`).
+
+| attribute | type | default | description |
+| --- | --- | --- | --- |
+| `id` | `string` | none | the unique id of the row, if left undefined a uuid will be assigned |
+| `type` | `string` | none | Fixed value: "row" |
+| `weight` | `number` | `100` | relative weight for sizing of this row in parent row |
+
+## Tabset attributes
+
+`ITabSetAttributes`. Change them at runtime with `Actions.updateNodeAttributes(tabsetId, …)`.
+
+| attribute | type | default | description |
+| --- | --- | --- | --- |
+| `autoSelectTab` | `boolean` | `true` (global `tabSetAutoSelectTab`) | whether to select new/moved tabs in tabset |
+| `classNameTabStrip` | `string` | `undefined` (global `tabSetClassNameTabStrip`) | a class name to apply to the tab strip |
+| `config` | `any` | none | a place to hold json config used in your own code |
+| `enableActiveIcon` | `boolean` | `false` (global `tabSetEnableActiveIcon`) | whether the active icon (*) should be displayed when the tabset is active |
+| `enableClose` | `boolean` | `true` (global `tabSetEnableClose`) | whether this tabset can be closed |
+| `enableCloseButton` | `boolean` | `false` (global `tabSetEnableCloseButton`) | if the tabset can be closed then show a close button |
+| `enableDeleteWhenEmpty` | `boolean` | `true` (global `tabSetEnableDeleteWhenEmpty`) | whether to delete this tabset when it has no tabs |
+| `enableDivide` | `boolean` | `true` (global `tabSetEnableDivide`) | whether dropping on an edge of this tabset splits it to create a new tabset |
+| `enableDrag` | `boolean` | `true` (global `tabSetEnableDrag`) | whether the user can drag tabs out of this tabset |
+| `enableDrop` | `boolean` | `true` (global `tabSetEnableDrop`) | whether tabs can be dropped into this tabset |
+| `enableMaximize` | `boolean` | `true` (global `tabSetEnableMaximize`) | whether the tabset can be maximized to fill the layout via the maximize button |
+| `enableSingleTabStretch` | `boolean` | `false` (global `tabSetEnableSingleTabStretch`) | if the tabset has only a single tab then stretch the single tab to fill area and display in a header style |
+| `enableTabGroups` | `boolean` | `false` (global `tabSetEnableTabGroups`) | whether the tab group options are enabled in the context menu (default menus) |
+| `enableTabScrollbar` | `boolean` | `false` (global `tabSetEnableTabScrollbar`) | whether to show a mini scrollbar for the tabs |
+| `enableTabStrip` | `boolean` | `true` (global `tabSetEnableTabStrip`) | when enabled the tabset shows a tab strip and can host multiple tabs; when disabled the strip is hidden |
+| `enableTabWrap` | `boolean` | `false` (global `tabSetEnableTabWrap`) | wrap tabs onto multiple lines |
+| `id` | `string` | none | the unique id of the tab set, if left undefined a uuid will be assigned |
+| `maxHeight` | `number` | `99999` (global `tabSetMaxHeight`) | maximum height (in px) for this tabset |
+| `maxWidth` | `number` | `99999` (global `tabSetMaxWidth`) | maximum width (in px) for this tabset |
+| `minHeight` | `number` | `1` (global `tabSetMinHeight`) | minimum height (in px) for this tabset |
+| `minWidth` | `number` | `1` (global `tabSetMinWidth`) | minimum width (in px) for this tabset |
+| `name` | `string` | none | an accessible label for the tab strip (used as the tablist's aria-label; not displayed visually) |
+| `selected` | `number` | `0` | index of selected/visible tab in tabset; -1 means no tab selected |
+| `tabLocation` | `ITabLocation` | `"top"` (global `tabSetTabLocation`) | the location of the tabs either top or bottom |
+| `type` | `string` | none | Fixed value: "tabset" |
+| `weight` | `number` | `100` | relative weight for sizing of this tabset in parent row |
+
+## Tab attributes
+
+`ITabAttributes` (`IJsonTabNode`). Change them at runtime with
+`Actions.updateNodeAttributes(tabId, …)`.
+
+| attribute | type | default | description |
+| --- | --- | --- | --- |
+| `altName` | `string` | none | the name used in the overflow menu when the tab has no name (e.g. an icon-only tab) |
+| `borderHeight` | `number` | `-1` (global `tabBorderHeight`) | the height of this tab when shown in a border; -1 uses the border's default size |
+| `borderWidth` | `number` | `-1` (global `tabBorderWidth`) | the width of this tab when shown in a border; -1 uses the border's default size |
+| `className` | `string` | `undefined` (global `tabClassName`) | class applied to tab button |
+| `closeType` | `ICloseType` | `1` (global `tabCloseType`) | when the tab's close button is active: Visible (default) active if selected or hovered (note: mobile doesnt support hovered), Always: always active, Selected only active on selected tab (clicking on the x button on a non-selected tab will just select it) |
+| `component` | `string` | none | string identifying which component to render in this tab (used in the layout factory function) |
+| `config` | `any` | none | a place to hold json config for the hosted component |
+| `contentClassName` | `string` | `undefined` (global `tabContentClassName`) | class applied to tab content |
+| `enableClose` | `boolean` | `true` (global `tabEnableClose`) | whether the tab can be closed by the user via its close button |
+| `enableDrag` | `boolean` | `true` (global `tabEnableDrag`) | whether the user can drag the tab to a new location |
+| `enableFloat` | `boolean` | `false` (global `tabEnableFloat`) | whether the user can move the tab to a floating window via the context menu |
+| `enableFloatIcon` | `boolean` | `false` (global `tabEnableFloatIcon`) | whether to show the float icon in the tabset header if this tab enables floating |
+| `enablePin` | `boolean` | `false` (global `tabEnablePin`) | whether the user can pin/unpin the tab via the context menu |
+| `enablePopout` | `boolean` | `false` (global `tabEnablePopout`) | enable window popout (in popout capable browser), to show an icon in the tabset header also set the enablePopoutIcon attribute |
+| `enablePopoutIcon` | `boolean` | `false` (global `tabEnablePopoutIcon`) | whether to show the popout icon in the tabset header if this tab enables popouts |
+| `enablePopoutOverlay` | `boolean` | `false` (global `tabEnablePopoutOverlay`) | if this tab will not work correctly in a popout window when the main window is backgrounded (inactive) then enabling this option will gray out this tab |
+| `enableRename` | `boolean` | `false` (global `tabEnableRename`) | whether the user can rename the tab by double clicking |
+| `enableRenderOnDemand` | `boolean` | `true` (global `tabEnableRenderOnDemand`) | whether to avoid rendering component until tab is visible |
+| `enableScrollbars` | `boolean` | `true` (global `tabEnableScrollbars`) | whether the tab will be hosted in a scrollable container |
+| `enableWindowReMount` | `boolean` | `false` | if enabled the tab will re-mount when popped out/in |
+| `helpText` | `string` | none | help text for the tab to be displayed upon tab hover |
+| `icon` | `string` | `undefined` (global `tabIcon`) | the tab icon |
+| `id` | `string` | none | the unique id of the tab, if left undefined a uuid will be assigned |
+| `maxHeight` | `number` | `99999` (global `tabMaxHeight`) | the maximum height (in px) of this tab |
+| `maxWidth` | `number` | `99999` (global `tabMaxWidth`) | the maximum width (in px) of this tab |
+| `minHeight` | `number` | `1` (global `tabMinHeight`) | the minimum height (in px) of this tab |
+| `minWidth` | `number` | `1` (global `tabMinWidth`) | the minimum width (in px) of this tab |
+| `name` | `string` | `""` | name of tab to be displayed in the tab button |
+| `pinned` | `boolean` | `false` | whether the tab is pinned; pinned tabs are grouped at the start of the tabstrip, cannot be closed via the ui, and cannot be dragged out of their tabset (they can be reordered within the pinned group). Set via Actions.setTabPinned. Only applies to tabs in tabsets (not borders); pinned tabs should be listed first in the json |
+| `subLayoutId` | `string` | none | the Id of the sub layout to render in this tab, defined in the subLayouts section of the model json (if component is also defined then use the &lt;TabLayout&gt; component in the factory to render the sublayout) |
+| `tabsetClassName` | `string` | none | class applied to parent tabset when this is the only tab and it is stretched to fill the tabset |
+| `type` | `string` | none | Fixed value: "tab" |
+
+## Sub-layout attributes
+
+`IJsonSubLayout` (an entry of `subLayouts`, i.e. a popout window) has `layout` (its root row),
+`rect` (`{ x, y, width, height }`, the window's screen rect), `type` (`"window"`, `"float"` or
+`"tab"`) and:
+
+| attribute | type | default | description |
+| --- | --- | --- | --- |
+| `name` | `string` | none | the name of the sub layout, e.g. as shown in the model explorer |

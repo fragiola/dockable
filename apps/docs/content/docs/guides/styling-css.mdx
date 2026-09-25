@@ -1,0 +1,117 @@
+---
+title: Styling with plain CSS
+description: A complete stylesheet with no Tailwind, keyed only on data-* attributes and ARIA roles.
+---
+
+Nothing in Dockable depends on Tailwind. This page styles a layout with one plain CSS file,
+selecting only the attributes and roles the primitives render. Pass the class names you want
+(or none: the selectors below need none except where noted).
+
+<Example slug="unstyled" />
+
+## The stylesheet
+
+```css title="dockable.css"
+/* the root: a sized box (it has no intrinsic size) */
+.layout {
+    flex: 1;
+    min-height: 0;
+    background: #f4f4f5;
+    color: #18181b;
+    font: 13px/1.4 system-ui, sans-serif;
+}
+
+/* tabsets: rows and tabsets are flex items sized by weight; don't set flex-grow or display */
+.tabset {
+    background: #fff;
+    border: 1px solid #e4e4e7;
+}
+
+/* the tab strip: keep start padding (drops before the first tab) and a min height */
+[role="tablist"] {
+    display: flex;
+    gap: 2px;
+    min-height: 30px;
+    padding-inline-start: 4px;
+    border-bottom: 1px solid #e4e4e7;
+    overflow: hidden;
+}
+
+/* tabs */
+[role="tab"] {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    cursor: pointer;
+    color: #52525b;
+    user-select: none;
+}
+[role="tab"]:hover { background: #f4f4f5; }
+[role="tab"][data-selected] { color: #18181b; background: #f4f4f5; }
+[role="tab"][data-dragging] { opacity: 0.4; }
+[role="tab"]:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+
+/* the selected tab of the active tabset */
+[data-active] [role="tab"][data-selected] { box-shadow: inset 0 -2px #2563eb; }
+
+/* panels: the engine owns position, geometry and display */
+[role="tabpanel"] { background: #fff; overflow: auto; }
+
+/* splitters: data-orientation="vertical" is the bar between side by side children */
+[role="separator"] { background: #e4e4e7; }
+[role="separator"][data-orientation="vertical"] { width: 4px; cursor: ew-resize; }
+[role="separator"][data-orientation="horizontal"] { height: 4px; cursor: ns-resize; }
+[role="separator"]:is(:hover, :focus-visible, [data-dragging]) { background: #2563eb; }
+
+/* the drop indicator: above the panels, animated between targets */
+[data-layout-path="/outline"] {
+    z-index: 10;
+    border: 2px solid #2563eb;
+    background: rgb(37 99 235 / 0.15);
+    border-radius: 4px;
+    transition: left 0.15s, top 0.15s, width 0.15s, height 0.15s;
+}
+[data-layout-path="/outline"][data-drop-kind="edge"] { border-style: dashed; }
+
+/* a maximized layout hides the other tabsets itself; mark the maximized one */
+.tabset[data-maximized] { box-shadow: inset 0 0 0 2px #2563eb; }
+```
+
+```tsx
+<Dockable.Root model={model} className="layout">
+    <Dockable.Row>{renderNode}</Dockable.Row>
+    <Dockable.Panels>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
+    <Dockable.DropIndicator />
+</Dockable.Root>
+```
+
+`renderNode` gives each `TabSet` `className="tabset"`; everything else is selected by role or
+attribute.
+
+## Why each rule is there
+
+- **`flex: 1; min-height: 0` on the root**: the root has no intrinsic size
+  ([Sizing](/docs/getting-started/sizing)).
+- **No `flex`, `display` or geometry on rows, tabsets and panels**: the primitives set them
+  inline (structural style), and inline wins. Size with weights instead.
+- **`padding-inline-start` on the tab list**: a drop before the first tab is rejected when that
+  tab is flush with the tabset's edge, because the edge belongs to the tabset's side drop
+  ([Limitations](/docs/limitations), gap 10).
+- **`min-height: 30px` on the tab list**: a thin strip at the top of the layout falls inside the
+  10px top-edge docking band, so drops aimed at it dock to the layout edge instead (gap 11).
+- **`z-index` on the drop indicator**: panels are portalled into the root after the indicator
+  and would paint over it (gap 12). Its `pointer-events: none` is structural (an indicator under
+  the pointer would steal the drag's events).
+- **Transitions on the indicator only**: the core never animates. The indicator's state carries
+  `tabDragSpeed` (default 0.3s) if you want to read the duration from the layout.
+- **A border on tabsets, no radius**: a tabset's `border-radius` does not clip its panel (panels
+  are siblings in the panel layer, gap 2). For rounded tabsets, repeat the inner radius on the
+  panel's bottom corners.
+
+## CSS modules, vanilla-extract, styled-components
+
+Any tool that produces a class name works through `className`. For state that is not in an
+attribute, use the function form: `className={(state) => (state.active ? styles.active : styles.idle)}`.
+CSS-in-JS libraries that inject into `document.head` need one more step for popouts: register
+the popout document in `onPopoutOpen` (Dockable already copies `<style>`, `<link>` and adopted
+stylesheets into the popout; see [Popouts](/docs/guides/popouts)).

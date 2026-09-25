@@ -1,0 +1,105 @@
+---
+title: LayoutEngine
+description: The framework-agnostic engine for one layout - measures, positions panels, owns moveable elements, dispatches actions.
+---
+
+"The framework-agnostic layout engine for one `ModelLayout`. It implements the model's
+layout-controller contract, measures the elements an adapter registers and writes their rects
+into the model, positions tab panels over their tabset's content area (structural style only),
+owns the moveable elements that host tab content, dispatches actions through `onAction`, and
+tells adapters when to re-render through a revision counter."
+
+In React you never create one: `Dockable.Root` does, and `useDockable()` gives it to you. Most
+apps use three methods: `doAction`, `sync` and (rarely) `isSupportsPopout`.
+
+```tsx
+const { engine } = useDockable();
+engine.doAction(Actions.selectTab("t1"));
+```
+
+## For apps
+
+| method | description |
+| --- | --- |
+| `doAction(action)` | dispatches an action through `onAction`, which may replace or veto it. Returns the added node for `addTab` |
+| `sync()` | runs the measure-and-position cycle: measures every registered element into the model, positions the tab panels and discovers the splitter size. The primitives call it after every commit; call it yourself when something moved the tabsets without resizing any element (for example flipping `dir` at runtime, gap 4) |
+| `getModel()` | the model |
+| `getLayoutId()`, `getLayout()`, `isMainLayout()` | the layout this engine drives |
+| `getMainEngine()` | the main layout's engine (for a popout's engine) |
+| `isSupportsPopout()` | whether window layouts open as native popouts |
+| `isRealtimeResize()` | the `realtimeResize` option |
+| `isSplitterDragging()` | true while any splitter of the model is being dragged |
+| `getTabDragSpeed()` | seconds a view may take to animate the drop outline |
+| `focusAdjacentTabset(delta)` | moves focus to the selected tab button of the next (`1`) or previous (`-1`) tabset in this layout (wrapping); the target also becomes the active tabset. Returns true when focus moved |
+| `getPopoutManager()` | the popout windows of the model (owned by the main engine) |
+| `getDragDropManager()` | the drag-and-drop state machine of this layout |
+| `getCurrentDocument()`, `getCurrentWindow()`, `getWindowId()` | the document and window the layout renders in |
+| `getLayoutRef()` | the root element, once attached |
+
+## For adapters
+
+The adapter's side of the cycle, as the engine documents it:
+
+1. call `prepare()` before rendering a layout (computes paths and min/max sizes);
+2. render the structure, registering elements with `registerMeasurable`, `registerTabPanel` and
+   `registerSplitter`;
+3. call `sync()` after every commit (a layout effect in React);
+4. re-render when the revision from `subscribe`/`getSnapshot` changes.
+
+"The engine never renders geometry through the adapter: panel positions are written directly, so
+a resize or splitter drag does not require a re-render."
+
+| method | description |
+| --- | --- |
+| `createLayoutEngine(options)` | creates a `LayoutEngine` for a layout of `model` (the main layout by default) |
+| `setOptions(options)` | updates the callbacks and options an adapter passes on every render (`onAction`, `onModelChange`, `realtimeResize`, `tabDragSpeed`, `popout`) |
+| `subscribe(listener)` / `getSnapshot()` | the render revision: a number that changes whenever adapters should re-render (bound, for `useSyncExternalStore`) |
+| `getContentRevision()` | a revision that only changes when tab content should re-render too |
+| `prepare(path?)` | computes the `data-layout-path` of every node and the min/max sizes; call before rendering |
+| `attachRoot(element)` / `detachRoot()` | attaches the layout's root element (the containing block the panels are positioned in) and starts observing it and its window |
+| `registerMeasurable(node, kind, element)` | registers (or, with `null`, unregisters) an element whose geometry feeds the model; `kind` is `"row"`, `"tabset"`, `"tabstrip"`, `"tabsetcontent"`, `"tabbutton"`, … |
+| `registerTabPanel(node, element)` | registers the element a tab's content panel is positioned with |
+| `registerSplitter(element, isHorizontal, register?)` | registers a splitter element; its thickness becomes the model's splitter size |
+| `getMoveableElement(tab)` | the element hosting the tab's content, created on first use |
+| `attachMoveable(tab, panel)` | moves the tab's moveable element into `panel`; the same element is re-parented, never cloned |
+| `releaseMoveable(tab, panel?)` | parks the moveable element in the hidden moveables home when its panel goes away |
+| `createMoveableElement()` | creates the element that hosts a tab's content: `<div data-dockable-moveable>` in the main layout's document, with structural sizing only. Called by the model, lazily |
+| `getMoveablesHome()` | the hidden element moveables are parked in (main layout only) |
+| `syncLayoutMetrics()` | batch-measures all registered elements and writes rects into the model; returns true on change (part of `sync()`) |
+| `positionTabPanels()` | positions the tab panels over their parent's content area and sets their visibility (part of `sync()`) |
+| `updateRect()` | re-measures the layout root; a changed size relayouts |
+| `setSplitterDragging(dragging)` | marks a splitter drag in progress (used by the splitter controller) |
+| `getBoundingClientRect(element)` | an element's rect relative to the layout root |
+| `getDomRect()` / `getFreshDomRect()` | the layout root's rect in viewport coordinates (cached per pass / measured now) |
+| `getScreenRect(rect)` | a layout-relative rect in screen coordinates (for opening popout windows) |
+| `getRelativeRect(rect)` | a sub-layout-relative rect relative to the main layout |
+| `redrawLayout()` / `redrawLayoutAndTabContent()` | asks adapters to re-render the structure (and the content) |
+| `dispose()` | detaches and forgets everything |
+
+## Options
+
+`ILayoutEngineOptions`:
+
+| option | description |
+| --- | --- |
+| `model` | the model |
+| `layoutId` | the layout this engine drives; defaults to the main layout |
+| `onAction` | `OnAction`: return the action (or a replacement) to apply it, or `undefined` to veto it |
+| `onModelChange` | `OnModelChange`: called after the model applied an action |
+| `mainEngine` | the main layout's engine, for engines of popout sub-layouts |
+| `measure` | injectable element measurement (tests pass fixed rects); defaults to `getBoundingClientRect` |
+| `realtimeResize` | true (default) to resize live while a splitter is dragged; false to preview and commit on release |
+| `tabDragSpeed` | seconds a view may take to animate the drop outline (default 0.3) |
+| `popout` | popout windows (main engine only): `popoutURL`, `supportsPopout`, `closePolicy`, `title`, `onPopoutOpen`, `onPopoutClose` |
+
+## Helpers exported with it
+
+| export | description |
+| --- | --- |
+| `isTabPanelVisible(tab)` | whether a tab's panel is shown: selected, and not hidden by a maximized tabset or a hidden border |
+| `MOVEABLE_ATTRIBUTE` | `"data-dockable-moveable"`, the attribute on the element hosting a tab's content |
+| `POPOUT_ATTRIBUTE` | `"data-dockable-popout"`, the attribute on a popout's content root |
+
+The core never touches the global `document` or `window`: all DOM access goes through the root
+element's `ownerDocument` and `defaultView`, which is why the same engine runs inside a popout
+window.

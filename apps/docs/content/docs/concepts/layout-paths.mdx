@@ -1,0 +1,63 @@
+---
+title: Layout paths
+description: Every primitive carries data-layout-path, a stable description of its place in the layout. Use it in tests.
+---
+
+Every element a primitive renders carries a `data-layout-path` attribute that says where it is
+in the layout tree. The scheme is FlexLayout's (its Playwright suite is built on it), so
+selectors carry over.
+
+| path | element |
+| --- | --- |
+| `/layout` | `Dockable.Root` |
+| `/row` | the root `Dockable.Row` |
+| `/r<n>` | a nested row: child `n` of its parent, e.g. `/r1` |
+| `/ts<n>` | a tabset: child `n` of its row, e.g. `/ts0`, `/r1/ts0` |
+| `…/tabstrip` | a tabset's `TabList`, e.g. `/ts0/tabstrip` |
+| `…/content` | a tabset's `TabSetContent`, e.g. `/ts0/content` |
+| `…/tb<n>` | tab button `n` (`Dockable.Tab`), e.g. `/ts0/tb1` |
+| `…/t<n>` | the panel of tab `n` (`Dockable.Panel`), e.g. `/ts0/t1`: same place as its button |
+| `…/s<n>` | the splitter **after** child `n` of a row: `/s0` between the root row's first two children, `/r1/s0` inside a nested row |
+| `/outline` | `Dockable.DropIndicator` |
+| `/sublayout<n>` | a popout window's root (`Dockable.Popout`); its tabsets are `/sublayout<n>/ts0`, … |
+
+`n` is the index **among all children** of the parent, not per type: in a row holding a tabset
+and then a row, the tabset is `/ts0` and the row is `/r1`.
+
+## Using them in tests
+
+Paths are stable selectors that do not depend on your class names or your text:
+
+```ts
+import { expect, test } from "@playwright/test";
+
+const path = (p: string) => `[data-layout-path="${p}"]`;
+
+test("selects the second tab", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(path("/ts0/tb1")).click();
+    await expect(page.locator(path("/ts0/tb1"))).toHaveAttribute("data-selected", "");
+    await expect(page.locator(path("/ts0/t1"))).toBeVisible();
+});
+```
+
+Paths describe the **current** structure, so they shift when tabs and tabsets move: after
+moving the first tab of `/ts0` away, the old `/ts0/tb1` is `/ts0/tb0`. Assert on the state you
+expect after an action (the new path, its text), or find a tab by its name:
+
+```ts
+const tab = page.getByRole("tab", { name: "Notes" });
+```
+
+The [testing guide](/docs/guides/testing) shows drag and drop, splitter and popout tests.
+
+## In your own code
+
+The core exports the helpers the primitives use, so custom parts can emit the same paths:
+`getTabButtonPath(tab)`, `getTabPanelPath(tab)`, `getTabStripPath(tabset)`,
+`getSplitterPath(row, index)` and `DROP_INDICATOR_PATH`. The DOM ids that link tabs and panels
+come from `getTabButtonId(tab)` and `getTabPanelId(tab)`.
+
+*Adapted from FlexLayout's
+[Testing your layout](https://github.com/caplin/FlexLayout/blob/master/docs/testing-your-layout.md)
+(Caplin Systems Ltd, MIT).*

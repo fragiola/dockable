@@ -1,0 +1,120 @@
+---
+title: Testing your layout
+description: Unit-test the model in Node, and drive the rendered layout with Playwright through data-layout-path.
+---
+
+Two levels: the **model** is plain TypeScript and runs in Node, so layout logic (your actions,
+your `onAction` rules) is unit-testable without a browser. The **rendered layout** needs a real
+browser (it measures the DOM), and every primitive's `data-layout-path` gives your end-to-end
+tests stable selectors.
+
+The examples on this site are tested with exactly these techniques. Try the drags by hand in
+the [drag and drop](/examples/drag-and-drop/) example before scripting them.
+
+## Unit tests: the model
+
+```ts
+import { Actions, DockLocation, Model } from "@fragiola/dockable";
+import { expect, it } from "vitest";
+
+it("moves a tab into the other tabset", () => {
+    const model = Model.fromJson(json);
+    model.doAction(Actions.moveNode("notes", "right", DockLocation.CENTER, -1));
+    const right = model.getNodeById("right");
+    expect(right?.getChildren().map((tab) => tab.getId())).toContain("notes");
+});
+```
+
+Give the nodes you assert on explicit `id`s in the test JSON. `model.toJson()` is a convenient
+snapshot of the whole layout. To test an `onAction` rule, call it with the action and assert on
+what it returns; it is a plain function.
+
+## Component tests (jsdom)
+
+jsdom has no layout: every rect is zero, so panels never get a size and `Dockable.Panels`
+renders no content. Component tests can check the structure (tabs, `data-selected`, ARIA) and
+the actions your buttons dispatch, but not geometry or drag and drop. Use a browser for those.
+
+## End-to-end tests: layout paths
+
+Every primitive carries `data-layout-path` (see [Layout paths](/docs/concepts/layout-paths)):
+
+```ts
+import { expect, type Locator, type Page, test } from "@playwright/test";
+
+const at = (page: Page, path: string) => page.locator(`[data-layout-path="${path}"]`);
+
+test("selects a tab", async ({ page }) => {
+    await page.goto("/");
+    await at(page, "/ts0/tb1").click();
+    await expect(at(page, "/ts0/tb1")).toHaveAttribute("data-selected", "");
+    await expect(at(page, "/ts0/t1")).toBeVisible();
+});
+```
+
+Wait for the layout before interacting: `await expect(at(page, "/layout")).toBeVisible()`.
+
+### Dragging a tab
+
+Tabs use native HTML5 drag and drop. In Chromium, drive it with the mouse: press, move a little
+so `dragstart` fires, move to the target, then nudge by a pixel so the last `dragover` reports
+the final point (a single step that crosses into another element can fire only
+`dragenter`/`dragleave`):
+
+```ts
+async function dragTo(page: Page, from: Locator, to: { x: number; y: number }) {
+    const box = await from.boundingBox();
+    if (!box) throw new Error("no box");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 10, box.y + box.height / 2 + 10);
+    await page.mouse.move(to.x, to.y, { steps: 10 });
+    await page.mouse.move(to.x + 1, to.y);
+    await page.mouse.move(to.x, to.y);
+    await page.mouse.up();
+}
+
+test("drops a tab into the other tabset", async ({ page }) => {
+    await page.goto("/");
+    const target = await at(page, "/ts1/content").boundingBox();
+    await dragTo(page, at(page, "/ts0/tb0"), { x: target!.x + target!.width / 2, y: target!.y + target!.height / 2 });
+    await expect(page.getByRole("tab", { name: "Notes" })).toHaveAttribute("data-layout-path", /^\/ts1\//);
+});
+```
+
+While the drag is in progress, `/outline` (the drop indicator) has `data-visible` and a
+`data-drop-location` to assert on.
+
+### Splitters
+
+Drag the splitter with the mouse, or focus it and press the arrow keys (10px per press). Assert
+on `aria-valuenow` or on the tabsets' sizes:
+
+```ts
+await at(page, "/s0").focus();
+await page.keyboard.press("ArrowRight");
+await expect(at(page, "/s0")).toHaveAttribute("aria-valuetext", /%$/);
+```
+
+### Popouts
+
+A popout is a new page of the browser context:
+
+```ts
+const [popup] = await Promise.all([
+    page.context().waitForEvent("page"),
+    page.getByRole("button", { name: /pop out/i }).click(),
+]);
+await expect(popup.locator('[data-layout-path="/sublayout1/ts0/tb0"]')).toBeVisible();
+```
+
+### Tips
+
+- Paths follow the structure: after a move, assert on the **new** path, or find tabs by role
+  and name.
+- Avoid class-name selectors: they are yours and will change; paths and roles will not.
+- Native drags are timing-sensitive: keep the per-test worker count moderate, and retry on CI.
+
+*Adapted from FlexLayout's
+[Testing your layout](https://github.com/caplin/FlexLayout/blob/master/docs/testing-your-layout.md)
+(Caplin Systems Ltd, MIT); its Playwright suite is built on the same paths.*

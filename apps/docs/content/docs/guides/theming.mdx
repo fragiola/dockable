@@ -1,0 +1,106 @@
+---
+title: Theming with Fragiola palettes
+description: Colour from palette roles, shape from CSS custom properties, both scoped to any element.
+---
+
+Because the package paints nothing, a "theme" is just your CSS. This site's examples show one
+way to do it that scales: **colour** comes from [Fragiola UI](https://ui.fragiola.com) palettes,
+**shape** from a handful of CSS custom properties, and both are scoped to an element so several
+themes can live on one page.
+
+<Example slug="scoped-palettes" />
+
+## Colour: palette roles
+
+A Fragiola palette is a class (`palette-surface`, `palette-raised`, `palette-blue`, …) that sets
+six **roles** as custom properties: `--palette-base`, `--palette-soft`, `--palette-line`,
+`--palette-contrast`, `--palette-accent` and `--palette-ring`. Utilities read the roles, not
+colours:
+
+```tsx
+<Dockable.Root className="palette-surface bg-palette-base text-palette-contrast" … />
+<Dockable.TabSet className="palette-raised bg-palette-base border border-palette-line" … />
+<Dockable.Tab className="text-palette-accent/85 data-selected:bg-palette-soft data-selected:text-palette-contrast" … />
+<Dockable.DropIndicator className="palette-blue z-10 border-2 border-palette-base bg-palette-base/20" />
+```
+
+A palette class on an element re-scopes the roles for its subtree, so the same utilities paint a
+blue drop indicator inside a neutral tabset. Changing a theme means changing what the palette
+classes resolve to, never the markup.
+
+Two rules keep palettes from leaking: define **all six roles** for every palette a theme uses
+(an omitted role is inherited from the page), and use secondary text as `text-palette-accent/85`.
+
+## Shape: tokens
+
+Colour is not the only thing a theme changes. The examples' themes also set **shape tokens**
+that the kit's class names read:
+
+```css
+[data-example-theme="ide"] {
+    --dk-radius: 0px;
+    --dk-tab-radius: 0px;
+    --dk-tab-height: 2.1rem;
+    --dk-gap: 0px;
+    --dk-splitter-size: 1px;
+    --dk-splitter-grab: 6px;
+    --dk-font: var(--font-sans);
+}
+```
+
+```tsx
+<Dockable.TabSet className="rounded-(--dk-radius) border-(length:--dk-border)" … />
+<Dockable.Tab className="h-(--dk-tab-height) rounded-t-(--dk-tab-radius)" … />
+```
+
+Splitter thickness is a token too: the engine **measures** the splitter element, so a theme can
+change it freely and the split maths follows.
+
+## Scoping a theme to an element
+
+The palettes normally key off `:root[data-theme]`. To theme one region (a docs stage, a panel, a
+preview), scope the selectors to an attribute on any element:
+
+```css
+:root [data-example-theme="terminal"] .palette-surface,
+:root [data-example-theme="terminal"].palette-surface {
+    --palette-base: oklch(0.12 0 0);
+    --palette-soft: oklch(0.18 0.02 145);
+    --palette-line: oklch(0.35 0.08 145);
+    --palette-contrast: oklch(0.88 0.2 145);
+    --palette-accent: oklch(0.78 0.17 145);
+    --palette-ring: var(--palette-accent);
+}
+```
+
+Every example on this site runs in five such themes (Light, Dark, IDE, Paper, Terminal) switched
+without a reload: the markup never changes, only the attribute on the stage.
+
+## Themes and popouts
+
+A popout window is a new document. Dockable copies your **stylesheets** into it (`<link>`,
+`<style>` including later edits, CSSOM rules and adopted stylesheets) and the `lang` and `dir`
+of the page, but **not** other attributes of `<html>` and `<body>`. If your theme keys off
+`:root[data-theme]` or a body class, copy them in `onOpen`:
+
+```tsx
+<Dockable.Popout
+    onOpen={(_layout, _window, doc) => {
+        doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
+        doc.body.classList.add("palette-surface");
+    }}
+>
+    {() => <Dockable.Row>{renderNode}</Dockable.Row>}
+</Dockable.Popout>
+```
+
+To follow later theme switches, keep the popout documents (`onOpen`/`onClose`) and re-apply
+with a `MutationObserver`, as the examples' kit does. This is gap 3 in
+[Limitations](/docs/limitations); Epic [#20](https://github.com/fragiola/dockable/issues/20)
+adds a `mirrorRoot` option.
+
+## Without Fragiola
+
+Nothing here is required. The same pattern works with any design tokens: define custom
+properties per theme, read them from your classes, and select state with `data-*`. See
+[Styling with plain CSS](/docs/guides/styling-css).
