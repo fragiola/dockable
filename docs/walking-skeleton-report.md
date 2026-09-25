@@ -156,6 +156,10 @@ Things that turned out **not** to be missing:
   `pointer-events: none` itself: an indicator under the pointer would take the drag's
   enter/leave events and make the browser cancel the drop (FlexLayout does this in its theme
   CSS).
+- **Popouts and the main page unload.** Popouts close on the main window's `pagehide`
+  rather than `beforeunload`, since another handler can still cancel the unload. When a
+  swapped-in model reopens a named popout window, ownership passes to the new manager, so the
+  old one neither closes the window nor applies its close policy.
 - **Lost-drag guard.** FlexLayout only names this fallback in a comment. Here a drag ends on
   a `dragend` anywhere in the document, a pointer move with no button held, or a new press.
 - **Native drag listeners.** They are attached by the core engine to its root rather than by
@@ -184,6 +188,11 @@ Things that turned out **not** to be missing:
 3. **Float windows.** `Dockable.Float`: the engine's `updateRect` already looks for
    `data-dockable-float`, and the drag manager already has the float branch
    (`startDockLayoutDrag`). Flip the popout close policy default to `"float"`.
+   Known limitation until then: a window layout can end up with no window and no renderer.
+   With the `"float"` policy, a closed popout becomes a float, which this slice does not
+   render. With `"dock"`, the same happens when `onAction` vetoes the dock-back moves. Either
+   way its tabs are unreachable. The float slice must render floats and decide what a vetoed
+   dock-back does.
 4. **Full popout.**
    - Dragging between windows (the static `DragState` is already shared) and popout of whole
      tabsets.
