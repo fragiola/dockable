@@ -1,3 +1,6 @@
+// Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/Row.tsx (flex sizing from weights, splitters between children);
+// the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
+// see LICENSE.
 import { Orientation, RowNode, type TabSetNode } from "@fragiola/dockable";
 import * as React from "react";
 import { useDockableContext, useLayoutContext } from "./context";

@@ -1,3 +1,6 @@
+// Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/layout/FloatingWindowContainer.tsx and src/view/PopoutWindow.tsx (per-window rendering);
+// the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
+// see LICENSE.
 import type {
     LayoutEngine,
     ModelLayout,

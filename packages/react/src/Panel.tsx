@@ -1,3 +1,6 @@
+// Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/Tab.tsx and src/view/TabContentRenderer.tsx (panel container and content portal);
+// the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
+// see LICENSE.
 import {
     Actions,
     getTabButtonId,

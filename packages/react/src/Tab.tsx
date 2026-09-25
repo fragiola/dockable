@@ -1,3 +1,6 @@
+// Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/TabButton.tsx (APG keyboard handling, roving tab stop, ARIA);
+// the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
+// see LICENSE.
 import {
     Actions,
     getTabButtonId,

@@ -1,3 +1,6 @@
+// Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/layout/LayoutController.tsx (renderTabContents: which tabs render);
+// the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
+// see LICENSE.
 import { Model, TabNode } from "@fragiola/dockable";
 import * as React from "react";
 import { useDockableContext } from "./context";
