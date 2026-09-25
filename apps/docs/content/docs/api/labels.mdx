@@ -1,0 +1,88 @@
+---
+title: DockableLabel
+description: The keys of every accessible name or label a view may need. No default strings.
+---
+
+"The keys of every accessible name or label a view built on the core may need. There are no
+default strings: the consumer resolves a key to text (for example through `getLabel(key)` on
+the React `Dockable.Root`). A `?` in a key marks where a count is substituted."
+
+```tsx
+import { DockableLabel } from "@fragiola/dockable";
+
+const labels: Partial<Record<DockableLabel, string>> = {
+    [DockableLabel.Splitter]: "Resize",
+    [DockableLabel.Close_Tab]: "Close",
+};
+
+<Dockable.Root model={model} getLabel={(key) => labels[key]}>
+```
+
+The React primitives resolve **one** key themselves today: `Splitter` (each splitter's
+`aria-label`). The others name parts you build (close and maximize buttons, menu items, an
+overflow button), so one map (or one i18n namespace) holds every string of your layout. Read the
+resolver inside the layout with `useDockable().getLabel`.
+
+The `GetLabel` type (from `@fragiola/dockable-react`):
+
+```ts
+type GetLabel = (key: DockableLabel, ...args: (string | number)[]) => string | undefined;
+```
+
+Returning `undefined` means "no text": the element gets no accessible name from the package.
+See [Accessible names](/docs/getting-started/accessible-names).
+
+## Keys
+
+Several keys name parts that do not exist yet (borders, floats, tab groups, an error boundary):
+they are kept from FlexLayout so the map is ready when those parts land.
+
+| key | value | description |
+| --- | --- | --- |
+| `Close_Tab` | `"dockable.close.tab"` | the close button tooltip on a tab |
+| `Pinned_Tab` | `"dockable.pinned.tab"` | the pin indicator tooltip on a pinned tab, and the "(Pinned)" suffix added to its accessible name |
+| `Rename_Tab` | `"dockable.rename.tab"` | the aria-label of the inline tab rename textbox |
+| `Close_Tabset` | `"dockable.close.tabset"` | the tabset close button tooltip |
+| `Active_Tabset` | `"dockable.active.tabset"` | the active tabset indicator icon tooltip |
+| `Move_Tabset` | `"dockable.move.tabset"` | the drag image text shown while dragging a tabset |
+| `Move_Tabs` | `"dockable.move.tabs (?)"` | the drag image text shown while dragging multiple tabs ("?" is replaced with the tab count) |
+| `Move_Group` | `"dockable.move.group (?)"` | the drag image text shown while dragging a group ("?" is replaced with the tab count) |
+| `Maximize` | `"dockable.maximize.tabset"` | the tabset maximize button tooltip |
+| `Restore` | `"dockable.restore.tabset"` | the tabset restore button tooltip |
+| `Popout_Tab` | `"dockable.popout.tab"` | the toolbar button tooltip that pops the selected tab out into a native window |
+| `Popout_Tab_Float` | `"dockable.popout.tab.float"` | the toolbar button tooltip that pops the selected tab out into a floating panel |
+| `Popout_Float_To_Window` | `"dockable.popout.float.to.window"` | the floating panel header button tooltip that pops the panel out into a native window |
+| `Dock_Float_To_Layout` | `"dockable.dock.float.to.layout"` | the floating panel header drag handle tooltip and its drag image text |
+| `Dock_Float_Tabs` | `"dockable.dock.float.tabs (?)"` | the drag image text shown while docking a floating panel ("?" is replaced with the number of tabs) |
+| `Overflow_Menu_Tooltip` | `"dockable.overflow.menu.tooltip"` | the overflow button tooltip and the overflow menu's accessible name |
+| `Splitter` | `"dockable.splitter"` | the splitter's aria-label |
+| `Error_rendering_component` | `"dockable.error.rendering.component"` | the error boundary message shown when a tab's component fails to render |
+| `Error_rendering_component_retry` | `"dockable.error.rendering.component.retry"` | the error boundary retry button label |
+| `Popout_Window_Name` | `"dockable.popout.window.name"` | the default title for popout windows |
+| `Menu_Rename` | `"dockable.menu.rename"` | the context menu item that starts renaming a tab |
+| `Menu_Pin` | `"dockable.menu.pin"` | the context menu item that pins a tab |
+| `Menu_Unpin` | `"dockable.menu.unpin"` | the context menu item that unpins a tab |
+| `Menu_Popout` | `"dockable.menu.popout"` | the context menu item that pops a tab out into a native window |
+| `Menu_Float` | `"dockable.menu.float"` | the context menu item that pops a tab out into a floating panel |
+| `Menu_Popout_Tabset` | `"dockable.menu.popout.tabset"` | the tabset context menu item that pops the whole tabset out into a native window |
+| `Menu_Float_Tabset` | `"dockable.menu.float.tabset"` | the tabset context menu item that pops the whole tabset out into a floating panel |
+| `Menu_Maximize` | `"dockable.menu.maximize"` | the tabset context menu item that maximizes the tabset |
+| `Menu_Restore` | `"dockable.menu.restore"` | the tabset context menu item that restores a maximized tabset |
+| `Menu_Overlay` | `"dockable.menu.overlay"` | the border context menu item that switches the border to overlay type |
+| `Menu_Split` | `"dockable.menu.split"` | the border context menu item that switches the border to split type |
+| `Menu_Close_All` | `"dockable.menu.close.all"` | the context menu item that closes every closeable tab in the parent |
+| `Menu_Close_Right` | `"dockable.menu.close.right"` | the context menu item that closes the closeable tabs to the right of the tab |
+| `Menu_Close_Others` | `"dockable.menu.close.others"` | the context menu item that closes every closeable tab but the tab itself |
+| `Menu_Add_To_New_Group` | `"dockable.menu.add.to.new.group"` | the context menu item that adds the tab to a new group |
+| `Menu_Add_To_Group` | `"dockable.menu.add.to.group"` | the context menu item that adds the tab to an existing group |
+| `Menu_Remove_From_Group` | `"dockable.menu.remove.from.group"` | the context menu item that moves a tab out of its group |
+| `Menu_Ungroup` | `"dockable.menu.ungroup"` | the context menu item that ungroups a group, moving all its tabs back into the tabset |
+| `Menu_Expand` | `"dockable.menu.expand"` | the context menu item that expands a collapsed group |
+| `Menu_Collapse` | `"dockable.menu.collapse"` | the context menu item that collapses an expanded group |
+| `Rename_Group` | `"dockable.rename.group"` | the aria-label of the inline group rename textbox |
+| `Group_Color` | `"dockable.group.color"` | the accessible name of the group color chooser |
+| `Group_Pill_Tooltip` | `"dockable.group.pill.tooltip"` | the group pill tooltip |
+| `Group_Name_Label` | `"dockable.group.name.label"` | the label text next to the group rename input |
+| `Group_Name_Placeholder` | `"dockable.group.name.placeholder"` | the placeholder shown in the group rename input |
+| `Group_Color_N` | `"dockable.group.color.n"` | the aria-label prefix for individual color swatches ("Group color 1", etc.) |
+| `Group_Default_Name` | `"dockable.group.default.name"` | the default name for a new tab group |

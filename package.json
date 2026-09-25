@@ -22,8 +22,9 @@
         "typecheck": "pnpm -r typecheck",
         "test": "vitest run",
         "build": "pnpm -r build",
-        "e2e": "pnpm --filter playground e2e",
-        "dev": "pnpm --filter playground dev"
+        "e2e": "pnpm --workspace-concurrency=1 --filter playground --filter docs e2e",
+        "dev": "pnpm --filter playground dev",
+        "docs:dev": "pnpm --filter docs dev"
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.10",

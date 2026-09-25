@@ -1,0 +1,165 @@
+/* Theme "terminal" — Phosphor green on black: monospace, bracketed tabs, blocky splitters.
+
+   One file per theme, selected by data-example-theme="terminal" on any element
+   (the docs put it on the example stage; an app would put it on <body>).
+   It declares:
+     1. shape tokens (--dk-*) that the example kit's class names read;
+     2. the Fragiola palettes the examples use, each with all SIX roles
+        (base, soft, line, contrast, accent, ring). A palette that omitted one
+        would inherit it from the page and leak across the theme boundary;
+     3. the chart series derivation and the hover direction for this scheme;
+     4. a few plain-CSS flourishes keyed on the package's data-* and on the
+        kit's markers (data-kit-*), so markup outside the kit is left alone.
+
+   Specificity: the palette rules are ":root [data-example-theme="terminal"] .palette-x", which ties
+   with Fragiola's own ":root[data-theme] .palette-x" and wins by coming
+   later in the cascade, so a theme overrides the page's light/dark. */
+
+[data-example-theme="terminal"] {
+    color-scheme: dark;
+    --palette-state-shift: 0.1;
+    --dk-font:
+        ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --dk-tab-font: var(--dk-font);
+    --dk-tab-size: 0.8125rem;
+    --dk-radius: 0px;
+    --dk-tab-radius: 0px;
+    --dk-tab-height: 2rem;
+    --dk-tab-gap: 0px;
+    --dk-gap: 4px;
+    --dk-border: 1px;
+    --dk-shadow: none;
+    --dk-splitter-size: 4px;
+    --dk-splitter-grab: 8px;
+    --dk-splitter-bg: var(--palette-line);
+    --dk-grip: none;
+    --dk-strip-padding: 0px;
+    --dk-indicator-style: dashed;
+    --dk-motion: 0ms;
+}
+
+:root [data-example-theme="terminal"] .palette-surface,
+:root [data-example-theme="terminal"].palette-surface {
+    --palette-base: oklch(0.13 0.012 150);
+    --palette-soft: oklch(0.2 0.03 150);
+    --palette-line: oklch(0.38 0.08 150);
+    --palette-contrast: oklch(0.87 0.19 145);
+    --palette-accent: oklch(0.8 0.17 145);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="terminal"] .palette-raised,
+:root [data-example-theme="terminal"].palette-raised {
+    --palette-base: oklch(0.16 0.016 150);
+    --palette-soft: oklch(0.23 0.035 150);
+    --palette-line: oklch(0.42 0.09 150);
+    --palette-contrast: oklch(0.88 0.2 145);
+    --palette-accent: oklch(0.8 0.17 145);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="terminal"] .palette-blue,
+:root [data-example-theme="terminal"].palette-blue {
+    --palette-base: oklch(0.85 0.2 145);
+    --palette-soft: oklch(0.25 0.06 145);
+    --palette-line: oklch(0.5 0.12 145);
+    --palette-contrast: oklch(0.14 0.02 150);
+    --palette-accent: oklch(0.88 0.2 145);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="terminal"] .palette-orange,
+:root [data-example-theme="terminal"].palette-orange {
+    --palette-base: oklch(0.8 0.16 75);
+    --palette-soft: oklch(0.26 0.05 75);
+    --palette-line: oklch(0.5 0.1 75);
+    --palette-contrast: oklch(0.14 0.02 75);
+    --palette-accent: oklch(0.85 0.15 75);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="terminal"] .palette-green,
+:root [data-example-theme="terminal"].palette-green {
+    --palette-base: oklch(0.75 0.18 145);
+    --palette-soft: oklch(0.25 0.06 145);
+    --palette-line: oklch(0.48 0.11 145);
+    --palette-contrast: oklch(0.13 0.02 150);
+    --palette-accent: oklch(0.84 0.19 145);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="terminal"] .palette-danger,
+:root [data-example-theme="terminal"].palette-danger {
+    --palette-base: oklch(0.68 0.2 25);
+    --palette-soft: oklch(0.26 0.07 25);
+    --palette-line: oklch(0.48 0.13 25);
+    --palette-contrast: oklch(0.12 0.02 25);
+    --palette-accent: oklch(0.76 0.17 25);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="terminal"] .palette-purple,
+:root [data-example-theme="terminal"].palette-purple {
+    --palette-base: oklch(0.72 0.2 330);
+    --palette-soft: oklch(0.26 0.07 330);
+    --palette-line: oklch(0.48 0.13 330);
+    --palette-contrast: oklch(0.12 0.02 330);
+    --palette-accent: oklch(0.8 0.17 330);
+    --palette-ring: var(--palette-accent);
+}
+
+:root [data-example-theme="terminal"] [class*="palette-"],
+:root [data-example-theme="terminal"][class*="palette-"] {
+    --chart-1: oklch(
+        from var(--palette-base) clamp(0.52, l, 0.72) max(c, 0.13) h
+    );
+    --chart-2: oklch(from var(--palette-base) 0.62 0.13 calc(h + 180));
+    --chart-3: oklch(from var(--palette-base) 0.52 0.18 calc(h - 70));
+    --chart-4: oklch(from var(--palette-base) 0.66 0.13 calc(h + 60));
+    --chart-5: oklch(from var(--palette-base) 0.56 0.18 calc(h - 150));
+    --chart-ramp-1: oklch(from var(--palette-base) 0.48 0.15 h);
+    --chart-ramp-2: oklch(from var(--palette-base) 0.56 0.15 h);
+    --chart-ramp-3: oklch(from var(--palette-base) 0.64 0.15 h);
+    --chart-ramp-4: oklch(from var(--palette-base) 0.72 0.15 h);
+    --chart-ramp-5: oklch(from var(--palette-base) 0.8 0.15 h);
+}
+
+/* ── Flourishes: plain CSS on the package's data-* and ARIA ─────────────── */
+
+/* Tabs read [ like this ]; the selected one is inverted. The brackets are the
+   theme's, not the package's: Dockable renders no text. */
+[data-example-theme="terminal"] [data-kit-tab] [data-tab-label]::before {
+    content: "[ ";
+}
+
+[data-example-theme="terminal"] [data-kit-tab] [data-tab-label]::after {
+    content: " ]";
+}
+
+[data-example-theme="terminal"] [data-kit-tab][data-selected] {
+    background: var(--palette-contrast);
+    color: var(--palette-base);
+}
+
+[data-example-theme="terminal"] [data-tab-marker] {
+    display: none;
+}
+
+/* The active tabset is framed in bright phosphor. */
+[data-example-theme="terminal"] [data-kit-tabset][data-active] {
+    border-color: var(--palette-contrast);
+}
+
+/* Panels get faint scanlines. */
+[data-example-theme="terminal"] [data-kit-panel] {
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0 2px,
+        oklch(1 0 0 / 0.025) 2px 3px
+    );
+}
+
+[data-example-theme="terminal"] ::selection {
+    background: var(--palette-contrast);
+    color: var(--palette-base);
+}

@@ -1,0 +1,103 @@
+---
+title: Drag and drop
+description: How tabs are dragged and dropped, and how to style the drop indicator.
+---
+
+Drag and drop works out of the box: every `Dockable.Tab` is draggable (when its tab's
+`enableDrag` allows it), and every tabset, tab strip and layout edge is a drop target. What you
+add is the **look**: the drop indicator, and the dragged tab's state.
+
+<Example slug="drag-and-drop" />
+
+## What happens during a drag
+
+1. A tab uses native HTML5 drag and drop: `draggable`, `dragstart`, `dragend`. The browser
+   snapshots the **dragged `Tab` element** as the drag image (no text is added).
+2. The engine listens for native `dragenter`/`dragover`/`dragleave`/`drop` on the root (not
+   React events, so the same path works in a popout document) and hit-tests the pointer against
+   the measured rects.
+3. The drop indicator state updates: where the tab would land and how.
+4. On drop, the engine dispatches `Actions.moveNode(tabId, targetId, location, index)` through
+   `onAction`. Veto it there and nothing moves.
+
+| drop on | location | result |
+| --- | --- | --- |
+| a tab strip | `center` | the tab joins the tabset at the pointer's index |
+| the middle of a tabset's content | `center` | the tab joins the tabset (appended) |
+| a tabset's edge | `top`, `bottom`, `left`, `right` | the tabset splits; the tab gets a new tabset on that side |
+| the layout's outer edge | `top`, `bottom`, `left`, `right` (`kind: "edge"`) | a new tabset along the whole edge |
+
+Tabsets can be dropped too (the model supports moving a tabset), but the React primitives start
+drags only from tabs today. `useDragNode` wires any node to the drag machine if you build your
+own tabset drag handle.
+
+## The drop indicator
+
+`Dockable.DropIndicator` is one element the engine positions over the drop target
+(structurally: `position: absolute`, `left`/`top`/`width`/`height`, `display: none` while there is
+no target, and `pointer-events: none`). Place it anywhere inside the root and style it:
+
+```tsx
+<Dockable.DropIndicator
+    className="z-10 rounded-md border-2 border-palette-ring bg-palette-ring/15 data-[drop-kind=edge]:border-dashed"
+    style={(state) => ({
+        transitionProperty: "left, top, width, height",
+        transitionDuration: `${state.tabDragSpeed}s`,
+    })}
+/>
+```
+
+Its state (also as attributes):
+
+| state | attribute | meaning |
+| --- | --- | --- |
+| `visible` | `data-visible` | a drop target is under the pointer |
+| `location` | `data-drop-location` (while visible) | `center`, `top`, `bottom`, `left` or `right` |
+| `kind` | `data-drop-kind` (while visible) | `edge` for a layout-edge drop, `rect` otherwise |
+| `dragging` | `data-dragging` | a drag is over this layout |
+| `showEdges` | none | edge docking is available for this drag |
+| `tabDragSpeed` | none | seconds a style may take to animate between targets (`tabDragSpeed` on `Root`, default 0.3) |
+
+The core never animates: the transition is yours, and `tabDragSpeed` only tells you the duration
+the layout was configured with.
+
+### Stacking: give it a `z-index`
+
+Panels are portalled into the root **after** its other children. Absolutely positioned siblings
+without a `z-index` paint in DOM order, so an indicator without one paints **under** the panels
+and is hidden over tab content. Give it a `z-index` (`z-10` above). This is gap 12 in
+[Limitations](/docs/limitations).
+
+`pointer-events: none` is structural on purpose: an indicator under the pointer would take the
+drag's enter and leave events from the layout, and the browser would cancel the drop.
+
+## Styling the drag
+
+- **The dragged tab** has `data-dragging` while it is dragged: fade it (`data-dragging:opacity-40`).
+- **The root** has `data-dragging` while any node of the layout is dragged: for example to
+  show drop hints or disable hover effects.
+- **The drag image** is the browser's snapshot of the `Tab` element, styled as it is when the
+  drag starts.
+
+## Layout rules that affect drops
+
+- **Pad the start of the tab list.** A drop *before* the first tab is refused when that tab is
+  flush with the tabset's edge: that edge belongs to the tabset's `left` drop (gap 10). A few
+  pixels of `padding-inline-start` fix it.
+- **Keep tab strips at least ~30px tall.** The layout's top edge has a 10px docking band; a thin
+  strip at the top of the layout falls inside it, and drops aimed at the strip dock to the layout
+  edge instead (gap 11).
+- **Edge docking** can be turned off with the global `enableEdgeDock: false`.
+
+## Dropping between windows and layouts
+
+A tab can be dragged within one layout. Dragging between the main window and a popout, between
+two popouts, or between two separate `Dockable.Root`s is not supported yet: see
+Epic [#20](https://github.com/fragiola/dockable/issues/20). Dragging things **from outside**
+the layout into it (a widget sidebar, files) is Epic
+[#18](https://github.com/fragiola/dockable/issues/18).
+
+## Controlling where drops go
+
+Attributes (`enableDrag`, `enableDrop`, `enableDivide`) and `model.setOnAllowDrop` decide what
+may be dropped where; see [Restricting drops](/docs/guides/restricting-drops).

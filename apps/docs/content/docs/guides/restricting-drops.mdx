@@ -1,0 +1,98 @@
+---
+title: Restricting drops
+description: What can be dragged where, today - attributes, setOnAllowDrop and onAction.
+---
+
+Three mechanisms decide what can be dragged and where it can land. All three exist today and
+work together.
+
+<Example slug="locked-regions" />
+
+## 1. Attributes
+
+Set them per node in the JSON, or for every node through the global attributes
+(`tabEnableDrag`, `tabSetEnableDrop`, …):
+
+| attribute | on | effect |
+| --- | --- | --- |
+| `enableDrag` | tab | whether the user can drag the tab (the `Tab` is not `draggable` when false) |
+| `enableDrag` | tabset | whether the user can drag tabs out of this tabset |
+| `enableDrop` | tabset | whether tabs can be dropped into this tabset |
+| `enableDivide` | tabset | whether dropping on an edge of this tabset splits it to create a new tabset |
+| `pinned` | tab | a pinned tab cannot be dragged out of its tabset |
+| `enableEdgeDock` | global | enable docking to the edges of the layout |
+
+```json
+{
+    "type": "tabset",
+    "id": "console",
+    "enableDrop": false,
+    "enableDivide": false,
+    "children": [{ "type": "tab", "name": "Console", "enableDrag": false }]
+}
+```
+
+Change them at runtime with `Actions.updateNodeAttributes(nodeId, { enableDrop: false })` (a
+"lock layout" toggle), or `Actions.updateModelAttributes({ tabSetEnableDrop: false })` for all.
+
+## 2. `model.setOnAllowDrop`
+
+For rules that depend on **what** is dragged and **where**, give the model a predicate. It runs
+during the drag, for every candidate target, so a refused target never shows the indicator:
+
+```ts
+import { type DropInfo, type Node, TabNode, TabSetNode } from "@fragiola/dockable";
+
+model.setOnAllowDrop((dragNode: Node, dropInfo: DropInfo) => {
+    const target = dropInfo.node; // the tabset (or row) the drop would go into
+    // tabs from the "tools" group only dock into tool tabsets
+    if (dragNode instanceof TabNode && dragNode.getConfig()?.group === "tools") {
+        return target instanceof TabSetNode && target.getConfig()?.kind === "tools";
+    }
+    // nothing docks to the layout's outer edge
+    return dropInfo.kind !== "edge";
+});
+```
+
+`dropInfo` has the target `node`, the `location` (a `DockLocation`: `dropInfo.location.getName()`
+is `"center"`, `"top"`, …), the tab `index`, the outline `rect` and the `kind` (`"rect"` or
+`"edge"`).
+
+Set it once, right after creating the model. It belongs to the model instance: a new model
+(after [undo/redo](/docs/guides/undo-redo) or [restoring](/docs/guides/persistence)) needs it set
+again.
+
+```tsx
+const [model] = useState(() => {
+    const model = Model.fromJson(json);
+    model.setOnAllowDrop(allowDrop);
+    return model;
+});
+```
+
+## 3. `onAction`: the last word
+
+A drop dispatches `Actions.moveNode` through `onAction`, so you can still veto (or rewrite) a
+drop at the moment it happens. Use it for rules that need async work or app state, knowing that
+the indicator already showed the target as valid:
+
+```ts
+const onAction = (action: Action) => {
+    if (action.type === Actions.MOVE_NODE && isLocked(action.data.toNode)) {
+        return undefined;
+    }
+    return action;
+};
+```
+
+## What is not there yet
+
+- **Visual feedback for a refused target.** A refused target simply shows no indicator; there is
+  no "refused" state to style, and no `onAllowDrop` prop on `Root` (you call
+  `model.setOnAllowDrop`).
+- **Drop-target state on the tabset** (`data-drop-target`), to highlight the tabset under the
+  pointer.
+- **Custom drop zones** outside the layout (a trash can that closes the dropped tab).
+
+All three are Epic [#19](https://github.com/fragiola/dockable/issues/19). See
+[Limitations](/docs/limitations).

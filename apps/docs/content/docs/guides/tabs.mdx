@@ -1,0 +1,154 @@
+---
+title: Adding and closing tabs
+description: Add, close, rename and pin tabs with actions, and build the buttons yourself.
+---
+
+Every tab operation is an action dispatched through the engine. The package gives you the
+actions and the node state; the buttons, icons and text are yours.
+
+## Adding a tab
+
+`Actions.addTab(json, toNodeId, location, index, select?)` adds a tab described as JSON to a
+tabset. `DockLocation.CENTER` with index `-1` appends it to the strip; the other locations
+(`TOP`, `BOTTOM`, `LEFT`, `RIGHT`) split the target tabset and put the tab in a new tabset
+beside it. `engine.doAction` returns the new node.
+
+```tsx
+import { Actions, DockLocation } from "@fragiola/dockable";
+import { useDockable } from "@fragiola/dockable-react";
+
+function AddTabButton() {
+    const { engine, model } = useDockable();
+    const add = () => {
+        // the tabset the user last pressed in, else the first one
+        const target = model.getActiveTabset() ?? model.getFirstTabSet();
+        if (!target) return;
+        engine.doAction(
+            Actions.addTab(
+                { type: "tab", name: "Untitled", component: "editor" },
+                target.getId(),
+                DockLocation.CENTER,
+                -1,
+                true, // select it
+            ),
+        );
+    };
+    return (
+        <button type="button" onClick={add}>
+            New tab
+        </button>
+    );
+}
+```
+
+`useDockable` works anywhere inside `Dockable.Root`, including a toolbar you render as a child of
+the root or inside a tabset header. A "+" button per tabset uses that tabset's id instead of the
+active one.
+
+Whether a new tab is selected follows the tabset's `autoSelectTab` attribute unless you pass
+`select`.
+
+<Example slug="add-tabs" />
+
+## Closing a tab
+
+`Actions.deleteTab(tabId)`. Show the button only when the tab can be closed: `tab.isCloseable()`
+is false for a tab with `enableClose: false` and for a pinned tab.
+
+```tsx
+function CloseButton({ tab }: { tab: TabNode }) {
+    const { engine, getLabel } = useDockable();
+    if (!tab.isCloseable()) return null;
+    return (
+        <button
+            type="button"
+            aria-label={`${getLabel?.(DockableLabel.Close_Tab) ?? "Close"} ${tab.getName()}`}
+            // a press on the button must not start a drag or select the tab first
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+                event.stopPropagation();
+                engine.doAction(Actions.deleteTab(tab.getId()));
+            }}
+        >
+            <XIcon aria-hidden="true" />
+        </button>
+    );
+}
+
+<Dockable.Tab node={tab}>
+    {tab.getName()}
+    <CloseButton tab={tab} />
+</Dockable.Tab>
+```
+
+The model itself does not check `isCloseable`: `deleteTab` removes any tab. Guard in the UI, or
+veto in `onAction` for a rule that must hold everywhere.
+
+A focused tab also closes with **`Ctrl+Delete`** (the `closeTab` binding of the
+[key map](/docs/guides/keyboard)); the tab moves focus to a neighbour first.
+
+When the last tab of a tabset closes, the tabset is removed (unless `enableDeleteWhenEmpty` is
+false). `Actions.deleteTabset(tabsetId)` closes a whole tabset with its tabs.
+
+<Example slug="close-tabs" />
+
+### Confirming a close
+
+Veto the action in `onAction` and dispatch it again once the user confirms:
+
+```tsx
+const onAction = (action: Action) => {
+    if (action.type === Actions.DELETE_TAB && isDirty(action.data.node)) {
+        askToDiscard(action.data.node).then((ok) => ok && engine.doAction(action));
+        return undefined; // vetoed for now
+    }
+    return action;
+};
+```
+
+(Mark the retried action as confirmed, for example with `action.setUserData({ confirmed: true })`,
+so the second pass lets it through.)
+
+## Renaming a tab
+
+`Actions.renameTab(tabId, text)`. The editing UI is yours: an input that replaces the tab's label
+on double click (or F2), committing on Enter or blur. Only allow it when `tab.isEnableRename()`.
+
+```tsx
+engine.doAction(Actions.renameTab(tab.getId(), value.trim()));
+```
+
+The input lives inside the `Tab`, so stop its key and pointer events from reaching the tab (the
+tab handles arrows, Enter and Space, and starts drags on pointer down).
+
+<Example slug="rename-tabs" />
+
+## Pinning a tab
+
+`Actions.setTabPinned(tabId, pinned)`. A pinned tab moves to the end of the pinned group at the
+start of its strip, cannot be closed from the UI, and cannot be dragged out of its tabset. The
+tab carries `data-pinned`, so pinned tabs can look different (icon-only, no close button).
+
+```tsx
+engine.doAction(Actions.setTabPinned(tab.getId(), !tab.isPinned()));
+```
+
+<Example slug="pinned-tabs" />
+
+## Selecting a tab from code
+
+`Actions.selectTab(tabId)` selects a tab in its tabset (a click or Enter on the tab dispatches
+it). To bring a tab to the user's attention, also make its tabset active:
+`Actions.setActiveTabset(tabsetId)`.
+
+## Tab content from the tab
+
+The JSON of a tab is yours to extend: `component` picks what to render, and `config` holds any
+JSON your component needs. Update it with `Actions.updateNodeAttributes(tabId, { config })`,
+which re-renders the tab strip and panels with the new value.
+
+## All together
+
+The IDE workbench combines all of it: new file, close with a dirty check, rename, pin.
+
+<Example slug="ide-workbench" />

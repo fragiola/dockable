@@ -1,0 +1,157 @@
+---
+title: The model and actions
+description: The layout is a JSON model. Every change is an action, and every action can be intercepted, replaced or vetoed.
+---
+
+The **model is the source of truth**. What you render is a function of it, and it changes only
+through **actions**. You never mutate nodes: `tab.setName()` exists on the node class for the
+model's own use, but calling it bypasses everything described below.
+
+## JSON in, JSON out
+
+```ts
+import { type IJsonModel, Model } from "@fragiola/dockable";
+
+const model = Model.fromJson(json); // IJsonModel -> Model
+const saved: IJsonModel = model.toJson(); // Model -> IJsonModel
+```
+
+`toJson()` returns the whole layout (global attributes, rows, tabsets, tabs, popout windows) as
+plain JSON you can store anywhere. Tabs without an `id` get a generated one, and `toJson()`
+keeps it, so a round trip is stable. The format is FlexLayout's (`IJsonModel`); every attribute
+is in [the JSON model reference](/docs/api/json-model).
+
+`Model.fromJson(json, previousModel)` takes an optional previous model: tabs with the same id
+**adopt its view state** (their moveable element, scroll position), so a mounted layout can swap
+to a new model without remounting tab content. [Undo/redo](/docs/guides/undo-redo) is built on
+this.
+
+## Dispatching actions
+
+`Actions` has one static creator per change. Each returns an `Action` (`{ type, data }`):
+
+```ts
+import { Actions, DockLocation } from "@fragiola/dockable";
+
+Actions.selectTab("t1");
+Actions.deleteTab("t1");
+Actions.renameTab("t1", "Report");
+Actions.addTab({ type: "tab", name: "New", component: "card" }, "ts0", DockLocation.CENTER, -1);
+Actions.moveNode("t1", "ts1", DockLocation.RIGHT, -1);
+Actions.maximizeToggle("ts0");
+```
+
+Dispatch them **through the engine**, which you get with `useDockable()` anywhere inside
+`Dockable.Root` (tab content, your buttons, overlays):
+
+```tsx
+import { Actions } from "@fragiola/dockable";
+import { useDockable } from "@fragiola/dockable-react";
+
+function CloseButton({ tabId }: { tabId: string }) {
+    const { engine } = useDockable();
+    return (
+        <button type="button" aria-label="Close" onClick={() => engine.doAction(Actions.deleteTab(tabId))}>
+            ×
+        </button>
+    );
+}
+```
+
+<Callout type="warn" title="engine.doAction, not model.doAction">
+    `engine.doAction(action)` runs your `onAction` first, then applies the result with
+    `model.doAction`. Calling `model.doAction` directly applies the action **without** `onAction`,
+    so a veto or a rewrite you wrote there never sees it. The primitives always go through the
+    engine; do the same.
+</Callout>
+
+`Actions.group([a, b, c])` applies several actions as one: one undo step and one change
+notification. Every creator is listed in [the Actions reference](/docs/api/actions).
+
+## Intercepting: `onAction`
+
+`Dockable.Root`'s `onAction` sees **every** action the layout dispatches: yours, and the ones
+the primitives dispatch (a click selecting a tab, a drop moving one, a splitter resizing a
+row). "Return it (or a replacement) to apply it, `undefined` to veto":
+
+```tsx
+import { type Action, Actions, DockLocation } from "@fragiola/dockable";
+
+function onAction(action: Action): Action | undefined {
+    // veto: the "Home" tab cannot be closed
+    if (action.type === Actions.DELETE_TAB && action.data.node === "home") {
+        return undefined;
+    }
+    // rewrite: new tabs always open selected
+    if (action.type === Actions.ADD_TAB) {
+        return Actions.addTab(action.data.json, action.data.toNode, DockLocation.getByName(action.data.location), action.data.index, true);
+    }
+    return action;
+}
+
+<Dockable.Root model={model} onAction={onAction}>
+```
+
+The action type constants are strings like `"FlexLayout_DeleteTab"` (kept from FlexLayout);
+compare with `Actions.DELETE_TAB`, not the literal. `action.data` holds the creator's
+arguments, under the names each creator uses (`node`, `toNode`, `fromNode`, `tabNode`, …; the
+[Actions reference](/docs/api/actions) lists them).
+
+A drag is not special: a drop dispatches `Actions.moveNode`, so vetoing it cancels the drop. To
+refuse a drop **before** it happens (so the indicator never shows it), use
+[`model.setOnAllowDrop`](/docs/guides/restricting-drops).
+
+## Reacting: `onModelChange`
+
+`onModelChange(model, action)` is called after the model applied an action. It is the place to
+persist the layout, sync it to a server or log it:
+
+```tsx
+<Dockable.Root
+    model={model}
+    onModelChange={(model, action) => {
+        if (!action.isAdjusting()) {
+            localStorage.setItem("layout", JSON.stringify(model.toJson()));
+        }
+    }}
+>
+```
+
+While a splitter is dragged live, the engine applies `adjustWeights` actions marked as
+**adjusting** (`action.isAdjusting()`) on every pointer move, and calls `onModelChange` for
+each. Skip them (as above) or debounce: the gesture ends with a normal action.
+
+For listeners outside React (or on a model not rendered yet), `model.addChangeListener` takes
+`{ onBeforeAction?, onAfterAction? }` or a function. It fires for **every** action, including
+direct `model.doAction` calls.
+
+## Reading the model
+
+The model and its nodes are plain classes with getters, safe to call during render:
+
+```ts
+model.getRootRow(); // RowNode
+model.getActiveTabset(); // TabSetNode | undefined
+model.getMaximizedTabset(); // TabSetNode | undefined
+model.getNodeById("t1"); // Node | undefined
+model.getFirstTabSet(); // TabSetNode | undefined
+model.visitNodes((node, level) => { /* every node, every layout */ });
+
+tabset.getSelectedNode(); tabset.getTabNodes(); tabset.isActive(); tabset.isMaximized();
+tab.getName(); tab.getComponent(); tab.getConfig(); tab.isSelected(); tab.getParent();
+```
+
+The primitives re-render when the engine's revision changes, so reading the model inside the
+layout is always current. Outside the root, subscribe to `onModelChange`.
+
+## One model, several layouts
+
+A model holds the **main** layout (`Model.MAIN_LAYOUT_ID`) and one sub-layout per popout window.
+Methods that depend on the layout take a `layoutId` (defaulting to the main one), and
+`useDockable().layoutId` says which layout a component renders in.
+
+## See it
+
+<Example slug="component-factory" />
+
+<Example slug="layout-lab" />

@@ -1,0 +1,11 @@
+{
+    "title": "Docs",
+    "pages": [
+        "getting-started",
+        "concepts",
+        "guides",
+        "api",
+        "limitations",
+        "[Found a problem?](https://github.com/fragiola/dockable/issues)"
+    ]
+}

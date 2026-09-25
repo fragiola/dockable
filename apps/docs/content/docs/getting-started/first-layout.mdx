@@ -1,0 +1,212 @@
+---
+title: Your first layout
+description: From a JSON model to a resizable, draggable layout, step by step.
+---
+
+This page builds the smallest complete layout: two tabsets side by side, a splitter between
+them, tabs you can drag, and panels whose content survives every move. It ends where the
+[`hello-layout`](/examples/hello-layout/) example starts.
+
+<Steps>
+
+<Step>
+
+### Describe the layout as JSON
+
+A layout is a tree: a **row** splits its space between its children, a **tabset** holds
+**tabs**. `weight` is a relative size. A row nested in a row takes the opposite orientation, so
+it acts as a column.
+
+```tsx title="layout.ts"
+import type { IJsonModel } from "@fragiola/dockable";
+
+export const json: IJsonModel = {
+    global: {},
+    layout: {
+        type: "row",
+        children: [
+            {
+                type: "tabset",
+                weight: 60,
+                children: [
+                    { type: "tab", name: "Welcome", component: "welcome" },
+                    { type: "tab", name: "Notes", component: "notes" },
+                ],
+            },
+            {
+                type: "tabset",
+                weight: 40,
+                children: [{ type: "tab", name: "Inspector", component: "inspector" }],
+            },
+        ],
+    },
+};
+```
+
+Every attribute is listed in [the JSON model reference](/docs/api/json-model).
+
+</Step>
+
+<Step>
+
+### Create the model once
+
+The model is the source of truth. Create it once (not on every render) and keep it:
+
+```tsx
+const [model] = useState(() => Model.fromJson(json));
+```
+
+A **new model identity** makes `Dockable.Root` create a new engine, which is what
+[undo/redo](/docs/guides/undo-redo) relies on. Recreating it on every render would reset the
+layout each time.
+
+</Step>
+
+<Step>
+
+### Render the structure
+
+You own the recursion. `Dockable.Row` calls its child function for every child of the row: a
+tabset or a nested row. A tabset renders its tab strip (`TabList` › `Tab`) and marks its content
+area (`TabSetContent`). `Row` inserts the splitters between children by itself.
+
+```tsx title="render-node.tsx"
+import { type RowNode, TabSetNode } from "@fragiola/dockable";
+import { Dockable } from "@fragiola/dockable-react";
+import type { ReactNode } from "react";
+
+export function renderNode(child: TabSetNode | RowNode): ReactNode {
+    if (child instanceof TabSetNode) {
+        return (
+            <Dockable.TabSet node={child} className="tabset">
+                <Dockable.TabList aria-label="Tabs" className="tabs">
+                    {(tab) => (
+                        <Dockable.Tab node={tab} className="tab">
+                            {tab.getName()}
+                        </Dockable.Tab>
+                    )}
+                </Dockable.TabList>
+                <Dockable.TabSetContent />
+            </Dockable.TabSet>
+        );
+    }
+    // a nested row: the same function renders its children
+    return <Dockable.Row node={child}>{renderNode}</Dockable.Row>;
+}
+```
+
+</Step>
+
+<Step>
+
+### Render the panels
+
+Tab content does **not** live inside the tabset. `Dockable.Panels` (placed once, directly under
+the root) calls its child function for every tab whose content should render, and
+`Dockable.Panel` puts the content in an element the engine positions over the tabset's content
+area. That is how content survives moves: the element is re-parented, never remounted.
+
+```tsx
+<Dockable.Panels>
+    {(tab) => (
+        <Dockable.Panel node={tab} className="panel">
+            <TabContent tab={tab} />
+        </Dockable.Panel>
+    )}
+</Dockable.Panels>
+```
+
+Pick the content from the tab's `component` (and `config`), as a factory would:
+
+```tsx title="tab-content.tsx"
+import type { TabNode } from "@fragiola/dockable";
+
+export function TabContent({ tab }: { tab: TabNode }) {
+    switch (tab.getComponent()) {
+        case "notes":
+            return <textarea aria-label="Notes" />;
+        default:
+            return <p>{tab.getName()}</p>;
+    }
+}
+```
+
+</Step>
+
+<Step>
+
+### Put it together, and give the root a size
+
+```tsx title="app.tsx"
+"use client";
+
+import { Model } from "@fragiola/dockable";
+import { Dockable } from "@fragiola/dockable-react";
+import { useState } from "react";
+import { json } from "./layout";
+import { renderNode } from "./render-node";
+import { TabContent } from "./tab-content";
+
+export function App() {
+    const [model] = useState(() => Model.fromJson(json));
+    return (
+        <Dockable.Root model={model} style={{ height: "100vh" }}>
+            <Dockable.Row>{renderNode}</Dockable.Row>
+            <Dockable.Panels>
+                {(tab) => (
+                    <Dockable.Panel node={tab} className="panel">
+                        <TabContent tab={tab} />
+                    </Dockable.Panel>
+                )}
+            </Dockable.Panels>
+            <Dockable.DropIndicator className="drop-indicator" />
+        </Dockable.Root>
+    );
+}
+```
+
+The root **must have a size**: it has no intrinsic size, and an unsized root renders nothing
+visible. See [Sizing the root](/docs/getting-started/sizing).
+
+</Step>
+
+</Steps>
+
+## Now style it
+
+At this point the layout works (drag a tab onto the other tabset, drag the splitter, press the
+arrow keys on a focused tab) but it is invisible: the package paints nothing. A few rules make
+it usable. The selectors use only the `data-*` attributes the primitives expose:
+
+```css title="layout.css"
+.tabset { background: Canvas; }
+.tabs { display: flex; gap: 2px; min-height: 30px; padding-inline-start: 4px; }
+.tab { padding: 4px 12px; cursor: pointer; }
+.tab[data-selected] { background: color-mix(in srgb, CanvasText 10%, Canvas); }
+.tab[data-dragging] { opacity: 0.4; }
+[role="separator"] { background: GrayText; }
+[role="separator"][data-orientation="vertical"] { width: 4px; cursor: ew-resize; }
+[role="separator"][data-orientation="horizontal"] { height: 4px; cursor: ns-resize; }
+.panel { background: Canvas; overflow: auto; }
+.drop-indicator { z-index: 10; outline: 2px solid Highlight; }
+```
+
+The [plain CSS guide](/docs/guides/styling-css) explains each rule (including why the tab list
+keeps some start padding and why the drop indicator needs a `z-index`), and the
+[Tailwind guide](/docs/guides/styling-tailwind) does the same with utilities.
+
+<Example slug="hello-layout" />
+
+## What you have
+
+- **Drag and drop**: drag a tab into another tabset, onto a tabset's edge to split it, or to the
+  layout's edge. Each drop is an `Actions.moveNode` that goes through `onAction`.
+- **Splitters**: drag with the pointer, or focus and use the arrow keys (10px per press).
+- **Keyboard**: arrow keys, Home and End move between tabs; Enter or Space selects; `Ctrl+Delete`
+  closes a closeable tab.
+- **Content that survives**: type in the Notes tab, then drag it to the other tabset. The text is
+  still there.
+
+Next, read [the model and actions](/docs/concepts/model-and-actions) to change the layout from
+code, and [composition](/docs/concepts/composition) for everything you can put in the recursion.

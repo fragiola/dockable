@@ -1,0 +1,92 @@
+/* Import order is load-bearing (same as fragiola/ui apps/www):
+   1. Tailwind (base)
+   2. Fumadocs UI theme + preset (declares --color-fd-* in @theme)
+   3. Fragiola global.css (--color-*: initial deletes Tailwind's default colour
+      namespace, including the fd tokens, so they are re-declared below)
+   4. The palette files (site chrome, keyed off :root[data-theme])
+   5. The example themes (scoped to [data-example-theme], examples/_themes)
+   6. The fd → palette bridge, so the site chrome is painted by palettes. */
+
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+@import "../styles/global.css";
+@import "../styles/palettes/surface.css";
+@import "../styles/palettes/raised.css";
+@import "../styles/palettes/blue.css";
+@import "../styles/palettes/orange.css";
+@import "../styles/palettes/green.css";
+@import "../styles/palettes/danger.css";
+@import "../styles/palettes/purple.css";
+@import "../styles/palettes/rose.css";
+
+@import "../examples/_themes/index.css";
+
+/* The fd → palette bridge (copied from fragiola/ui apps/www/app/globals.css).
+   @theme inline so var(--palette-*) resolves per scope. */
+@theme inline {
+    /* Surfaces */
+    --color-fd-background: var(--palette-base);
+    --color-fd-card: var(--palette-base);
+    --color-fd-popover: var(--palette-base);
+    --color-fd-article: var(--palette-base);
+
+    /* Text on surfaces */
+    --color-fd-foreground: var(--palette-contrast);
+    --color-fd-card-foreground: var(--palette-contrast);
+    --color-fd-popover-foreground: var(--palette-contrast);
+
+    /* Muted background + its text (the settled secondary-text value) */
+    --color-fd-muted: var(--palette-soft);
+    --color-fd-muted-foreground: color-mix(
+        in oklch,
+        var(--palette-accent) 85%,
+        transparent
+    );
+
+    /* Secondary surface (maps to soft — a second background level) */
+    --color-fd-secondary: var(--palette-soft);
+    --color-fd-secondary-foreground: var(--palette-contrast);
+
+    /* Accent — hover/active background in fumadocs chrome. Maps to soft
+       (a subtle background role), with its foreground as contrast. */
+    --color-fd-accent: var(--palette-soft);
+    --color-fd-accent-foreground: var(--palette-contrast);
+
+    /* Border + ring */
+    --color-fd-border: var(--palette-line);
+    --color-fd-ring: var(--palette-ring);
+
+    /* Primary — the "call to action" colour. Maps to accent (a darker
+       version of the hue on foreign backgrounds) so the primary button
+       reads as a coloured action without needing a chromatic palette on
+       the chrome. Its foreground is contrast (text on the accent). */
+    --color-fd-primary: var(--palette-accent);
+    --color-fd-primary-foreground: var(--palette-base);
+
+    /* Overlay (scrim) — outside the palette contract, kept from the
+       default. */
+    --color-fd-overlay: oklch(0 0 0 / 0.4);
+
+    /* Status colours — outside the palette contract. Fumadocs uses these
+       for callouts (info/warning/error/success/idea) and diff highlighting.
+       They are NOT palette roles; they are fixed semantic colours that
+       Fumadocs needs. Re-declared here because --color-*: initial removed
+       them. Using the values from Fumadocs' default-colors.css. */
+    --color-fd-info: oklch(62.3% 0.214 259.815);
+    --color-fd-warning: oklch(76.9% 0.188 70.08);
+    --color-fd-error: oklch(63.7% 0.237 25.331);
+    --color-fd-success: oklch(72.3% 0.219 149.579);
+    --color-fd-idea: oklch(70.5% 0.209 60.849);
+    --color-fd-diff-remove: rgba(200, 10, 100, 0.12);
+    --color-fd-diff-remove-symbol: rgb(230, 10, 100);
+    --color-fd-diff-add: rgba(14, 180, 100, 0.1);
+    --color-fd-diff-add-symbol: rgb(10, 200, 100);
+}
+
+@source "../node_modules/fumadocs-ui/dist/**/*.js";
+@source "../components/**/*.{ts,tsx}";
+@source "../examples/**/*.{ts,tsx}";
+@source "../content/**/*.{md,mdx}";
+@source "../app/**/*.{ts,tsx}";

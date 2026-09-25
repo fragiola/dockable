@@ -1,0 +1,46 @@
+---
+title: Dockable.TabSetContent
+description: Marks the tabset's content area - an empty element the engine measures and positions the selected panel over.
+---
+
+"Marks the tabset's content area: an empty element the engine measures, over which the selected
+tab's panel is positioned. Nothing is rendered into it."
+
+```tsx
+<Dockable.TabSet node={tabset}>
+    <Dockable.TabList aria-label="Tabs">{renderTab}</Dockable.TabList>
+    <Dockable.TabSetContent className="bg-palette-base" />
+</Dockable.TabSet>
+```
+
+Render it inside a `Dockable.TabSet`, once. It is what gives panels their geometry: without it,
+the tabset's panels have no rect and never render.
+
+## Props
+
+`TabSetContentProps` is `DivPrimitiveProps<TabSetContentState>`: only the
+[common primitive props](/docs/api/root#common-props). It takes no children (the content is
+rendered by `Dockable.Panel`, not here).
+
+## State
+
+`TabSetContentState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `empty` | `boolean` | the tabset has no tabs |
+
+## Data attributes
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `<tabset path>/content`, e.g. `/ts0/content` |
+| `data-empty` | the tabset has no tabs |
+
+`data-empty` makes an empty-state message easy: style `::before` with a hint, or render one
+from the tabset's children when `node.getChildren().length === 0`.
+
+## Structural style
+
+`flex-grow: 1`, `flex-basis: 0`, `min-width: 0`, `min-height: 0`: it takes the rest of the
+tabset's column.

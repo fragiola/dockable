@@ -1,0 +1,21 @@
+{
+    "title": "Guides",
+    "pages": [
+        "styling-tailwind",
+        "styling-css",
+        "theming",
+        "splitters",
+        "tabs",
+        "drag-and-drop",
+        "restricting-drops",
+        "popouts",
+        "maximize",
+        "menus",
+        "undo-redo",
+        "persistence",
+        "keyboard",
+        "tab-overflow",
+        "status-aware-tabs",
+        "testing"
+    ]
+}

@@ -1,0 +1,95 @@
+---
+title: Saving and restoring layouts
+description: toJson, fromJson and onModelChange - persist a layout and bring it back.
+---
+
+A layout is plain JSON. Save `model.toJson()`, restore with `Model.fromJson()`.
+
+<Example slug="save-restore" />
+
+## Saving on every change
+
+`onModelChange` is called after each applied action. Skip the *adjusting* actions of a live
+splitter drag (or debounce), and guard storage access: it can throw (private mode, quota).
+
+```tsx
+const KEY = "my-app:layout";
+
+function save(model: Model, action: Action) {
+    if (action.isAdjusting()) return; // the gesture ends with a normal action
+    try {
+        localStorage.setItem(KEY, JSON.stringify(model.toJson()));
+    } catch {
+        // storage unavailable: keep working without persistence
+    }
+}
+
+<Dockable.Root model={model} onModelChange={save}>
+```
+
+## Restoring at start-up
+
+```tsx
+function loadModel(): Model {
+    try {
+        const saved = localStorage.getItem(KEY);
+        if (saved) return Model.fromJson(JSON.parse(saved) as IJsonModel);
+    } catch {
+        // corrupt or unavailable: fall back to the default
+    }
+    return Model.fromJson(defaultJson);
+}
+
+const [model, setModel] = useState(loadModel);
+```
+
+## Restoring into a mounted layout
+
+To load a layout while one is on screen (a "Reset layout" button, a saved workspace), create a
+new model and render it. Pass the current model as the second argument so tabs with the same
+**id** keep their mounted content:
+
+```tsx
+const restore = (json: IJsonModel) => setModel((current) => Model.fromJson(json, current));
+```
+
+Give tabs stable `id`s in your default JSON if content should survive a reset. Tabs without an id
+get a generated one, which a different JSON will not match.
+
+## What is saved
+
+`toJson()` returns `{ global, borders, layout, subLayouts }`:
+
+- the tree: rows, tabsets and tabs with their ids, names, `component`, `config` and weights;
+- the selected tab of each tabset, the active tabset and the maximized one;
+- every attribute that differs from its default;
+- popout windows (`subLayouts`), with their screen rect. Restoring reopens them, which the
+  browser may block without a user gesture.
+
+It does **not** save your content's state (a text field's value, a scroll position of your own
+component). Store that yourself, keyed by tab id, or in the tab's `config` with
+`Actions.updateNodeAttributes(tab.getId(), { config })`.
+
+## Saving content state with the layout
+
+Keep content state in your own store, keyed by tab id, and save it next to the layout:
+
+```ts
+const saved = { layout: model.toJson(), drafts: Object.fromEntries(drafts) };
+```
+
+When the state should travel **inside** the layout JSON (to a popout, into undo history), write
+it into the tab's `config` with an action when it changes (debounced for typing):
+
+```ts
+engine.doAction(Actions.updateNodeAttributes(tab.getId(), { config: { ...tab.getConfig(), draft } }));
+```
+
+Each such action is an undo step; add `Actions.UPDATE_NODE_ATTRIBUTES` to the
+[`UndoManager`](/docs/guides/undo-redo)'s `ignoreActionTypes` if it should not be.
+
+## Versioning saved layouts
+
+A saved layout outlives your code. Store a version next to it and fall back to the default when
+it does not match, or migrate: the JSON is yours to transform before `fromJson`. Validate
+`component` names against the components you still have.

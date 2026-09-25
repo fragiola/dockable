@@ -1,0 +1,157 @@
+---
+title: Hooks
+description: useDockable, useTabSet, useSplitter and useDragNode - the lower layer under the primitives.
+---
+
+The primitives are built on four hooks, exported as the lower layer. Use `useDockable` all the
+time (it is how components inside the layout dispatch actions); use the others only when a
+primitive's element does not fit your markup.
+
+All of them must be called inside `Dockable.Root`.
+
+## useDockable
+
+"The lower layer: the engine, model and layout of the enclosing `Dockable.Root`. Dispatch actions
+with `engine.doAction(Actions.x(...))` so they go through `onAction`."
+
+```tsx
+import { Actions } from "@fragiola/dockable";
+import { useDockable } from "@fragiola/dockable-react";
+
+function ResetButton() {
+    const { engine, model } = useDockable();
+    const first = model.getFirstTabSet();
+    return (
+        <button type="button" onClick={() => first && engine.doAction(Actions.selectTab(first.getTabNodes()[0]?.getId() ?? ""))}>
+            Back to the first tab
+        </button>
+    );
+}
+```
+
+`useDockable(): UseDockableResult`
+
+| field | type | description |
+| --- | --- | --- |
+| `engine` | `LayoutEngine` | the engine of the layout this component renders in (the main layout or a popout's) |
+| `mainEngine` | `LayoutEngine` | the main layout's engine |
+| `model` | `Model` | the model |
+| `layoutId` | `string` | the id of the layout this component renders in |
+| `getLabel` | `GetLabel \| undefined` | the `getLabel` resolver given to `Dockable.Root` |
+
+Inside tab content, `engine` is the engine of the window the tab is currently in; use
+`mainEngine` for window-level things (`isSupportsPopout()`, moving a tab back to the main
+layout).
+
+## useTabSet
+
+"The lower layer of `Dockable.TabSet`: its state, measurement ref and activation handler."
+
+```tsx
+function MyTabSet({ node, children }: { node: TabSetNode; children: ReactNode }) {
+    const { state, ref, onPointerDown } = useTabSet(node);
+    return (
+        <section ref={ref} onPointerDown={onPointerDown} data-active={state.active ? "" : undefined}>
+            {children}
+        </section>
+    );
+}
+```
+
+A custom tabset must still apply the structural flex sizing `Dockable.TabSet` sets (flex-grow
+from `node.getWeight()`, the min/max sizes, `display: none` when `state.hidden`), and provide
+the tabset to `TabList`/`TabSetContent`, which only `Dockable.TabSet` does. Prefer
+`Dockable.TabSet` with `render` unless you need something it cannot express.
+
+`useTabSet(node: TabSetNode): UseTabSetResult`
+
+| field | type | description |
+| --- | --- | --- |
+| `state` | `TabSetState` | see below |
+| `ref` | `RefCallback<HTMLElement>` | callback ref for the tabset's element (measured as the tabset) |
+| `onPointerDown` | `(event: PointerEvent<HTMLElement>) => void` | makes the tabset active on a primary pointer press |
+
+`TabSetState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `active` | `boolean` | the tabset is the model's active tabset |
+| `maximized` | `boolean` | the tabset is maximized |
+| `hidden` | `boolean` | another tabset of the layout is maximized, so this one is hidden |
+| `empty` | `boolean` | the tabset has no tabs |
+
+## useSplitter
+
+"The lower layer of `Dockable.Splitter`: a headless controller for the splitter before child
+`index` (1-based) of `node`, its drag state and ARIA values."
+
+```tsx
+function MySplitter({ node, index }: RowSplitterProps) {
+    const { controller, state, aria, hidden, ref } = useSplitter(node, index);
+    if (hidden) return null;
+    return (
+        <div
+            ref={ref}
+            role="separator"
+            tabIndex={0}
+            aria-orientation={aria.orientation}
+            aria-valuenow={aria.valueNow}
+            aria-valuetext={aria.valueText}
+            data-dragging={state.dragging ? "" : undefined}
+            onPointerDown={(event) => controller.onPointerDown(event.nativeEvent)}
+            onKeyDown={(event) => controller.onKeyDown(event.nativeEvent)}
+        />
+    );
+}
+```
+
+`useSplitter(node: RowNode, index: number): UseSplitterResult`
+
+| field | type | description |
+| --- | --- | --- |
+| `controller` | `SplitterController` | the headless controller: `onPointerDown`, `onKeyDown`, `getAria`, `isHidden`, … |
+| `state` | `ISplitterState` | `dragging` and `previewOffset` (see [Splitter](/docs/api/splitter#state)) |
+| `aria` | `ISplitterAria` | `orientation`, `valueNow`, `valueMin`, `valueMax`, `valueText` |
+| `hidden` | `boolean` | row splitters are hidden while a tabset is maximized |
+| `ref` | `RefCallback<HTMLElement>` | callback ref for the splitter's element |
+
+## useDragNode
+
+"The lower layer of a draggable part: wires a node (a tab, tabset or group) to the core's
+drag-and-drop machine. Spread `draggable`, `onDragStart` and `onDragEnd` on the element and
+attach `ref` to the element the browser should snapshot as the drag image."
+
+```tsx
+function TabSetDragHandle({ tabset }: { tabset: TabSetNode }) {
+    const drag = useDragNode(tabset);
+    return (
+        <span
+            ref={drag.ref}
+            draggable={drag.draggable}
+            onDragStart={drag.onDragStart}
+            onDragEnd={drag.onDragEnd}
+            aria-hidden="true"
+            data-dragging={drag.dragging ? "" : undefined}
+        >
+            ⠿
+        </span>
+    );
+}
+```
+
+`useDragNode(node): UseDragNodeResult`, where `node` is a `Node` that is `IDraggable` and has
+`isEnableDrag()` (a `TabNode` or a `TabSetNode`).
+
+| field | type | description |
+| --- | --- | --- |
+| `draggable` | `boolean` | whether the element is draggable: the node's `enableDrag` |
+| `onDragStart` | `(event: DragEvent<HTMLElement>) => void` | starts the drag in the core |
+| `onDragEnd` | `(event: DragEvent<HTMLElement>) => void` | ends it |
+| `ref` | `RefCallback<HTMLElement>` | callback ref for the element used as the drag image (the dragged element by default) |
+| `dragging` | `boolean` | this node is being dragged |
+
+## Types
+
+Also exported: `TabSetState`, `UseDockableResult`, `UseTabSetResult`, `UseSplitterResult`,
+`UseDragNodeResult`, and `GetLabel` (`(key: DockableLabel, ...args: (string | number)[]) => string
+| undefined`).

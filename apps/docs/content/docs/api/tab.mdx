@@ -1,0 +1,74 @@
+---
+title: Dockable.Tab
+description: A tab button (role="tab") following the APG tabs pattern with manual activation. Draggable.
+---
+
+"A tab button (`role="tab"`), following the APG tabs pattern with manual activation: arrow keys
+(along the tab list's orientation), Home and End move focus; click, Enter or Space selects.
+Enter or Space on the selected tab moves focus into its panel. Renders only its children."
+
+```tsx
+<Dockable.Tab
+    node={tab}
+    className="px-3 data-selected:bg-palette-soft data-dragging:opacity-40"
+>
+    {tab.getName()}
+    {tab.isCloseable() ? <CloseButton tab={tab} /> : null}
+</Dockable.Tab>
+```
+
+Render it from a `Dockable.TabList` child function.
+
+## Props
+
+`TabProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `node` | `TabNode` | required | the tab to render |
+| `children` | `ReactNode` | none | the tab button's content; the primitive renders no text of its own |
+
+## State
+
+`TabState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `selected` | `boolean` | the tab is its tabset's selected tab |
+| `pinned` | `boolean` | the tab is pinned |
+| `dragging` | `boolean` | the tab is being dragged |
+| `popoutEnabled` | `boolean` | the tab can be popped out into a window |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | the tab button path: `/ts0/tb1` |
+| `data-selected` | the selected tab |
+| `data-pinned` | pinned |
+| `data-dragging` | being dragged |
+| `data-popout-enabled` | the tab allows popping out, and popouts are supported |
+| `id` | `getTabButtonId(tab)` (`dockable-tabbutton-<id>`) |
+| `role` | `"tab"` |
+| `aria-selected` | `true` or `false` |
+| `aria-controls` | its panel's id |
+| `aria-keyshortcuts` | `focusTabToggle` and (when closeable) `closeTab` |
+| `tabIndex` | `0` on the tab stop (the selected tab, or the first tab when none is), else `-1` |
+| `draggable` | the tab's `enableDrag` |
+
+## Keyboard
+
+| key | does |
+| --- | --- |
+| Left/Right (Up/Down when vertical) | focus the previous/next tab |
+| Home / End | focus the first/last tab |
+| Enter, Space | select; on the selected tab, move focus into its panel |
+| `closeTab` (`Ctrl+Delete`) | close the tab when closeable, focusing a neighbour first |
+| `focusTabToggle` (off by default) | move focus into the tab's content |
+
+## Behaviour
+
+- A click selects the tab (`Actions.selectTab`).
+- It is the drag source for its tab ([`useDragNode`](/docs/api/hooks#usedragnode)), and the
+  element the browser snapshots as the drag image.
+- The engine measures it (for drop hit-testing within the strip).

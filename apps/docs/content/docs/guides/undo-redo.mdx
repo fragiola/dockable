@@ -1,0 +1,98 @@
+---
+title: Undo and redo
+description: UndoManager records a snapshot before each change and swaps models without remounting content.
+---
+
+`UndoManager` (from `@fragiola/dockable`) gives a layout undo and redo. It owns the current model,
+records a JSON snapshot before each change, and on undo or redo **replaces** the model with
+`Model.fromJson(snapshot, current)`, so tab content that is still in the layout keeps its state.
+
+<Example slug="undo-redo" />
+
+## Wiring it to React
+
+The manager is a small external store: `subscribe` and `getSnapshot` are bound, so they go
+straight into `useSyncExternalStore`. Render `Dockable.Root` with the snapshot's model; a new
+model identity makes the root create a new engine.
+
+```tsx
+import { type IJsonModel, Model, UndoManager } from "@fragiola/dockable";
+import { Dockable } from "@fragiola/dockable-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+
+export function UndoableLayout({ json }: { json: IJsonModel }) {
+    const [undo] = useState(() => new UndoManager(Model.fromJson(json)));
+    useEffect(() => () => undo.dispose(), [undo]);
+    const { model, canUndo, canRedo } = useSyncExternalStore(undo.subscribe, undo.getSnapshot);
+
+    return (
+        <>
+            <div role="toolbar" aria-label="History">
+                <button type="button" disabled={!canUndo} onClick={() => undo.undo()}>
+                    Undo
+                </button>
+                <button type="button" disabled={!canRedo} onClick={() => undo.redo()}>
+                    Redo
+                </button>
+            </div>
+            {model ? (
+                <Dockable.Root model={model} style={{ flex: 1, minHeight: 0 }}>
+                    {/* Row, Panels, DropIndicator as usual */}
+                </Dockable.Root>
+            ) : null}
+        </>
+    );
+}
+```
+
+For keyboard shortcuts, listen for `Ctrl+Z` / `Ctrl+Shift+Z` (or `Meta` on macOS) on the
+document and call `undo()`/`redo()`, skipping events whose target is an editable field so text
+inputs keep their own undo.
+
+## What is recorded
+
+The manager listens to the model (`addChangeListener`), so it records **every** action, whether
+it came through `engine.doAction` or `model.doAction`.
+
+- **A gesture is one step.** A live splitter drag dispatches many *adjusting* `adjustWeights`
+  actions and one final one; only the state before the first is recorded.
+- **Some actions are not steps.** `ignoreActionTypes` defaults to `[Actions.SET_ACTIVE_TABSET]`:
+  clicking into another tabset is not an undo step.
+- **`Actions.group([...])`** is one step.
+- **Vetoed actions** (your `onAction` returned `undefined`) never reach the model, so they are
+  not recorded.
+
+```ts
+new UndoManager(model, {
+    maxBufferSize: 50, // default 100
+    ignoreActionTypes: [Actions.SET_ACTIVE_TABSET, Actions.SELECT_TAB],
+});
+```
+
+## Loading another layout
+
+`undo.setModel(model)` replaces the model (after loading a saved layout, say) and clears the
+history. `setModel(model, false)` keeps it. `undo.reset()` clears the history without replacing
+the model.
+
+## Things that belong to the model instance
+
+Undo and redo create **new** `Model` instances. Anything you set on a model object (not in its
+JSON) must be set again on the new one, for example `model.setOnAllowDrop(...)`:
+
+```tsx
+const { model } = useSyncExternalStore(undo.subscribe, undo.getSnapshot);
+useEffect(() => {
+    model?.setOnAllowDrop(allowDrop);
+}, [model]);
+```
+
+## Content state across undo
+
+Tabs that exist before and after an undo keep their mounted content: the new model's tabs adopt
+the old model's view state (their moveable element) by id. A tab that an undo **removes** is
+unmounted; if a redo brings it back, it mounts fresh.
+
+## Reference
+
+[`UndoManager`](/docs/api/undo-manager).

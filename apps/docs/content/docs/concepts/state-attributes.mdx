@@ -1,0 +1,77 @@
+---
+title: State attributes
+description: Every state a primitive exposes, as data-* attributes and ARIA. The full table.
+---
+
+Primitives expose state **only** as `data-*` attributes and ARIA. They never add class names.
+Boolean attributes are **present or absent**, never `"false"`: select them with `[data-selected]`,
+not `[data-selected="true"]`.
+
+```css
+.tab[data-selected] { font-weight: 600; }
+.tab[data-dragging] { opacity: 0.4; }
+.tabset[data-active] .tab[data-selected] { box-shadow: inset 0 -2px Highlight; }
+[data-drop-kind="edge"] { outline-style: dashed; }
+```
+
+With Tailwind v4 the same attributes are variants: `data-selected:bg-palette-soft`,
+`data-[orientation=vertical]:w-px`, `in-data-active:…` (an ancestor has `data-active`).
+
+## The full table
+
+| attribute | on | present when / value |
+| --- | --- | --- |
+| `data-layout-path` | every primitive | the element's place in the layout; see [Layout paths](/docs/concepts/layout-paths) |
+| `data-maximized` | `Root` | a tabset of the main layout is maximized |
+| `data-maximized` | `TabSet` | this tabset is maximized |
+| `data-dragging` | `Root` | a node of this layout is being dragged |
+| `data-dragging` | `Tab` | this tab is being dragged |
+| `data-dragging` | `Splitter` | the splitter is being dragged with the pointer |
+| `data-dragging` | `DropIndicator` | a drag is over the layout |
+| `data-orientation` | `Row` | `"horizontal"` (children side by side) or `"vertical"` (stacked) |
+| `data-orientation` | `TabList` | `"horizontal"` (default) or `"vertical"`, from its `orientation` prop |
+| `data-orientation` | `Splitter` | `"vertical"` for a splitter **between side by side children** (a vertical bar), `"horizontal"` between stacked children. Same as its `aria-orientation`, so it is the **opposite** of its row's `data-orientation` |
+| `data-root` | `Row` | the layout's root row |
+| `data-active` | `TabSet` | the model's active tabset (the last one the user pressed in) |
+| `data-empty` | `TabSet`, `TabSetContent` | the tabset has no tabs |
+| `data-selected` | `Tab`, `Panel` | the tab is its tabset's selected tab |
+| `data-pinned` | `Tab` | the tab is pinned |
+| `data-popout-enabled` | `Tab` | the tab can be popped out into a window (`enablePopout` and popouts are supported) |
+| `data-visible` | `Panel` | the panel is shown (selected, and not hidden by another tabset being maximized) |
+| `data-visible` | `DropIndicator` | a drop target is under the pointer |
+| `data-drop-location` | `DropIndicator` | while visible: `"center"`, `"top"`, `"bottom"`, `"left"` or `"right"` |
+| `data-drop-kind` | `DropIndicator` | while visible: `"edge"` for a drop at the outer edge of a row, `"rect"` otherwise |
+
+Two attributes mark elements the **core** creates, not the primitives:
+
+| attribute | on | meaning |
+| --- | --- | --- |
+| `data-dockable-moveable` | the element hosting a tab's content (inside its `Panel`) | sized `100%`/`100%`; its `overflow` follows the tab's `enableScrollbars` |
+| `data-dockable-popout` | the content root in a popout window's document | the element `Dockable.Popout` portals into |
+
+## ARIA
+
+| primitive | ARIA |
+| --- | --- |
+| `TabList` | `role="tablist"`, `aria-orientation`, `aria-keyshortcuts` |
+| `Tab` | `role="tab"`, `aria-selected`, `aria-controls` (its panel's id), `aria-keyshortcuts`, `tabIndex` 0 on the tab stop and -1 on the others |
+| `Panel` | `role="tabpanel"`, `aria-labelledby` (its tab's id), `aria-keyshortcuts`, `tabIndex={-1}` |
+| `Splitter` | `role="separator"`, `aria-orientation`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-valuetext` (e.g. `"40%"`), `aria-label` (from `getLabel`), `tabIndex={0}` |
+| `DropIndicator` | `aria-hidden="true"` |
+
+`aria-selected` is the one exception to "present or absent": it is an ARIA attribute, so it is
+`"true"` or `"false"`. Style with `[data-selected]`.
+
+## What is not exposed (yet)
+
+Some states you might want are not on the element. Each has a workaround:
+
+- **the selected tab of the active tabset**: `Tab` knows `selected` but not its tabset's
+  `active`. Use an ancestor selector: `.tabset[data-active] .tab[data-selected]`, or Tailwind's
+  `in-data-active:` (gap 1);
+- **a panel's tabset state**: panels are not inside their tabset, so no selector reaches them
+  from it (gap 2);
+- **the tabset under a drag** (drop target): only the drop indicator knows it (gap 8, Epic
+  [#19](https://github.com/fragiola/dockable/issues/19)).
+
+See [Limitations](/docs/limitations).

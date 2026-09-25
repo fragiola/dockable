@@ -1,0 +1,87 @@
+---
+title: Dockable.Root
+description: The layout's root - owns the engine for a model and is the containing block the panels are positioned in.
+---
+
+"The layout's root: owns the engine for `model`, attaches it to the rendered element (the
+containing block the panels are positioned in), runs the measure-and-position cycle after every
+commit and re-renders when the engine asks."
+
+```tsx
+<Dockable.Root model={model} onAction={onAction} getLabel={getLabel} className="layout">
+    <Dockable.Row>{renderNode}</Dockable.Row>
+    <Dockable.Panels>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
+    <Dockable.DropIndicator />
+    <Dockable.Popout>{() => <Dockable.Row>{renderNode}</Dockable.Row>}</Dockable.Popout>
+</Dockable.Root>
+```
+
+The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting-started/sizing)).
+
+## Props
+
+`RootProps` extends the [common primitive props](#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `model` | `Model` | required | the layout model; a new model identity (e.g. an undo/redo swap) creates a new engine |
+| `onAction` | `(action: Action) => Action \| undefined` | none | intercepts every action: return it (or a replacement) to apply it, `undefined` to veto |
+| `onModelChange` | `(model: Model, action: Action) => void` | none | called after the model applied an action |
+| `getLabel` | `GetLabel` | none | resolves label keys to text (accessible names); with no resolver the primitives render no text of their own |
+| `keyMap` | `IKeyMap` | `defaultKeyMap` | keyboard bindings, merged over `defaultKeyMap` |
+| `realtimeResize` | `boolean` | `true` | true (default) to resize live while dragging a splitter; false to preview and commit on release |
+| `tabDragSpeed` | `number` | `0.3` | seconds a view may take to animate the drop indicator (exposed as data; default 0.3) |
+| `popoutURL` | `string` | `"popout.html"` | the popout host page (default `"popout.html"`); the window layout's id is passed as `?id=` |
+| `supportsPopout` | `boolean` | a desktop pointer is present | whether window layouts open as popouts; default: a desktop pointer is present |
+| `popoutClosePolicy` | `"dock" \| "float"` | `"dock"` | what closing a popout window does; default `"dock"` (its tabs move back to the main layout) |
+| `onPopoutOpen` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
+| `onPopoutClose` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout window is closing |
+| `children` | `ReactNode` | none | the layout: a `Row`, `Panels`, `DropIndicator`, `Popout`, and anything else |
+
+`GetLabel` is `(key: DockableLabel, ...args: (string | number)[]) => string | undefined`; see
+[Labels](/docs/api/labels). `IKeyMap` is described in [Keyboard](/docs/guides/keyboard).
+
+## State
+
+`RootState`, passed to `render`, `className` and `style` functions.
+
+| field | type | description |
+| --- | --- | --- |
+| `maximized` | `boolean` | a tabset of the main layout is maximized |
+| `dragging` | `boolean` | a node of this layout is being dragged |
+
+## Data attributes
+
+| attribute | when |
+| --- | --- |
+| `data-layout-path` | always `"/layout"` |
+| `data-maximized` | a tabset of the main layout is maximized |
+| `data-dragging` | a node of this layout is being dragged |
+
+## Structural style
+
+`position: relative`: the containing block the panels (and the root row) are positioned in.
+
+## Behaviour
+
+- Creates one engine per `model` identity and attaches it to the element on mount.
+- After every commit, runs `engine.sync()` (measure, then position the panels).
+- Listens on its document for the `focusNextTabset`/`focusPreviousTabset` bindings.
+- Provides the context `useDockable` reads.
+
+## Common props
+
+Every primitive except `Panels` accepts these on top of its own props (`PrimitiveProps` and the
+`div` attributes, as `DivPrimitiveProps<State>`):
+
+| prop | type | description |
+| --- | --- | --- |
+| `render` | `ReactElement \| (props, state) => ReactElement` | replaces the rendered element (never `asChild`) |
+| `className` | `string \| (state) => string \| undefined` | a class name, or a function of the primitive's state returning one |
+| `style` | `CSSProperties \| (state) => CSSProperties \| undefined` | a style, or a function of the primitive's state returning one. Structural keys the primitive sets (position, geometry, display, flex sizing) always win |
+| `ref` | `Ref<HTMLElement>` | merged with the primitive's own ref |
+| any `div` attribute | | forwarded to the element; event handlers run after the primitive's own |
+
+The exported types are `PrimitiveProps<State>`, `DivPrimitiveProps<State>`, `RenderProp<State>`
+and `RenderedProps` (the props a `render` function receives: spread them onto the element it
+returns). See [The primitive contract](/docs/concepts/primitive-contract).
