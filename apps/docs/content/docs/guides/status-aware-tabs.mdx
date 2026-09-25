@@ -1,0 +1,86 @@
+---
+title: Status-aware tabs
+description: Tabs that show what their content is doing - unsaved changes, errors, live counts.
+---
+
+A tab button and its content are rendered in different places (the strip and the panel layer),
+so a tab cannot read its content's state through props. Share it another way. Two patterns.
+
+<Example slug="content-aware-tabs" />
+
+## 1. A store keyed by tab id
+
+Keep status in a small external store (or context above `Dockable.Root`), keyed by
+`tab.getId()`. The content writes; the tab reads.
+
+```tsx
+import { useSyncExternalStore } from "react";
+
+type Status = { dirty?: boolean; errors?: number };
+const statuses = new Map<string, Status>();
+const listeners = new Set<() => void>();
+
+export const statusStore = {
+    set(id: string, status: Status) {
+        statuses.set(id, { ...statuses.get(id), ...status });
+        for (const listener of listeners) listener();
+    },
+    subscribe(listener: () => void) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    },
+};
+
+export function useTabStatus(id: string): Status | undefined {
+    return useSyncExternalStore(statusStore.subscribe, () => statuses.get(id));
+}
+```
+
+```tsx
+// in the tab strip
+function StatusTab({ tab }: { tab: TabNode }) {
+    const status = useTabStatus(tab.getId());
+    return (
+        <Dockable.Tab node={tab} data-dirty={status?.dirty ? "" : undefined}>
+            {tab.getName()}
+            {status?.errors ? <span className="badge">{status.errors}</span> : null}
+        </Dockable.Tab>
+    );
+}
+
+// in the content
+statusStore.set(tab.getId(), { dirty: true });
+```
+
+Forwarded `data-*` props follow the same convention as the package's own: present or absent.
+Style them like the built-in state: `data-[dirty]:italic`, `.tab[data-dirty]::after { content: "●" }`.
+
+The content stays mounted across moves (and popouts), so it keeps writing to the same id wherever
+its tab goes.
+
+## 2. The tab's `config`, through an action
+
+For status that belongs **in the layout** (saved with it, part of undo, visible in popouts through
+the model), write it into the tab's `config`:
+
+```tsx
+const { engine } = useDockable();
+engine.doAction(
+    Actions.updateNodeAttributes(tab.getId(), { config: { ...tab.getConfig(), unread: 3 } }),
+);
+```
+
+The strip re-renders with the model, so `tab.getConfig()?.unread` is current in the `TabList`
+child function. Each update is an action (visible to `onAction`, recorded by `UndoManager`), so
+use it for occasional changes, not for a value that ticks every second.
+
+## Closing a dirty tab
+
+Combine the store with an `onAction` veto to confirm before closing a tab with unsaved changes;
+see [Tabs](/docs/guides/tabs#confirming-a-close).
+
+## A live dashboard
+
+The ops monitor example drives tab badges from streaming data and marks tabsets by severity.
+
+<Example slug="ops-monitor" />

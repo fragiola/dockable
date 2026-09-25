@@ -1,0 +1,63 @@
+---
+title: Dockable.Splitter
+description: A splitter between two children of a row (role="separator"), draggable and keyboard operable.
+---
+
+"A splitter between two children of a row (`role="separator"`). Drag it with the pointer, or
+focus it and use the arrow keys. While an outline (non-realtime) drag is in progress it carries
+`data-dragging` and a structural `transform` previewing where it will land."
+
+`Dockable.Row` renders one between every two children. Render your own through `renderSplitter`:
+
+```tsx
+function renderSplitter(props: RowSplitterProps) {
+    return <Dockable.Splitter {...props} className="splitter" />;
+}
+```
+
+## Props
+
+`SplitterProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `node` | `RowNode` | required | the row the splitter resizes |
+| `index` | `number` | required | the splitter sits before child `index` (1-based) |
+| `children` | `ReactNode` | none | content such as a grip |
+
+## State
+
+`SplitterState` extends the core's `ISplitterState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `orientation` | `"horizontal" \| "vertical"` | `"vertical"` for a splitter between side by side children, as its `aria-orientation` |
+| `dragging` | `boolean` | true while the splitter is being dragged with the pointer |
+| `previewOffset` | `number \| undefined` | while an outline (non-realtime) drag is in progress: how far, in px along the splitter's axis, the splitter would move if released now (bounded). `undefined` otherwise |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `<row path>/s<index-1>`: `/s0` between the root row's first two children |
+| `data-orientation` | `"vertical"` (a vertical bar between side by side children) or `"horizontal"` |
+| `data-dragging` | being dragged with the pointer |
+| `role` | `"separator"` |
+| `aria-orientation` | same as `data-orientation` |
+| `aria-valuenow` / `aria-valuemin` / `aria-valuemax` | row splitters: the 0–100 position within the row |
+| `aria-valuetext` | the formatted value, e.g. `"40%"` |
+| `aria-label` | `getLabel(DockableLabel.Splitter)` |
+| `tabIndex` | `0` |
+
+## Structural style
+
+`display: none` while a tabset is maximized; `transform: translateX(…)`/`translateY(…)` during a
+non-realtime drag. Nothing else: its size is yours (and the engine measures it as the model's
+splitter size).
+
+## Keyboard
+
+The arrow keys along its axis (Left/Right for a vertical bar, Up/Down for a horizontal one) move
+it by 10px. Modified arrows are ignored.
+
+See the [Splitters guide](/docs/guides/splitters) for hairline and wide styles.

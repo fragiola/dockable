@@ -1,0 +1,102 @@
+---
+title: Styling with Tailwind
+description: Utilities, data-* variants and className functions. No plugin, no preset.
+---
+
+The package paints nothing and ships no class names, so Tailwind styles it with ordinary
+utilities. Everything below is plain Tailwind v4; no plugin or preset is involved.
+
+<Example slug="focused-tab" />
+
+## State through `data-*` variants
+
+Tailwind v4 turns every attribute into a variant. The primitives expose their state as
+[`data-*` attributes](/docs/concepts/state-attributes), present or absent:
+
+```tsx
+<Dockable.Tab
+    node={tab}
+    className="cursor-pointer px-3 text-palette-accent/85 hover:bg-palette-soft data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40"
+>
+    {tab.getName()}
+</Dockable.Tab>
+```
+
+Valued attributes take the bracket form: `data-[orientation=vertical]:w-px`,
+`data-[drop-kind=edge]:border-dashed`.
+
+## State of an ancestor: `in-data-*` and `group`
+
+`Tab` does not know whether its tabset is active (gap 1 in [Limitations](/docs/limitations)).
+Read it from the ancestor instead. `in-data-active:` matches when **any ancestor** has
+`data-active`, so a marker inside the selected tab of the active tabset is:
+
+```tsx
+<Dockable.Tab node={tab} className="group/tab relative …">
+    {tab.getName()}
+    <span
+        aria-hidden="true"
+        className="absolute inset-x-2 bottom-0 hidden h-0.5 bg-palette-ring in-data-active:group-data-selected/tab:block"
+    />
+</Dockable.Tab>
+```
+
+`group` on the `TabSet` and `group-data-active:` on a descendant work the same way. The
+[`focused-tab`](/examples/focused-tab/) example is built on this.
+
+## `className` as a function
+
+When a class depends on state that is not an attribute, or on the node, pass a function. It
+receives the primitive's state:
+
+```tsx
+<Dockable.DropIndicator
+    className={(state) =>
+        state.kind === "edge"
+            ? "z-10 rounded-sm border-2 border-dashed border-palette-ring"
+            : "z-10 rounded-md border-2 border-palette-ring bg-palette-ring/20"
+    }
+/>
+```
+
+For the node itself (not a state), close over it: `className={tab.isPinned() ? "…" : "…"}` in
+the `TabList` child function works because the strip re-renders when the model changes. Prefer
+`data-pinned:` when an attribute exists.
+
+## Structural rules to remember
+
+- **Give the root a size**: `min-h-0 flex-1` in a sized flex column
+  ([Sizing](/docs/getting-started/sizing)). Put padding on a wrapper, not on the root.
+- **Pad the start of the tab list** (`ps-1` or more): a tab flush with the tabset's edge cannot
+  take a drop before it (gap 10).
+- **Give tab strips a minimum height** (`min-h-7` or so): a very thin strip at the top of the
+  layout falls inside the 10px top-edge docking band (gap 11).
+- **Stack the drop indicator**: `z-10` (panels are portalled after it, gap 12).
+- **Don't fight structural style**: `flex-grow`, `display` or geometry you set with utilities on a
+  `Row`, `TabSet` or `Panel` loses to the primitive's inline style. Size things with weights.
+
+## Tab strip at the bottom
+
+`TabSet` is a structural flex column, so the order of its children is the visual order. A strip
+at the bottom is a markup change, not a style:
+
+```tsx
+<Dockable.TabSet node={node}>
+    <Dockable.TabSetContent />
+    <Dockable.TabList aria-label="Tabs" className="border-t border-palette-line">
+        {(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}
+    </Dockable.TabList>
+</Dockable.TabSet>
+```
+
+The tabset's `tabLocation` attribute (`"top"` or `"bottom"`) is the natural switch:
+`node.getTabLocation() === "bottom"`.
+
+<Example slug="tabs-at-bottom" />
+
+## Palettes
+
+The examples use the Fragiola palette roles (`bg-palette-base`, `text-palette-contrast`,
+`border-palette-line`, `text-palette-accent/85`, …) so they work in every theme. That is a
+choice of this site, not a requirement: any colour utilities work. See
+[Theming](/docs/guides/theming).

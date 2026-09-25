@@ -1,0 +1,73 @@
+---
+title: Maximize
+description: Let a tabset fill the layout, and style the maximized state.
+---
+
+Maximizing a tabset makes it fill its layout: every other tabset and every row splitter is hidden
+(structurally, `display: none`), and the maximized tabset takes the whole root row.
+
+<Example slug="maximize" />
+
+## The action
+
+`Actions.maximizeToggle(tabsetId)` maximizes a tabset, or restores it when it is the maximized
+one:
+
+```tsx
+import { Actions, DockableLabel, type TabSetNode } from "@fragiola/dockable";
+import { useDockable } from "@fragiola/dockable-react";
+
+function MaximizeButton({ tabset }: { tabset: TabSetNode }) {
+    const { engine, model, getLabel } = useDockable();
+    const maximized = tabset.isMaximized();
+    // a lone tabset has nothing to hide
+    const alone = model.getRootRow(tabset.getLayoutId())?.getChildren().length === 1;
+    if (!tabset.isEnableMaximize() || (alone && !maximized)) return null;
+    return (
+        <button
+            type="button"
+            aria-pressed={maximized}
+            aria-label={getLabel?.(maximized ? DockableLabel.Restore : DockableLabel.Maximize)}
+            onClick={() => engine.doAction(Actions.maximizeToggle(tabset.getId(), tabset.getLayoutId()))}
+        >
+            {maximized ? <MinimizeIcon aria-hidden="true" /> : <MaximizeIcon aria-hidden="true" />}
+        </button>
+    );
+}
+```
+
+Pass the tabset's layout id: in a popout window, maximize applies to that window's layout.
+
+A double click on the tab strip is a common shortcut; attach it to your header element:
+
+```tsx
+<div className="header" onDoubleClick={() => engine.doAction(Actions.maximizeToggle(node.getId(), node.getLayoutId()))}>
+```
+
+Maximizing is allowed unless `enableMaximize: false` (per tabset, or `tabSetEnableMaximize`
+globally).
+
+## Styling the state
+
+| attribute | on | meaning |
+| --- | --- | --- |
+| `data-maximized` | `Dockable.Root` | a tabset of the main layout is maximized |
+| `data-maximized` | `Dockable.TabSet` | this tabset is maximized |
+
+```tsx
+<Dockable.TabSet node={node} className="border border-palette-line data-maximized:border-palette-ring" />
+```
+
+The hidden tabsets and splitters need no styling: the primitives hide them. Their tabs' panels
+are hidden too (`Panel`'s `data-visible` is absent), and their content stays mounted.
+
+## Reading it
+
+`model.getMaximizedTabset(layoutId?)` returns the maximized tabset, or `undefined`. The
+maximized state is saved by `toJson()` (`maximized: true` on the tabset) and restored by
+`fromJson`.
+
+## Keyboard
+
+There is no default key binding for maximize. Add one in your own key handler, and dispatch the
+same action (see [Keyboard and accessibility](/docs/guides/keyboard)).

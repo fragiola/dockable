@@ -1,0 +1,85 @@
+---
+title: Installation
+description: Add the core and the React primitives to a React 19 app.
+---
+
+Dockable is two packages: the framework-agnostic core and the React primitives over it.
+
+<Tabs items={["pnpm", "npm", "yarn"]}>
+    <Tab value="pnpm">
+        ```sh
+        pnpm add @fragiola/dockable @fragiola/dockable-react
+        ```
+    </Tab>
+    <Tab value="npm">
+        ```sh
+        npm install @fragiola/dockable @fragiola/dockable-react
+        ```
+    </Tab>
+    <Tab value="yarn">
+        ```sh
+        yarn add @fragiola/dockable @fragiola/dockable-react
+        ```
+    </Tab>
+</Tabs>
+
+<Callout type="warn" title="Not on npm yet">
+    The packages are at version `0.0.0` and are not published yet. Until they are, consume them
+    from the [repository](https://github.com/fragiola/dockable) as workspace packages
+    (`"@fragiola/dockable": "workspace:*"`), which is how this site uses them.
+</Callout>
+
+## Requirements
+
+| requirement | why |
+| --- | --- |
+| `react` and `react-dom` **^19** | peer dependencies of `@fragiola/dockable-react`. The primitives use React 19 features: `ref` as a plain prop and ref cleanup functions. |
+| A browser DOM | the engine measures elements with `getBoundingClientRect` and `ResizeObserver`. The **model** loads in plain Node (for tests or server-side JSON handling), but a layout renders only on the client. |
+| ES modules | both packages are ESM only (`"type": "module"`). |
+
+`@fragiola/dockable` has **zero runtime dependencies**. `@fragiola/dockable-react` depends only
+on the core and its React peers.
+
+## What to import from where
+
+```tsx
+// the model, the actions and the other core classes
+import { Actions, DockLocation, Model, type IJsonModel } from "@fragiola/dockable";
+// the primitives (one namespace) and the hooks
+import { Dockable, useDockable } from "@fragiola/dockable-react";
+```
+
+The React package does **not** re-export the core. Import model classes (`Model`, `TabNode`,
+`TabSetNode`, `RowNode`, `Actions`, `DockLocation`, `DockableLabel`, `UndoManager`, …) from
+`@fragiola/dockable`.
+
+## Server rendering
+
+The layout needs the DOM: the engine measures the elements you render and positions the panels
+after every commit. In a server-rendering framework (Next.js, Remix, …), mount the layout on the
+client only. With Next.js, mark the file `"use client"` and load the component with
+`next/dynamic` and `ssr: false`, or render it behind a mounted guard. Pre-rendering the layout
+would produce markup without geometry and a hydration flash.
+
+```tsx
+"use client";
+
+import dynamic from "next/dynamic";
+
+// the layout measures the DOM: never pre-render it
+const Workbench = dynamic(() => import("./workbench"), { ssr: false });
+
+export default function Page() {
+    return <Workbench />;
+}
+```
+
+## Popout windows
+
+If you use [popouts](/docs/guides/popouts), serve a host page for the new windows (default
+`popout.html` next to your app; the path is configurable with `popoutURL`). It can be an empty
+HTML document: the core writes everything it needs into it.
+
+## Next
+
+[Your first layout](/docs/getting-started/first-layout) builds a working layout in five steps.

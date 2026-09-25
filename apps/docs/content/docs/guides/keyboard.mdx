@@ -1,0 +1,106 @@
+---
+title: Keyboard and accessibility
+description: The fixed ARIA keys, the configurable key map, and focus movement between tabsets.
+---
+
+The primitives implement the WAI-ARIA **tabs** pattern (with manual activation) and the
+**window splitter** pattern. Those structural keys are fixed; command shortcuts are configurable
+through a key map.
+
+<Example slug="keyboard" />
+
+## Fixed keys
+
+| on | key | does |
+| --- | --- | --- |
+| a tab | Left / Right (Up / Down in a vertical `TabList`) | move focus to the previous / next tab |
+| a tab | Home / End | move focus to the first / last tab |
+| a tab | Enter or Space | select the tab; on the selected tab, move focus into its panel |
+| a splitter | arrows along its axis | move it by 10px |
+
+The strip has a single tab stop (roving `tabIndex`): the selected tab, or the first tab when none
+is selected. Arrow keys with a modifier held are left alone, so they stay available for your
+bindings. A `TabList` with `orientation="vertical"` switches the arrows to Up/Down and sets
+`aria-orientation`.
+
+## The key map
+
+Command shortcuts come from a **key map**: `"Ctrl+Shift+Key"` strings, merged over
+`defaultKeyMap` (from `@fragiola/dockable`). Pass yours to `Dockable.Root`:
+
+```tsx
+<Dockable.Root
+    model={model}
+    keyMap={{
+        focusNextTabset: "Ctrl+F6",
+        focusPreviousTabset: "Ctrl+Shift+F6",
+        focusTabToggle: "F6",
+        closeTab: "Ctrl+Delete",
+    }}
+>
+```
+
+| binding | default | does |
+| --- | --- | --- |
+| `closeTab` | `Ctrl+Delete` | closes the focused tab (when it is closeable), moving focus to a neighbour first |
+| `renameTab` | `F2` | reserved for renaming the focused tab; the React primitives do not act on it yet, so implement rename yourself (see [Tabs](/docs/guides/tabs)) |
+| `focusTabToggle` | off | toggles focus between the selected tab button and its content |
+| `focusNextTabset` | off | moves focus to the selected tab of the next tabset (wrapping), from anywhere in the layout, including inside tab content; that tabset becomes active |
+| `focusPreviousTabset` | off | the same, backwards |
+| `closeOverlayBorder` | `Escape` | for overlay borders, which are not rendered yet |
+
+Passing an explicit `undefined` disables a binding: `keyMap={{ closeTab: undefined }}`. Modifiers
+can be in any order; the key is compared case-insensitively with `KeyboardEvent.key`.
+
+Every active binding is **advertised** to assistive technology through `aria-keyshortcuts` on the
+elements it applies to (tabs, tab lists, panels), so the announced shortcuts always match the
+configured ones.
+
+WCAG 2.1.4 requires single printable-character shortcuts to be remappable or off by default:
+prefer function keys or modifier combinations.
+
+## Your own shortcuts
+
+Actions you add (maximize, pop out, undo) need your own key handler. `matchesKey(event, spec)`
+from the core matches a binding string, so your shortcuts can use the same format:
+
+```tsx
+import { Actions, matchesKey } from "@fragiola/dockable";
+
+function useMaximizeShortcut() {
+    const { engine, model } = useDockable();
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.defaultPrevented || !matchesKey(event, "Ctrl+Shift+M")) return;
+            const tabset = model.getActiveTabset();
+            if (tabset) {
+                engine.doAction(Actions.maximizeToggle(tabset.getId()));
+                event.preventDefault();
+            }
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [engine, model]);
+}
+```
+
+Check `event.defaultPrevented`: content that handled a key keeps it (the primitives do the same).
+
+## Focus you should keep visible
+
+The primitives never style focus. Give tabs, splitters and your buttons a visible focus
+indicator (`:focus-visible`): a splitter especially, since it is invisible when thin.
+
+## Accessibility checklist
+
+- Name every tab list (`aria-label`), every icon button, and the splitters (`getLabel` with
+  `DockableLabel.Splitter`); see [Accessible names](/docs/getting-started/accessible-names).
+- Keep your buttons inside tabs out of the tab order if they duplicate a key binding, or make
+  them reachable: a close button that is only visible on hover still needs a keyboard path
+  (`Ctrl+Delete`).
+- Content inside panels is yours; the panel is a `tabpanel` labelled by its tab, and focusable
+  (`tabIndex={-1}`) so Enter on a selected tab can move focus into it.
+
+*The key map and the ARIA wiring are adapted from FlexLayout's
+[accessibility](https://github.com/caplin/FlexLayout/blob/master/docs/accessibility.md) work
+(Caplin Systems Ltd, MIT).*

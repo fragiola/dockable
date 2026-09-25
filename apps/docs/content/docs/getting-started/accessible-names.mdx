@@ -1,0 +1,99 @@
+---
+title: Accessible names
+description: The package renders no text. Names come from your children, aria-label, or getLabel and DockableLabel.
+---
+
+Dockable renders **no text of its own**: no "Close", no "Maximize", no "Resize". Every
+accessible name comes from you. There are three sources.
+
+## 1. Children
+
+A primitive renders its children, and for most parts the children are the name. A
+`Dockable.Tab`'s accessible name is its content:
+
+```tsx
+<Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>
+```
+
+An icon-only tab needs a name another way: `aria-label={tab.getName()}` on the tab, or visually
+hidden text inside it.
+
+The panel is labelled by its tab automatically: `Dockable.Panel` sets
+`aria-labelledby` to the tab button's id, and the tab sets `aria-controls` to the panel's id.
+
+## 2. `aria-label` (and other props)
+
+Every primitive forwards arbitrary props, so you name elements the usual way. The tab strip is
+a `role="tablist"` and should be named:
+
+```tsx
+<Dockable.TabList aria-label={tabset.getName() ?? "Tabs"}>
+```
+
+The tabset's JSON `name` attribute exists for this: "an accessible label for the tab strip (used
+as the tablist's aria-label; not displayed visually)". The React `TabList` does not read it by
+itself; pass it as above.
+
+Buttons you add (close, maximize, pop out) are your own elements: give each one a name.
+
+```tsx
+<button type="button" aria-label={`Close ${tab.getName()}`} onClick={close}>
+    <XIcon aria-hidden="true" />
+</button>
+```
+
+## 3. `getLabel` and `DockableLabel`
+
+Some names belong to elements the primitives render themselves. For those, `Dockable.Root`
+takes a resolver:
+
+```ts
+type GetLabel = (key: DockableLabel, ...args: (string | number)[]) => string | undefined;
+```
+
+`DockableLabel` (from `@fragiola/dockable`) is an enum of label **keys**, with no default
+strings. Today the primitives resolve one key themselves: `DockableLabel.Splitter`, the
+splitter's `aria-label`. The other keys (close, maximize, menu items, …) name the parts you build
+yourself, so a single map can hold every string of your layout:
+
+```tsx
+import { DockableLabel } from "@fragiola/dockable";
+
+const labels: Partial<Record<DockableLabel, string>> = {
+    [DockableLabel.Splitter]: "Resize",
+    [DockableLabel.Close_Tab]: "Close",
+    [DockableLabel.Maximize]: "Maximize",
+    [DockableLabel.Restore]: "Restore",
+};
+
+const getLabel = (key: DockableLabel) => labels[key];
+
+<Dockable.Root model={model} getLabel={getLabel}>
+```
+
+Inside the layout, read the same resolver with `useDockable().getLabel` to name your buttons.
+With no resolver (or a key it returns `undefined` for), the element gets **no** name: nothing
+falls back to English.
+
+This is also how you translate the layout: resolve the keys from your i18n library.
+
+```tsx
+const { t } = useTranslation();
+<Dockable.Root model={model} getLabel={(key) => t(key)}>
+```
+
+The key values are strings like `"dockable.splitter"`, so they work as translation keys as is.
+Keys with a `?` (for example `DockableLabel.Move_Tabs`, `"dockable.move.tabs (?)"`) take a count
+in `args`. Every key is listed in [the labels reference](/docs/api/labels).
+
+## What the primitives set for you
+
+| part | role and ARIA |
+| --- | --- |
+| `TabList` | `role="tablist"`, `aria-orientation`, `aria-keyshortcuts` (tabset focus bindings) |
+| `Tab` | `role="tab"`, `aria-selected`, `aria-controls`, `aria-keyshortcuts`, a roving `tabIndex` |
+| `Panel` | `role="tabpanel"`, `aria-labelledby`, `tabIndex={-1}` |
+| `Splitter` | `role="separator"`, `aria-orientation`, `aria-valuenow`/`min`/`max`/`text`, `aria-label` from `getLabel`, `tabIndex={0}` |
+| `DropIndicator` | `aria-hidden` |
+
+See [Keyboard and accessibility](/docs/guides/keyboard) for the key bindings.

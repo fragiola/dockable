@@ -1,0 +1,103 @@
+---
+title: Model
+description: The layout model - a tree of rows, tabsets and tabs that changes only through actions.
+---
+
+`Model` (from `@fragiola/dockable`) holds the layout: the main layout's tree, the popout window
+layouts, the global attributes and the active and maximized tabsets. It is ported from
+FlexLayout's model and works in plain Node (no DOM needed), so layout logic is unit-testable.
+
+```ts
+import { Actions, Model } from "@fragiola/dockable";
+
+const model = Model.fromJson(json);
+model.getActiveTabset()?.getSelectedNode();
+const saved = model.toJson();
+```
+
+Never mutate nodes. Change the model with actions, dispatched through the engine
+([The model and actions](/docs/concepts/model-and-actions)).
+
+## Creating and saving
+
+| member | description |
+| --- | --- |
+| `Model.fromJson(json, previousModel?)` | load a model from JSON. `previousModel` optional; when given, matching tabs adopt its view state (no remount) |
+| `toJson()` | converts the model to a json object (`IJsonModel`): global attributes, borders, the main layout and the sub-layouts |
+| `toString()` | `JSON.stringify(model.toJson())` |
+| `Model.MAIN_LAYOUT_ID` | the id of the main layout (`"__main_layout_id__"`), the default `layoutId` everywhere |
+
+## Changing
+
+| member | description |
+| --- | --- |
+| `doAction(action)` | update the node tree by performing the given action. Returns the added node for `Actions.addTab`, the layout id for `createPopout`. **Bypasses `onAction`**: in a rendered layout, call `engine.doAction` instead |
+| `setOnAllowDrop(fn)` | sets a function to allow/deny dropping a node: `(dragNode: Node, dropInfo: DropInfo) => boolean`. See [Restricting drops](/docs/guides/restricting-drops) |
+| `setOnCreateTabSet(fn)` | set a callback called when a new tabset is created: `(tabNode?: TabNode) => ITabSetAttributes`, the attributes of the new tabset. The `tabNode` can be undefined if it is the auto-created first tabset in the root row |
+| `addChangeListener(listener)` | register a change listener (`{ onBeforeAction?, onAfterAction? }` or a function of the action). Fires for every action, including direct `model.doAction` calls |
+| `removeChangeListener(listener)` | removes a listener previously registered with `addChangeListener` |
+
+## Reading
+
+| member | description |
+| --- | --- |
+| `getRootRow(layoutId?)` | the root `RowNode` of a layout |
+| `getActiveTabset(layoutId?)` | the currently active tabset node |
+| `getMaximizedTabset(layoutId?)` | the currently maximized tabset node |
+| `getFirstTabSet(node?)` | finds the first (top left) tabset of the given node, defaulting to the main root row |
+| `getNodeById(id)` | gets a node by its id |
+| `visitNodes(fn)` | visits all the nodes in the model (every layout) and calls `fn(node, level)` for each |
+| `visitLayoutNodes(layoutId, fn)` | the same, for one layout |
+| `getLayouts()` | the layouts, keyed by id (`ModelLayout`: the main one and one per popout window); marked `@internal`, used by the primitives |
+| `getSplitterSize()` | the splitter thickness, as measured by the engine |
+| `isRootOrientationVertical()` | the global `rootOrientationVertical` |
+| `isEnableEdgeDock()` | the global `enableEdgeDock` |
+| `getBorderSet()` | the borders (not rendered yet) |
+| `isEnableEdgeDockIndicators()`, `isEnableRotateBorderIcons()`, `getBorderLeftTabDirection()`, `getTabGroupType()` | the global attributes of the same names, for views that render edge indicators, borders and tab groups |
+| `Model.ensureAttributePairing()` | pairs the global attribute definitions with the node ones (e.g. `tabEnableClose` with `enableClose`); idempotent, called automatically |
+
+## Nodes
+
+The tree is made of node classes, all exported from `@fragiola/dockable`. Every node has
+`getId()`, `getType()`, `getParent()`, `getChildren()`, `getModel()`, `getRect()`,
+`getPath()` (its layout path), `getLayoutId()` and `getOrientation()`.
+
+**`RowNode`**: a row or column. `getWeight()`, `getChildren()` (tabsets and rows).
+
+**`TabSetNode`**: a tabset.
+
+| method | returns |
+| --- | --- |
+| `getTabNodes()` | its tabs, in order |
+| `getSelectedNode()` | the selected tab, or `undefined` |
+| `getSelected()` | the selected index (`-1` for none) |
+| `isActive()`, `isMaximized()` | its state |
+| `getName()`, `getConfig()`, `getWeight()` | attributes |
+| `isEnableDrop()`, `isEnableDrag()`, `isEnableDivide()`, `isEnableMaximize()`, `isEnableClose()`, `isEnableTabWrap()`, `getTabLocation()`, … | attribute getters |
+
+**`TabNode`**: a tab.
+
+| method | returns |
+| --- | --- |
+| `getName()`, `getAltName()`, `getComponent()`, `getConfig()`, `getIcon()`, `getHelpText()` | attributes |
+| `isSelected()`, `isPinned()`, `isVisible()` | its state |
+| `isCloseable()` | `enableClose`, and not pinned |
+| `isEnableDrag()`, `isEnableRename()`, `isEnablePin()`, `isEnablePopout()`, `isEnableRenderOnDemand()`, `isEnableWindowReMount()`, … | attribute getters |
+| `getTabContainer()` | its tabset (or border) |
+| `getLayout()`, `getLayoutId()`, `getWindowId()` | the layout (window) it is in |
+| `setEventListener(event, fn)`, `removeEventListener(event)` | node events: `"resize"`, `"visibility"`, `"close"`, `"save"` |
+
+Node classes also carry setters (`setName`, `setWeight`, …) and methods marked `@internal`:
+they exist for the model's own use. Calling them bypasses actions, `onAction`, undo and the
+engine's re-render: don't.
+
+## Related classes
+
+- `ModelLayout`: one layout of the model (`getLayoutId()`, `getType()`, `getRootRow()`,
+  `getPath()`, `isMainLayout()`).
+- `DockLocation`: `CENTER`, `TOP`, `BOTTOM`, `LEFT`, `RIGHT`, with `getName()` and
+  `DockLocation.getByName(name)`.
+- `DropInfo`: what a drop would do: `node`, `rect`, `location`, `index`, `kind`.
+- `Rect`, `Orientation`, `BorderNode`, `BorderSet`, `TabGroupNode`: ported from FlexLayout.
+
+The JSON format is in [IJsonModel](/docs/api/json-model).

@@ -1,0 +1,57 @@
+---
+title: Dockable.TabList
+description: The tabset's tab strip (role="tablist") - calls the child function per tab, with arrow-key navigation.
+---
+
+"The tabset's tab strip (`role="tablist"`). Calls the child function per tab. Arrow keys along
+the orientation, Home and End move focus between tabs; Enter or Space selects."
+
+```tsx
+<Dockable.TabList aria-label={tabset.getName() ?? "Tabs"} className="flex min-h-8 ps-1">
+    {(tab) => (
+        <Dockable.Tab node={tab} className="tab">
+            {tab.getName()}
+        </Dockable.Tab>
+    )}
+</Dockable.TabList>
+```
+
+Render it inside a `Dockable.TabSet`. The engine measures it (the strip's rect is used for drop
+hit-testing).
+
+## Props
+
+`TabListProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `children` | `(tab: TabNode) => ReactNode` | required | renders a tab button (a `Dockable.Tab`) |
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | the direction the tabs are laid out in, for arrow key navigation; default horizontal |
+
+## State
+
+`TabListState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `orientation` | `"horizontal" \| "vertical"` | the `orientation` prop |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `<tabset path>/tabstrip`, e.g. `/ts0/tabstrip` |
+| `data-orientation` | `"horizontal"` or `"vertical"` |
+| `role` | `"tablist"` |
+| `aria-orientation` | the orientation |
+| `aria-keyshortcuts` | the `focusNextTabset`/`focusPreviousTabset` bindings, when set |
+
+Name it with `aria-label` (the tabset's `name` attribute is meant for it).
+
+## Styling notes
+
+- Keep some **start padding**: a drop before the first tab is refused when that tab is flush with
+  the tabset's edge (gap 10).
+- Keep it at least ~30px tall at the top of the layout: the layout's top-edge docking band is
+  10px (gap 11).
+- No structural style: layout, overflow and wrapping are yours ([Tab overflow](/docs/guides/tab-overflow)).

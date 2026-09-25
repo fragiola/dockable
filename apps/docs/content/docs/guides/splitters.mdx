@@ -1,0 +1,123 @@
+---
+title: Splitters
+description: Style splitters as hairlines or wide bars, give them a bigger grab area, and resize with the keyboard.
+---
+
+`Dockable.Row` inserts a `Dockable.Splitter` between every two children. The default splitter is
+correct (pointer drag, keyboard, ARIA) but **invisible** until you style it: it renders an empty
+`div` with no size.
+
+## The one gotcha: orientation
+
+A splitter's `data-orientation` (and `aria-orientation`) is the orientation of **the bar**, the
+ARIA separator convention:
+
+| splitter between | `data-orientation` | it is | size it with |
+| --- | --- | --- | --- |
+| side by side children (a horizontal row) | `"vertical"` | a vertical bar | `width` |
+| stacked children (a vertical row) | `"horizontal"` | a horizontal bar | `height` |
+
+That is the opposite of its row's `data-orientation`. Style splitters by their own attribute.
+
+## Wide splitters
+
+A visible bar, as thick as its grab area:
+
+```tsx
+const splitterClassName = [
+    "shrink-0 bg-palette-line outline-none hover:bg-palette-ring focus-visible:bg-palette-ring data-dragging:bg-palette-ring",
+    "data-[orientation=vertical]:w-1.5 data-[orientation=vertical]:cursor-ew-resize",
+    "data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:cursor-ns-resize",
+].join(" ");
+
+function renderSplitter(props: RowSplitterProps) {
+    return <Dockable.Splitter {...props} className={splitterClassName} />;
+}
+```
+
+A splitter renders its children, so a grip is an element inside it:
+
+```tsx
+<Dockable.Splitter {...props} className={splitterClassName}>
+    <span aria-hidden="true" className="grip" />
+</Dockable.Splitter>
+```
+
+<Example slug="splitter-wide" />
+
+## Hairline splitters with a wide grab area
+
+A 1px line is hard to grab. Keep the element 1px (the engine measures it, so the split maths is
+exact) and put the grab area in a centred `::after`, VS Code style:
+
+```tsx
+const splitterClassName = [
+    "relative z-10 shrink-0 bg-palette-line outline-none",
+    "after:absolute after:bg-transparent",
+    "data-dragging:after:bg-palette-ring focus-visible:after:bg-palette-ring",
+    // between side by side children: 1px wide, a 6px grab area
+    "data-[orientation=vertical]:w-px data-[orientation=vertical]:cursor-ew-resize",
+    "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
+    "data-[orientation=vertical]:after:w-1.5 data-[orientation=vertical]:after:-translate-x-1/2",
+    "rtl:data-[orientation=vertical]:after:translate-x-1/2",
+    // between stacked children
+    "data-[orientation=horizontal]:h-px data-[orientation=horizontal]:cursor-ns-resize",
+    "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
+    "data-[orientation=horizontal]:after:h-1.5 data-[orientation=horizontal]:after:-translate-y-1/2",
+].join(" ");
+```
+
+`relative z-10` keeps the grab area above the tabsets and panels it overlaps (panels are
+absolutely positioned in the root and would otherwise cover it). This is gap 9 in
+[Limitations](/docs/limitations): the pattern works; a `SplitterHandle` part is not scheduled.
+
+<Example slug="splitter-hairline" />
+
+## Style every splitter
+
+`renderSplitter` is a prop of each `Row`. Pass it to the root row, to every nested row in your
+recursion, and to the row inside `Dockable.Popout` (gap 6):
+
+```tsx
+function renderNode(child: TabSetNode | RowNode): ReactNode {
+    if (child instanceof TabSetNode) return <MyTabSet node={child} />;
+    return (
+        <Dockable.Row node={child} renderSplitter={renderSplitter}>
+            {renderNode}
+        </Dockable.Row>
+    );
+}
+```
+
+Or skip `renderSplitter` and style the default splitter with a stylesheet:
+`[role="separator"][data-orientation="vertical"] { width: 4px; }` reaches every one.
+
+## Live or preview resizing
+
+By default a drag resizes live: the row's weights change on every pointer move (as
+`adjustWeights` actions marked **adjusting**, collapsed into one undo step).
+`realtimeResize={false}` on `Dockable.Root` previews instead: the splitter moves with a
+structural `transform` while `data-dragging` is set, and the weights change once, on release.
+
+```tsx
+<Dockable.Root model={model} realtimeResize={false}>
+```
+
+Style the preview through `data-dragging` (for example a stronger colour while it floats).
+
+## Keyboard
+
+A splitter is focusable (`tabIndex={0}`). The arrow keys along its axis move it by 10px:
+Left/Right for a vertical bar, Up/Down for a horizontal one. Its ARIA value is the position
+within the row (0–100) with an `aria-valuetext` like `"40%"`. Name it with `getLabel`
+(`DockableLabel.Splitter`, see [Accessible names](/docs/getting-started/accessible-names)).
+
+## Disabling resizing
+
+`<Dockable.Row splitter={false}>` renders no splitters for that row. While a tabset is
+maximized, every row splitter is hidden (`display: none`, structural).
+
+## Reference
+
+[`Dockable.Splitter`](/docs/api/splitter), [`useSplitter`](/docs/api/hooks#usesplitter),
+[`Dockable.Row`](/docs/api/row).

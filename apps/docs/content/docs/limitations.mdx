@@ -1,0 +1,77 @@
+---
+title: Known limitations
+description: What is not there yet, the workaround the examples use, and the Epic that removes it.
+---
+
+Dockable is young. This page lists, honestly, what the public surface is missing today. The
+numbered gaps come from the project's walking-skeleton report (section 2), with the same numbers,
+so issues and example comments can refer to them ("gap 10"). Each has the workaround the examples
+use and the Epic that will remove it, when one is scheduled.
+
+## The gaps
+
+| # | missing | workaround (what the examples do) | removed by |
+| --- | --- | --- | --- |
+| 1 | `Tab` knows `selected` but not whether its **tabset is active**, so "the selected tab of the active tabset" has no attribute. | An ancestor selector: `.tabset[data-active] .tab[data-selected]`, or Tailwind's `in-data-active:` / `group-data-active:` on a child of the tab. | not scheduled yet |
+| 2 | **Panels live outside their tabset** (in the panel layer), so a tabset's `border-radius`/`overflow` cannot clip them, and a panel cannot be styled by its tabset's state. | Rounded tabsets repeat the tabset's inner radius on the panel's bottom corners (it breaks if the strip moves to the bottom), or use square tabsets. The active tabset is marked on its selected tab instead of with a tabset-wide ring. | not scheduled yet |
+| 3 | A popout document does not get the page's **root attributes and body classes** (only `lang` and `dir` are copied), so themes keyed off `:root[data-theme]` or a body class do not apply. | `Dockable.Popout onOpen` copies `data-theme` and adds the body class; the examples' kit re-applies them when the theme changes. See [Theming](/docs/guides/theming#themes-and-popouts). | Epic [#20](https://github.com/fragiola/dockable/issues/20) (`mirrorRoot`) |
+| 4 | Flipping `dir` at runtime moves every tabset without resizing any, so the engine's observers never fire and **panels stay at their old positions**. | Call `engine.sync()` after changing `dir`. | not scheduled yet |
+| 5 | In **RTL, splitter drags and keyboard resizing are wrong** (a drag jumps the first tabset to full width, arrows do nothing), and edge and side drops are physical (`left` docks before, whichever side that renders on). | None. RTL renders correctly, but do not ship an RTL layout that users resize or rearrange. | not scheduled yet |
+| 6 | Styling **every splitter** the same way needs `renderSplitter` on every `Row` (root, nested, and inside `Popout`). | Pass `renderSplitter` to every `Row` (the examples' kit builds the recursion once), or style `[role="separator"]` from a stylesheet. | not scheduled yet |
+| 7 | A **pop out button** for a tabset's selected tab has no primitive: `data-popout-enabled` is on `Tab` only. | The button reads `tabset.getSelectedNode()?.isEnablePopout()` and `mainEngine.isSupportsPopout()`. See [Popouts](/docs/guides/popouts). | Epic [#20](https://github.com/fragiola/dockable/issues/20) (`PopoutTrigger`) |
+| 8 | No **drop-target state** on the tabset under the pointer (only the drop indicator knows where a drop would land). | The drop indicator alone shows the target. | Epic [#19](https://github.com/fragiola/dockable/issues/19) (`data-drop-target`) |
+| 9 | No way to make a splitter's **hit area** wider than its visible thickness. | A 1px splitter with a centred `::after` grab area, `relative z-10`; the engine measures the 1px element, so the split maths is exact. See [Splitters](/docs/guides/splitters). | not scheduled yet |
+| 10 | A drop **before the first tab** is refused when that tab is flush with the tabset's edge (the edge belongs to the tabset's side drop). | Pad the start of the tab list (`padding-inline-start`, `ps-1` or more). | not scheduled yet |
+| 11 | A thin tab strip at the top of the layout falls inside the **10px top-edge docking band**, so a drop aimed at the strip docks to the layout edge. | Give tab lists a minimum height of about 30px. | Epic [#21](https://github.com/fragiola/dockable/issues/21) (`edgeDockMargin` / `EdgeIndicator`) |
+| 12 | The **drop indicator paints under the panels**: panels are portalled into the root after its other children. | A `z-index` on the indicator (`z-10`). | not scheduled yet |
+
+## Features not built yet
+
+| feature | status | removed by |
+| --- | --- | --- |
+| **Borders** (collapsible side panels, overlay borders, edge indicators) | the model reads, saves and applies border actions, but no primitive renders them | Epic [#21](https://github.com/fragiola/dockable/issues/21) |
+| **Floats** (in-page floating windows) | not rendered. The model keeps `"float"` layouts, so avoid `popoutTab(id, "float")` and the `"float"` popout close policy: a floated layout is invisible | not scheduled yet |
+| **Drag between windows and layouts**: main window ↔ popout, popout ↔ popout, and between two separate `Dockable.Root`s | not supported; a tab moves between windows only through actions (pop out, dock back) | Epic [#20](https://github.com/fragiola/dockable/issues/20) |
+| **External drag**: dragging something from outside the layout (a widget sidebar, OS files) into it | not supported | Epic [#18](https://github.com/fragiola/dockable/issues/18) |
+| **Drop control**: custom drop zones, feedback for refused drops, `onAllowDrop` as a `Root` prop | drop rules work today through attributes and `model.setOnAllowDrop` ([Restricting drops](/docs/guides/restricting-drops)); the visuals and zones do not exist | Epic [#19](https://github.com/fragiola/dockable/issues/19) |
+| **Popping out a whole tabset** | `Actions.popoutTabset` exists in the model; the window path is part of full popout support | Epic [#20](https://github.com/fragiola/dockable/issues/20) |
+| **Tab groups** (pills grouping tabs in a strip) | model only; no primitive renders groups | not scheduled yet |
+| **Tab overflow primitive** (measuring which tabs are hidden) | build it yourself ([Tab overflow](/docs/guides/tab-overflow)) | not scheduled yet |
+| **Inline rename on `F2`** | the `renameTab` binding exists in the key map but the primitives do not act on it; build the rename UI ([Tabs](/docs/guides/tabs#renaming-a-tab)) | not scheduled yet |
+| **Adapters for Angular and Vue** | the core is framework-agnostic so they can follow | not scheduled yet |
+
+## RTL
+
+Dockable **renders** right-to-left correctly (the rows mirror, the tab strips run from the right),
+but **interaction is not RTL-aware** yet:
+
+- splitter drags and arrow-key resizing are wrong in RTL (gap 5);
+- drop locations are physical: `left` means the left side on screen, which is the *end* in RTL
+  (gap 5);
+- flipping `dir` at runtime needs a manual `engine.sync()` (gap 4).
+
+The fix (the core reading the row's direction, logical `start`/`end` drop locations) is not
+scheduled yet. Until then, treat RTL layouts as display-only.
+
+## Popout edge cases
+
+- A window layout can end up with **no window and no renderer**: with the `"float"` close
+  policy a closed popout becomes a float, which is not rendered; with the default `"dock"` policy
+  the same happens if `onAction` vetoes the dock-back moves. Either way its tabs are unreachable
+  until the layout is reset. Do not veto moves while a popout closes.
+- The browser may block a popout that is reopened without a user gesture (for example when a
+  saved layout with windows is restored at start-up).
+
+## Other things to know
+
+- **The root needs a size** (by design): an unsized root renders nothing visible. See
+  [Sizing the root](/docs/getting-started/sizing).
+- **A bottom tab strip** is a markup change (render `TabSetContent` before the `TabList`), not a
+  style: `TabSet` is a structural flex column.
+- **The label map** (`Partial<Record<DockableLabel, string>>`) is kept complete by hand as new
+  parts add keys.
+
+## Found something else?
+
+[Open an issue](https://github.com/fragiola/dockable/issues). A gap you work around in your app
+is exactly what the next Epics need to hear about.

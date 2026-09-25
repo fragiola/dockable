@@ -1,0 +1,87 @@
+---
+title: Tab overflow
+description: When a strip has more tabs than fit - clip, wrap, scroll, or list the hidden tabs in a menu.
+---
+
+There is no overflow primitive yet: the tab strip is your element, and what happens when tabs do
+not fit is a styling and UI decision. Four patterns, from simplest:
+
+<Example slug="overflow-select" />
+
+## 1. Clip
+
+`overflow: hidden` on the `TabList` and `flex-shrink: 0` on tabs. Tabs past the end are hidden;
+the selected one can still be reached with the keyboard (arrow keys move through all tabs) but
+not seen. Fine for strips that rarely overflow.
+
+## 2. Shrink
+
+Let tabs shrink with a minimum width and truncate their label:
+
+```tsx
+<Dockable.Tab node={tab} className="flex min-w-16 max-w-48 shrink items-center px-3">
+    <span className="truncate">{tab.getName()}</span>
+</Dockable.Tab>
+```
+
+## 3. Wrap or scroll
+
+`flex-wrap: wrap` on the strip gives several rows of tabs (the tabset's `enableTabWrap` attribute
+is a natural switch: `node.isEnableTabWrap()`). `overflow-x: auto` gives a scrollable strip;
+scroll the selected tab into view when the selection changes:
+
+```tsx
+function ScrollingTab({ tab }: { tab: TabNode }) {
+    const ref = useRef<HTMLElement>(null);
+    const selected = tab.isSelected();
+    useEffect(() => {
+        if (selected) ref.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }, [selected]);
+    return (
+        <Dockable.Tab node={tab} ref={ref}>
+            {tab.getName()}
+        </Dockable.Tab>
+    );
+}
+```
+
+Keep the strip's start padding in every case: a drop before the first tab needs it (gap 10).
+
+## 4. A menu of the tabs
+
+List the tabset's tabs in a select or menu at the end of the strip, and select with the same
+action a click dispatches:
+
+```tsx
+import { Actions, type TabNode, type TabSetNode } from "@fragiola/dockable";
+import { useDockable } from "@fragiola/dockable-react";
+
+function TabPicker({ tabset }: { tabset: TabSetNode }) {
+    const { engine } = useDockable();
+    const selected = tabset.getSelectedNode() as TabNode | undefined;
+    return (
+        <select
+            aria-label="All tabs"
+            value={selected?.getId() ?? ""}
+            onChange={(event) => engine.doAction(Actions.selectTab(event.target.value))}
+        >
+            {tabset.getTabNodes().map((tab) => (
+                <option key={tab.getId()} value={tab.getId()}>
+                    {tab.getName() || tab.getAltName()}
+                </option>
+            ))}
+        </select>
+    );
+}
+```
+
+`altName` is "the name used in the overflow menu when the tab has no name (e.g. an icon-only
+tab)". The [`overflow-select`](/examples/overflow-select/) example uses Fragiola UI's `Select`
+and shows only the tabs that are actually hidden, by measuring the strip.
+
+The label key `DockableLabel.Overflow_Menu_Tooltip` exists for the overflow button's name.
+
+## What is coming
+
+An overflow hook and trigger primitive (measuring which tabs are hidden for you) are planned
+with tab groups; they are not scheduled in an Epic yet. See [Limitations](/docs/limitations).

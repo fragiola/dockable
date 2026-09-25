@@ -1,0 +1,64 @@
+---
+title: Dockable.DropIndicator
+description: The drop outline of a drag - one element positioned over the drop target, hidden when there is none.
+---
+
+"The drop outline of a drag: one element, positioned (structurally) over the rect the core
+computed, hidden when there is no drop target. Place it anywhere inside `Dockable.Root`. It has
+no content of its own."
+
+```tsx
+<Dockable.DropIndicator
+    className="z-10 rounded-md border-2 border-palette-ring bg-palette-ring/15 data-[drop-kind=edge]:border-dashed"
+    style={(state) => ({ transition: `all ${state.tabDragSpeed}s` })}
+/>
+```
+
+Give it a `z-index`: the panels are portalled into the root after it and would paint over it
+(gap 12).
+
+## Props
+
+`DropIndicatorProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | none | optional content (an icon, a hint) |
+
+## State
+
+`DropIndicatorState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `visible` | `boolean` | a drop target is under the pointer |
+| `location` | `"center" \| "top" \| "bottom" \| "left" \| "right"` | where the dragged node would dock relative to the target |
+| `kind` | `"rect" \| "edge"` | `"edge"` for a drop at the outer edge of a row, `"rect"` otherwise |
+| `dragging` | `boolean` | a drag is over the layout |
+| `showEdges` | `boolean` | edge docking is available for this drag |
+| `tabDragSpeed` | `number` | seconds a style may take to animate between targets |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `"/outline"` |
+| `data-visible` | a drop target is under the pointer |
+| `data-drop-location` | while visible: the location |
+| `data-drop-kind` | while visible: `"rect"` or `"edge"` |
+| `data-dragging` | a drag is over the layout |
+| `aria-hidden` | `true` |
+
+## Structural style
+
+`position: absolute`, `left`, `top`, `width`, `height` (the target rect, relative to the root),
+`display: none` while not visible, and `pointer-events: none`: "hit-testing, not cosmetics: an
+indicator under the pointer would take the drag's enter/leave events from the layout and make the
+browser cancel the drop."
+
+## Notes
+
+- One indicator per layout: inside `Dockable.Popout`, render another one for the window if
+  drops inside popouts should show an outline.
+- The core never animates. `tabDragSpeed` (from `Root`, default 0.3) is a duration hint for your
+  transition.

@@ -1,0 +1,105 @@
+---
+title: Actions
+description: Every model change is an action. The creators, their type constants and their data.
+---
+
+"Action creators for FlexLayout model mutations." Each static method of `Actions` (from
+`@fragiola/dockable`) returns an `Action`. Dispatch it with `engine.doAction(action)` (through
+`onAction`); see [The model and actions](/docs/concepts/model-and-actions).
+
+```ts
+import { Actions, DockLocation } from "@fragiola/dockable";
+
+engine.doAction(Actions.addTab({ type: "tab", name: "Log", component: "log" }, "ts1", DockLocation.BOTTOM, -1));
+engine.doAction(Actions.group([Actions.deleteTab("a"), Actions.deleteTab("b")]));
+```
+
+In `onAction`, compare `action.type` with the constants (`Actions.DELETE_TAB`, …). Their values
+are FlexLayout's (`"FlexLayout_DeleteTab"`, …). `action.data` holds the creator's arguments under
+the names listed below; `location` is stored as its name (`"center"`, `"top"`, …), read it back
+with `DockLocation.getByName(action.data.location)`.
+
+`DockLocation` values: `DockLocation.CENTER`, `TOP`, `BOTTOM`, `LEFT`, `RIGHT`. For `addTab` and
+`moveNode`, `CENTER` adds to the target tabset at `index` (`-1` appends); the others split the
+target and create a new tabset on that side (or, with a row as the target, dock along its edge).
+
+## Tabs
+
+| creator | type constant | `action.data` | description |
+| --- | --- | --- | --- |
+| `addTab(json: IJsonTabNode, toNodeId: string, location: DockLocation, index: number, select?: boolean)` | `ADD_TAB` | `json`, `toNode`, `location`, `index`, `select` | Adds a tab node to the given tabset node |
+| `deleteTab(tabNodeId: string)` | `DELETE_TAB` | `node` | Deletes a tab node from the layout |
+| `renameTab(tabNodeId: string, text: string)` | `RENAME_TAB` | `node`, `text` | Change the given nodes tab text |
+| `selectTab(tabNodeId: string)` | `SELECT_TAB` | `tabNode` | Selects the given tab in its parent tabset |
+| `setTabPinned(tabNodeId: string, pinned: boolean)` | `SET_TAB_PINNED` | `node`, `pinned` | Pins or unpins the given tab; pinning moves it to the end of the pinned group at the start of its tabset's tabstrip, unpinning moves it to the start of the unpinned tabs. Only applies to tabs in tabsets (ignored for border tabs). |
+| `moveNode(fromNodeId: string, toNodeId: string, location: DockLocation, index: number, select?: boolean)` | `MOVE_NODE` | `fromNode`, `toNode`, `location`, `index`, `select` | Moves a node (tab or tabset) from one location to another |
+| `addNode(json: IJsonTabNode, toNodeId: string, location: DockLocation, index: number, select?: boolean)` | `ADD_TAB` | same as `addTab` | Deprecated: use `addTab` instead. |
+
+## Tabsets and rows
+
+| creator | type constant | `action.data` | description |
+| --- | --- | --- | --- |
+| `setActiveTabset(tabsetNodeId: string \| undefined, layoutId?: string \| undefined)` | `SET_ACTIVE_TABSET` | `tabsetNode`, `layoutId` | Set the given tabset node as the active tabset |
+| `deleteTabset(tabsetNodeId: string)` | `DELETE_TABSET` | `node` | Deletes a tabset node and all it's child tab nodes from the layout |
+| `maximizeToggle(tabsetNodeId: string, layoutId?: string \| undefined)` | `MAXIMIZE_TOGGLE` | `node`, `layoutId` | Maximizes the given tabset |
+| `adjustWeights(nodeId: string, weights: number[])` | `ADJUST_WEIGHTS` | `nodeId`, `weights` | Adjust the weights of a row, used when the splitter is moved |
+
+## Attributes
+
+| creator | type constant | `action.data` | description |
+| --- | --- | --- | --- |
+| `updateModelAttributes(attributes: IGlobalAttributes)` | `UPDATE_MODEL_ATTRIBUTES` | `json` | Updates the global model jsone attributes |
+| `updateNodeAttributes(nodeId: string, attributes: \| IRowAttributes \| ITabSetAttributes \| ITabAttributes \| ITabGroupAttributes \| IBorderAttributes)` | `UPDATE_NODE_ATTRIBUTES` | `node`, `json` | Updates the given nodes json attributes |
+| `updateSubLayoutAttributes(layoutId: string, attributes: ISubLayoutAttributes)` | `UPDATE_SUBLAYOUT_ATTRIBUTES` | `layoutId`, `json` | Updates the given sublayout's json attributes |
+
+## Popout windows
+
+Use `type` `"window"` (the default). `"float"` layouts are kept in the model but not rendered yet.
+
+| creator | type constant | `action.data` | description |
+| --- | --- | --- | --- |
+| `popoutTab(nodeId: string, type: ILayoutType = "window")` | `POPOUT_TAB` | `node`, `type` | Pops out the given tab node into a new browser window or floating panel |
+| `popoutTabset(nodeId: string, type: ILayoutType = "window")` | `POPOUT_TABSET` | `node`, `type` | Pops out the given tabset node into a new browser window or floating panel |
+| `closePopout(layoutId: string)` | `CLOSE_POPOUT` | `layoutId` | Closes the popout. For a window layout this is FlexLayout's conversion into a float, which is not rendered yet; see [Popouts](/docs/guides/popouts#closing-a-popout) |
+| `createPopout(layout: IJsonRowNode, rect: IJsonRect, type: ILayoutType)` | `CREATE_SUBLAYOUT` | same as `createSubLayout` | Creates a new empty popout window with the given layout (alias for createSubLayout) |
+| `createSubLayout(layout: IJsonRowNode, rect: IJsonRect, type: ILayoutType)` | `CREATE_SUBLAYOUT` | `layout`, `rect`, `type` | Creates a new sublayout with the given layout |
+
+## Batches
+
+| creator | type constant | `action.data` | description |
+| --- | --- | --- | --- |
+| `group(actions: Action[])` | `GROUP` | the actions (as `data`) and `actions` | Groups multiple actions into a single `GroupAction`. When performed, the model applies the contained actions in sequence between a single `onBeforeAction`/`onAfterAction` listener pair, so the batch is a single undo step and a single entry in an action log. |
+
+## Not rendered yet: borders, floats and tab groups
+
+The model applies these (they are ported from FlexLayout and unit-tested), but no primitive renders borders, floats or tab groups yet, so their effect is not visible. See [Limitations](/docs/limitations).
+
+| creator | type constant | `action.data` | description |
+| --- | --- | --- | --- |
+| `setBorderType(borderNodeId: string, borderType: "split" \| "overlay")` | `SET_BORDER_TYPE` | `node`, `borderType` | Sets the display type of the given border. In 'overlay' mode the selected tab's panel overlays the main layout area instead of insetting it (Visual Studio style auto hide), and is deselected by a pointer-down in the main layout area. |
+| `adjustBorderSplit(nodeId: string, size: number)` | `ADJUST_BORDER_SPLIT` | `node`, `size` | Adjust the size of the border |
+| `movePopoutToFront(layoutId: string)` | `MOVE_FLOAT_TO_FRONT` | `layoutId` | Moves a floating panel popout to the front of the display |
+| `moveFloat(layoutId: string, rect: Rect)` | `MOVE_FLOAT` | `layoutId`, `rect` | Moves a floating panel |
+| `popoutFloat(layoutId: string, rect?: IJsonRect)` | `POPOUT_FLOAT` | `layoutId`, `rect` | Converts a floating panel into a native popout window (the reverse of closePopout). The layout keeps its id and content; the given rect should be in screen coordinates. |
+| `dockFloatToLayout(layoutId: string, toNodeId: string, location: DockLocation, index: number)` | `DOCK_FLOAT_TO_LAYOUT` | `layoutId`, `toNode`, `location`, `index` | Docks a floating panel's whole layout into another layout. |
+| `addTabToNewGroup(tabNodeId: string, name?: string, color?: string)` | `ADD_TAB_TO_NEW_GROUP` | `node`, `name`, `color` | Creates a new group in the tab's parent tabset/border and moves the tab into it. The group is inserted at the tab's position, so the tab becomes the first (and initially only) member. |
+| `ungroup(groupNodeId: string)` | `UNGROUP` | `node` | Moves every tab of the given group back into the group's parent tabset/border (at the group's position) and deletes the now-empty group. The group's color/name is lost. |
+| `removeTabFromGroup(tabNodeId: string)` | `REMOVE_TAB_FROM_GROUP` | `node` | Moves a tab out of its group into the group's parent tabset/border, directly after the group. The group is deleted if it becomes empty. |
+
+## The `Action` object
+
+| member | description |
+| --- | --- |
+| `type` | the type constant |
+| `data` | the creator's arguments |
+| `isAdjusting()` | true for the intermediate `adjustWeights` of a live splitter drag (the gesture ends with a non-adjusting action) |
+| `setAdjusting(adjusting)` | marks an action as adjusting |
+| `userData` / `setUserData(data)` | any value you attach (for example to mark an action you re-dispatch after a confirmation) |
+| `toJSON()` | a plain `{ type, data }` object (with `userData` when set), for logs |
+
+`GroupAction` (from `Actions.group`) has `actions`: the contained actions, applied in order
+between a single `onBeforeAction`/`onAfterAction` pair: one undo step, one log entry.
+
+## Type constants
+
+`ADD_TAB`, `DELETE_TAB`, `RENAME_TAB`, `SET_TAB_PINNED`, `SET_BORDER_TYPE`, `SELECT_TAB`, `MOVE_NODE`, `DELETE_TABSET`, `SET_ACTIVE_TABSET`, `ADJUST_WEIGHTS`, `ADJUST_BORDER_SPLIT`, `MAXIMIZE_TOGGLE`, `UPDATE_MODEL_ATTRIBUTES`, `UPDATE_NODE_ATTRIBUTES`, `UPDATE_SUBLAYOUT_ATTRIBUTES`, `POPOUT_TAB`, `POPOUT_TABSET`, `CLOSE_POPOUT`, `MOVE_FLOAT_TO_FRONT`, `MOVE_FLOAT`, `DOCK_FLOAT_TO_LAYOUT`, `POPOUT_FLOAT`, `CREATE_SUBLAYOUT`, `ADD_TAB_TO_NEW_GROUP`, `UNGROUP`, `REMOVE_TAB_FROM_GROUP`, `GROUP`.
