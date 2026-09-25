@@ -1,0 +1,708 @@
+// Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/model/RowNode.ts.
+// Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+
+import { Attribute, Attributes } from "./Attributes";
+import { BorderNode } from "./BorderNode";
+import { DockLocation } from "./DockLocation";
+import { DropInfo } from "./DropInfo";
+import type { IDraggable } from "./IDraggable";
+import type { IDropTarget } from "./IDropTarget";
+import type {
+    IJsonRowNode,
+    IJsonTabSetNode,
+    IRowAttributes,
+    ITabAttributes,
+} from "./IJsonModel";
+import { DefaultMax, DefaultMin, Model } from "./Model";
+import type { ModelLayout } from "./ModelLayout";
+import { Node } from "./Node";
+import { Orientation } from "./Orientation";
+import { TabNode } from "./TabNode";
+import { TabSetNode } from "./TabSetNode";
+import { isInSubtree } from "./Utils";
+
+export class RowNode extends Node implements IDropTarget {
+    static readonly TYPE = "row";
+
+    /** @internal */
+    static fromJson(json: IJsonRowNode, model: Model, layout: ModelLayout) {
+        const newLayoutNode = new RowNode(model, json);
+
+        if (json.children != null) {
+            for (const jsonChild of json.children) {
+                if (jsonChild.type === TabSetNode.TYPE) {
+                    const child = TabSetNode.fromJson(
+                        jsonChild as IJsonTabSetNode,
+                        model,
+                        layout,
+                    );
+                    newLayoutNode.addChild(child);
+                } else if (jsonChild.type === RowNode.TYPE) {
+                    const child = RowNode.fromJson(
+                        jsonChild as IJsonRowNode,
+                        model,
+                        layout,
+                    );
+                    newLayoutNode.addChild(child);
+                } else {
+                    // reject rather than silently dropping malformed json content
+                    throw new Error(
+                        `Error: invalid row child type "${jsonChild.type}" (expected "row" or "tabset")`,
+                    );
+                }
+            }
+        }
+
+        return newLayoutNode;
+    }
+
+    /** @internal */
+    private static attributeDefinitions: Attributes =
+        RowNode.createAttributeDefinitions();
+
+    /** @internal */
+    private layout?: ModelLayout;
+    /** @internal */
+    private minHeight: number;
+    /** @internal */
+    private minWidth: number;
+    /** @internal */
+    private maxHeight: number;
+    /** @internal */
+    private maxWidth: number;
+
+    /** @internal */
+    constructor(model: Model, json: IJsonRowNode) {
+        super(model);
+
+        this.minHeight = DefaultMin;
+        this.minWidth = DefaultMin;
+        this.maxHeight = DefaultMax;
+        this.maxWidth = DefaultMax;
+        RowNode.attributeDefinitions.fromJson(json, this.attributes);
+        model.addNode(this);
+    }
+
+    getWeight() {
+        return this.attributes.weight as number;
+    }
+
+    toJson(): IJsonRowNode {
+        const json: IJsonRowNode = {};
+        RowNode.attributeDefinitions.toJson(json, this.attributes);
+
+        json.children = [];
+        for (const child of this.children) {
+            json.children.push((child as RowNode | TabSetNode).toJson());
+        }
+
+        return json;
+    }
+
+    /** @internal */
+    getLayout() {
+        if (this.layout) {
+            return this.layout;
+        }
+        return super.getLayout();
+    }
+
+    /** @internal */
+    setLayout(layout: ModelLayout | undefined) {
+        this.layout = layout;
+    }
+
+    /** @internal */
+    setWeight(weight: number) {
+        this.attributes.weight = weight;
+    }
+
+    /** @internal */
+    getSplitterBounds(index: number): [number, number] {
+        const h = this.getOrientation() === Orientation.HORZ;
+        const c = this.getChildren();
+        const ss = this.model.getSplitterSize()!;
+        const first = c[0];
+        const last = c[c.length - 1];
+        if (!first || !last) {
+            return [0, 0];
+        }
+        const fr = first.getRect();
+        const lr = last.getRect();
+        let p: [number, number] = h
+            ? [fr.x, lr.getRight()]
+            : [fr.y, lr.getBottom()];
+        const q: [number, number] = h
+            ? [fr.x, lr.getRight()]
+            : [fr.y, lr.getBottom()];
+
+        for (let i = 0; i < index; i++) {
+            const n = c[i] as TabSetNode | RowNode;
+            // Keep bounds ordered when min/max conflict
+            p[0] += h ? n.getMinWidth() : n.getMinHeight();
+            q[0] += h
+                ? Math.max(n.getMinWidth(), n.getMaxWidth())
+                : Math.max(n.getMinHeight(), n.getMaxHeight());
+            if (i > 0) {
+                p[0] += ss;
+                q[0] += ss;
+            }
+        }
+
+        for (let i = c.length - 1; i >= index; i--) {
+            const n = c[i] as TabSetNode | RowNode;
+            p[1] -= (h ? n.getMinWidth() : n.getMinHeight()) + ss;
+            q[1] -=
+                (h
+                    ? Math.max(n.getMinWidth(), n.getMaxWidth())
+                    : Math.max(n.getMinHeight(), n.getMaxHeight())) + ss;
+        }
+
+        p = [Math.max(q[1], p[0]), Math.min(q[0], p[1])];
+
+        // Keep bounds ordered when constraints conflict
+        if (p[0] > p[1]) {
+            p = [p[0], p[0]];
+        }
+
+        return p;
+    }
+
+    /** @internal */
+    getSplitterInitials(index: number) {
+        const h = this.getOrientation() === Orientation.HORZ;
+        const c = this.getChildren();
+        const ss = this.model.getSplitterSize()!;
+        const initialSizes = [];
+
+        let sum = 0;
+
+        for (let i = 0; i < c.length; i++) {
+            const n = c[i] as TabSetNode | RowNode;
+            const r = n.getRect();
+            const s = h ? r.width : r.height;
+            initialSizes.push(s);
+            sum += s;
+        }
+
+        // index is a splitter position, always within 1..children-1
+        const startRect = c[index]!.getRect();
+        const startPosition = (h ? startRect.x : startRect.y) - ss;
+
+        return { initialSizes, sum, startPosition };
+    }
+
+    /** @internal */
+    calculateSplit(
+        index: number,
+        splitterPos: number,
+        initialSizes: number[],
+        sum: number,
+        startPosition: number,
+    ) {
+        const h = this.getOrientation() === Orientation.HORZ;
+        const c = this.getChildren();
+
+        const sizes = [...initialSizes];
+
+        // a zero (unmeasured) row would divide by zero and emit Infinity/NaN weights; return an
+        // empty array so the ADJUST_WEIGHTS consumer leaves the current weights untouched
+        if (sum <= 0 || sizes.length === 0) {
+            return [];
+        }
+
+        // sizes holds one entry per child, and every index below is bounded by the children
+        const size = (i: number) => sizes[i] ?? 0;
+
+        if (splitterPos < startPosition) {
+            // moved left
+            const sn = c[index] as TabSetNode | RowNode; // child after the splitter grows
+            const smax = h ? sn.getMaxWidth() : sn.getMaxHeight();
+            let shift = startPosition - splitterPos;
+            let altShift = 0;
+            if (size(index) + shift > smax) {
+                altShift = size(index) + shift - smax;
+                sizes[index] = smax;
+            } else {
+                sizes[index] = size(index) + shift;
+            }
+
+            for (let i = index - 1; i >= 0; i--) {
+                const n = c[i] as TabSetNode | RowNode;
+                const m = h ? n.getMinWidth() : n.getMinHeight();
+                if (size(i) - shift > m) {
+                    sizes[i] = size(i) - shift;
+                    break;
+                } else {
+                    shift -= size(i) - m;
+                    sizes[i] = m;
+                }
+            }
+
+            for (let i = index + 1; i < c.length; i++) {
+                const n = c[i] as TabSetNode | RowNode;
+                const m = h ? n.getMaxWidth() : n.getMaxHeight();
+                if (size(i) + altShift < m) {
+                    sizes[i] = size(i) + altShift;
+                    break;
+                } else {
+                    altShift -= m - size(i);
+                    sizes[i] = m;
+                }
+            }
+        } else {
+            const sn = c[index - 1] as TabSetNode | RowNode; // child before the splitter grows
+            const smax = h ? sn.getMaxWidth() : sn.getMaxHeight();
+            let shift = splitterPos - startPosition;
+            let altShift = 0;
+            if (size(index - 1) + shift > smax) {
+                altShift = size(index - 1) + shift - smax;
+                sizes[index - 1] = smax;
+            } else {
+                sizes[index - 1] = size(index - 1) + shift;
+            }
+
+            for (let i = index; i < c.length; i++) {
+                const n = c[i] as TabSetNode | RowNode;
+                const m = h ? n.getMinWidth() : n.getMinHeight();
+                if (size(i) - shift > m) {
+                    sizes[i] = size(i) - shift;
+                    break;
+                } else {
+                    shift -= size(i) - m;
+                    sizes[i] = m;
+                }
+            }
+
+            for (let i = index - 1; i >= 0; i--) {
+                const n = c[i] as TabSetNode | RowNode;
+                const m = h ? n.getMaxWidth() : n.getMaxHeight();
+                if (size(i) + altShift < m) {
+                    sizes[i] = size(i) + altShift;
+                    break;
+                } else {
+                    altShift -= m - size(i);
+                    sizes[i] = m;
+                }
+            }
+        }
+
+        // 0.1 is to prevent weight ever going to zero
+        const weights = sizes.map((s) => (Math.max(0.1, s) * 100) / sum);
+
+        // console.log(splitterPos, startPosition, "sizes", sizes);
+        // console.log("weights",weights);
+        return weights;
+    }
+
+    /** @internal */
+    getMinWidth() {
+        return this.minWidth;
+    }
+
+    /** @internal */
+    getMinHeight() {
+        return this.minHeight;
+    }
+
+    /** @internal */
+    getMaxWidth() {
+        return this.maxWidth;
+    }
+
+    /** @internal */
+    getMaxHeight() {
+        return this.maxHeight;
+    }
+
+    /** @internal */
+    calcMinMaxSize() {
+        this.minHeight = DefaultMin;
+        this.minWidth = DefaultMin;
+        this.maxHeight = DefaultMax;
+        this.maxWidth = DefaultMax;
+        let first = true;
+        for (const child of this.children) {
+            const c = child as RowNode | TabSetNode;
+            c.calcMinMaxSize();
+            // Keep bounds ordered when min/max conflict
+            const cMaxH = Math.max(c.getMinHeight(), c.getMaxHeight());
+            const cMaxW = Math.max(c.getMinWidth(), c.getMaxWidth());
+            if (this.getOrientation() === Orientation.VERT) {
+                this.minHeight += c.getMinHeight();
+                this.maxHeight += cMaxH;
+                if (!first) {
+                    this.minHeight += this.model.getSplitterSize()!;
+                    this.maxHeight += this.model.getSplitterSize()!;
+                }
+                this.minWidth = Math.max(this.minWidth, c.getMinWidth());
+                this.maxWidth = Math.min(this.maxWidth, cMaxW);
+            } else {
+                this.minWidth += c.getMinWidth();
+                this.maxWidth += cMaxW;
+                if (!first) {
+                    this.minWidth += this.model.getSplitterSize()!;
+                    this.maxWidth += this.model.getSplitterSize()!;
+                }
+                this.minHeight = Math.max(this.minHeight, c.getMinHeight());
+                this.maxHeight = Math.min(this.maxHeight, cMaxH);
+            }
+            first = false;
+        }
+
+        // Keep bounds ordered when constraints conflict
+        this.maxWidth = Math.max(this.maxWidth, this.minWidth);
+        this.maxHeight = Math.max(this.maxHeight, this.minHeight);
+    }
+
+    /** @internal */
+    tidy() {
+        let i = 0;
+        while (i < this.children.length) {
+            const child = this.children[i];
+            if (child instanceof RowNode) {
+                child.tidy();
+
+                const childChildren = child.getChildren();
+                if (childChildren.length === 0) {
+                    this.removeChild(child);
+                } else if (childChildren.length === 1) {
+                    // hoist child/children up to this level
+                    const subchild = childChildren[0] as RowNode | TabSetNode;
+                    this.removeChild(child);
+                    if (subchild instanceof RowNode) {
+                        let subChildrenTotal = 0;
+                        const subChildChildren = subchild.getChildren();
+                        for (const ssc of subChildChildren) {
+                            const subsubChild = ssc as RowNode | TabSetNode;
+                            subChildrenTotal += subsubChild.getWeight();
+                        }
+                        for (let j = 0; j < subChildChildren.length; j++) {
+                            const subsubChild = subChildChildren[j] as
+                                | RowNode
+                                | TabSetNode;
+                            // guard against all-zero weights (possible from json): distribute the
+                            // hoisted weight evenly rather than dividing by zero and poisoning the
+                            // layout with NaN weights
+                            subsubChild.setWeight(
+                                subChildrenTotal === 0
+                                    ? child.getWeight() /
+                                          subChildChildren.length
+                                    : (child.getWeight() *
+                                          subsubChild.getWeight()) /
+                                          subChildrenTotal,
+                            );
+                            this.addChild(subsubChild, i + j);
+                        }
+                    } else {
+                        subchild.setWeight(child.getWeight());
+                        this.addChild(subchild, i);
+                    }
+                } else {
+                    i++;
+                }
+            } else if (
+                child instanceof TabSetNode &&
+                child.getChildren().length === 0
+            ) {
+                if (child.isEnableDeleteWhenEmpty() && child.isEnableClose()) {
+                    this.removeChild(child);
+                    if (
+                        child ===
+                        this.model.getMaximizedTabset(this.getLayoutId())
+                    ) {
+                        this.model.setMaximizedTabset(
+                            undefined,
+                            this.getLayoutId()!,
+                        );
+                    }
+                } else {
+                    i++;
+                }
+            } else {
+                i++;
+            }
+        }
+
+        // add tabset into empty root?
+        if (
+            this === this.model.getRootRow(this.getLayoutId()) &&
+            this.children.length === 0
+        ) {
+            const layout = this.getLayout()!;
+            if (
+                layout?.getType() !== "tab" &&
+                this.getLayoutId() !== Model.MAIN_LAYOUT_ID
+            ) {
+                this.model.getLayouts().delete(this.getLayoutId()!);
+            } else {
+                const callback = this.model.getOnCreateTabSet();
+                let attrs = callback ? callback() : {};
+                attrs = { ...attrs, selected: -1 };
+                const child = new TabSetNode(this.model, attrs);
+                this.model.setActiveTabset(child, this.getLayoutId()!);
+                this.addChild(child);
+            }
+        }
+    }
+
+    /** @internal */
+    canDrop(
+        dragNode: Node & IDraggable,
+        x: number,
+        y: number,
+        _excludeCenter: boolean = false,
+    ): DropInfo | undefined {
+        const yy = y - this.rect.y;
+        const xx = x - this.rect.x;
+        const w = this.rect.width;
+        const h = this.rect.height;
+        const margin = 10; // height of edge rect
+        const half = this.model.isEnableEdgeDockIndicators() ? 50 : 9999; // half width of edge rect
+        let dropInfo: DropInfo | undefined;
+
+        const layout = this.getLayout();
+
+        if (
+            this.getLayoutId() !== Model.MAIN_LAYOUT_ID &&
+            !layout!.canDockTo(dragNode)
+        ) {
+            return undefined;
+        }
+
+        if (this.model.isEnableEdgeDock() && this.parent === undefined) {
+            if (
+                x < this.rect.x + margin &&
+                yy > h / 2 - half &&
+                yy < h / 2 + half
+            ) {
+                const dockLocation = DockLocation.LEFT;
+                const outlineRect = dockLocation.getDockRect(this.rect);
+                outlineRect.width = outlineRect.width / 2;
+                dropInfo = new DropInfo(
+                    this,
+                    outlineRect,
+                    dockLocation,
+                    -1,
+                    "edge",
+                );
+            } else if (
+                x > this.rect.getRight() - margin &&
+                yy > h / 2 - half &&
+                yy < h / 2 + half
+            ) {
+                const dockLocation = DockLocation.RIGHT;
+                const outlineRect = dockLocation.getDockRect(this.rect);
+                outlineRect.width = outlineRect.width / 2;
+                outlineRect.x += outlineRect.width;
+                dropInfo = new DropInfo(
+                    this,
+                    outlineRect,
+                    dockLocation,
+                    -1,
+                    "edge",
+                );
+            } else if (
+                y < this.rect.y + margin &&
+                xx > w / 2 - half &&
+                xx < w / 2 + half
+            ) {
+                const dockLocation = DockLocation.TOP;
+                const outlineRect = dockLocation.getDockRect(this.rect);
+                outlineRect.height = outlineRect.height / 2;
+                dropInfo = new DropInfo(
+                    this,
+                    outlineRect,
+                    dockLocation,
+                    -1,
+                    "edge",
+                );
+            } else if (
+                y > this.rect.getBottom() - margin &&
+                xx > w / 2 - half &&
+                xx < w / 2 + half
+            ) {
+                const dockLocation = DockLocation.BOTTOM;
+                const outlineRect = dockLocation.getDockRect(this.rect);
+                outlineRect.height = outlineRect.height / 2;
+                outlineRect.y += outlineRect.height;
+                dropInfo = new DropInfo(
+                    this,
+                    outlineRect,
+                    dockLocation,
+                    -1,
+                    "edge",
+                );
+            }
+
+            if (dropInfo !== undefined) {
+                if (!this.canDockInto(dragNode, dropInfo)) {
+                    return undefined;
+                }
+            }
+        }
+
+        return dropInfo;
+    }
+
+    /** @internal */
+    drop(
+        dragNode: Node,
+        location: DockLocation,
+        index: number,
+        _select?: boolean,
+    ): void {
+        const dockLocation = location;
+
+        if (isInSubtree(this, dragNode)) {
+            // dropping a row/tabset into itself or one of its own descendants would corrupt the tree
+            return;
+        }
+
+        const parent = dragNode.getParent();
+
+        if (parent) {
+            parent.removeChild(dragNode);
+        }
+
+        if (parent !== undefined && parent! instanceof TabSetNode) {
+            parent.setSelected(0);
+        }
+
+        if (parent !== undefined && parent! instanceof BorderNode) {
+            parent.setSelected(-1);
+        }
+
+        let node: TabSetNode | RowNode | undefined;
+        if (dragNode instanceof TabSetNode || dragNode instanceof RowNode) {
+            node = dragNode;
+            // need to turn round if same orientation unless docking oposite direction
+            if (
+                node instanceof RowNode &&
+                node.getOrientation() === this.getOrientation() &&
+                (location.getOrientation() === this.getOrientation() ||
+                    location === DockLocation.CENTER)
+            ) {
+                node = new RowNode(this.model, {});
+                node.addChild(dragNode);
+            }
+        } else {
+            // a tab or a group docked to a row is wrapped in a new tabset
+            const callback = this.model.getOnCreateTabSet();
+            const json: ITabAttributes =
+                callback && dragNode instanceof TabNode
+                    ? callback(dragNode)
+                    : {};
+            node = new TabSetNode(this.model, json);
+            node.addChild(dragNode);
+        }
+        let size = this.children.reduce((sum, child) => {
+            return sum + (child as RowNode | TabSetNode).getWeight();
+        }, 0);
+
+        if (size === 0) {
+            size = 100;
+        }
+
+        node.setWeight(size / 3);
+
+        const horz = this.getOrientation() === Orientation.HORZ;
+        if (dockLocation === DockLocation.CENTER) {
+            if (index === -1) {
+                this.addChild(node, this.children.length);
+            } else {
+                this.addChild(node, index);
+            }
+        } else if (
+            (horz && dockLocation === DockLocation.LEFT) ||
+            (!horz && dockLocation === DockLocation.TOP)
+        ) {
+            this.addChild(node, 0);
+        } else if (
+            (horz && dockLocation === DockLocation.RIGHT) ||
+            (!horz && dockLocation === DockLocation.BOTTOM)
+        ) {
+            this.addChild(node);
+        } else if (
+            (horz && dockLocation === DockLocation.TOP) ||
+            (!horz && dockLocation === DockLocation.LEFT)
+        ) {
+            const vrow = new RowNode(this.model, {});
+            const hrow = new RowNode(this.model, {});
+            hrow.setWeight(75);
+            node.setWeight(25);
+            for (const child of this.children) {
+                hrow.addChild(child);
+            }
+            this.removeAll();
+            vrow.addChild(node);
+            vrow.addChild(hrow);
+            this.addChild(vrow);
+        } else if (
+            (horz && dockLocation === DockLocation.BOTTOM) ||
+            (!horz && dockLocation === DockLocation.RIGHT)
+        ) {
+            const vrow = new RowNode(this.model, {});
+            const hrow = new RowNode(this.model, {});
+            hrow.setWeight(75);
+            node.setWeight(25);
+            for (const child of this.children) {
+                hrow.addChild(child);
+            }
+            this.removeAll();
+            vrow.addChild(hrow);
+            vrow.addChild(node);
+            this.addChild(vrow);
+        }
+
+        if (node instanceof TabSetNode) {
+            this.model.setActiveTabset(node, this.getLayoutId()!);
+        }
+
+        this.model.tidy();
+    }
+
+    /** @internal */
+    isEnableDrop() {
+        return true;
+    }
+
+    /** @internal */
+    getAttributeDefinitions() {
+        return RowNode.attributeDefinitions;
+    }
+
+    /** @internal */
+    updateAttrs(json: IRowAttributes) {
+        RowNode.attributeDefinitions.update(json, this.attributes);
+    }
+
+    /** @internal */
+    static getAttributeDefinitions() {
+        Model.ensureAttributePairing();
+        return RowNode.attributeDefinitions;
+    }
+
+    /** @internal */
+    private static createAttributeDefinitions(): Attributes {
+        const attributeDefinitions = new Attributes();
+        attributeDefinitions
+            .add("type", RowNode.TYPE, true)
+            .setType(Attribute.STRING)
+            .setFixed();
+        attributeDefinitions
+            .add("id", undefined)
+            .setType(Attribute.STRING)
+            .setDescription(
+                `the unique id of the row, if left undefined a uuid will be assigned`,
+            );
+        attributeDefinitions
+            .add("weight", 100)
+            .setType(Attribute.NUMBER)
+            .setDescription(
+                `relative weight for sizing of this row in parent row`,
+            );
+
+        return attributeDefinitions;
+    }
+}

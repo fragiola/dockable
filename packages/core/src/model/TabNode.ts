@@ -1,0 +1,645 @@
+// Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/model/TabNode.ts.
+// Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+
+import { Attribute, Attributes } from "./Attributes";
+import { BorderNode } from "./BorderNode";
+import type { IDraggable } from "./IDraggable";
+import type { IJsonTabNode, ITabAttributes } from "./IJsonModel";
+import { Model } from "./Model";
+import { Node } from "./Node";
+import { Rect } from "./Rect";
+import { TabGroupNode } from "./TabGroupNode";
+import { TabSetNode } from "./TabSetNode";
+
+export class TabNode extends Node implements IDraggable {
+    static readonly TYPE = "tab";
+
+    /** @internal */
+    static fromJson(
+        json: IJsonTabNode,
+        model: Model,
+        addToModel: boolean = true,
+    ) {
+        const newLayoutNode = new TabNode(model, json, addToModel);
+        return newLayoutNode;
+    }
+
+    /** @internal */
+    private tabRect: Rect = Rect.empty();
+    /** @internal */
+    private renderedName?: string;
+    /** @internal */
+    private extra: Record<string, any>;
+    /** @internal */
+    private visible: boolean;
+    /** @internal */
+    private rendered: boolean;
+
+    /** @internal */
+    private moveableElement: HTMLElement | null;
+    /** @internal */
+    private tabStamp: HTMLElement | null;
+    /** @internal */
+    private scrollTop?: number;
+    /** @internal */
+    private scrollLeft?: number;
+
+    /** @internal */
+    constructor(model: Model, json: IJsonTabNode, addToModel: boolean = true) {
+        super(model);
+
+        this.extra = {}; // extra data added to node not saved in json
+        this.moveableElement = null;
+        this.tabStamp = null;
+        this.rendered = false;
+        this.visible = false;
+
+        TabNode.attributeDefinitions.fromJson(json, this.attributes);
+        if (addToModel === true) {
+            model.addNode(this);
+        }
+    }
+
+    getName() {
+        return this.getAttr("name") as string as string;
+    }
+
+    getIcon() {
+        return this.getAttr("icon") as string | undefined;
+    }
+
+    getSubLayoutId() {
+        return this.getAttr("subLayoutId") as string | undefined;
+    }
+
+    getHelpText() {
+        return this.getAttr("helpText") as string | undefined;
+    }
+
+    getComponent() {
+        return this.getAttr("component") as string | undefined;
+    }
+
+    getAltName() {
+        return this.getAttr("altName") as string | undefined;
+    }
+
+    getWindowId(): string | undefined {
+        const layout = this.getLayout();
+        if (layout) {
+            return layout.getWindowId();
+        }
+        return undefined;
+    }
+
+    /**
+     * Returns the config attribute that can be used to store node specific data that
+     * WILL be saved to the json. The config attribute should be changed via the action Actions.updateNodeAttributes rather
+     * than directly, for example:
+     * this.state.model.doAction(
+     *   FlexLayout.Actions.updateNodeAttributes(node.getId(), {config:myConfigObject}));
+     */
+    getConfig() {
+        return this.attributes.config;
+    }
+
+    /**
+     * Returns an object that can be used to store transient node specific data that will
+     * NOT be saved in the json.
+     */
+    getExtraData() {
+        return this.extra;
+    }
+
+    isPoppedOut() {
+        return this.getLayoutId() !== Model.MAIN_LAYOUT_ID;
+    }
+
+    /** @internal the tabset (or border) that contains this tab, walking up through a group if needed */
+    getTabContainer() {
+        const parent = this.getParent();
+        if (parent instanceof TabGroupNode) {
+            return parent.getTabContainer();
+        }
+        return parent as TabSetNode | BorderNode;
+    }
+
+    /** whether this tab's direct parent is a {@link TabSetNode} or a {@link TabGroupNode} inside one */
+    isInsideTabSet() {
+        const parent = this.getParent();
+        return (
+            parent instanceof TabSetNode ||
+            (parent instanceof TabGroupNode &&
+                parent.getTabContainer() instanceof TabSetNode)
+        );
+    }
+
+    /** whether this tab's direct parent is a {@link BorderNode} or a {@link TabGroupNode} inside one */
+    isInsideBorder() {
+        const parent = this.getParent();
+        return (
+            parent instanceof BorderNode ||
+            (parent instanceof TabGroupNode &&
+                parent.getTabContainer() instanceof BorderNode)
+        );
+    }
+
+    isSelected() {
+        return this.getTabContainer().getSelectedNode() === this;
+    }
+
+    isPinned() {
+        return this.getAttr("pinned") as boolean;
+    }
+
+    isCloseable() {
+        if (this.isPinned()) {
+            return false;
+        }
+        let closeable = this.isEnableClose();
+        if (closeable && this.getSubLayoutId()) {
+            const layout = this.model.getLayouts().get(this.getSubLayoutId()!);
+            if (layout) {
+                // the subLayoutId may be dangling (e.g. hand edited json)
+                closeable = layout.getRootRow()!.isCloseable();
+            }
+        }
+        return closeable;
+    }
+
+    isAllowedInWindow() {
+        let allowed = this.isEnablePopout();
+        if (allowed && this.getSubLayoutId()) {
+            const layout = this.model.getLayouts().get(this.getSubLayoutId()!);
+            if (layout) {
+                // the subLayoutId may be dangling (e.g. hand edited json)
+                allowed = layout.getRootRow()!.isAllowedInWindow();
+            }
+        }
+        return allowed;
+    }
+
+    isEnableClose() {
+        return this.getAttr("enableClose") as boolean;
+    }
+
+    isEnableScrollbars() {
+        return this.getAttr("enableScrollbars") as boolean;
+    }
+
+    getCloseType() {
+        return this.getAttr("closeType") as number;
+    }
+
+    isEnablePopout() {
+        return this.getAttr("enablePopout") as boolean;
+    }
+
+    isEnableFloat() {
+        return this.getAttr("enableFloat") as boolean;
+    }
+
+    isEnablePopoutIcon() {
+        return this.getAttr("enablePopoutIcon") as boolean;
+    }
+
+    isEnableFloatIcon() {
+        return this.getAttr("enableFloatIcon") as boolean;
+    }
+
+    isEnablePopoutOverlay() {
+        return this.getAttr("enablePopoutOverlay") as boolean;
+    }
+
+    isEnableDrag() {
+        return this.getAttr("enableDrag") as boolean;
+    }
+
+    isEnableRename() {
+        return this.getAttr("enableRename") as boolean;
+    }
+
+    isEnablePin() {
+        return this.getAttr("enablePin") as boolean;
+    }
+
+    isEnableWindowReMount() {
+        return this.getAttr("enableWindowReMount") as boolean;
+    }
+
+    getClassName() {
+        return this.getAttr("className") as string | undefined;
+    }
+
+    getContentClassName() {
+        return this.getAttr("contentClassName") as string | undefined;
+    }
+
+    getTabSetClassName() {
+        return this.getAttr("tabsetClassName") as string | undefined;
+    }
+
+    isEnableRenderOnDemand() {
+        return this.getAttr("enableRenderOnDemand") as boolean;
+    }
+
+    getMinWidth() {
+        return this.getAttr("minWidth") as number;
+    }
+
+    getMinHeight() {
+        return this.getAttr("minHeight") as number;
+    }
+
+    getMaxWidth() {
+        return this.getAttr("maxWidth") as number;
+    }
+
+    getMaxHeight() {
+        return this.getAttr("maxHeight") as number;
+    }
+
+    getBorderWidth() {
+        return this.getAttr("borderWidth") as number;
+    }
+
+    getBorderHeight() {
+        return this.getAttr("borderHeight") as number;
+    }
+
+    isVisible() {
+        return this.visible;
+    }
+
+    toJson(): IJsonTabNode {
+        const json = {};
+        TabNode.attributeDefinitions.toJson(json, this.attributes);
+        return json;
+    }
+
+    /** @internal */
+    saveScrollPosition() {
+        if (this.moveableElement) {
+            this.scrollLeft = this.moveableElement.scrollLeft;
+            this.scrollTop = this.moveableElement.scrollTop;
+        }
+    }
+
+    /** @internal */
+    restoreScrollPosition() {
+        // the frame callback comes from the element's own window (never the global), so a tab
+        // restored inside a popout schedules on the popout's frame loop
+        const view = this.moveableElement?.ownerDocument.defaultView;
+        if (view && (this.scrollTop || this.scrollLeft)) {
+            view.requestAnimationFrame(() => {
+                if (this.moveableElement) {
+                    this.moveableElement.scrollTop = this.scrollTop ?? 0;
+                    this.moveableElement.scrollLeft = this.scrollLeft ?? 0;
+                }
+            });
+        }
+    }
+
+    /** @internal */
+    setRect(rect: Rect) {
+        // fire "resize" only on a rounded (whole-pixel) change: positionTabPanels re-applies the
+        // content rect every measure pass, and syncLayoutMetrics keeps a rounded-equal rect object,
+        // so gating on exact equality would let sub-pixel jitter fire resize on every pass. the
+        // exact rect is still stored so element positioning stays pixel accurate.
+        if (!rect.equalsWhenRounded(this.rect)) {
+            this.fireEvent("resize", { rect });
+        }
+        this.rect = rect;
+    }
+
+    /** @internal */
+    setVisible(visible: boolean) {
+        if (visible !== this.visible) {
+            this.visible = visible;
+            this.fireEvent("visibility", { visible });
+        }
+    }
+
+    /** @internal */
+    setScrollTop(scrollTop: number | undefined) {
+        this.scrollTop = scrollTop;
+    }
+    /** @internal */
+    setScrollLeft(scrollLeft: number | undefined) {
+        this.scrollLeft = scrollLeft;
+    }
+    /** @internal */
+    isRendered() {
+        return this.rendered;
+    }
+
+    /** @internal */
+    setRendered(rendered: boolean) {
+        this.rendered = rendered;
+    }
+
+    /** @internal */
+    getTabRect() {
+        return this.tabRect;
+    }
+
+    /** @internal */
+    setTabRect(rect: Rect) {
+        this.tabRect = rect;
+    }
+
+    /** @internal */
+    getTabStamp() {
+        return this.tabStamp;
+    }
+
+    /** @internal */
+    setTabStamp(stamp: HTMLElement | null) {
+        this.tabStamp = stamp;
+    }
+
+    /** @internal */
+    getMoveableElement() {
+        if (this.moveableElement === null) {
+            // created lazily so the model can be loaded without a DOM (e.g. server side). The
+            // layout's controller owns the factory; a tab in a sub-layout without one falls back
+            // to the main layout's controller.
+            const controller =
+                this.getLayout().getController() ??
+                this.model.getMainLayout().getController();
+            if (!controller) {
+                throw new Error(
+                    "TabNode.getMoveableElement: no layout controller is attached to the model",
+                );
+            }
+            this.moveableElement = controller.createMoveableElement();
+        }
+        return this.moveableElement;
+    }
+
+    /** @internal Workaround for #524 */
+    setMoveableElement(element: HTMLElement) {
+        this.moveableElement = element;
+    }
+
+    /** @internal */
+    setRenderedName(name: string) {
+        this.renderedName = name;
+    }
+
+    /** @internal */
+    getNameForOverflowMenu() {
+        const altName = this.getAttr("altName") as string;
+        if (altName !== undefined) {
+            return altName;
+        }
+        return this.renderedName;
+    }
+
+    /** @internal */
+    setName(name: string) {
+        this.attributes.name = name;
+    }
+
+    /** @internal */
+    setPinned(pinned: boolean) {
+        this.attributes.pinned = pinned;
+    }
+
+    /** @internal */
+    delete() {
+        (this.parent as TabSetNode | BorderNode | TabGroupNode).remove(this);
+        this.deleteSubLayout();
+        this.fireEvent("close", {});
+    }
+
+    /** @internal */
+    adoptViewState(old: TabNode) {
+        // carry view state to keep mounted tab content on model replacement
+        this.moveableElement = old.moveableElement;
+        old.moveableElement = null;
+        this.tabStamp = old.tabStamp;
+        this.scrollTop = old.scrollTop;
+        this.scrollLeft = old.scrollLeft;
+        this.rendered = old.rendered;
+        this.visible = old.visible;
+        this.rect = old.rect;
+        this.tabRect = old.tabRect;
+        this.extra = old.extra;
+    }
+
+    /** @internal */
+    deleteSubLayout() {
+        const subLayoutId = this.getSubLayoutId();
+        if (subLayoutId) {
+            const layout = this.model.getLayouts().get(subLayoutId);
+            this.model.getLayouts().delete(subLayoutId);
+            if (layout) {
+                // remove nested sublayouts as well and notify their tabs, so they are not leaked in the layouts map
+                layout.getRootRow()?.forEachNode((node) => {
+                    if (node instanceof TabNode) {
+                        node.deleteSubLayout();
+                        node.fireEvent("close", {});
+                    }
+                }, 0);
+            }
+        }
+    }
+
+    /** @internal */
+    updateAttrs(json: ITabAttributes) {
+        TabNode.attributeDefinitions.update(json, this.attributes);
+    }
+
+    /** @internal */
+    getAttributeDefinitions() {
+        return TabNode.attributeDefinitions;
+    }
+
+    /** @internal */
+    setBorderWidth(width: number) {
+        this.attributes.borderWidth = width;
+    }
+
+    /** @internal */
+    setBorderHeight(height: number) {
+        this.attributes.borderHeight = height;
+    }
+
+    /** @internal */
+    static getAttributeDefinitions() {
+        Model.ensureAttributePairing();
+        return TabNode.attributeDefinitions;
+    }
+
+    /** @internal */
+    private static attributeDefinitions: Attributes =
+        TabNode.createAttributeDefinitions();
+
+    /** @internal */
+    private static createAttributeDefinitions(): Attributes {
+        const attributeDefinitions = new Attributes();
+        attributeDefinitions
+            .add("type", TabNode.TYPE, true)
+            .setType(Attribute.STRING)
+            .setFixed();
+        attributeDefinitions
+            .add("id", undefined)
+            .setType(Attribute.STRING)
+            .setDescription(
+                `the unique id of the tab, if left undefined a uuid will be assigned`,
+            );
+        attributeDefinitions
+            .add("name", "")
+            .setType(Attribute.STRING)
+            .setDescription(`name of tab to be displayed in the tab button`);
+        attributeDefinitions
+            .add("component", undefined)
+            .setType(Attribute.STRING)
+            .setDescription(
+                `string identifying which component to render in this tab (used in the layout factory function)`,
+            );
+        attributeDefinitions
+            .add("subLayoutId", undefined)
+            .setType(Attribute.STRING)
+            .setDescription(
+                `the Id of the sub layout to render in this tab, defined in the subLayouts section of the model json (if
+            component is also defined then use the <TabLayout> component in the factory to render the sublayout)`,
+            );
+        attributeDefinitions
+            .add("altName", undefined)
+            .setType(Attribute.STRING)
+            .setDescription(
+                `the name used in the overflow menu when the tab has no name (e.g. an icon-only tab)`,
+            );
+        attributeDefinitions
+            .add("helpText", undefined)
+            .setType(Attribute.STRING)
+            .setDescription(
+                `help text for the tab to be displayed upon tab hover`,
+            );
+        attributeDefinitions
+            .add("config", undefined)
+            .setType("any")
+            .setDescription(
+                `a place to hold json config for the hosted component`,
+            );
+        attributeDefinitions
+            .add("tabsetClassName", undefined)
+            .setType(Attribute.STRING)
+            .setDescription(
+                `class applied to parent tabset when this is the only tab and it is stretched to fill the tabset`,
+            );
+        attributeDefinitions
+            .add("enableWindowReMount", false)
+            .setType(Attribute.BOOLEAN)
+            .setDescription(
+                `if enabled the tab will re-mount when popped out/in`,
+            );
+        attributeDefinitions
+            .add("pinned", false)
+            .setType(Attribute.BOOLEAN)
+            .setDescription(
+                `whether the tab is pinned; pinned tabs are grouped at the start of the tabstrip, cannot be closed
+            via the ui, and cannot be dragged out of their tabset (they can be reordered within the pinned group).
+            Set via Actions.setTabPinned. Only applies to tabs in tabsets (not borders); pinned tabs should be
+            listed first in the json`,
+            );
+        attributeDefinitions
+            .addInherited("enableClose", "tabEnableClose")
+            .setDescription(
+                `whether the tab can be closed by the user via its close button`,
+            );
+        attributeDefinitions
+            .addInherited("closeType", "tabCloseType")
+            .setDescription(
+                `when the tab's close button is active: Visible (default) active if selected or hovered (note: mobile doesnt support hovered), Always: always active, Selected only active on selected tab (clicking on the x button on a non-selected tab will just select it)`,
+            );
+        attributeDefinitions
+            .addInherited("enableDrag", "tabEnableDrag")
+            .setDescription(
+                `whether the user can drag the tab to a new location`,
+            );
+        attributeDefinitions
+            .addInherited("enableRename", "tabEnableRename")
+            .setDescription(
+                `whether the user can rename the tab by double clicking`,
+            );
+        attributeDefinitions
+            .addInherited("enablePin", "tabEnablePin")
+            .setDescription(
+                `whether the user can pin/unpin the tab via the context menu`,
+            );
+        attributeDefinitions
+            .addInherited("className", "tabClassName")
+            .setDescription(`class applied to tab button`);
+        attributeDefinitions
+            .addInherited("contentClassName", "tabContentClassName")
+            .setDescription(`class applied to tab content`);
+        attributeDefinitions
+            .addInherited("icon", "tabIcon")
+            .setDescription(`the tab icon`);
+        attributeDefinitions
+            .addInherited("enableRenderOnDemand", "tabEnableRenderOnDemand")
+            .setDescription(
+                `whether to avoid rendering component until tab is visible`,
+            );
+        attributeDefinitions
+            .addInherited("enablePopout", "tabEnablePopout")
+            .setDescription(
+                `enable window popout (in popout capable browser), to show an icon in the tabset header also set the enablePopoutIcon attribute`,
+            );
+        attributeDefinitions
+            .addInherited("enableFloat", "tabEnableFloat")
+            .setDescription(
+                `whether the user can move the tab to a floating window via the context menu`,
+            );
+        attributeDefinitions
+            .addInherited("enablePopoutIcon", "tabEnablePopoutIcon")
+            .setDescription(
+                `whether to show the popout icon in the tabset header if this tab enables popouts`,
+            );
+        attributeDefinitions
+            .addInherited("enableFloatIcon", "tabEnableFloatIcon")
+            .setAlias("enablePopoutFloatIcon")
+            .setDescription(
+                `whether to show the float icon in the tabset header if this tab enables floating`,
+            );
+        attributeDefinitions
+            .addInherited("enablePopoutOverlay", "tabEnablePopoutOverlay")
+            .setDescription(
+                `if this tab will not work correctly in a popout window when the main window is backgrounded (inactive)
+            then enabling this option will gray out this tab`,
+            );
+
+        attributeDefinitions
+            .addInherited("borderWidth", "tabBorderWidth")
+            .setDescription(
+                `the width of this tab when shown in a border; -1 uses the border's default size`,
+            );
+        attributeDefinitions
+            .addInherited("borderHeight", "tabBorderHeight")
+            .setDescription(
+                `the height of this tab when shown in a border; -1 uses the border's default size`,
+            );
+        attributeDefinitions
+            .addInherited("minWidth", "tabMinWidth")
+            .setDescription(`the minimum width (in px) of this tab`);
+        attributeDefinitions
+            .addInherited("minHeight", "tabMinHeight")
+            .setDescription(`the minimum height (in px) of this tab`);
+        attributeDefinitions
+            .addInherited("maxWidth", "tabMaxWidth")
+            .setDescription(`the maximum width (in px) of this tab`);
+        attributeDefinitions
+            .addInherited("maxHeight", "tabMaxHeight")
+            .setDescription(`the maximum height (in px) of this tab`);
+        attributeDefinitions
+            .addInherited("enableScrollbars", "tabEnableScrollbars")
+            .setDescription(
+                `whether the tab will be hosted in a scrollable container`,
+            );
+
+        return attributeDefinitions;
+    }
+}

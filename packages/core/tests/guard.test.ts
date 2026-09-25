@@ -12,6 +12,21 @@ function listFiles(dir: string): string[] {
     });
 }
 
+/** Source text with comments and string literals blanked out, so only code is scanned. */
+function codeOnly(source: string): string {
+    return source.replace(
+        /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`/g,
+        (match) => (match.startsWith("/") ? "" : '""'),
+    );
+}
+
+// the core never reaches for the browser globals: DOM access goes through an element's
+// ownerDocument/defaultView (or an injected host), so it also runs in a popout and in Node
+const GLOBAL_DOM =
+    /(?<![.\w$])(document|window|requestAnimationFrame|cancelAnimationFrame|getComputedStyle|navigator|localStorage|sessionStorage)\b(?!\s*:)/;
+const FORBIDDEN =
+    /\b(CLASSES|CSSClassNames|I18nLabelDefaults|I18nLabel|translate|setI18nDefaults|i18nTranslator)\b/;
+
 const IMPORT_REACT =
     /(?:from\s+|import\s*\(\s*|require\s*\(\s*)["'](?:react|react-dom)(?:\/[^"']*)?["']/;
 
@@ -29,6 +44,66 @@ describe("core package guard", () => {
             IMPORT_REACT.test(readFileSync(file, "utf8")),
         );
         expect(offenders).toEqual([]);
+    });
+
+    it("has no CSS class names, i18n defaults or translation", () => {
+        const offenders = listFiles(src).filter((file) =>
+            FORBIDDEN.test(codeOnly(readFileSync(file, "utf8"))),
+        );
+        expect(offenders).toEqual([]);
+    });
+
+    it("never touches global document, window or frame scheduling", () => {
+        const offenders = listFiles(src).flatMap((file) => {
+            const match = GLOBAL_DOM.exec(codeOnly(readFileSync(file, "utf8")));
+            return match ? [`${file}: ${match[0]}`] : [];
+        });
+        expect(offenders).toEqual([]);
+    });
+
+    it("detects global DOM access in code but not in comments or strings", () => {
+        expect(
+            GLOBAL_DOM.test(
+                codeOnly("const el = document.createElement('div');"),
+            ),
+        ).toBe(true);
+        expect(
+            GLOBAL_DOM.test(codeOnly("requestAnimationFrame(() => {});")),
+        ).toBe(true);
+        expect(
+            GLOBAL_DOM.test(
+                codeOnly(
+                    "el.ownerDocument.defaultView.requestAnimationFrame(cb);",
+                ),
+            ),
+        ).toBe(false);
+        expect(
+            GLOBAL_DOM.test(
+                codeOnly('// the popout window\nif (type === "window") {}'),
+            ),
+        ).toBe(false);
+        expect(GLOBAL_DOM.test(codeOnly("function f(window: Window) {}"))).toBe(
+            false,
+        );
+    });
+
+    it("every file ported from FlexLayout carries the Caplin MIT header", () => {
+        const ported = [
+            ...listFiles(join(src, "model")),
+            ...listFiles(join(root, "tests", "model")),
+        ];
+        const missing = ported.filter((file) => {
+            const head = readFileSync(file, "utf8")
+                .split("\n")
+                .slice(0, 5)
+                .join("\n");
+            return !(
+                head.includes("FlexLayout") &&
+                head.includes("Caplin Systems Ltd") &&
+                head.includes("MIT")
+            );
+        });
+        expect(missing).toEqual([]);
     });
 
     it("ships the root licence, including the FlexLayout notice", () => {

@@ -1,1 +1,1 @@
-export { VERSION } from "@fragiola/dockable";
+export {};

@@ -7,16 +7,16 @@ const root = import.meta.dirname;
 
 // Every fixture and example is its own page: `fixtures/<name>/index.html`, `examples/<name>/index.html`.
 function pages(dir: string): Record<string, string> {
-    try {
-        return Object.fromEntries(
-            readdirSync(resolve(root, dir)).map((name) => [
+    const base = resolve(root, dir);
+    if (!existsSync(base)) return {};
+    return Object.fromEntries(
+        readdirSync(base)
+            .filter((name) => existsSync(resolve(base, name, "index.html")))
+            .map((name) => [
                 `${dir}/${name}`,
-                resolve(root, dir, name, "index.html"),
+                resolve(base, name, "index.html"),
             ]),
-        );
-    } catch {
-        return {};
-    }
+    );
 }
 
 export default defineConfig(({ command }) => ({

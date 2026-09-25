@@ -63,5 +63,25 @@
             "trailingNewline": true
         }
     },
-    "overrides": []
+    "overrides": [
+        {
+            "includes": [
+                "packages/core/src/model/**",
+                "packages/core/tests/model/**"
+            ],
+            "linter": {
+                "rules": {
+                    "suspicious": {
+                        "noExplicitAny": "off"
+                    },
+                    "style": {
+                        "noNonNullAssertion": "off"
+                    },
+                    "complexity": {
+                        "noStaticOnlyClass": "off"
+                    }
+                }
+            }
+        }
+    ]
 }
