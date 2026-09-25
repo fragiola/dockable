@@ -8,8 +8,8 @@
         (base, soft, line, contrast, accent, ring). A palette that omitted one
         would inherit it from the page and leak across the theme boundary;
      3. the chart series derivation and the hover direction for this scheme;
-     4. a few plain-CSS flourishes keyed on data-* and ARIA, the same hooks
-        any stylesheet can use.
+     4. a few plain-CSS flourishes keyed on the package's data-* and on the
+        kit's markers (data-kit-*), so markup outside the kit is left alone.
 
    Specificity: the palette rules are ":root [data-example-theme="terminal"] .palette-x", which ties
    with Fragiola's own ":root[data-theme] .palette-x" and wins by coming
@@ -128,15 +128,15 @@
 
 /* Tabs read [ like this ]; the selected one is inverted. The brackets are the
    theme's, not the package's: Dockable renders no text. */
-[data-example-theme="terminal"] [role="tab"] [data-tab-label]::before {
+[data-example-theme="terminal"] [data-kit-tab] [data-tab-label]::before {
     content: "[ ";
 }
 
-[data-example-theme="terminal"] [role="tab"] [data-tab-label]::after {
+[data-example-theme="terminal"] [data-kit-tab] [data-tab-label]::after {
     content: " ]";
 }
 
-[data-example-theme="terminal"] [role="tab"][data-selected] {
+[data-example-theme="terminal"] [data-kit-tab][data-selected] {
     background: var(--palette-contrast);
     color: var(--palette-base);
 }
@@ -146,12 +146,12 @@
 }
 
 /* The active tabset is framed in bright phosphor. */
-[data-example-theme="terminal"] [data-active] {
+[data-example-theme="terminal"] [data-kit-tabset][data-active] {
     border-color: var(--palette-contrast);
 }
 
 /* Panels get faint scanlines. */
-[data-example-theme="terminal"] [role="tabpanel"] {
+[data-example-theme="terminal"] [data-kit-panel] {
     background-image: repeating-linear-gradient(
         to bottom,
         transparent 0 2px,

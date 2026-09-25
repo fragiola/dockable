@@ -8,8 +8,8 @@
         (base, soft, line, contrast, accent, ring). A palette that omitted one
         would inherit it from the page and leak across the theme boundary;
      3. the chart series derivation and the hover direction for this scheme;
-     4. a few plain-CSS flourishes keyed on data-* and ARIA, the same hooks
-        any stylesheet can use.
+     4. a few plain-CSS flourishes keyed on the package's data-* and on the
+        kit's markers (data-kit-*), so markup outside the kit is left alone.
 
    Specificity: the palette rules are ":root [data-example-theme="ide"] .palette-x", which ties
    with Fragiola's own ":root[data-theme] .palette-x" and wins by coming
@@ -136,14 +136,14 @@
 }
 
 /* Tabs are separated by hairlines, and the selected one merges with its panel. */
-[data-example-theme="ide"] [role="tab"] {
+[data-example-theme="ide"] [data-kit-tab] {
     border-inline-end: 1px solid var(--palette-line);
 }
 
-[data-example-theme="ide"] [role="tab"][data-selected] {
+[data-example-theme="ide"] [data-kit-tab][data-selected] {
     background: var(--palette-base);
 }
 
-[data-example-theme="ide"] [role="tablist"] {
+[data-example-theme="ide"] [data-kit-tablist] {
     background: var(--palette-soft);
 }
