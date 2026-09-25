@@ -32,7 +32,6 @@ use and the Epic that will remove it, when one is scheduled.
 | **Borders** (collapsible side panels, overlay borders, edge indicators) | the model reads, saves and applies border actions, but no primitive renders them | Epic [#21](https://github.com/fragiola/dockable/issues/21) |
 | **Floats** (in-page floating windows) | not rendered. The model keeps `"float"` layouts, so avoid `popoutTab(id, "float")` and the `"float"` popout close policy: a floated layout is invisible | not scheduled yet |
 | **Drag between windows and layouts**: main window ↔ popout, popout ↔ popout, and between two separate `Dockable.Root`s | not supported; a tab moves between windows only through actions (pop out, dock back) | Epic [#20](https://github.com/fragiola/dockable/issues/20) |
-| **External drag**: dragging something from outside the layout (a widget sidebar, OS files) into it | not supported | Epic [#18](https://github.com/fragiola/dockable/issues/18) |
 | **Drop control**: custom drop zones, feedback for refused drops, `onAllowDrop` as a `Root` prop | drop rules work today through attributes and `model.setOnAllowDrop` ([Restricting drops](/docs/guides/restricting-drops)); the visuals and zones do not exist | Epic [#19](https://github.com/fragiola/dockable/issues/19) |
 | **Popping out a whole tabset** | `Actions.popoutTabset` exists in the model; the window path is part of full popout support | Epic [#20](https://github.com/fragiola/dockable/issues/20) |
 | **Tab groups** (pills grouping tabs in a strip) | model only; no primitive renders groups | not scheduled yet |
@@ -80,9 +79,9 @@ named, and all of them are listed in `docs/docs-examples-gaps.md` in the reposit
   `setOnAllowDrop` refuses, the drop indicator stays on the last accepted target (the drop itself
   does not happen). See [`locked-regions`](/examples/locked-regions/). The Drop control Epic
   (#19) fixes it.
-- **UI outside the root has no engine.** `useDockable()` only works inside `Dockable.Root`, so a
-  toolbar outside it gets the engine from a small child component. See
-  [`add-tabs`](/examples/add-tabs/).
+- **UI outside the root and the engine.** `useDockable()` only works inside `Dockable.Root`.
+  Outside it, `LayoutEngine.of(model)` returns the mounted engine; it changes when the model does,
+  so read it when you act rather than keeping it. See [`widget-sidebar`](/examples/widget-sidebar/).
 - **An input inside a tab** gets the tab's keyboard handling and dragging: stop key propagation
   and set `draggable={false}` while editing. See [`rename-tabs`](/examples/rename-tabs/).
 - **No overflow state on `TabList`**: measure it yourself. See

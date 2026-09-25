@@ -58,6 +58,7 @@ export function KitTabStrip({
         <div className={cn(styles.tabsetHeader, className)}>
             <Dockable.TabList
                 aria-label={tabset.getName() ?? "Tabs"}
+                data-kit-tablist=""
                 className={styles.tabList}
             >
                 {children}

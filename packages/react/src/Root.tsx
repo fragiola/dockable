@@ -7,6 +7,7 @@ import {
     Model,
     matchesKey,
     type OnAction,
+    type OnExternalDrag,
     type OnModelChange,
     type PopoutCallback,
     type PopoutClosePolicy,
@@ -63,6 +64,13 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
     onPopoutOpen?: PopoutCallback | undefined;
     /** a popout window is closing */
     onPopoutClose?: PopoutCallback | undefined;
+    /**
+     * accepts a drag that did not start in a layout (files, links, text, another library's
+     * element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called when
+     * the drag enters the layout, when only `event.dataTransfer.types` is readable; read the data in
+     * `onDrop`.
+     */
+    onExternalDrag?: OnExternalDrag | undefined;
     children?: React.ReactNode;
 }
 
@@ -85,6 +93,7 @@ export function Root(props: RootProps) {
         popoutClosePolicy,
         onPopoutOpen,
         onPopoutClose,
+        onExternalDrag,
         children,
         ...rest
     } = props;
@@ -95,6 +104,7 @@ export function Root(props: RootProps) {
         onModelChange,
         realtimeResize,
         tabDragSpeed,
+        onExternalDrag,
         popout: {
             popoutURL,
             supportsPopout,

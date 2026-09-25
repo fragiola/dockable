@@ -5,7 +5,7 @@ import {
     Actions,
     createLayoutEngine,
     DockLocation,
-    type LayoutEngine,
+    LayoutEngine,
     MOVEABLE_ATTRIBUTE,
     MOVEABLES_HOME_ATTRIBUTE,
     Rect,
@@ -428,5 +428,16 @@ describe("LayoutEngine keyboard focus", () => {
         const input = root.appendChild(document.createElement("input"));
         input.focus();
         expect(engine.focusAdjacentTabset(1)).toBe(false);
+    });
+});
+
+describe("LayoutEngine.of", () => {
+    it("finds the engine driving a model's main layout, until it is disposed", () => {
+        const model = freshModel();
+        expect(LayoutEngine.of(model)).toBeUndefined();
+        const engine = createLayoutEngine({ model });
+        expect(LayoutEngine.of(model)).toBe(engine);
+        engine.dispose();
+        expect(LayoutEngine.of(model)).toBeUndefined();
     });
 });

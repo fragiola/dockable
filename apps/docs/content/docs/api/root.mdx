@@ -36,6 +36,7 @@ The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting
 | `popoutClosePolicy` | `"dock" \| "float"` | `"dock"` | what closing a popout window does; default `"dock"` (its tabs move back to the main layout) |
 | `onPopoutOpen` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
 | `onPopoutClose` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout window is closing |
+| `onExternalDrag` | `(event: DragEvent) => { json: IJsonTabNode; onDrop?: (node, event) => void } \| undefined` | none | accepts a drag that did not start in a layout (files, links, text, another library's element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called when the drag enters the layout (once per entry), when only `event.dataTransfer.types` is readable; read the data in `onDrop`. See [External drag](/docs/guides/external-drag) |
 | `children` | `ReactNode` | none | the layout: a `Row`, `Panels`, `DropIndicator`, `Popout`, and anything else |
 
 `GetLabel` is `(key: DockableLabel, ...args: (string | number)[]) => string | undefined`; see
