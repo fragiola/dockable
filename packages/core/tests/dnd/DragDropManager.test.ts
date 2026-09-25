@@ -855,6 +855,27 @@ describe("external drags (onExternalDrag)", () => {
         expect(DragDropManager.getDragState()?.dragSource).toBe("external");
     });
 
+    it("lets a popout window's layout accept external drags through the main engine's handler", () => {
+        const onExternalDrag = vi.fn(() => ({
+            json: { type: "tab" as const, name: "dropped" },
+        }));
+        const s = setup({ onExternalDrag });
+        s.model.doAction(Actions.popoutTab("t2", "window"));
+        const windowLayoutId = [...s.model.getLayouts().keys()].find(
+            (id) => id !== Model.MAIN_LAYOUT_ID,
+        ) as string;
+        const sub = createLayoutEngine({
+            model: s.model,
+            layoutId: windowLayoutId,
+            mainEngine: s.engine,
+        });
+        engines.push(sub);
+        sub.getDragDropManager().onDragEnterRaw(dragEvent("dragenter", 10, 10));
+        expect(onExternalDrag).toHaveBeenCalledTimes(1);
+        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+        expect(DragDropManager.getDragState()?.mainEngine).toBe(s.engine);
+    });
+
     it("does not treat a layout's own drag as external", () => {
         const onExternalDrag = vi.fn(() => ({
             json: { type: "tab" as const },
