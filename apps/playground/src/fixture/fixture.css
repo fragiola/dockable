@@ -41,7 +41,9 @@ body {
     padding-inline: 4px;
 }
 
-/* the drop outline must be seen to be useful */
+/* the drop outline must be seen to be useful, above the panels (they are portalled into the
+   root after it, so they would paint over it otherwise) */
 [data-layout-path="/outline"] {
+    z-index: 10;
     background: rgb(0 0 255 / 0.2);
 }

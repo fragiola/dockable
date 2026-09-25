@@ -247,11 +247,13 @@ function App() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
+                {/* z-10: the panels are portalled into the root after the indicator, so without a
+                    stacking order they would paint over it */}
                 <Dockable.DropIndicator
                     className={(state) =>
                         state.kind === "edge"
-                            ? "palette-orange rounded-sm border-2 border-dashed border-palette-base bg-palette-base/25"
-                            : "palette-blue rounded-md border-2 border-palette-base bg-palette-base/20"
+                            ? "palette-orange z-10 rounded-sm border-2 border-dashed border-palette-base bg-palette-base/25"
+                            : "palette-blue z-10 rounded-md border-2 border-palette-base bg-palette-base/20"
                     }
                     style={(state) => ({
                         transitionProperty: "left, top, width, height",

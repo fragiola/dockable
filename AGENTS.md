@@ -147,6 +147,9 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
   `tabDragSpeed`). `Dockable.DropIndicator` renders it: structural position, `display: none`
   when hidden, `pointer-events: none` (an indicator under the pointer would steal the drag's
   enter/leave events), and `data-drop-location` / `data-drop-kind` / `data-dragging`.
+- **Stacking is the consumer's.** Panels are portalled into the root after its other
+  children, so an absolutely positioned `DropIndicator` needs a `z-index` to paint above them
+  (the playground gives it one).
 - **Drops dispatch `Actions.moveNode`** (or `dockFloatToLayout`) through `onAction`.
 - **No text in drag images.** The drag image is an element the adapter provides (the dragged
   `Dockable.Tab` by default); with none, the browser default is used.
