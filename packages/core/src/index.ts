@@ -1,3 +1,5 @@
+export * from "./engine/LayoutEngine";
+export * from "./keyboard/keymap";
 export * from "./labels/DockableLabel";
 export * from "./model/Actions";
 export * from "./model/BorderNode";
@@ -17,4 +19,6 @@ export * from "./model/RowNode";
 export * from "./model/TabGroupNode";
 export * from "./model/TabNode";
 export * from "./model/TabSetNode";
+export * from "./paths";
+export * from "./splitter/SplitterController";
 export * from "./undo/UndoManager";
