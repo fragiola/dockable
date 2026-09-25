@@ -15,17 +15,31 @@ import { cn } from "@/lib/cn";
 export function useExampleTheme(ref: React.RefObject<HTMLElement | null>) {
     const [theme, setTheme] = useState<string | undefined>(undefined);
     useEffect(() => {
-        const themed = ref.current?.closest<HTMLElement>(
-            "[data-example-theme]",
-        );
-        if (!themed) {
-            return;
-        }
-        const read = () => setTheme(themed.dataset.exampleTheme);
-        read();
-        const observer = new MutationObserver(read);
-        observer.observe(themed, { attributeFilter: ["data-example-theme"] });
-        return () => observer.disconnect();
+        let observer: MutationObserver | undefined;
+        let frame = 0;
+        // A panel's content is portalled into the tab's moveable element, which the engine
+        // attaches to the layout after the first commit: until then there is no themed
+        // ancestor to find. Retry each frame until there is.
+        const attach = () => {
+            const themed = ref.current?.closest<HTMLElement>(
+                "[data-example-theme]",
+            );
+            if (!themed) {
+                frame = requestAnimationFrame(attach);
+                return;
+            }
+            const read = () => setTheme(themed.dataset.exampleTheme);
+            read();
+            observer = new MutationObserver(read);
+            observer.observe(themed, {
+                attributeFilter: ["data-example-theme"],
+            });
+        };
+        attach();
+        return () => {
+            cancelAnimationFrame(frame);
+            observer?.disconnect();
+        };
     }, [ref]);
     return theme;
 }
@@ -83,7 +97,10 @@ export function ChartPanel({
             className={cn("flex h-full min-h-40 flex-col p-3", className)}
         >
             {title ? <h2 className="px-1 pb-2 text-sm">{title}</h2> : null}
-            <Chart key={theme} option={option} className="min-h-0 flex-1" />
+            {/* drawn once the theme is known: the chart reads its colours on mount */}
+            {theme ? (
+                <Chart key={theme} option={option} className="min-h-0 flex-1" />
+            ) : null}
         </div>
     );
 }
