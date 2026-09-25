@@ -370,6 +370,42 @@ describe("render, refs and props", () => {
     });
 });
 
+describe("ref stability", () => {
+    it("does not re-attach refs on re-render when the render element has its own ref", () => {
+        const model = fresh();
+        const elementRef = React.createRef<HTMLElement>();
+        const attach = vi.fn();
+        function Probe() {
+            const { engine } = useDockable();
+            React.useLayoutEffect(() => {
+                const original = engine.attachRoot.bind(engine);
+                engine.attachRoot = (element: HTMLElement) => {
+                    attach();
+                    original(element);
+                };
+            }, [engine]);
+            return null;
+        }
+        const { rerender } = render(
+            <Dockable.Root model={model} render={<main ref={elementRef} />}>
+                <Probe />
+            </Dockable.Root>,
+        );
+        rerender(
+            <Dockable.Root model={model} render={<main ref={elementRef} />}>
+                <Probe />
+            </Dockable.Root>,
+        );
+        act(() => {
+            model.doAction(Actions.selectTab("t1"));
+        });
+        expect(elementRef.current).toBe(mustPath("/layout"));
+        // the child's layout effect patches attachRoot before the root's ref attaches: that first
+        // attach is the only one
+        expect(attach).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe("interaction", () => {
     it("selects a tab on click through onAction", () => {
         const onAction = vi.fn((action: Action) => action);
@@ -418,6 +454,16 @@ describe("interaction", () => {
             ctrlKey: true,
         });
         expect(model.getNodeById("t1")).toBeUndefined();
+    });
+
+    it("moves focus to the previous tab when the last tab is closed", () => {
+        const model = fresh();
+        render(<Layout model={model} />);
+        const last = mustPath("/ts0/tb1");
+        last.focus();
+        fireEvent.keyDown(last, { key: "Delete", ctrlKey: true });
+        expect(model.getNodeById("t1")).toBeUndefined();
+        expect(document.activeElement).toBe(mustPath("/ts0/tb0"));
     });
 
     it("makes a tabset active on pointer down", () => {

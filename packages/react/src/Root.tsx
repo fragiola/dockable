@@ -15,6 +15,7 @@ import {
     LayoutContext,
     type PanelLayer,
 } from "./context";
+import { useDragState } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -24,6 +25,8 @@ import {
 export interface RootState {
     /** a tabset of the main layout is maximized */
     maximized: boolean;
+    /** a node of this layout is being dragged */
+    dragging: boolean;
 }
 
 export interface RootProps extends DivPrimitiveProps<RootState> {
@@ -42,6 +45,8 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
     keyMap?: IKeyMap | undefined;
     /** true (default) to resize live while dragging a splitter; false to preview and commit on release */
     realtimeResize?: boolean | undefined;
+    /** seconds a view may take to animate the drop indicator (exposed as data; default 0.3) */
+    tabDragSpeed?: number | undefined;
     children?: React.ReactNode;
 }
 
@@ -58,11 +63,18 @@ export function Root(props: RootProps) {
         getLabel,
         keyMap,
         realtimeResize,
+        tabDragSpeed,
         children,
         ...rest
     } = props;
     const engine = React.useMemo(() => createLayoutEngine({ model }), [model]);
-    engine.setOptions({ onAction, onModelChange, realtimeResize });
+    engine.setOptions({
+        onAction,
+        onModelChange,
+        realtimeResize,
+        tabDragSpeed,
+    });
+    const dragState = useDragState();
     const revision = React.useSyncExternalStore(
         engine.subscribe,
         engine.getSnapshot,
@@ -178,6 +190,7 @@ export function Root(props: RootProps) {
 
     const state: RootState = {
         maximized: model.getMaximizedTabset(Model.MAIN_LAYOUT_ID) !== undefined,
+        dragging: dragState !== undefined && dragState.mainEngine === engine,
     };
     const element = useRenderElement("div", rest, {
         state,
@@ -186,6 +199,7 @@ export function Root(props: RootProps) {
             ...dataAttributes({
                 "layout-path": "/layout",
                 maximized: state.maximized,
+                dragging: state.dragging,
             }),
             children,
         },

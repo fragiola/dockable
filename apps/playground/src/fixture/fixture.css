@@ -31,6 +31,17 @@ body {
     cursor: ns-resize;
 }
 
+/* a tab strip as tall as FlexLayout's (its specs aim at the strip's centre, which must stay out of
+   the layout's 10px top-edge docking band) */
 [role="tablist"] {
     display: flex;
+    min-height: 30px;
+    /* FlexLayout's strip drop only offers "before the first tab" when that tab is not flush with
+       the tabset's edge (the edge itself belongs to the tabset's left drop) */
+    padding-inline: 4px;
+}
+
+/* the drop outline must be seen to be useful */
+[data-layout-path="/outline"] {
+    background: rgb(0 0 255 / 0.2);
 }

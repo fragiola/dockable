@@ -84,13 +84,18 @@ export function useRenderElement<State>(
         ...external
     } = componentProps as PrimitiveProps<State> & Record<string, unknown>;
     const internalRef = options.ref;
-    const ref = React.useMemo(
-        () =>
-            internalRef && externalRef
-                ? mergeRefs(internalRef, externalRef)
-                : (internalRef ?? externalRef),
-        [internalRef, externalRef],
-    );
+    // the render element's own ref joins the merge; memoized so React does not detach and
+    // re-attach the refs (and the primitive's registrations) on every render
+    const elementRef =
+        render && typeof render !== "function"
+            ? (render.props.ref as React.Ref<HTMLElement> | undefined)
+            : undefined;
+    const ref = React.useMemo(() => {
+        const refs = [internalRef, externalRef, elementRef].filter(
+            (r) => r !== undefined && r !== null,
+        );
+        return refs.length > 1 ? mergeRefs(...refs) : refs[0];
+    }, [internalRef, externalRef, elementRef]);
 
     const resolvedClassName =
         typeof className === "function" ? className(options.state) : className;
@@ -127,12 +132,7 @@ export function useRenderElement<State>(
                 ...structural,
             };
         }
-        if (elementProps.ref && ref) {
-            merged.ref = mergeRefs(
-                ref as React.Ref<unknown>,
-                elementProps.ref as React.Ref<unknown>,
-            );
-        }
+        merged.ref = ref;
         return React.cloneElement(render, merged);
     }
     return React.createElement(tag, props);

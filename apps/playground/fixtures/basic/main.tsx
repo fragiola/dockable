@@ -22,6 +22,7 @@ function App() {
         >
             <Dockable.Row>{renderNode}</Dockable.Row>
             <Dockable.Panels>{renderPanel}</Dockable.Panels>
+            <Dockable.DropIndicator />
         </Dockable.Root>
     );
 }

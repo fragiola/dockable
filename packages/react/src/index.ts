@@ -1,10 +1,13 @@
 export type { GetLabel } from "./context";
+export type { DropIndicatorProps, DropIndicatorState } from "./DropIndicator";
 export {
     type TabSetState,
     type UseDockableResult,
+    type UseDragNodeResult,
     type UseSplitterResult,
     type UseTabSetResult,
     useDockable,
+    useDragNode,
     useSplitter,
     useTabSet,
 } from "./hooks";

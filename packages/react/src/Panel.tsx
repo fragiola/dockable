@@ -3,6 +3,7 @@ import {
     getTabButtonId,
     getTabPanelId,
     getTabPanelPath,
+    isTabPanelVisible,
     matchesKey,
     type TabNode,
     TabSetNode,
@@ -113,16 +114,9 @@ export function Panel(props: PanelProps) {
         [mainEngine],
     );
 
-    const parent = node.getParent();
     const selected = node.isSelected();
-    const maximized = node.getModel().getMaximizedTabset(layoutId);
-    const visible =
-        selected &&
-        !(
-            parent instanceof TabSetNode &&
-            maximized !== undefined &&
-            maximized !== parent
-        );
+    // the engine's own rule, so the state always matches what it displays
+    const visible = isTabPanelVisible(node);
     const state: PanelState = { selected, visible };
 
     const onPointerDown = () => {

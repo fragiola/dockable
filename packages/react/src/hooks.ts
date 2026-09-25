@@ -1,10 +1,14 @@
 import {
     Actions,
     createSplitterController,
+    DragDropManager,
+    type DragState,
+    type IDraggable,
     type ISplitterAria,
     type ISplitterState,
     type LayoutEngine,
     type Model,
+    type Node,
     type RowNode,
     type SplitterController,
     type TabSetNode,
@@ -130,5 +134,70 @@ export function useSplitter(node: RowNode, index: number): UseSplitterResult {
         aria: controller.getAria(),
         hidden: controller.isHidden(),
         ref,
+    };
+}
+
+/** The page-wide drag in progress (re-renders when a drag starts or ends). */
+export function useDragState(): DragState | undefined {
+    return React.useSyncExternalStore(
+        DragDropManager.subscribeDrag,
+        DragDropManager.getDragState,
+        DragDropManager.getDragState,
+    );
+}
+
+export interface UseDragNodeResult {
+    /** whether the element is draggable: the node's `enableDrag` */
+    draggable: boolean;
+    onDragStart: (event: React.DragEvent<HTMLElement>) => void;
+    onDragEnd: (event: React.DragEvent<HTMLElement>) => void;
+    /** callback ref for the element used as the drag image (the dragged element by default) */
+    ref: React.RefCallback<HTMLElement>;
+    /** this node is being dragged */
+    dragging: boolean;
+}
+
+/**
+ * The lower layer of a draggable part: wires a node (a tab, tabset or group) to the core's
+ * drag-and-drop machine. Spread `draggable`, `onDragStart` and `onDragEnd` on the element and
+ * attach `ref` to the element the browser should snapshot as the drag image.
+ */
+export function useDragNode(
+    node: Node & IDraggable & { isEnableDrag(): boolean },
+): UseDragNodeResult {
+    const { engine } = useLayoutContext("useDragNode");
+    const imageRef = React.useRef<HTMLElement | null>(null);
+    const dragState = useDragState();
+    const draggable = node.isEnableDrag();
+
+    const onDragStart = (event: React.DragEvent<HTMLElement>) => {
+        if (!node.isEnableDrag()) {
+            event.preventDefault();
+            return;
+        }
+        event.stopPropagation(); // a tab drag must not also start a tabset drag
+        engine
+            .getDragDropManager()
+            .setDragNode(
+                event.nativeEvent,
+                node,
+                imageRef.current ?? event.currentTarget,
+            );
+    };
+    const onDragEnd = () => {
+        engine.getDragDropManager().onDragEnded();
+    };
+    const ref = React.useCallback((element: HTMLElement | null) => {
+        imageRef.current = element;
+    }, []);
+
+    return {
+        draggable,
+        onDragStart,
+        onDragEnd,
+        ref,
+        dragging:
+            dragState?.dragNode !== undefined &&
+            dragState.dragNode.getId() === node.getId(),
     };
 }

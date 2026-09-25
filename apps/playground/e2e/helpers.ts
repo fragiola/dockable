@@ -151,3 +151,106 @@ export async function dragSplitter(
     await page.waitForTimeout(50);
     await page.mouse.up();
 }
+
+/** the number of tabsets rendered (each has exactly one tab list) */
+export const findAllTabSets = (page: Page) => {
+    return page.getByRole("tablist");
+};
+
+export enum Location {
+    CENTER = 0,
+    TOP = 1,
+    BOTTOM = 2,
+    LEFT = 3,
+    RIGHT = 4,
+}
+
+function getLocation(rect: Box, loc: Location) {
+    switch (loc) {
+        case Location.CENTER:
+            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        case Location.TOP:
+            return { x: rect.x + rect.width / 2, y: rect.y + 5 };
+        case Location.BOTTOM:
+            return { x: rect.x + rect.width / 2, y: rect.y + rect.height - 5 };
+        case Location.LEFT:
+            return { x: rect.x + 5, y: rect.y + rect.height / 2 };
+        case Location.RIGHT:
+            return { x: rect.x + rect.width - 5, y: rect.y + rect.height / 2 };
+    }
+}
+
+/** starts a native drag of `from`: press, then move far enough for dragstart to fire */
+async function startDrag(page: Page, from: Locator) {
+    const fr = await waitForBox(from, "drag source");
+    const cf = getLocation(fr, Location.CENTER);
+    await page.mouse.move(cf.x, cf.y);
+    await page.mouse.down();
+    await page.waitForTimeout(50); // let the native drag start before moving
+    // native HTML5 drag requires a minimum movement before dragstart fires; move at least ~10px
+    // first so the drag session starts even when the final target is nearby
+    await page.mouse.move(cf.x + 10, cf.y + 10);
+    await page.mouse.move(cf.x + 11, cf.y + 11);
+}
+
+/** moves an active drag to `point` and drops it there */
+async function dropAt(page: Page, point: { x: number; y: number }) {
+    await page.mouse.move(point.x, point.y, { steps: 10 });
+    await page.waitForTimeout(50); // let dragover register before the drop
+    await page.mouse.up();
+}
+
+/** drags `from` onto `loc` of `to` */
+export async function drag(
+    page: Page,
+    from: Locator,
+    to: Locator,
+    loc: Location,
+) {
+    const tr = await waitForBox(to, "drag target");
+    await startDrag(page, from);
+    await dropAt(page, getLocation(tr, loc));
+}
+
+/** the layout edges, in FlexLayout's edge indicator order */
+export enum Edge {
+    TOP = 0,
+    LEFT = 1,
+    BOTTOM = 2,
+    RIGHT = 3,
+}
+
+/**
+ * drags `from` to an edge of the layout root: the middle of that edge, 4px inside it (edge docking
+ * takes the outer 10px band around each edge's centre)
+ */
+export async function dragToEdge(page: Page, from: Locator, edge: Edge) {
+    const root = await waitForBox(findPath(page, "/layout"), "layout root");
+    const cx = root.x + root.width / 2;
+    const cy = root.y + root.height / 2;
+    const point = {
+        [Edge.TOP]: { x: cx, y: root.y + 4 },
+        [Edge.LEFT]: { x: root.x + 4, y: cy },
+        [Edge.BOTTOM]: { x: cx, y: root.y + root.height - 4 },
+        [Edge.RIGHT]: { x: root.x + root.width - 4, y: cy },
+    }[edge];
+    await startDrag(page, from);
+    await dropAt(page, point);
+}
+
+/** starts dragging `from` and hovers `loc` of `to` without dropping; returns a drop function */
+export async function dragOver(
+    page: Page,
+    from: Locator,
+    to: Locator,
+    loc: Location,
+) {
+    const tr = await waitForBox(to, "drag target");
+    await startDrag(page, from);
+    const point = getLocation(tr, loc);
+    await page.mouse.move(point.x, point.y, { steps: 10 });
+    await page.waitForTimeout(50);
+    return async () => {
+        await page.mouse.up();
+    };
+}

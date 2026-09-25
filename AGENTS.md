@@ -135,3 +135,19 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
 - **React never reconciles what the engine writes.** Panels get geometry from the engine after
   commit, never through props. Content renders through a portal into the tab's moveable element;
   the moveable is re-parented by the engine, so moving a tab never remounts its content.
+
+## Drag and drop contract
+
+- **The state machine lives in the core** (`DragDropManager`, one per engine). The page-wide
+  `DragState` is static, so a drag can cross layouts and windows of the same model.
+- **The engine attaches native `dragenter`/`dragover`/`dragleave`/`drop` listeners to its root**
+  (not framework events), so the same path works in a popout document.
+- **Visual state is data, not DOM.** Each engine exposes a subscribable drop indicator state
+  (`visible`, `rect`, `location`, `kind: "rect" | "edge"`, `dragging`, `showEdges`,
+  `tabDragSpeed`). `Dockable.DropIndicator` renders it: structural position, `display: none`
+  when hidden, `pointer-events: none` (an indicator under the pointer would steal the drag's
+  enter/leave events), and `data-drop-location` / `data-drop-kind` / `data-dragging`.
+- **Drops dispatch `Actions.moveNode`** (or `dockFloatToLayout`) through `onAction`.
+- **No text in drag images.** The drag image is an element the adapter provides (the dragged
+  `Dockable.Tab` by default); with none, the browser default is used.
+- `data-dragging` marks the dragged `Tab` and the `Root` while a drag of the layout is active.

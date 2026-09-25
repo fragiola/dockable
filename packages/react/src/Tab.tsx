@@ -14,6 +14,7 @@ import {
     useDockableContext,
     useLayoutContext,
 } from "./context";
+import { useDragNode } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -25,6 +26,10 @@ export interface TabState {
     selected: boolean;
     /** the tab is pinned */
     pinned: boolean;
+    /** the tab is being dragged */
+    dragging: boolean;
+    /** the tab can be popped out into a window */
+    popoutEnabled: boolean;
 }
 
 export interface TabProps extends DivPrimitiveProps<TabState> {
@@ -56,12 +61,15 @@ export function Tab(props: TabProps) {
     const { orientation } = React.useContext(TabListContext);
     const selfRef = React.useRef<HTMLElement | null>(null);
 
+    const drag = useDragNode(node);
+    const dragRef = drag.ref;
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
             selfRef.current = element;
+            dragRef(element); // the tab itself is the drag image
             engine.registerMeasurable(node, "tabbutton", element);
         },
-        [engine, node],
+        [engine, node, dragRef],
     );
 
     const container = node.getTabContainer();
@@ -82,7 +90,7 @@ export function Tab(props: TabProps) {
         const self = selfRef.current;
         const tablist = self?.closest('[role="tablist"]');
         if (!self || !tablist) {
-            return;
+            return false;
         }
         const tabs = Array.from(
             tablist.querySelectorAll<HTMLElement>('[role="tab"]'),
@@ -94,6 +102,7 @@ export function Tab(props: TabProps) {
                   ? tabs[tabs.length - 1]
                   : tabs[tabs.indexOf(self) + to];
         next?.focus();
+        return next !== undefined;
     };
 
     // move focus into the tab content: the first focusable element, or the panel itself
@@ -130,7 +139,10 @@ export function Tab(props: TabProps) {
             }
             event.preventDefault();
         } else if (matchesKey(event, keyMap.closeTab) && node.isCloseable()) {
-            focusAdjacentTab(1); // move focus to a neighbour before this tab is removed
+            // move focus to a neighbour before this tab is removed (the previous one for the last)
+            if (!focusAdjacentTab(1)) {
+                focusAdjacentTab(-1);
+            }
             engine.doAction(Actions.deleteTab(node.getId()));
             event.preventDefault();
         } else if (hasModifier(event)) {
@@ -160,7 +172,12 @@ export function Tab(props: TabProps) {
             .filter(Boolean)
             .join(" ") || undefined;
 
-    const state: TabState = { selected, pinned: node.isPinned() };
+    const state: TabState = {
+        selected,
+        pinned: node.isPinned(),
+        dragging: drag.dragging,
+        popoutEnabled: node.isEnablePopout(),
+    };
     return useRenderElement("div", rest, {
         state,
         ref,
@@ -175,7 +192,12 @@ export function Tab(props: TabProps) {
                 "layout-path": getTabButtonPath(node),
                 selected,
                 pinned: state.pinned,
+                dragging: state.dragging,
+                "popout-enabled": state.popoutEnabled,
             }),
+            draggable: drag.draggable,
+            onDragStart: drag.onDragStart,
+            onDragEnd: drag.onDragEnd,
             onClick: select,
             onKeyDown,
             children,
