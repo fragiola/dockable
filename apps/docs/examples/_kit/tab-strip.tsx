@@ -22,6 +22,7 @@ export function KitTabButton({
     return (
         <Dockable.Tab
             node={node}
+            data-kit-tab=""
             className={cn(styles.tab, className)}
             {...rest}
         >

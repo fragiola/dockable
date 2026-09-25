@@ -65,35 +65,10 @@ function EngineBridge({
     return null;
 }
 
-/**
- * Workaround (kit): `ChartPanel` reads the example theme and the chart colours once, when it
- * mounts. A panel's content first mounts in its moveable element before the engine has placed
- * it inside the layout, so it would read no theme and draw a blank chart. This mounts the
- * chart only once the panel is inside the themed stage.
- */
-function AttachedChart({ seed }: { seed: number }) {
-    const ref = useRef<HTMLDivElement | null>(null);
-    const [attached, setAttached] = useState(false);
-    useEffect(() => {
-        let frame = 0;
-        const check = () => {
-            if (ref.current?.closest("[data-example-theme]")) setAttached(true);
-            else frame = requestAnimationFrame(check);
-        };
-        check();
-        return () => cancelAnimationFrame(frame);
-    }, []);
-    return (
-        <div ref={ref} className="h-full">
-            {attached ? <ChartPanel seed={seed} /> : null}
-        </div>
-    );
-}
-
 function Content({ tab }: { tab: TabNode }) {
     switch (tab.getComponent()) {
         case "chart":
-            return <AttachedChart seed={tab.getName().length * 7} />;
+            return <ChartPanel seed={tab.getName().length * 7} />;
         case "table":
             return <TablePanel />;
         default:
