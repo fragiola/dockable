@@ -105,3 +105,33 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 - Pin dependencies to exact versions published at least 7 days ago.
 - Commits are gitmoji-conventional: `✨ feat(core): …`, `🐛 fix(react): …`,
   `✅ test(core): …`, `🔧 chore: …`, `📝 docs: …`.
+
+## The primitive contract (`@fragiola/dockable-react`)
+
+Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetContent`, `Panel`,
+`Splitter`, …) follows the same rules. Tests enforce them; keep it that way.
+
+- **`render`, never `asChild`.** `render={<section />}` merges the primitive's props into the
+  element; `render={(props, state) => …}` receives them plus the state.
+- **`ref` is a plain prop** (React 19) and is merged with the primitive's own.
+- **Arbitrary props are forwarded.** Consumer handlers compose with the internal ones: internal
+  first, then the consumer's.
+- **`className` and `style` accept a value or a `(state) => value` function.** Consumer style is
+  merged *under* the structural style: structural keys always win. On `Panel`, the engine owns
+  `position`/geometry/`display`, so those keys are dropped from the consumer's style.
+- **Structural inline style only**: `position`, `inset`/`left`/`top`/`width`/`height`,
+  `display` (`flex`, or `none` to hide), flex sizing (`flex-direction`, `flex-basis`,
+  `flex-grow`, `min-*`/`max-*`), `overflow: hidden` on rows and tabsets, and the splitter's
+  preview `transform`.
+- **State only through `data-*` and ARIA**, present or absent (never `"false"`):
+  `data-selected`, `data-active`, `data-maximized`, `data-orientation`, `data-dragging`,
+  `data-pinned`, `data-visible`, `data-empty`, `data-root`.
+- **`data-layout-path` on every element**: `/layout` (Root), `/row` (root row), `/r0`, `/ts0`,
+  `/ts0/tabstrip`, `/ts0/content`, `/ts0/tb0`, `/ts0/t0`, `/s0`.
+- **No text.** Primitives render only their children. Accessible names come from the consumer
+  (`aria-label`, children) or from `getLabel(key)` on `Dockable.Root`.
+- **The developer owns the recursion** (children functions: `Row`, `TabList`, `Panels`). `Row`
+  inserts splitters itself (`renderSplitter` / `splitter={false}` to override).
+- **React never reconciles what the engine writes.** Panels get geometry from the engine after
+  commit, never through props. Content renders through a portal into the tab's moveable element;
+  the moveable is re-parented by the engine, so moving a tab never remounts its content.

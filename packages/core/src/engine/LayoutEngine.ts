@@ -187,6 +187,9 @@ export class LayoutEngine {
         if (!rootRow) {
             return;
         }
+        // the adapter may have created (and discarded) other engines for this layout, e.g. under
+        // React StrictMode: the engine that renders is the model's controller
+        this.getLayout().setController(this);
         this.cachedLayoutDomRect = undefined;
         rootRow.calcMinMaxSize();
         rootRow.setPaths(path);
@@ -210,12 +213,21 @@ export class LayoutEngine {
         const win = doc.defaultView ?? undefined;
         this.setCurrentWindow(doc, win);
 
+        this.getLayout().setController(this);
+
         if (this.isMainLayout()) {
-            const home = doc.createElement("div");
-            home.setAttribute(MOVEABLES_HOME_ATTRIBUTE, "");
-            home.setAttribute("aria-hidden", "true");
-            home.style.display = "none";
-            element.appendChild(home);
+            // reuse a home left behind by a previous engine of the same root (a model swap keeps
+            // the parked moveables, whose content is still rendered into them)
+            let home = Array.from(element.children).find((child) =>
+                child.hasAttribute(MOVEABLES_HOME_ATTRIBUTE),
+            ) as HTMLElement | undefined;
+            if (!home) {
+                home = doc.createElement("div");
+                home.setAttribute(MOVEABLES_HOME_ATTRIBUTE, "");
+                home.setAttribute("aria-hidden", "true");
+                home.style.display = "none";
+                element.appendChild(home);
+            }
             this.moveablesHome = home;
             this.teardown.push(() => {
                 // keep parked content alive: its React portal still points at the moveable

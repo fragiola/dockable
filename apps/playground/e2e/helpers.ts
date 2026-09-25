@@ -83,3 +83,71 @@ export async function waitForPopout(
 export const findPath = (page: Page, path: string) => {
     return page.locator(`[data-layout-path="${path}"]`);
 };
+
+export const findTabButton = (page: Page, path: string, index: number) => {
+    return findPath(page, `${path}/tb${index}`);
+};
+
+/** the tab button and panel at `path`/`index`: selection state, name, and panel visibility */
+export const checkTab = async (
+    page: Page,
+    path: string,
+    index: number,
+    selected: boolean,
+    text: string,
+) => {
+    const tabButton = findTabButton(page, path, index);
+    const tabContent = findPath(page, `${path}/t${index}`);
+
+    await expect(tabButton).toBeVisible();
+    await expect(tabButton).toHaveAttribute("aria-selected", String(selected));
+    await expect(tabButton).toContainText(text);
+
+    await expect(tabContent).toBeVisible({ visible: selected });
+    if (selected) {
+        await expect(tabContent).toContainText(text);
+    }
+};
+
+/** drags a splitter by `distance` px along its axis (`upDown` for a splitter between stacked children) */
+export async function dragSplitter(
+    page: Page,
+    from: Locator,
+    upDown: boolean,
+    distance: number,
+) {
+    const fr = await waitForBox(from, "splitter");
+    const cf = { x: fr.x + fr.width / 2, y: fr.y + fr.height / 2 };
+    const ct = {
+        x: cf.x + (upDown ? 0 : distance),
+        y: cf.y + (upDown ? distance : 0),
+    };
+    // firefox drops input events with coordinates outside the viewport; clamp the target to the
+    // viewport edges. the splitter position is clamped to the layout bounds by the library itself,
+    // so an oversized drag lands on the same bound either way
+    const vp = page.viewportSize();
+    const clamp = (p: { x: number; y: number }) => {
+        if (!vp) return p;
+        return {
+            x: Math.max(0, Math.min(vp.width - 1, p.x)),
+            y: Math.max(0, Math.min(vp.height - 1, p.y)),
+        };
+    };
+    const target = clamp(ct);
+    await page.mouse.move(cf.x, cf.y);
+    await page.mouse.down();
+    await page.waitForTimeout(50);
+    // nudge along the drag axis first so small distances still fire pointermove
+    const dir = distance === 0 ? 1 : Math.sign(distance);
+    for (const step of [12, 13]) {
+        const n = clamp(
+            upDown
+                ? { x: cf.x, y: cf.y + dir * step }
+                : { x: cf.x + dir * step, y: cf.y },
+        );
+        await page.mouse.move(n.x, n.y);
+    }
+    await page.mouse.move(target.x, target.y, { steps: 10 });
+    await page.waitForTimeout(50);
+    await page.mouse.up();
+}

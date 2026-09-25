@@ -66,12 +66,13 @@ export function enablePointerOnIFrames(
 export function startDrag(
     doc: Document,
     event: PointerEvent,
+    captureElement: Element | null,
     drag: (x: number, y: number) => void,
     dragEnd: () => void,
     dragCancel: () => void,
 ): () => void {
     event.preventDefault();
-    const target = event.currentTarget as Element | null;
+    const target = captureElement;
     if (target && typeof target.setPointerCapture === "function") {
         try {
             target.setPointerCapture(event.pointerId);
@@ -245,8 +246,10 @@ export class SplitterController {
     /** Starts a pointer drag. Call from the splitter's `pointerdown`. */
     onPointerDown = (event: PointerEvent) => {
         event.stopPropagation();
+        // the attached element, not event.currentTarget: adapters that delegate events (React)
+        // report the delegation root as the current target
         const element =
-            (event.currentTarget as HTMLElement | null) ?? this.element;
+            this.element ?? (event.currentTarget as HTMLElement | null);
         if (!element) {
             return;
         }
@@ -275,6 +278,7 @@ export class SplitterController {
         this.stopDrag = startDrag(
             doc,
             event,
+            element,
             (x, y) => this.onDragMove(x, y),
             () => this.onDragEnd(),
             () => this.onDragCancel(),

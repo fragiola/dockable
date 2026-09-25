@@ -142,18 +142,17 @@ export class UndoManager {
         return this.redoBuffer.length;
     }
 
-    /** The current state. Returns the same object until the state changes. */
-    getSnapshot(): IUndoSnapshot {
-        return this.snapshot;
-    }
+    /** The current state. Returns the same object until the state changes (bound, so it can be
+     *  passed to `useSyncExternalStore` as is). */
+    getSnapshot = (): IUndoSnapshot => this.snapshot;
 
-    /** Calls `listener` whenever the snapshot changes. Returns the unsubscribe function. */
-    subscribe(listener: () => void): () => void {
+    /** Calls `listener` whenever the snapshot changes. Returns the unsubscribe function (bound). */
+    subscribe = (listener: () => void): (() => void) => {
         this.listeners.add(listener);
         return () => {
             this.listeners.delete(listener);
         };
-    }
+    };
 
     /** Detaches from the model and drops every listener. */
     dispose() {

@@ -1,0 +1,36 @@
+/* Structural only: a sized root and a visible splitter thickness. No package ships CSS. */
+html,
+body {
+    margin: 0;
+    height: 100%;
+}
+
+#app {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+[data-layout-path="/layout"] {
+    flex: 1;
+}
+
+/* the splitter needs a thickness (the engine measures it) and, to be seen, a background */
+[role="separator"] {
+    background: #ccc;
+}
+
+[role="separator"][data-orientation="vertical"] {
+    width: 8px;
+    cursor: ew-resize;
+}
+
+[role="separator"][data-orientation="horizontal"] {
+    height: 8px;
+    cursor: ns-resize;
+}
+
+[role="tablist"] {
+    display: flex;
+}
