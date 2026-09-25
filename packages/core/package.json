@@ -30,12 +30,15 @@
     "scripts": {
         "build": "tsdown",
         "typecheck": "tsc --noEmit",
-        "test": "vitest run"
+        "test": "vitest run",
+        "generate:interfaces": "node scripts/generate-json-interfaces.ts",
+        "check:interfaces": "node scripts/generate-json-interfaces.ts --check"
     },
     "devDependencies": {
         "jsdom": "30.0.1",
         "tsdown": "0.23.0",
         "typescript": "7.0.2",
-        "vitest": "4.1.11"
+        "vitest": "4.1.11",
+        "vite": "8.3.0"
     }
 }
