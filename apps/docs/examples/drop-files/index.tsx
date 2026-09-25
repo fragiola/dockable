@@ -2,6 +2,7 @@
 
 import {
     Actions,
+    DockLocation,
     type IExternalDrag,
     type IJsonModel,
     LayoutEngine,
@@ -128,7 +129,7 @@ export default function DropFiles() {
     const [model] = useState(() => Model.fromJson(json));
     const [files, setFiles] = useState<Files>(new Map());
 
-    // Called on the first dragenter of a drag that did not start in the layout. Browsers only
+    // Called when a drag that did not start in the layout enters it. Browsers only
     // expose `dataTransfer.types` until the drop, so decide from the types and read the files in
     // onDrop. Returning undefined ignores the drag (text, links, …).
     const onExternalDrag = (event: {
@@ -141,13 +142,29 @@ export default function DropFiles() {
             // the name is replaced on drop, once the file is readable
             json: { type: "tab", name: "File", component: "file" },
             onDrop: (tab, dropEvent) => {
-                const file = dropEvent.dataTransfer?.files[0];
-                if (!tab || !file) return; // vetoed by onAction, or no file after all
-                // name the new tab after the file, through the engine (so onAction sees it)
-                LayoutEngine.of(model)?.doAction(
-                    Actions.renameTab(tab.getId(), file.name),
+                const [first, ...others] = Array.from(
+                    dropEvent.dataTransfer?.files ?? [],
                 );
-                setFiles((current) => new Map(current).set(tab.getId(), file));
+                const engine = LayoutEngine.of(model);
+                if (!tab || !first || !engine) return; // vetoed by onAction, or no file after all
+                // the drop created one tab: name it after the first file (through the engine, so
+                // onAction sees it), and add one more tab beside it for every other file
+                engine.doAction(Actions.renameTab(tab.getId(), first.name));
+                const added = new Map([[tab.getId(), first]]);
+                const tabset = tab.getParent();
+                for (const file of others) {
+                    if (!tabset) break;
+                    const next = engine.doAction(
+                        Actions.addTab(
+                            { type: "tab", name: file.name, component: "file" },
+                            tabset.getId(),
+                            DockLocation.CENTER,
+                            -1,
+                        ),
+                    );
+                    if (next) added.set(next.getId(), file);
+                }
+                setFiles((current) => new Map([...current, ...added]));
             },
         };
     };

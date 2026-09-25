@@ -876,6 +876,43 @@ describe("external drags (onExternalDrag)", () => {
         expect(DragDropManager.getDragState()?.mainEngine).toBe(s.engine);
     });
 
+    it("asks once per entry into the layout, not for every child the pointer crosses", () => {
+        const onExternalDrag = vi.fn(() => undefined);
+        const s = setup({ onExternalDrag });
+        const child = s.root.appendChild(document.createElement("div"));
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        child.dispatchEvent(dragEvent("dragenter", 312, 185)); // bubbles to the root
+        child.dispatchEvent(dragEvent("dragleave", 312, 185));
+        expect(onExternalDrag).toHaveBeenCalledTimes(1);
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+        // a new entry asks again
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        expect(onExternalDrag).toHaveBeenCalledTimes(2);
+    });
+
+    it("ends an external drag that leaves through a popout layout", () => {
+        const s = setup({
+            onExternalDrag: () => ({
+                json: { type: "tab" as const, name: "x" },
+            }),
+        });
+        s.model.doAction(Actions.popoutTab("t2", "window"));
+        const windowLayoutId = [...s.model.getLayouts().keys()].find(
+            (id) => id !== Model.MAIN_LAYOUT_ID,
+        ) as string;
+        const sub = createLayoutEngine({
+            model: s.model,
+            layoutId: windowLayoutId,
+            mainEngine: s.engine,
+        });
+        engines.push(sub);
+        const manager = sub.getDragDropManager();
+        manager.onDragEnterRaw(dragEvent("dragenter", 10, 10));
+        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+        manager.onDragLeaveRaw(dragEvent("dragleave", 10, 10));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+    });
+
     it("does not treat a layout's own drag as external", () => {
         const onExternalDrag = vi.fn(() => ({
             json: { type: "tab" as const },

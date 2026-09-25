@@ -66,8 +66,8 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
     onPopoutClose?: PopoutCallback | undefined;
     /**
      * accepts a drag that did not start in a layout (files, links, text, another library's
-     * element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called on
-     * the first `dragenter`, when only `event.dataTransfer.types` is readable; read the data in
+     * element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called when
+     * the drag enters the layout, when only `event.dataTransfer.types` is readable; read the data in
      * `onDrop`.
      */
     onExternalDrag?: OnExternalDrag | undefined;

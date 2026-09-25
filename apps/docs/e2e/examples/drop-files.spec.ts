@@ -1,23 +1,19 @@
 import { expect, type Page, test } from "@playwright/test";
 import { openExample, path } from "../helpers";
 
-/** Drops a file from "the OS" onto a layout element: a synthetic DataTransfer carrying a File. */
-async function dropFile(
+/** Drops files from "the OS" onto a layout element: a synthetic DataTransfer carrying Files. */
+async function dropFiles(
     page: Page,
     layoutPath: string,
-    name: string,
-    content: string,
+    files: [name: string, content: string][],
 ) {
-    const dataTransfer = await page.evaluateHandle(
-        ([fileName, text]) => {
-            const transfer = new DataTransfer();
-            transfer.items.add(
-                new File([text ?? ""], fileName ?? "", { type: "text/plain" }),
-            );
-            return transfer;
-        },
-        [name, content],
-    );
+    const dataTransfer = await page.evaluateHandle((entries) => {
+        const transfer = new DataTransfer();
+        for (const [name, text] of entries) {
+            transfer.items.add(new File([text], name, { type: "text/plain" }));
+        }
+        return transfer;
+    }, files);
     const target = path(page, layoutPath);
     const box = await target.boundingBox();
     if (!box) throw new Error("no target box");
@@ -34,7 +30,7 @@ test("a dropped file becomes a tab named after it, showing its content", async (
     page,
 }) => {
     const stage = await openExample(page, "drop-files");
-    await dropFile(page, "/ts1/t0", "notes.txt", "hello from a file");
+    await dropFiles(page, "/ts1/t0", [["notes.txt", "hello from a file"]]);
     const strip = path(page, "/ts1/tabstrip");
     await expect(strip.getByRole("tab")).toHaveText(["Also here", "notes.txt"]);
     await expect(stage.getByTestId("file-text")).toHaveText(
@@ -55,4 +51,19 @@ test("a drag that carries no file is ignored", async ({ page }) => {
         await target.dispatchEvent(type, { dataTransfer });
     }
     await expect(stage.getByRole("tab")).toHaveCount(2);
+});
+
+test("several files dropped at once open one tab each", async ({ page }) => {
+    await openExample(page, "drop-files");
+    await dropFiles(page, "/ts0/t0", [
+        ["a.txt", "first"],
+        ["b.txt", "second"],
+        ["c.txt", "third"],
+    ]);
+    await expect(path(page, "/ts0/tabstrip").getByRole("tab")).toHaveText([
+        "Drop here",
+        "a.txt",
+        "b.txt",
+        "c.txt",
+    ]);
 });

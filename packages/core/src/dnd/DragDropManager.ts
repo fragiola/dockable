@@ -82,8 +82,9 @@ export interface IExternalDrag {
 /**
  * Decides whether a drag that did not start in a layout (files, links, text, an element of
  * another library) can be dropped into it. Return the tab to create, or `undefined` to ignore the
- * drag. It is called on the first `dragenter`, when the data transfer exposes only its `types`
- * (browsers hide the data itself until the drop): read the payload in `onDrop`.
+ * drag. It is called when the drag enters a layout (once per entry, not for every child element
+ * crossed), when the data transfer exposes only its `types` (browsers hide the data itself until
+ * the drop): read the payload in `onDrop`.
  */
 export type OnExternalDrag = (
     event: DragEventLike,
@@ -517,7 +518,9 @@ export class DragDropManager {
 
     /** `dragenter` on the layout root */
     onDragEnterRaw = (event: DragEventLike) => {
-        if (!DragDropManager.dragState) {
+        // ask onExternalDrag once per entry into this layout: dragenter also bubbles from every
+        // child the pointer crosses, which the enter count already tracks
+        if (!DragDropManager.dragState && this.dragEnterCount === 0) {
             this.startExternalDrag(event);
         }
         this.dragEnterCount++;
@@ -685,7 +688,10 @@ export class DragDropManager {
         }
         this.clearDragLocalVisuals();
 
-        if (this.engine.isMainLayout()) {
+        // an external drag's source is outside the page, so no dragend ends it: it ends when it
+        // has left every layout, whichever layout (main, popout, float) it left last
+        const external = DragDropManager.dragState?.dragSource === "external";
+        if (this.engine.isMainLayout() || external) {
             let anyDragging = false;
             for (const [, layout] of this.engine.getModel().getLayouts()) {
                 if (managerOf(layout)?.isDragging()) {
@@ -695,8 +701,7 @@ export class DragDropManager {
             }
             if (!anyDragging) {
                 this.clearDragMain();
-                // an external drag's source is outside the page: no dragend will end it here
-                if (DragDropManager.dragState?.dragSource === "external") {
+                if (external) {
                     this.onDragEnded();
                 }
             }

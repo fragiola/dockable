@@ -89,7 +89,7 @@ dispatch through `onAction` instead of calling `model.doAction` directly.
 
 ## Files and other foreign drags
 
-`onExternalDrag` is called on the first `dragenter` of a drag the layout did not start. Return the
+`onExternalDrag` is called when a drag the layout did not start enters it (once per entry). Return the
 tab to create, or `undefined` to ignore the drag:
 
 ```tsx
