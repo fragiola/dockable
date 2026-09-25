@@ -15,6 +15,7 @@ import type { TabGroupNode } from "../model/TabGroupNode";
 import type { TabNode } from "../model/TabNode";
 import { TabSetNode } from "../model/TabSetNode";
 import { randomUUID } from "../model/Utils";
+import { type IPopoutOptions, PopoutManager } from "../popout/PopoutManager";
 
 /** The kinds of element whose geometry feeds the model. */
 export type MeasurableKind =
@@ -54,6 +55,8 @@ export interface ILayoutEngineOptions {
     realtimeResize?: boolean;
     /** seconds a view may take to animate the drop outline (exposed as data; default 0.3) */
     tabDragSpeed?: number;
+    /** popout windows (main engine only) */
+    popout?: IPopoutOptions;
 }
 
 /** Attribute that marks the element hosting a tab's content. */
@@ -96,6 +99,7 @@ export class LayoutEngine {
     private realtimeResize: boolean;
     private tabDragSpeed: number;
     private readonly dragDropManager: DragDropManager;
+    private readonly popoutManager: PopoutManager | undefined;
 
     private layoutRef: HTMLElement | null = null;
     private moveablesHome: HTMLElement | null = null;
@@ -137,6 +141,10 @@ export class LayoutEngine {
         this.realtimeResize = options.realtimeResize ?? true;
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
         this.dragDropManager = new DragDropManager(this);
+        if (this.mainEngine === this) {
+            this.popoutManager = new PopoutManager(this);
+            this.popoutManager.setOptions(options.popout ?? {});
+        }
         this.getLayout().setController(this);
     }
 
@@ -148,9 +156,14 @@ export class LayoutEngine {
     setOptions(
         options: Pick<
             ILayoutEngineOptions,
-            "onAction" | "onModelChange" | "realtimeResize" | "tabDragSpeed"
+            | "onAction"
+            | "onModelChange"
+            | "realtimeResize"
+            | "tabDragSpeed"
+            | "popout"
         >,
     ) {
+        this.popoutManager?.setOptions(options.popout ?? {});
         this.onActionHandler = options.onAction;
         this.onModelChangeHandler = options.onModelChange;
         this.realtimeResize = options.realtimeResize ?? true;
@@ -326,6 +339,7 @@ export class LayoutEngine {
     dispose() {
         this.detachRoot();
         this.dragDropManager.dispose();
+        this.popoutManager?.dispose();
         this.measurables.clear();
         this.tabPanels.clear();
         this.splitters.clear();
@@ -990,6 +1004,22 @@ export class LayoutEngine {
     getFreshDomRect(): Rect {
         this.cachedLayoutDomRect = undefined;
         return this.getDomRect();
+    }
+
+    /** the popout windows of the model (owned by the main engine) */
+    getPopoutManager(): PopoutManager {
+        const manager = this.mainEngine.popoutManager;
+        if (!manager) {
+            throw new Error(
+                "LayoutEngine: the main engine has no popout manager",
+            );
+        }
+        return manager;
+    }
+
+    /** whether window layouts open as native popouts */
+    isSupportsPopout(): boolean {
+        return this.getPopoutManager().isSupportsPopout();
     }
 
     /** the drag-and-drop state machine of this layout */
