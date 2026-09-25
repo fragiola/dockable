@@ -4,11 +4,16 @@
         "customConditions": ["development"],
         "allowJs": true,
         "incremental": true,
-        "plugins": [{ "name": "next" }],
+        "plugins": [
+            {
+                "name": "next"
+            }
+        ],
         "paths": {
             "@/*": ["./*"]
         },
-        "types": ["node"]
+        "types": ["node"],
+        "allowImportingTsExtensions": true
     },
     "include": [
         "next-env.d.ts",
