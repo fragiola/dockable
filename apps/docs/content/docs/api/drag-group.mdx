@@ -33,8 +33,13 @@ JSON as it left), `from` and `to` (`{ model, layoutId, tabsetId, index }`).
 - Each `Dockable.Root` inside joins the group (the engine's `dragGroup` option).
 - A drop into another model asks the target's `onAction` (an `addTab`), then the source's (a
   `deleteTab`). A veto on either side changes nothing. Both actions carry `userData.transfer`.
-- The group renders every tab's content in one place, keyed by tab id, so moving a tab between roots
-  keeps its component state. Without a `DragGroup`, panels render their content themselves.
+- The group renders every tab's content in one place (directly under it), so moving a tab between
+  roots keeps its component state. Without a `DragGroup`, panels render their content themselves.
+  The content gets the layout's contexts, but not providers or boundaries placed between the group
+  and the panel: put those above the group, or inside the content.
+- A source veto comes after the target's `onAction` has seen the `addTab`: record history from
+  `onTransfer` or `onModelChange`, not from `onAction`.
+- A root that unmounts (or gets a new model) leaves the group.
 
 ## Data attributes
 

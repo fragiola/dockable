@@ -92,7 +92,9 @@ id and JSON) and deleted from the source model.
 
 1. **Both sides are asked first.** The target root's `onAction` receives an `addTab`, then the
    source root's receives a `deleteTab`. If either returns `undefined` (or replaces the action with
-   another kind), **nothing changes**.
+   another kind), **nothing changes**. So the target's `onAction` may see an `addTab` that the
+   source then refuses: record history from `onModelChange` or `onTransfer` (what happened), not
+   from `onAction` (what was asked).
 2. **Both actions say they are a transfer.** Their `userData.transfer` holds `{ tabId, from, to }`
    (the two models), so an `onAction` or an `onModelChange` can tell a transfer from an ordinary
    add or close:
@@ -170,6 +172,11 @@ root's `onModelChange` (see [Undo and redo](/docs/guides/undo-redo)).
   (windows included), never into another model.
 - **One React tree.** The roots that exchange tabs must be under one `Dockable.DragGroup`, in one
   page (the page's popout windows count).
+- **Content renders under the group.** To survive a move between roots, every tab's content renders
+  in one place directly under `Dockable.DragGroup`, with the layout's own contexts passed along.
+  Providers, error boundaries and Suspense boundaries placed **between** the group and a panel do
+  not reach the content: put the ones the content needs **above** `Dockable.DragGroup`, or inside
+  the content itself.
 - **Ids are per model.** A tab whose id is already used in the target model is refused. Models built
   from JSON without ids get unique generated ids, so this only matters for ids you set yourself.
 - **HTML5 drag and drop across windows** needs a desktop browser that supports popouts; where

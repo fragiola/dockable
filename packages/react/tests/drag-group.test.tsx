@@ -217,6 +217,52 @@ describe("Dockable.DragGroup", () => {
         expect(mounts.get("a1")).toBe(1);
     });
 
+    it("renders the content of same-id tabs of two models, each in its own layout", async () => {
+        const a = Model.fromJson(layoutJson("x"));
+        const b = Model.fromJson(layoutJson("x"));
+        render(<TwoLayouts a={a} b={b} />);
+        await act(tick);
+        const contents = screen.getAllByTestId("content-x0");
+        expect(contents).toHaveLength(2);
+        expect(screen.getByTestId("root-a")).toContainElement(
+            contents[0] ?? null,
+        );
+        expect(screen.getByTestId("root-b")).toContainElement(
+            contents[1] ?? null,
+        );
+    });
+
+    it("an unmounted layout leaves the group", async () => {
+        const a = Model.fromJson(layoutJson("a"));
+        const b = Model.fromJson(layoutJson("b"));
+        let group: ReturnType<typeof useDragGroup> | undefined;
+        function Grab() {
+            group = useDragGroup();
+            return null;
+        }
+        function App({ showB }: { showB: boolean }) {
+            return (
+                <Dockable.DragGroup>
+                    <Grab />
+                    <Layout model={a} data-testid="root-a" />
+                    {showB ? <Layout model={b} data-testid="root-b" /> : null}
+                </Dockable.DragGroup>
+            );
+        }
+        const { rerender } = render(<App showB />);
+        await act(tick);
+        expect(group?.engineOf(b)).toBeDefined();
+
+        rerender(<App showB={false} />);
+        await act(tick);
+        expect(group?.engineOf(b)).toBeUndefined();
+        const tabset = b.getFirstTabSet()?.getId() ?? "";
+        expect(
+            group?.transfer("a0", a, b, tabset, DockLocation.CENTER, -1),
+        ).toBeUndefined();
+        expect(a.getNodeById("a0")).toBeDefined();
+    });
+
     it("still renders content without a group, and removes a closed tab's content", async () => {
         const a = Model.fromJson(layoutJson("a"));
         render(

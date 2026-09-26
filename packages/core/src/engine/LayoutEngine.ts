@@ -1167,20 +1167,9 @@ export class LayoutEngine {
      */
     dockBack(node: TabNode | TabSetNode): Node | undefined {
         const tabs = node instanceof TabSetNode ? node.getChildren() : [node];
-        const target = dockTargetOf(this.model);
-        const moves = tabs.map((tab) =>
-            Actions.moveNode(
-                tab.getId(),
-                target.getId(),
-                DockLocation.CENTER,
-                -1,
-            ),
-        );
-        if (moves.length === 0) {
-            return undefined;
-        }
-        return this.doAction(
-            moves.length === 1 && moves[0] ? moves[0] : Actions.group(moves),
+        return dockTabs(
+            this,
+            tabs.map((tab) => tab.getId()),
         );
     }
 
@@ -1338,8 +1327,28 @@ export function createLayoutEngine(
     return new LayoutEngine(options);
 }
 
-/** Where tabs docked back from a window go: the main layout's active tabset, else its first, else
- * its root row (a drop there makes a new tabset). */
+/**
+ * Moves the tabs `tabIds` into the main layout's dock target ({@link dockTargetOf}), as one
+ * (grouped) action through `onAction`.
+ */
+export function dockTabs(
+    engine: LayoutEngine,
+    tabIds: readonly string[],
+): Node | undefined {
+    const target = dockTargetOf(engine.getModel());
+    const moves = tabIds.map((id) =>
+        Actions.moveNode(id, target.getId(), DockLocation.CENTER, -1),
+    );
+    if (moves.length === 0) {
+        return undefined;
+    }
+    return engine.doAction(
+        moves.length === 1 && moves[0] ? moves[0] : Actions.group(moves),
+    );
+}
+
+/** Where tabs docked back from a window go: the main layout's active tabset, else its first. The
+ * model always keeps a tabset in the main layout, so the root row is only a type-level fallback. */
 export function dockTargetOf(model: Model): TabSetNode | RowNode {
     const active = model.getActiveTabset(Model.MAIN_LAYOUT_ID);
     if (active) {

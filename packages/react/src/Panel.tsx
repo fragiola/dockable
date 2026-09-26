@@ -61,6 +61,18 @@ function withoutEngineKeys(
     return rest as React.CSSProperties;
 }
 
+/** A stable key per moveable element, for a drag group's content host. */
+const moveableKeys = new WeakMap<HTMLElement, string>();
+let nextMoveableKey = 0;
+function keyOfMoveable(element: HTMLElement): string {
+    let key = moveableKeys.get(element);
+    if (key === undefined) {
+        key = `moveable-${nextMoveableKey++}`;
+        moveableKeys.set(element, key);
+    }
+    return key;
+}
+
 /**
  * A tab's content panel (`role="tabpanel"`). Renders two portals:
  * - the panel element, into the panel layer of the tab's current layout; the engine positions it
@@ -187,15 +199,19 @@ export function Panel(props: PanelProps) {
     const contentKey =
         node.getId() + (node.isEnableWindowReMount() ? windowId : "");
 
-    // in a drag group, the content renders in the group's host (keyed by tab id), so it survives
-    // the tab moving to another root; the panel hands over its context along with it
+    // in a drag group, the content renders in the group's host, so it survives the tab moving to
+    // another root; the panel hands over its context along with it. The host keys it by the
+    // moveable element, which a transferred tab adopts: two models' tabs may share an id
     const dragGroup = React.useContext(DragGroupContext);
+    const groupKey =
+        keyOfMoveable(moveable) +
+        (node.isEnableWindowReMount() ? windowId : "");
     const dockable = React.useContext(DockableContext);
     const layout = React.useContext(LayoutContext);
     const owner = React.useRef({}).current;
     React.useLayoutEffect(() => {
         dragGroup?.registry.set(
-            contentKey,
+            groupKey,
             owner,
             moveable,
             <DockableContext.Provider value={dockable}>
@@ -206,8 +222,8 @@ export function Panel(props: PanelProps) {
         );
     });
     React.useLayoutEffect(
-        () => () => dragGroup?.registry.remove(contentKey, owner),
-        [dragGroup, contentKey, owner],
+        () => () => dragGroup?.registry.remove(groupKey, owner),
+        [dragGroup, groupKey, owner],
     );
 
     return (

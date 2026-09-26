@@ -12,9 +12,8 @@
 //   tabs back into the main layout; "float" dispatches Actions.closePopout (FlexLayout parity);
 // - adoptedStyleSheets (constructable stylesheets) are mirrored too;
 // - nothing names or titles the window unless the consumer provides a title.
-import { dockTargetOf, LayoutEngine } from "../engine/LayoutEngine";
-import { type Action, Actions } from "../model/Actions";
-import { DockLocation } from "../model/DockLocation";
+import { dockTabs, LayoutEngine } from "../engine/LayoutEngine";
+import { Actions } from "../model/Actions";
 import type { ModelLayout } from "../model/ModelLayout";
 import { TabNode } from "../model/TabNode";
 
@@ -406,27 +405,13 @@ export class PopoutManager {
             this.engine.doAction(Actions.closePopout(layoutId));
             return;
         }
-        const target = dockTargetOf(model);
-        const moves: Action[] = [];
+        const tabIds: string[] = [];
         model.visitLayoutNodes(layoutId, (node) => {
             if (node instanceof TabNode) {
-                moves.push(
-                    Actions.moveNode(
-                        node.getId(),
-                        target.getId(),
-                        DockLocation.CENTER,
-                        -1,
-                    ),
-                );
+                tabIds.push(node.getId());
             }
         });
-        if (moves.length > 0) {
-            this.engine.doAction(
-                moves.length === 1 && moves[0]
-                    ? moves[0]
-                    : Actions.group(moves),
-            );
-        }
+        dockTabs(this.engine, tabIds);
     }
 }
 
@@ -735,13 +720,14 @@ export function mirrorRootAttributes(
     };
     const copy = (from: Element, to: Element, name: string) => {
         const value = from.getAttribute(name);
-        if (value === null) {
-            to.removeAttribute(name);
-        } else if (name === "class") {
-            // keep the popout's own classes: add the mirrored ones on top
-            for (const cls of value.split(/\s+/).filter(Boolean)) {
+        if (name === "class") {
+            // keep the popout's own classes: add the mirrored ones on top (the observer removes
+            // the ones the main document drops, one by one)
+            for (const cls of (value ?? "").split(/\s+/).filter(Boolean)) {
                 to.classList.add(cls);
             }
+        } else if (value === null) {
+            to.removeAttribute(name);
         } else {
             to.setAttribute(name, value);
         }

@@ -53,7 +53,9 @@ function endOf(tab: TabNode): ITransferEnd {
  * and its content is kept (the new tab adopts the old one's moveable element).
  *
  * A transfer asks the target's `onAction` (an `addTab`), then the source's (a `deleteTab`); if either
- * vetoes (or replaces its action with another kind of action), nothing changes. Both actions carry {@link ITransferUserData}. Listeners registered with
+ * vetoes (or replaces its action with another kind of action), nothing changes; the target's
+ * `onAction` may so see an add that the source then refuses. Both actions carry
+ * {@link ITransferUserData}. Listeners registered with
  * {@link onTransfer} receive where the tab came from and where it went: what an app's undo needs.
  */
 export class DragGroup {

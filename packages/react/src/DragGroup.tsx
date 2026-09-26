@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 
 /**
  * Where the content of every tab of a drag group renders: one place for all the group's roots,
- * keyed by tab id. A panel registers its content (and the context it needs) here instead of
+ * keyed by the tab's moveable element (which a transferred tab adopts). A panel registers its content (and the context it needs) here instead of
  * portalling it itself, so a tab moving from one root to another keeps its key, its portal and
  * the state of the components under it.
  */

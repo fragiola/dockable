@@ -142,6 +142,9 @@ export function Root(props: RootProps) {
             },
         },
     });
+    // leave the group when this root unmounts or its engine is replaced (a new model), so the group
+    // never reaches a layout that is gone; the setup re-joins after a StrictMode remount
+    React.useEffect(() => dragGroup?.group.join(engine), [dragGroup, engine]);
     const dragState = useDragState();
     const manager = engine.getDragDropManager();
     const refused = React.useSyncExternalStore(

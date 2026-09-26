@@ -27,6 +27,8 @@ On drop into another model, the target's manager asks the group to transfer the 
 3. **The content moves with it.** The new tab adopts the old tab's view state (`adoptViewState`: its
    moveable element, scroll position, rendered flag), so the target panel re-parents the **same**
    element. A framework adapter keeps the content mounted across the two roots (see below).
+   Since the target is asked before the source, its `onAction` may see an add that the source
+   then refuses: history belongs in `onTransfer`/`onModelChange`, not `onAction`.
 4. **An event.** The group notifies `onTransfer({ tab, json, from, to })`, where `from` and `to` name
    the model, the layout, the tabset and the index. It is the data an app needs to undo the move.
 
@@ -43,7 +45,8 @@ its content kept, through `group.transfer`.
 ## React
 
 `Dockable.DragGroup` wraps the roots that exchange tabs. It creates the core group, and renders the
-tabs' content in **one place for the whole group**, keyed by tab id: each `Panel` registers its
+tabs' content in **one place for the whole group**, keyed by the tab's moveable element (which a
+transferred tab adopts, and which two models' same-id tabs never share): each `Panel` registers its
 content (and the context the content needs) instead of portalling it itself. When a tab moves from
 root A to root B, A's panel unregisters and B's registers the same key in the same commit, so the
 portal and the component state under it are kept. Without a `DragGroup`, panels portal their content
@@ -54,3 +57,5 @@ themselves, as before.
 - Only tabs cross models (not tabsets, tab groups or floats).
 - Both roots must be in the same React tree under one `DragGroup`, and in the same page (windows of
   one page count: a model's popouts take part through their main engine).
+- The content renders under the group, so providers between the group and a panel do not reach it.
+- A root leaves the group when it unmounts or its engine is replaced.

@@ -569,6 +569,19 @@ describe("root attribute mirroring (mirrorRoot)", () => {
         expect(html.hasAttribute("data-theme")).toBe(false);
     });
 
+    it("keeps the popout's own classes when the main document drops its class attribute", async () => {
+        document.body.className = "app";
+        const { win } = await openWith(true);
+        const body = win.document.body;
+        body.classList.add("popout-only");
+        expect(body.classList.contains("app")).toBe(true);
+
+        document.body.removeAttribute("class");
+        await tick();
+        expect(body.classList.contains("app")).toBe(false);
+        expect(body.classList.contains("popout-only")).toBe(true);
+    });
+
     it("copies only the listed attributes", async () => {
         document.documentElement.dataset.theme = "dark";
         document.documentElement.dataset.other = "x";
