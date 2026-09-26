@@ -2,7 +2,7 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import {
-    type BorderNode,
+    BorderNode,
     DockableLabel,
     getSplitterPath,
     type ISplitterState,
@@ -42,6 +42,10 @@ export function Splitter(props: SplitterProps) {
     const horizontal = aria.orientation === "vertical";
 
     const structural: React.CSSProperties = {};
+    if (node instanceof BorderNode) {
+        // an overlay border's content ignores presses (pointer-events: none), except its splitter
+        structural.pointerEvents = "auto";
+    }
     if (hidden) {
         structural.display = "none";
     }

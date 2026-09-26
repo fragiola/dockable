@@ -1,0 +1,65 @@
+/* Structural only, plus enough colour to see the parts. No package ships CSS. */
+
+/* a border's strip (it has data-location, like its content; its splitter has not) has a
+   thickness; side borders stack their tabs */
+[data-location][data-orientation="horizontal"]:not(
+    [data-layout-path$="/content"]
+) {
+    min-height: 30px;
+    background: #eee;
+}
+
+[data-location][data-orientation="vertical"]:not(
+    [data-layout-path$="/content"]
+) {
+    min-width: 30px;
+    background: #eee;
+}
+
+[data-layout-path^="/border/"] [role="tablist"][data-orientation="vertical"] {
+    flex-direction: column;
+    padding-inline: 0;
+    padding-block: 4px;
+}
+
+/* side tabs read along the strip: a left border "up" (bottom to top) by default, "down" on
+   request, and a right border down; the tabs stay in order from the top */
+[data-layout-path^="/border/"]
+    [role="tablist"][data-orientation="vertical"]
+    [role="tab"] {
+    writing-mode: vertical-rl;
+    padding-block: 6px;
+}
+
+[data-layout-path="/border/left"][data-tab-direction="up"] [role="tab"] {
+    transform: rotate(180deg);
+}
+
+[role="tab"][aria-selected="true"] {
+    font-weight: bold;
+}
+
+/* an overlay panel paints over the layout, its splitter included */
+[data-layout-path$="/content"][data-overlay] {
+    z-index: 5;
+}
+
+[data-layout-path^="/border/"][role="tabpanel"],
+[role="tabpanel"] {
+    background: white;
+}
+
+[data-layout-path^="/edge/"] {
+    z-index: 11;
+    background: rgb(255 0 0 / 0.3);
+}
+
+[data-layout-path^="/edge/"][data-drop-target] {
+    background: rgb(255 0 0 / 0.7);
+}
+
+/* gap 11: a strip thinner than the top edge band */
+:root[data-thin] [role="tablist"] {
+    min-height: 12px;
+    font-size: 10px;
+}

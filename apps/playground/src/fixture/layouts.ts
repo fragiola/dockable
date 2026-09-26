@@ -1,4 +1,7 @@
 import type { IJsonModel } from "@fragiola/dockable";
+import testAutohideBorders from "../layouts/test_autohide_borders.json";
+import testBorderDirection from "../layouts/test_border_direction.json";
+import testOverlay from "../layouts/test_overlay.json";
 import testThreeTabs from "../layouts/test_three_tabs.json";
 import testTwoTabs from "../layouts/test_two_tabs.json";
 
@@ -59,6 +62,9 @@ export const layouts: Record<string, IJsonModel> = {
     test_two_tabs: testTwoTabs as IJsonModel,
     test_three_tabs: testThreeTabs as IJsonModel,
     big,
+    test_overlay: testOverlay as IJsonModel,
+    test_border_direction: testBorderDirection as IJsonModel,
+    test_autohide_borders: testAutohideBorders as IJsonModel,
 };
 
 /** the layout named by the `layout` query parameter (default: test_two_tabs) */

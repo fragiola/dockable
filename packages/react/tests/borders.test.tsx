@@ -187,6 +187,9 @@ describe("Dockable.Borders", () => {
         expect(content.style.position).toBe("absolute");
         expect(content.style.left).toBe("0px");
         expect(content).toHaveAttribute("data-dockable-overlay", "");
+        // presses go through its empty area to the tab panel, but not through its splitter
+        expect(content.style.pointerEvents).toBe("none");
+        expect(path("/border/left/s-1")?.style.pointerEvents).toBe("auto");
         // a split border is in the flow
         expect(path("/border/bottom/content")?.style.position).toBe("");
     });

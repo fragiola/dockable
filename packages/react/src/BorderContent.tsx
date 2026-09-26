@@ -86,7 +86,11 @@ export function BorderContent(props: BorderContentProps) {
         flexShrink: 0,
     };
     if (state.overlay) {
-        Object.assign(structural, overlayPosition(node));
+        // hit-testing, not cosmetics: the overlay paints over the layout (its z-index is yours),
+        // but presses must reach the tab panel under its empty area; its splitter takes them back
+        Object.assign(structural, overlayPosition(node), {
+            pointerEvents: "none",
+        });
     }
     return useRenderElement("div", rest, {
         state,

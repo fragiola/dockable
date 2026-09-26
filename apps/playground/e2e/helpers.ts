@@ -264,6 +264,25 @@ export async function dragOver(
 }
 
 /**
+ * starts dragging `from` and hovers the viewport `point`; returns functions that move the same
+ * drag on (`moveTo`) and drop it (`drop`), for drags whose target appears mid-drag
+ */
+export async function dragOverPoint(
+    page: Page,
+    from: Locator,
+    point: { x: number; y: number },
+) {
+    await startDrag(page, from);
+    await moveDragTo(page, point);
+    return {
+        moveTo: (next: { x: number; y: number }) => moveDragTo(page, next),
+        drop: async () => {
+            await page.mouse.up();
+        },
+    };
+}
+
+/**
  * Drags `source` into another window's layout with synthetic drag events: HTML5 drag and drop
  * cannot be driven across windows with the mouse (ported from FlexLayout's dragAcrossWindows).
  * The drag state lives in JavaScript (shared by the windows of a page), so the events only need to
