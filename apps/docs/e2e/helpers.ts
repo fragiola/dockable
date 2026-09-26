@@ -86,3 +86,65 @@ export async function dragTo(
     await moveDragTo(page, point);
     await page.mouse.up();
 }
+
+/** The popout window, once exactly one extra page stays open (StrictMode opens, closes, reopens). */
+export async function waitForPopout(page: Page, count = 1): Promise<Page[]> {
+    let candidates: Page[] = [];
+    await expect
+        .poll(
+            () => {
+                const live = page
+                    .context()
+                    .pages()
+                    .filter((p) => p !== page && !p.isClosed());
+                const stable =
+                    live.length === count &&
+                    live.every((p, i) => p === candidates[i]);
+                candidates = live;
+                return stable;
+            },
+            { timeout: 15000, intervals: [250] },
+        )
+        .toBe(true);
+    return candidates;
+}
+
+/**
+ * Drags `source` onto the centre of `target` in another window, with synthetic drag events: HTML5
+ * drag and drop cannot be driven across windows with the mouse. The drag state lives in
+ * JavaScript, shared by the windows of a page, so the events only need to reach the right elements.
+ */
+export async function dragAcrossWindows(source: Locator, target: Locator) {
+    const from = await source.boundingBox();
+    const to = await target.boundingBox();
+    if (!from || !to) throw new Error("no box");
+    await source.evaluate(
+        (el, { x, y }) => {
+            el.dispatchEvent(
+                new DragEvent("dragstart", {
+                    bubbles: true,
+                    cancelable: true,
+                    dataTransfer: new DataTransfer(),
+                    clientX: x,
+                    clientY: y,
+                }),
+            );
+        },
+        { x: from.x + from.width / 2, y: from.y + from.height / 2 },
+    );
+    await target.evaluate(
+        (el, { x, y }) => {
+            const init = {
+                bubbles: true,
+                cancelable: true,
+                dataTransfer: new DataTransfer(),
+                clientX: x,
+                clientY: y,
+            };
+            el.dispatchEvent(new DragEvent("dragenter", init));
+            el.dispatchEvent(new DragEvent("dragover", init));
+            el.dispatchEvent(new DragEvent("drop", init));
+        },
+        { x: to.x + to.width / 2, y: to.y + to.height / 2 },
+    );
+}

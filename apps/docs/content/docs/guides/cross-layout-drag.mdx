@@ -3,6 +3,174 @@ title: Drag across windows and layouts
 description: Tabs dragged between popout windows, and between independent layouts that share a drag group.
 ---
 
-Written in full by the docs work item of Epic #20.
+A tab can leave the tabset it is in by more than a drop on another tabset of the same layout:
 
-Meanwhile, see the [popout example](/examples/popout/).
+- **between windows** of one model: the main window and its [popouts](/docs/guides/popouts), in
+  any direction;
+- **between layouts** with **different models** on one page (two `Dockable.Root`s), when they
+  share a `Dockable.DragGroup`.
+
+In both cases the tab's content keeps its state: its moveable element is re-parented, never
+cloned, and its React tree is never remounted.
+
+## Between windows
+
+<Example slug="popout-drag" />
+
+Nothing to switch on. The windows of a page share one drag state, and each window's engine
+listens to its own document, so a drag that starts in the main window drops in a popout, and the
+other way round. The drop is an ordinary `Actions.moveNode` through the main root's `onAction`.
+
+Two things make it look right:
+
+1. **An indicator in each window.** The outline is drawn by the engine of the window under the
+   pointer. Put a `Dockable.DropIndicator` in `Dockable.Popout` as well as in the main layout:
+
+   ```tsx
+   <Dockable.Popout>
+       {() => (
+           <>
+               <Dockable.Row>{renderNode}</Dockable.Row>
+               <Dockable.DropIndicator className="drop-indicator" />
+           </>
+       )}
+   </Dockable.Popout>
+   ```
+
+2. **The theme in each window.** Stylesheets are copied into every popout; attributes of `<html>`
+   and `<body>` are not, unless you ask. `popoutMirrorRoot` on `Root` copies them and keeps them in
+   sync (a theme switch follows into open windows):
+
+   ```tsx
+   <Dockable.Root model={model} popoutMirrorRoot>              {/* every attribute but style and id */}
+   <Dockable.Root model={model} popoutMirrorRoot={["class", "data-theme"]}>  {/* only these */}
+   ```
+
+### Buttons that open and close windows
+
+`Dockable.PopoutTrigger` goes inside a `TabSet`. It pops the selected tab out (or, with
+`target="tabset"`, the whole tabset), and in a window it docks back into the main layout. It
+renders nothing when neither is possible, and its `data-mode` (`"popout"` or `"dock"`) tells your
+icon which way it goes:
+
+```tsx
+<Dockable.PopoutTrigger aria-label="Pop out" className="group">
+    <ExternalLinkIcon aria-hidden className="group-data-[mode=dock]:hidden" />
+    <DockIcon aria-hidden className="hidden group-data-[mode=dock]:block" />
+</Dockable.PopoutTrigger>
+<Dockable.PopoutTrigger target="tabset" aria-label="Move this group to a window" className="data-[mode=dock]:hidden">
+    <AppWindowIcon aria-hidden />
+</Dockable.PopoutTrigger>
+```
+
+From code, the engine has the same operations: `engine.canPopout(node)`, `engine.popout(node)`,
+`engine.dockBack(node)` and `engine.isInWindow(node)`, for a tab or a tabset. Popout stays opt-in
+per tab (`tabEnablePopout: true` in the global attributes).
+
+<Example slug="multi-monitor" />
+
+## Between layouts
+
+<Example slug="two-layouts" />
+
+Two roots with different models exchange tabs when a `Dockable.DragGroup` wraps them:
+
+```tsx
+<Dockable.DragGroup onTransfer={(transfer) => console.log(transfer.tab.getName(), "moved")}>
+    <Dockable.Root model={workspace}>{/* … */}</Dockable.Root>
+    <Dockable.Root model={scratch}>{/* … */}</Dockable.Root>
+</Dockable.DragGroup>
+```
+
+Layouts outside a shared group refuse each other's drags, as before. The roots can be anywhere
+below the group, and a layout's popout windows take part too.
+
+### What a transfer does
+
+A drop into another model is a **transfer**: the tab is added to the target model (with the same
+id and JSON) and deleted from the source model.
+
+1. **Both sides are asked first.** The target root's `onAction` receives an `addTab`, then the
+   source root's receives a `deleteTab`. If either returns `undefined` (or replaces the action with
+   another kind), **nothing changes**.
+2. **Both actions say they are a transfer.** Their `userData.transfer` holds `{ tabId, from, to }`
+   (the two models), so an `onAction` or an `onModelChange` can tell a transfer from an ordinary
+   add or close:
+
+   ```tsx
+   import type { ITransferUserData } from "@fragiola/dockable";
+
+   <Dockable.Root
+       model={scratch}
+       onAction={(action) => {
+           const transfer = (action.userData as Partial<ITransferUserData> | undefined)?.transfer;
+           if (transfer && action.type === Actions.ADD_TAB && isFull(scratch)) {
+               return undefined; // Scratch takes no more tabs
+           }
+           return action;
+       }}
+   >
+   ```
+
+3. **The target model's rules apply.** Hit testing runs in the target layout, so its
+   `enableDrop`/`enableDivide` attributes and its `onAllowDrop` decide where the tab may land.
+4. **The content moves with it.** The new tab adopts the old one's view state, and the group renders
+   every tab's content in one place keyed by tab id, so components under the tab keep their state.
+5. **One event.** `onTransfer` on `Dockable.DragGroup` (or `group.onTransfer(listener)`) receives
+   `{ tab, json, from, to }`, where `from` and `to` are `{ model, layoutId, tabsetId, index }`.
+
+A transfer can also run from code, with the same checks and the same event:
+`useDragGroup()` returns the core group, and
+`group.transfer(tabId, fromModel, toModel, toNodeId, DockLocation.CENTER, index)` returns the new
+tab, or `undefined` when a side vetoed or the move was impossible (an unknown tab or target, an
+id already used in the target model).
+
+### Undo is yours
+
+Dockable ships no undo/redo: what counts as a step, and what undoing a move between layouts means,
+is your app's decision. The transfer event carries what an undo needs. The
+[`two-layouts`](/examples/two-layouts/) example keeps one history for the group, in which undoing a
+transfer moves the tab **back into its old tabset in the first layout, so it disappears from the
+second**, with its content kept:
+
+```ts
+// examples/two-layouts/history.ts, abridged
+connect() {
+    return this.group.onTransfer((transfer) => {
+        if (this.replaying) return; // our own undo or redo
+        this.undoStack.push({ tabId: transfer.tab.getId(), from: transfer.from, to: transfer.to });
+        this.redoStack = [];
+    });
+}
+
+undo() {
+    const step = this.undoStack.pop();
+    if (step && this.move(step, step.to, step.from)) this.redoStack.push(step);
+}
+
+private move(step: Step, from: ITransferEnd, to: ITransferEnd) {
+    const target = targetIn(to.model, to); // its old tabset, or the first one if that is gone
+    if (!target) return false;
+    this.replaying = true;
+    try {
+        const index = target === to.tabsetId ? to.index : -1;
+        return this.group.transfer(step.tabId, from.model, to.model, target, DockLocation.CENTER, index) !== undefined;
+    } finally {
+        this.replaying = false;
+    }
+}
+```
+
+Copy it and adapt it: a history of each layout's own changes is recorded the same way, from each
+root's `onModelChange` (see [Undo and redo](/docs/guides/undo-redo)).
+
+## Limits
+
+- **Only tabs cross models.** A tabset, a tab group or a float's layout drags within its own model
+  (windows included), never into another model.
+- **One React tree.** The roots that exchange tabs must be under one `Dockable.DragGroup`, in one
+  page (the page's popout windows count).
+- **Ids are per model.** A tab whose id is already used in the target model is refused. Models built
+  from JSON without ids get unique generated ids, so this only matters for ids you set yourself.
+- **HTML5 drag and drop across windows** needs a desktop browser that supports popouts; where
+  popouts are unsupported, windows are docked back and there is nothing to drag between.

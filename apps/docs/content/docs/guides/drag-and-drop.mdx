@@ -91,11 +91,11 @@ drag's enter and leave events from the layout, and the browser would cancel the 
 
 ## Dropping between windows and layouts
 
-A tab can be dragged within one layout. Dragging between the main window and a popout, between
-two popouts, or between two separate `Dockable.Root`s is not supported yet: see
-Epic [#20](https://github.com/fragiola/dockable/issues/20). Dragging things **from outside**
-the layout into it (a widget sidebar, files) is Epic
-[#18](https://github.com/fragiola/dockable/issues/18).
+Tabs drag between the main window and its popouts, and between popouts, with no set-up. Two
+separate `Dockable.Root`s (different models) exchange tabs when a `Dockable.DragGroup` wraps them.
+See [Drag across windows and layouts](/docs/guides/cross-layout-drag). Dragging things **from
+outside** the layout into it (a widget sidebar, files) is covered in
+[External drag](/docs/guides/external-drag).
 
 ## Controlling where drops go
 

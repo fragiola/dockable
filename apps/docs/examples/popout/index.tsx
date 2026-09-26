@@ -1,14 +1,12 @@
 "use client";
 
 import {
-    Actions,
-    DockLocation,
     type IJsonModel,
     Model,
     type TabNode,
     type TabSetNode,
 } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { Dockable } from "@fragiola/dockable-react";
 import { ArrowDownToLine, SquareArrowOutUpRight } from "lucide-react";
 import { useState } from "react";
 import { Card } from "../_kit/card";
@@ -17,9 +15,9 @@ import * as styles from "../_kit/styles";
 
 // Pop a tab out into its own browser window, and back. The core opens the window (`popoutURL`,
 // served under the site's base path), copies the page's styles into it and moves the tab's
-// content element there: the counter and the notes keep their state both ways. The kit copies
-// the example theme into the window (gap 3). Closing the window docks its tabs back into the main
-// layout (the default "dock" policy).
+// content element there: the counter and the notes keep their state both ways. Closing the window
+// docks its tabs back into the main layout (the default "dock" policy). A tab can also be dragged
+// from the window into the main layout, and back (see the popout-drag example).
 
 const json: IJsonModel = {
     // tabs may be popped out (off by default)
@@ -55,57 +53,28 @@ const json: IJsonModel = {
 };
 
 /**
- * In the main window: pop the selected tab out. In a popout: dock it back into the main
- * layout's active tabset (or its first). The button needs the selected tab's `enablePopout`
- * and the engine's `isSupportsPopout()` (gap 7: no popout trigger primitive yet).
+ * `Dockable.PopoutTrigger` pops the selected tab out and, in a popout, docks it back into the main
+ * layout's active tabset. It renders nothing when the tab cannot pop out (here "Pinned here"), and
+ * says which way it goes with `data-mode` ("popout" or "dock"): the icons follow it.
  */
 function PopoutButton({ tabset }: { tabset: TabSetNode }) {
-    const { engine, mainEngine, model } = useDockable();
     const selected = tabset.getSelectedNode() as TabNode | undefined;
-    if (!selected) {
-        return null;
-    }
-    if (tabset.getLayoutId() !== Model.MAIN_LAYOUT_ID) {
-        return (
-            <button
-                type="button"
-                aria-label={`Dock ${selected.getName()} back`}
-                className={styles.iconButton}
-                onClick={() => {
-                    const target =
-                        model.getActiveTabset(Model.MAIN_LAYOUT_ID) ??
-                        model.getFirstTabSet();
-                    if (target) {
-                        // the main engine: the tab moves into the main layout
-                        mainEngine.doAction(
-                            Actions.moveNode(
-                                selected.getId(),
-                                target.getId(),
-                                DockLocation.CENTER,
-                                -1,
-                            ),
-                        );
-                    }
-                }}
-            >
-                <ArrowDownToLine aria-hidden className="size-3.5" />
-            </button>
-        );
-    }
-    if (!selected.isEnablePopout() || !mainEngine.isSupportsPopout()) {
-        return null;
-    }
+    const inWindow = tabset.getLayoutId() !== Model.MAIN_LAYOUT_ID;
+    const name = selected?.getName() ?? "";
     return (
-        <button
-            type="button"
-            aria-label={`Pop out ${selected.getName()}`}
+        <Dockable.PopoutTrigger
+            aria-label={inWindow ? `Dock ${name} back` : `Pop out ${name}`}
             className={styles.iconButton}
-            onClick={() =>
-                engine.doAction(Actions.popoutTab(selected.getId(), "window"))
-            }
         >
-            <SquareArrowOutUpRight aria-hidden className="size-3.5" />
-        </button>
+            <SquareArrowOutUpRight
+                aria-hidden
+                className="size-3.5 in-data-[mode=dock]:hidden"
+            />
+            <ArrowDownToLine
+                aria-hidden
+                className="hidden size-3.5 in-data-[mode=dock]:block"
+            />
+        </Dockable.PopoutTrigger>
     );
 }
 

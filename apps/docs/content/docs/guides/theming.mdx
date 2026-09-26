@@ -80,24 +80,15 @@ without a reload: the markup never changes, only the attribute on the stage.
 
 A popout window is a new document. Dockable copies your **stylesheets** into it (`<link>`,
 `<style>` including later edits, CSSOM rules and adopted stylesheets) and the `lang` and `dir`
-of the page, but **not** other attributes of `<html>` and `<body>`. If your theme keys off
-`:root[data-theme]` or a body class, copy them in `onOpen`:
+of the page. If your theme keys off `:root[data-theme]` or a class on `<html>` or `<body>`, turn
+on `popoutMirrorRoot` and the windows follow the page, theme switches included:
 
 ```tsx
-<Dockable.Popout
-    onOpen={(_layout, _window, doc) => {
-        doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
-        doc.body.classList.add("palette-surface");
-    }}
->
-    {() => <Dockable.Row>{renderNode}</Dockable.Row>}
-</Dockable.Popout>
+<Dockable.Root model={model} popoutMirrorRoot>
 ```
 
-To follow later theme switches, keep the popout documents (`onOpen`/`onClose`) and re-apply
-with a `MutationObserver`, as the examples' kit does. This is gap 3 in
-[Limitations](/docs/limitations); Epic [#20](https://github.com/fragiola/dockable/issues/20)
-adds a `mirrorRoot` option.
+A theme set on another element (a wrapper) is not on the document root: copy it in
+`Dockable.Popout`'s `onOpen`. See [Popouts](/docs/guides/popouts#theming-the-popout).
 
 ## Without Fragiola
 
