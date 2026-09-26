@@ -23,6 +23,7 @@ import {
     type PanelLayer,
     type PopoutHooks,
 } from "./context";
+import { DragGroupContext } from "./DragGroup";
 import { useDragState } from "./hooks";
 import {
     type DivPrimitiveProps,
@@ -115,6 +116,7 @@ export function Root(props: RootProps) {
         ...rest
     } = props;
     const popoutHooks = React.useRef<PopoutHooks>({});
+    const dragGroup = React.useContext(DragGroupContext);
     const engine = React.useMemo(() => createLayoutEngine({ model }), [model]);
     engine.setOptions({
         onAction,
@@ -123,6 +125,7 @@ export function Root(props: RootProps) {
         tabDragSpeed,
         onExternalDrag,
         onAllowDrop,
+        dragGroup: dragGroup?.group,
         popout: {
             popoutURL,
             supportsPopout,

@@ -11,6 +11,7 @@
         "panels",
         "panel",
         "splitter",
+        "drag-group",
         "drag-source",
         "drop-indicator",
         "drop-zone",

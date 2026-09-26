@@ -14,7 +14,8 @@ import {
 } from "@fragiola/dockable";
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { useDockableContext } from "./context";
+import { DockableContext, LayoutContext, useDockableContext } from "./context";
+import { DragGroupContext } from "./DragGroup";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -186,12 +187,35 @@ export function Panel(props: PanelProps) {
     const contentKey =
         node.getId() + (node.isEnableWindowReMount() ? windowId : "");
 
+    // in a drag group, the content renders in the group's host (keyed by tab id), so it survives
+    // the tab moving to another root; the panel hands over its context along with it
+    const dragGroup = React.useContext(DragGroupContext);
+    const dockable = React.useContext(DockableContext);
+    const layout = React.useContext(LayoutContext);
+    const owner = React.useRef({}).current;
+    React.useLayoutEffect(() => {
+        dragGroup?.registry.set(
+            contentKey,
+            owner,
+            moveable,
+            <DockableContext.Provider value={dockable}>
+                <LayoutContext.Provider value={layout}>
+                    {children}
+                </LayoutContext.Provider>
+            </DockableContext.Provider>,
+        );
+    });
+    React.useLayoutEffect(
+        () => () => dragGroup?.registry.remove(contentKey, owner),
+        [dragGroup, contentKey, owner],
+    );
+
     return (
         <>
             {layer
                 ? createPortal(panel, layer.element, `panel:${layoutId}`)
                 : null}
-            {createPortal(children, moveable, contentKey)}
+            {dragGroup ? null : createPortal(children, moveable, contentKey)}
         </>
     );
 }

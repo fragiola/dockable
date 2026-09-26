@@ -37,6 +37,7 @@ const MODULE_PAGES: Record<string, string> = {
     "./Panels": "panels",
     "./Panel": "panel",
     "./Splitter": "splitter",
+    "./DragGroup": "drag-group",
     "./DragSource": "drag-source",
     "./DropIndicator": "drop-indicator",
     "./DropZone": "drop-zone",
@@ -236,7 +237,7 @@ describe("the React reference", () => {
     it("gives every primitive page its data-layout-path", () => {
         for (const { module } of partExports) {
             const slug = MODULE_PAGES[module] ?? "";
-            if (slug === "panels") continue; // renders no element
+            if (slug === "panels" || slug === "drag-group") continue; // renders no element
             // lives outside any layout: its page says it has no layout path
             if (slug === "drag-source" || slug === "drop-zone") continue;
             expect(page(slug), `api/${slug}.mdx`).toContain(

@@ -1,3 +1,4 @@
+export { DragGroup } from "./DragGroup";
 export { DragSource } from "./DragSource";
 export { DropIndicator } from "./DropIndicator";
 export { DropZone } from "./DropZone";
