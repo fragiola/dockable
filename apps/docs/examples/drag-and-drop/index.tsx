@@ -7,13 +7,14 @@ import { type ComponentProps, useState } from "react";
 import { cn } from "@/lib/cn";
 import { Card } from "../_kit/card";
 import { getLabel } from "../_kit/labels";
-import { createRenderNode } from "../_kit/layout";
+import { createRenderNode, KitEdgeIndicators } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
 // Drag tabs between tabsets and to the layout's edges. This example writes the Root itself (no
 // DockLayout) to style the drop indicator: blue for a drop into a tabset (`kind: "rect"`), a
 // dashed orange band for a drop at the layout's edge (`kind: "edge"`), an arrow for the side,
-// and a transition as long as the root's `tabDragSpeed`.
+// and a transition as long as the root's `tabDragSpeed`. During a drag the kit's edge indicators
+// (Dockable.EdgeIndicator) mark the four bands where a drop docks to an edge.
 
 const json: IJsonModel = {
     global: {},
@@ -122,6 +123,8 @@ export default function DragAndDrop() {
                         );
                     }}
                 />
+                {/* the edge docking targets, shown during a drag (solid under the pointer) */}
+                <KitEdgeIndicators />
             </Dockable.Root>
         </div>
     );

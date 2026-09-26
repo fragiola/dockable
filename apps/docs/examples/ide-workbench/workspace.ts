@@ -6,7 +6,7 @@ import {
     type Model,
     type Node,
     TabNode,
-    TabSetNode,
+    type TabSetNode,
 } from "@fragiola/dockable";
 import { FILES, fileName } from "./files";
 
@@ -62,71 +62,67 @@ export function editorTab(path: string, dirty = false) {
     };
 }
 
-/** The bottom panel's tabset id: files never open there. */
-export const PANEL_TABSET = "panel";
-
 export const defaultLayout: IJsonModel = {
-    global: { tabEnableRename: false },
-    borders: [],
+    global: { tabEnableRename: false, borderSize: 208 },
+    // the explorer on the left and the terminal and problems below are borders: side bars whose
+    // selected tab opens a panel beside the editors (click the selected tab to close it)
+    borders: [
+        {
+            type: "border",
+            location: "left",
+            selected: 0,
+            children: [
+                {
+                    type: "tab",
+                    name: "Explorer",
+                    component: "explorer",
+                    enableClose: false,
+                    enableDrag: false,
+                },
+            ],
+        },
+        {
+            type: "border",
+            location: "bottom",
+            selected: 0,
+            size: 180,
+            children: [
+                {
+                    type: "tab",
+                    name: "Terminal",
+                    component: "terminal",
+                    enableClose: false,
+                },
+                {
+                    type: "tab",
+                    name: "Problems",
+                    component: "problems",
+                    enableClose: false,
+                },
+            ],
+        },
+    ],
     layout: {
         type: "row",
         children: [
             {
-                type: "row",
+                type: "tabset",
+                id: "editors",
+                // the editor area stays when its last file is closed
+                enableDeleteWhenEmpty: false,
                 children: [
-                    {
-                        type: "tabset",
-                        id: "editors",
-                        weight: 70,
-                        // the editor area stays when its last file is closed
-                        enableDeleteWhenEmpty: false,
-                        children: [
-                            editorTab("src/app.ts"),
-                            editorTab("src/store.ts"),
-                            editorTab("README.md"),
-                        ],
-                    },
-                    {
-                        type: "tabset",
-                        id: PANEL_TABSET,
-                        weight: 30,
-                        enableDeleteWhenEmpty: false,
-                        children: [
-                            {
-                                type: "tab",
-                                name: "Terminal",
-                                component: "terminal",
-                                enableClose: false,
-                            },
-                            {
-                                type: "tab",
-                                name: "Problems",
-                                component: "problems",
-                                enableClose: false,
-                            },
-                        ],
-                    },
+                    editorTab("src/app.ts"),
+                    editorTab("src/store.ts"),
+                    editorTab("README.md"),
                 ],
             },
         ],
     },
 };
 
-/** Where a file opens: the active tabset unless it is the bottom panel, else the first other one. */
+/** Where a file opens: the active tabset, else the first one (borders are not tabsets). */
 function editorTarget(model: Model): TabSetNode | undefined {
-    const active = model.getActiveTabset();
-    if (active && active.getId() !== PANEL_TABSET) return active;
-    let target: TabSetNode | undefined;
-    model.visitNodes((node) => {
-        if (
-            !target &&
-            node instanceof TabSetNode &&
-            node.getId() !== PANEL_TABSET
-        ) {
-            target = node;
-        }
-    });
-    return target;
+    return model.getActiveTabset() ?? model.getFirstTabSet();
 }
 
 /** Opens a file: selects its tab when it is already open, adds one otherwise. */
@@ -151,7 +147,8 @@ export function openFile(engine: LayoutEngine, model: Model, path: string) {
 
 // ── Save and restore ────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "dockable-docs:ide-workbench:layout";
+// v2: the explorer and the bottom panel became borders (a v1 layout has none)
+const STORAGE_KEY = "dockable-docs:ide-workbench:layout:v2";
 
 /** The layout saved on the last visit, or the default one. Storage may be unavailable. */
 export function loadLayout(): IJsonModel {

@@ -1,8 +1,203 @@
 ---
 title: Borders
-description: Side bars with tabs that open panels beside or over the layout - split and overlay borders, auto-hide, resizing.
+description: Side bars with tabs that open panels beside or over the layout - split and overlay borders, auto-hide, resizing, edge docking.
 ---
 
-Written in full by the docs work item of Epic #21.
+A **border** is a strip of tabs on one side of the layout, like an IDE's side bars. Its selected
+tab opens a panel next to the strip; clicking the selected tab again closes it. Borders are part
+of the model, so they are saved, restored and changed through actions like everything else.
 
-Meanwhile, see the [IDE workbench example](/examples/ide-workbench/).
+<Example slug="borders" />
+
+## 1. Declare them in the model
+
+Borders live in the JSON's `borders`, one per side at most:
+
+```ts
+const json: IJsonModel = {
+    global: { borderSize: 220 },
+    borders: [
+        {
+            type: "border",
+            location: "left",
+            selected: 0, // open on its first tab; -1 (the default) is closed
+            children: [
+                { type: "tab", name: "Explorer", component: "explorer" },
+                { type: "tab", name: "Search", component: "search" },
+            ],
+        },
+        {
+            type: "border",
+            location: "bottom",
+            size: 160,
+            children: [{ type: "tab", name: "Terminal", component: "terminal" }],
+        },
+    ],
+    layout: { type: "row", children: [/* … */] },
+};
+```
+
+A border's tabs are ordinary tabs: `Dockable.Panels` renders their panels like any other, and
+their content keeps its state when they move between a border and a tabset. The attributes are
+in the [JSON model reference](/docs/api/json-model) (`size`, `minSize`, `maxSize`, `show`,
+`enableAutoHide`, `borderType`, `enableDrop`, `autoSelectTabWhenOpen`/`WhenClosed`, and their
+`border…` globals).
+
+## 2. Render the frame, the strips and the panels
+
+`Dockable.Borders` replaces the root `Dockable.Row` inside `Dockable.Root`, and takes the row as
+its child. It lays the borders out around the main area, as FlexLayout does: the top and bottom
+strips span the full width, the left and right strips sit between them, and each panel area sits
+between its strip and the layout.
+
+```tsx
+<Dockable.Root model={model}>
+    <Dockable.Borders
+        renderBar={(border) => (
+            <Dockable.Border node={border} className="strip">
+                <Dockable.TabList aria-label={`${border.getLocation().getName()} panels`}>
+                    {(tab) => (
+                        <Dockable.Tab node={tab} className="border-tab">
+                            {tab.getName()}
+                        </Dockable.Tab>
+                    )}
+                </Dockable.TabList>
+            </Dockable.Border>
+        )}
+    >
+        <Dockable.Row>{renderNode}</Dockable.Row>
+    </Dockable.Borders>
+    <Dockable.Panels>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
+</Dockable.Root>
+```
+
+- **`renderBar`** renders a border's strip: a `Dockable.Border` with a `Dockable.TabList`. The tab
+  list runs vertically in a left or right border (`aria-orientation`, arrow keys).
+- **`renderContent`** (optional) renders the panel area: by default a `Dockable.BorderContent`,
+  which holds an area sized by the border (the engine positions the selected tab's panel over it)
+  and the border's splitter on the layout's side. Pass your own to style it, or to replace the
+  splitter:
+
+  ```tsx
+  renderContent={(border) => (
+      <Dockable.BorderContent
+          node={border}
+          renderSplitter={(node) => <Dockable.Splitter node={node} className="splitter" />}
+      />
+  )}
+  ```
+
+Borders only render in the main layout, never in a popout window.
+
+## 3. Style the strips
+
+The primitives set only structural flex. Everything else is yours, through `data-*`:
+
+| on | attribute | meaning |
+| --- | --- | --- |
+| `Border`, `BorderContent` | `data-location` | `top`, `bottom`, `left` or `right` |
+| `Border`, `BorderContent` | `data-orientation` | `vertical` for a left or right border (the direction its tabs run) |
+| `Border`, `BorderContent` | `data-open` | a tab is selected: the panel is open |
+| `Border`, `BorderContent` | `data-overlay` / `data-docked` | an overlay border / a split border |
+| `Border` | `data-tab-direction` | on a left border: `up` or `down` (`borderLeftTabDirection`) |
+| `Border` | `data-drop-target` | the current drag would drop into the border |
+
+Side labels are the classic question. Turn them with `writing-mode` (the tabs stay in order from
+the top), and turn a left border's half a turn more when it reads "up", FlexLayout's default:
+
+```css
+[data-location][data-orientation="vertical"] [role="tab"] {
+    writing-mode: vertical-rl;
+}
+[data-tab-direction="up"] [role="tab"] {
+    transform: rotate(180deg);
+}
+```
+
+With Tailwind, as the examples do: `in-data-[orientation=vertical]:[writing-mode:vertical-rl]
+in-data-[tab-direction=up]:rotate-180` on the tab. Drops into the strip are hit-tested against the
+tab buttons' measured boxes, so any styling works.
+
+## 4. Open, close and resize
+
+- **Click** a tab to open its panel; click the selected tab again to close it. Both are
+  `Actions.selectTab` (for a border's selected tab the model deselects), so `onAction` sees them.
+- **Resize** with the border's splitter: drag it, or focus it and use the arrow keys (10px a
+  step, towards the layout). Its ARIA value is the size in px (`aria-valuenow`, `aria-valuemin`,
+  `aria-valuemax` from `size`, `minSize`, `maxSize`). The action is `Actions.adjustBorderSplit`.
+- **From code**: `Actions.selectTab(tabId)` opens (or closes) a border's tab,
+  `Actions.adjustBorderSplit("border_left", 300)` resizes it, and
+  `Actions.updateNodeAttributes("border_left", { show: false })` hides the whole border. Border
+  ids are `border_<location>`.
+
+## 5. Drag tabs in and out
+
+Borders take part in drag and drop:
+
+- a tab dropped on a **strip** joins the border at that position;
+- a tab dropped on an **open panel** joins the border (appended);
+- a border's tab dragged into a tabset (or to a layout edge) leaves the border.
+
+`enableDrop: false` on a border (or `borderEnableDrop` globally) refuses drops into it, and
+`onAllowDrop` sees border targets like any other. `Dockable.Border` carries `data-drop-target`
+while it is the target.
+
+## Overlay borders
+
+<Example slug="overlay-borders" />
+
+An **overlay** border (`borderType: "overlay"`) opens over the layout instead of beside it, like
+a drawer:
+
+```ts
+{ type: "border", location: "left", borderType: "overlay", children: [/* … */] }
+```
+
+Switch one at runtime with `Actions.setBorderType("border_left", "overlay")` (or `"split"`).
+
+- It **closes on a press** in the layout outside its panel (a tabset, a splitter), and on
+  **Escape** (`keyMap.closeOverlayBorder`) with focus in the panel or on its tab button; focus goes
+  back to the tab button. A press on a border strip does not close it. Both close paths are
+  `Actions.selectTab` through `onAction`.
+- `Dockable.BorderContent` is `position: absolute` against the layout's edge, and lets presses
+  through to the tab panel (`pointer-events: none`, except on its splitter). A left or right
+  overlay stops above and below the open top and bottom overlays.
+- **Its stacking is yours**: give the content a `z-index` so its splitter paints above the
+  tabsets (the examples use `data-overlay:z-30`), and a shadow if you like.
+
+## Auto-hide borders
+
+With `enableAutoHide` (or `borderEnableAutoHide`), a border **with no tabs** is not rendered, so
+it takes no space. While a tab is dragged near that border's edge of the layout (within
+`edgeDockMargin`, away from the edge docking band in the middle of the edge), the border appears
+so the tab can be dropped into it; it hides again when the drag moves away or ends. Once it has a
+tab, it shows like any border.
+
+## Edge indicators
+
+A drop in the band along an edge of the layout docks the tab to that whole edge, as a new
+tabset. `Dockable.EdgeIndicator` marks those bands during a drag:
+
+```tsx
+{(["top", "bottom", "left", "right"] as const).map((edge) => (
+    <Dockable.EdgeIndicator key={edge} edge={edge} className="edge-indicator">
+        <ArrowIcon edge={edge} aria-hidden />
+    </Dockable.EdgeIndicator>
+))}
+```
+
+Each indicator is positioned over its band (`edgeDockMargin` deep, `edgeDockLength` long,
+centred on the edge), shown while a drag that can dock to the edges is over the layout, and
+carries `data-drop-target` when the drop would dock there. It is `pointer-events: none`, and its
+stacking is yours. See [Dockable.EdgeIndicator](/docs/api/edge-indicator).
+
+The band is 10px deep by default. A thin tab strip at the top of the layout sits inside it, so a
+drop aimed at the strip's middle docks to the top edge instead (gap 11 in
+[Limitations](/docs/limitations)). Lower `edgeDockMargin` in the global attributes, or keep tab
+strips taller than twice the band.
+
+## Borders in the other examples
+
+The [IDE workbench](/examples/ide-workbench/) keeps its explorer in a left border and the terminal
+and problems in a bottom border, and the [drag and drop](/examples/drag-and-drop/) example shows the
+edge indicators.

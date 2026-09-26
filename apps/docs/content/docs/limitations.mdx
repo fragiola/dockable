@@ -22,16 +22,16 @@ use and the Epic that will remove it, when one is scheduled.
 | 8 | ~~No drop-target state on the tabset under the pointer.~~ **Solved**: `data-drop-target` and `data-drop-location` on `TabSet`, `data-drop-target` and `data-drop-index` on `TabList`. See [Drop zones and drop feedback](/docs/guides/drop-zones). | None needed. | Epic [#19](https://github.com/fragiola/dockable/issues/19) (done) |
 | 9 | No way to make a splitter's **hit area** wider than its visible thickness. | A 1px splitter with a centred `::after` grab area, `relative z-10`; the engine measures the 1px element, so the split maths is exact. See [Splitters](/docs/guides/splitters). | not scheduled yet |
 | 10 | A drop **before the first tab** is refused when that tab is flush with the tabset's edge (the edge belongs to the tabset's side drop). | Pad the start of the tab list (`padding-inline-start`, `ps-1` or more). | not scheduled yet |
-| 11 | A thin tab strip at the top of the layout falls inside the **10px top-edge docking band**, so a drop aimed at the strip docks to the layout edge. | Give tab lists a minimum height of about 30px. | Epic [#21](https://github.com/fragiola/dockable/issues/21) (`edgeDockMargin` / `EdgeIndicator`) |
+| 11 | ~~A thin tab strip at the top of the layout falls inside the 10px top-edge docking band.~~ **Solved**: the band is the global `edgeDockMargin` (lower it for a thin strip), and `Dockable.EdgeIndicator` shows the bands during a drag. See [Borders](/docs/guides/borders#edge-indicators). | Keep strips about 30px tall, or set `edgeDockMargin`. | Epic [#21](https://github.com/fragiola/dockable/issues/21) (done) |
 | 12 | The **drop indicator paints under the panels**: panels are portalled into the root after its other children. | A `z-index` on the indicator (`z-10`). | not scheduled yet |
 
 ## Features not built yet
 
 | feature | status | removed by |
 | --- | --- | --- |
-| **Borders** (collapsible side panels, overlay borders, edge indicators) | the model reads, saves and applies border actions, but no primitive renders them | Epic [#21](https://github.com/fragiola/dockable/issues/21) |
 | **Floats** (in-page floating windows) | not rendered. The model keeps `"float"` layouts, so avoid `popoutTab(id, "float")` and the `"float"` popout close policy: a floated layout is invisible | not scheduled yet |
-| **Tab groups** (pills grouping tabs in a strip) | model only; no primitive renders groups | not scheduled yet |
+| **Tab groups** (pills grouping tabs in a strip) | model only; no primitive renders groups, in tabsets or borders | not scheduled yet |
+| **Border extras**: `enableTabScrollbar`, and float/popout buttons in a border's strip | not rendered; a border's strip is yours to fill (`Dockable.PopoutTrigger` works in tabsets only) | not scheduled yet |
 | **Tab overflow primitive** (measuring which tabs are hidden) | build it yourself ([Tab overflow](/docs/guides/tab-overflow)) | not scheduled yet |
 | **Inline rename on `F2`** | the `renameTab` binding exists in the key map but the primitives do not act on it; build the rename UI ([Tabs](/docs/guides/tabs#renaming-a-tab)) | not scheduled yet |
 | **Adapters for Angular and Vue** | the core is framework-agnostic so they can follow | not scheduled yet |

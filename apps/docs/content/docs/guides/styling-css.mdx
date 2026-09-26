@@ -97,8 +97,9 @@ attribute.
 - **`padding-inline-start` on the tab list**: a drop before the first tab is rejected when that
   tab is flush with the tabset's edge, because the edge belongs to the tabset's side drop
   ([Limitations](/docs/limitations), gap 10).
-- **`min-height: 30px` on the tab list**: a thin strip at the top of the layout falls inside the
-  10px top-edge docking band, so drops aimed at it dock to the layout edge instead (gap 11).
+- **`min-height: 30px` on the tab list** (or a lower `edgeDockMargin`): a thin strip at the top
+  of the layout falls inside the 10px top-edge docking band, so drops aimed at it dock to the
+  layout edge instead (gap 11).
 - **`z-index` on the drop indicator**: panels are portalled into the root after the indicator
   and would paint over it (gap 12). Its `pointer-events: none` is structural (an indicator under
   the pointer would steal the drag's events).

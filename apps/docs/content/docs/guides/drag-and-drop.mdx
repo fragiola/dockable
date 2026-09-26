@@ -84,9 +84,10 @@ drag's enter and leave events from the layout, and the browser would cancel the 
 - **Pad the start of the tab list.** A drop *before* the first tab is refused when that tab is
   flush with the tabset's edge: that edge belongs to the tabset's `left` drop (gap 10). A few
   pixels of `padding-inline-start` fix it.
-- **Keep tab strips at least ~30px tall.** The layout's top edge has a 10px docking band; a thin
-  strip at the top of the layout falls inside it, and drops aimed at the strip dock to the layout
-  edge instead (gap 11).
+- **Keep tab strips at least ~30px tall, or lower `edgeDockMargin`.** The layout's top edge has
+  a 10px docking band; a thin strip at the top of the layout falls inside it, and drops aimed at
+  the strip dock to the layout edge instead (gap 11). `Dockable.EdgeIndicator` shows the bands
+  during a drag ([Borders](/docs/guides/borders#edge-indicators)).
 - **Edge docking** can be turned off with the global `enableEdgeDock: false`.
 
 ## Dropping between windows and layouts

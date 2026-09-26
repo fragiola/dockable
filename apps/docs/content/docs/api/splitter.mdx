@@ -52,7 +52,8 @@ function renderSplitter(props: RowSplitterProps) {
 ## Structural style
 
 `display: none` while a tabset is maximized; `transform: translateX(…)`/`translateY(…)` during a
-non-realtime drag. Nothing else: its size is yours (and the engine measures it as the model's
+non-realtime drag; `pointer-events: auto` on a border's splitter (an overlay border's content is
+`pointer-events: none`). Nothing else: its size is yours (and the engine measures it as the model's
 splitter size).
 
 ## Keyboard

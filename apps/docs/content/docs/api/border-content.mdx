@@ -49,7 +49,10 @@ The border's `BorderState` (see [Dockable.Border](/docs/api/border#state)).
 - The element: `display: flex` (a row for left and right borders, a column otherwise) or
   `display: none` while closed, `flex-shrink: 0`. On an overlay border also `position: absolute`
   against the layout's edge (`left: 0; top: 0; bottom: 0` for a left border, and so on); a left or
-  right overlay stops above and below the open top and bottom overlays.
+  right overlay stops above and below the open top and bottom overlays. An overlay is also
+  `pointer-events: none`, so presses reach the tab panel positioned over its area; its splitter
+  (`Dockable.Splitter` of a border is `pointer-events: auto`) keeps taking them. Hit-testing, not
+  cosmetics.
 - The area: `width`, `min-width`, `max-width` (left and right) or `height`, `min-height`,
   `max-height` (top and bottom), from the border's `size`, `minSize` and `maxSize`.
 

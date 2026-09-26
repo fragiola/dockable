@@ -69,8 +69,8 @@ the `TabList` child function works because the strip re-renders when the model c
   ([Sizing](/docs/getting-started/sizing)). Put padding on a wrapper, not on the root.
 - **Pad the start of the tab list** (`ps-1` or more): a tab flush with the tabset's edge cannot
   take a drop before it (gap 10).
-- **Give tab strips a minimum height** (`min-h-7` or so): a very thin strip at the top of the
-  layout falls inside the 10px top-edge docking band (gap 11).
+- **Give tab strips a minimum height** (`min-h-7` or so), or lower the global `edgeDockMargin`:
+  a very thin strip at the top of the layout falls inside the 10px top-edge docking band (gap 11).
 - **Stack the drop indicator**: `z-10` (panels are portalled after it, gap 12).
 - **Don't fight structural style**: `flex-grow`, `display` or geometry you set with utilities on a
   `Row`, `TabSet` or `Panel` loses to the primitive's inline style. Size things with weights.

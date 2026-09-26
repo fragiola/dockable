@@ -54,7 +54,7 @@ Never mutate nodes. Change the model with actions, dispatched through the engine
 | `isEnableEdgeDock()` | the global `enableEdgeDock` |
 | `getEdgeDockMargin()`, `getEdgeDockLength()` | the globals `edgeDockMargin` and `edgeDockLength`: the depth and length of the edge drop bands |
 | `getEdgeDockRects(layoutId?)` | the four edge drop bands of a layout's root row (`{ location, rect }`, layout coordinates), where a drop docks to an edge and where `Dockable.EdgeIndicator` goes; empty when edge docking is off |
-| `getBorderSet()` | the borders (not rendered yet) |
+| `getBorderSet()` | the borders (`getBorders()`, `getBorderMap()` by `DockLocation`), rendered by `Dockable.Borders` |
 | `isEnableEdgeDockIndicators()`, `isEnableRotateBorderIcons()`, `getBorderLeftTabDirection()`, `getTabGroupType()` | the global attributes of the same names, for views that render edge indicators, borders and tab groups |
 | `Model.ensureAttributePairing()` | pairs the global attribute definitions with the node ones (e.g. `tabEnableClose` with `enableClose`); idempotent, called automatically |
 

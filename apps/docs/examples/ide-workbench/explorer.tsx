@@ -12,8 +12,8 @@ import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { FILE_PATHS, fileName, folderOf } from "./files";
 
-// The file tree. It lives OUTSIDE the layout: a plain sidebar that opens files through the
-// callback it is given (the example turns that into `Actions.addTab` / `Actions.selectTab`).
+// The file tree. It is the content of the left border's "Explorer" tab, and opens files through
+// the callback it is given (the example turns that into `Actions.addTab` / `Actions.selectTab`).
 
 /** A file icon, coloured by type through a palette (so every theme recolours it). */
 export function FileIcon({
@@ -71,10 +71,7 @@ export function Explorer({
         });
 
     return (
-        <nav
-            aria-label="Explorer"
-            className="palette-surface flex w-52 shrink-0 flex-col border-e border-palette-line bg-palette-base text-palette-contrast max-sm:hidden"
-        >
+        <nav aria-label="Explorer" className="flex h-full min-w-0 flex-col">
             <div className="flex h-(--dk-tab-height) min-h-8 items-center justify-between ps-3 pe-1 text-[11px] font-semibold tracking-wider text-palette-accent/85 uppercase">
                 Explorer
                 <button

@@ -56,9 +56,10 @@ close key), `enableDeleteWhenEmpty`, `enableMaximize` (the model refuses to maxi
 `autoSelectTab`, `pinned`, `enablePopout`, `enableRenderOnDemand`, `enableScrollbars`,
 `enableWindowReMount`, `enableEdgeDock` and `rootOrientationVertical`.
 
-Border attributes (`borders`, `border*` globals) and float, group and sub-layout-in-tab
-attributes are read and saved, but borders, floats and tab groups are not rendered yet (see
-[Limitations](/docs/limitations)).
+Border attributes (`borders`, `border*` globals) apply to the borders `Dockable.Borders` renders
+(see [Borders](/docs/guides/borders)); `borderEnableTabScrollbar` and tab groups inside borders do
+not render yet. Float, group and sub-layout-in-tab attributes are read and saved, but floats and
+tab groups are not rendered yet (see [Limitations](/docs/limitations)).
 
 ## Inheritance
 
