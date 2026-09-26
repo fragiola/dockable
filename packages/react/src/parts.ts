@@ -15,5 +15,6 @@ export { Row } from "./Row";
 export { Splitter } from "./Splitter";
 export { Tab } from "./Tab";
 export { TabList } from "./TabList";
+export { TabOverflowTrigger } from "./TabOverflowTrigger";
 export { TabSet } from "./TabSet";
 export { TabSetContent } from "./TabSetContent";

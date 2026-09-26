@@ -32,6 +32,7 @@ const MODULE_PAGES: Record<string, string> = {
     "./Row": "row",
     "./TabSet": "tabset",
     "./TabList": "tablist",
+    "./TabOverflowTrigger": "tab-overflow-trigger",
     "./Tab": "tab",
     "./TabSetContent": "tabset-content",
     "./Panels": "panels",

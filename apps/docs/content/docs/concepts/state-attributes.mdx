@@ -46,6 +46,14 @@ With Tailwind v4 the same attributes are variants: `data-selected:bg-palette-sof
 | `data-drop-index` | `TabList` | while it is the drop target: the insertion index |
 | `data-drop-refused` | `Root`, `DropIndicator`, `TabSet` | the drag is over a target that a drop rule refused (on `TabSet`: this one) |
 | `data-drop-active`, `data-drop-over` | `DropZone` | a drag the zone takes is in progress / over it |
+| `data-overflowing` | `TabList` | some tabs do not fit in the strip, so they are hidden (tab overflow) |
+| `data-overflow-hidden` | `Tab` | this tab does not fit in its strip, so it is hidden (it also gets `display: none`) |
+| `data-count` | `TabOverflowTrigger` | the number of hidden tabs |
+| `data-location` | `Border`, `BorderContent` | `"top"`, `"bottom"`, `"left"` or `"right"` |
+| `data-open` | `Border`, `BorderContent` | a tab of the border is selected: its panel is open |
+| `data-overlay`, `data-docked` | `Border`, `BorderContent` | an overlay border / a split (docked) border |
+| `data-tab-direction` | `Border` | on a left border: `"up"` or `"down"` (`borderLeftTabDirection`) |
+| `data-edge`, `data-drop-target` | `EdgeIndicator` | its edge; the drop would dock to that edge |
 
 Two attributes mark elements the **core** creates, not the primitives:
 

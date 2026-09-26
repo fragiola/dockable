@@ -1,0 +1,70 @@
+---
+title: Dockable.TabOverflowTrigger
+description: The button that opens your menu of the tabs that do not fit - rendered only while tabs are hidden.
+---
+
+"The button that opens the consumer's menu of hidden tabs, inside `Dockable.TabSet` or
+`Dockable.Border`, next to the `Dockable.TabList`. It renders only while tabs are hidden, and the
+engine reserves the space it takes in the strip. It renders no menu: make it your menu's trigger
+(`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`), and select with
+`Actions.selectTab`, which brings the tab into the strip."
+
+```tsx
+function Header({ tabset }: { tabset: TabSetNode }) {
+    const { engine } = useDockable();
+    const { hidden } = useTabOverflow(tabset);
+    return (
+        <div className="flex">
+            <Dockable.TabList className="flex min-w-0 flex-1">{(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}</Dockable.TabList>
+            <Menu.Root>
+                <Dockable.TabOverflowTrigger aria-label="More tabs" render={<Menu.Trigger />}>
+                    {`+${hidden.length}`}
+                </Dockable.TabOverflowTrigger>
+                <Menu.Content>
+                    {hidden.map((tab) => (
+                        <Menu.Item key={tab.getId()} onClick={() => engine.doAction(Actions.selectTab(tab.getId()))}>
+                            {tab.getName() || tab.getAltName()}
+                        </Menu.Item>
+                    ))}
+                </Menu.Content>
+            </Menu.Root>
+        </div>
+    );
+}
+```
+
+See [Tab overflow](/docs/guides/tab-overflow).
+
+## Props
+
+`TabOverflowTriggerProps` extends the [common primitive props](/docs/api/root#common-props) and the
+`<button>` attributes.
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | none | the trigger's content (an icon, a count); the primitive renders no text of its own |
+
+## State
+
+`TabOverflowTriggerState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `hidden` | `TabNode[]` | the tabs that do not fit in the strip, in model order: what the menu lists |
+| `hiddenCount` | `number` | how many tabs are hidden |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `<tabset or border path>/button/overflow`, e.g. `/ts0/button/overflow` (FlexLayout's) |
+| `data-count` | the number of hidden tabs |
+| `aria-label` | `getLabel(DockableLabel.Overflow_Menu_Tooltip)` (your own `aria-label` wins) |
+| `type` | `"button"` |
+
+## Notes
+
+- Put it **in the same flex line as the tab list**, with the list able to shrink (`flex: 1;
+  min-width: 0`): the engine measures the space the trigger takes beside the list and keeps it for
+  it, so the tabs and the trigger never overlap.
+- It unmounts when every tab fits again; a menu left open with it closes with it.

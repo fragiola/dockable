@@ -13,7 +13,7 @@ import {
     useDockableContext,
     useLayoutContext,
 } from "./context";
-import { useTabSetDropState } from "./hooks";
+import { useTabOverflow, useTabSetDropState } from "./hooks";
 import { useTabContainer } from "./TabSet";
 import {
     type DivPrimitiveProps,
@@ -27,6 +27,10 @@ export interface TabListState {
     dropTarget: boolean;
     /** while it is the drop target: the insertion index in the strip */
     dropIndex: number | undefined;
+    /** some tabs do not fit, so they are hidden (list them with `Dockable.TabOverflowTrigger`) */
+    overflowing: boolean;
+    /** how many tabs are hidden */
+    hiddenCount: number;
 }
 
 export interface TabListProps extends DivPrimitiveProps<TabListState> {
@@ -37,6 +41,12 @@ export interface TabListProps extends DivPrimitiveProps<TabListState> {
      * (vertical in a left or right border)
      */
     orientation?: "horizontal" | "vertical" | undefined;
+    /**
+     * tab overflow: the tabs that do not fit are hidden (the selected one stays), for a
+     * `Dockable.TabOverflowTrigger` to list; `false` keeps every tab, for a strip that wraps or
+     * scrolls. Default `true`
+     */
+    overflow?: boolean | undefined;
 }
 
 /**
@@ -51,19 +61,24 @@ export function TabList(props: TabListProps) {
         orientation = border && tabset.isHorizontal()
             ? "vertical"
             : "horizontal",
+        overflow = true,
         ...rest
     } = props;
     const { keyMap } = useDockableContext("TabList");
     const { engine } = useLayoutContext("TabList");
+    const vertical = orientation === "vertical";
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
             // a border's strip is measured as a whole by Dockable.Border
             if (!border) {
                 engine.registerMeasurable(tabset, "tabstrip", element);
             }
+            // the tabs that do not fit in the list are hidden (tab overflow)
+            engine.registerTabList(tabset, overflow ? element : null, vertical);
         },
-        [engine, tabset, border],
+        [engine, tabset, border, vertical, overflow],
     );
+    const tabOverflow = useTabOverflow(tabset);
 
     const keyShortcuts =
         [
@@ -79,6 +94,8 @@ export function TabList(props: TabListProps) {
         orientation,
         dropTarget: drop.strip,
         dropIndex,
+        overflowing: tabOverflow.overflowing,
+        hiddenCount: tabOverflow.hidden.length,
     };
     const tabs = tabset
         .getTabNodes()
@@ -99,6 +116,7 @@ export function TabList(props: TabListProps) {
                 orientation,
                 "drop-target": state.dropTarget,
                 "drop-index": dropIndex,
+                overflowing: state.overflowing,
             }),
             children: tabs,
         },

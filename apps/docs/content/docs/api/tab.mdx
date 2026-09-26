@@ -38,6 +38,7 @@ Render it from a `Dockable.TabList` child function.
 | `pinned` | `boolean` | the tab is pinned |
 | `dragging` | `boolean` | the tab is being dragged |
 | `popoutEnabled` | `boolean` | the tab can be popped out into a window |
+| `overflowHidden` | `boolean` | the tab does not fit in its strip, so it is hidden (tab overflow) |
 
 ## Data attributes and ARIA
 
@@ -48,6 +49,7 @@ Render it from a `Dockable.TabList` child function.
 | `data-pinned` | pinned |
 | `data-dragging` | being dragged |
 | `data-popout-enabled` | the tab allows popping out, and popouts are supported |
+| `data-overflow-hidden` | the tab does not fit in its strip, so it is hidden (tab overflow); it also gets `display: none` |
 | `id` | `getTabButtonId(tab)` (`dockable-tabbutton-<id>`) |
 | `role` | `"tab"` |
 | `aria-selected` | `true` or `false` |
@@ -73,3 +75,8 @@ Render it from a `Dockable.TabList` child function.
 - It is the drag source for its tab ([`useDragNode`](/docs/api/hooks#usedragnode)), and the
   element the browser snapshots as the drag image.
 - The engine measures it (for drop hit-testing within the strip).
+
+## Tab overflow
+
+A tab that does not fit in its strip gets `display: none` (structural) and `data-overflow-hidden`.
+The arrow keys still reach it: moving onto a hidden tab selects it, which brings it into the strip.

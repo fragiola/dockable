@@ -22,6 +22,7 @@ export {
     type UseDropZoneOptions,
     type UseDropZoneResult,
     type UseSplitterResult,
+    type UseTabOverflowResult,
     type UseTabSetResult,
     useBorder,
     useDockable,
@@ -29,6 +30,7 @@ export {
     useDragSource,
     useDropZone,
     useSplitter,
+    useTabOverflow,
     useTabSet,
     useTabSetDropState,
 } from "./hooks";
@@ -45,6 +47,10 @@ export type { RowProps, RowSplitterProps, RowState } from "./Row";
 export type { SplitterProps, SplitterState } from "./Splitter";
 export type { TabProps, TabState } from "./Tab";
 export type { TabListProps, TabListState } from "./TabList";
+export type {
+    TabOverflowTriggerProps,
+    TabOverflowTriggerState,
+} from "./TabOverflowTrigger";
 export type { TabSetProps } from "./TabSet";
 export type { TabSetContentProps, TabSetContentState } from "./TabSetContent";
 export type {

@@ -4,23 +4,25 @@ import {
     Actions,
     type IJsonModel,
     Model,
+    type TabNode,
     type TabSetNode,
 } from "@fragiola/dockable";
-import { Dockable, useDockable } from "@fragiola/dockable-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+    Dockable,
+    useDockable,
+    useTabOverflow,
+} from "@fragiola/dockable-react";
+import { useState } from "react";
 import { Select } from "@/components/ui/select";
-import { cn } from "@/lib/cn";
 import { Card } from "../_kit/card";
 import { DockLayout, KitTab } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { useStageTheme } from "../_kit/theme";
 
-// When the tabs do not fit, the strip is replaced by a Fragiola Select listing them. The package
-// has no overflow UI: the consumer measures and decides.
-//
-// The tab list stays mounted and in the flow (only hidden), so its width is always "the space
-// available" and its scrollWidth is always "what the tabs need". Swapping in the select never
-// changes either, so there is no flicker loop to guard against.
+// Only the tabs that do not fit leave the strip: the engine measures the tab list and hides them
+// (tab overflow), keeping the selected tab in view, and Dockable.TabOverflowTrigger (rendered only
+// while tabs are hidden) is the trigger of a Fragiola Select listing just those. Picking one
+// selects it, which brings it into the strip; another tab goes to the select in its place.
 
 const file = (name: string) => ({ type: "tab", name, component: "file" });
 
@@ -51,82 +53,49 @@ const json: IJsonModel = {
     },
 };
 
-/** True when the element's content is wider than the element, re-checked as it resizes. */
-function useOverflow(ref: React.RefObject<HTMLElement | null>) {
-    const [overflow, setOverflow] = useState(false);
-    // tabs added, closed or renamed change the content width without resizing the list, so
-    // re-check after every render as well as on resize
-    useLayoutEffect(() => {
-        const element = ref.current;
-        if (element) {
-            setOverflow(element.scrollWidth > element.clientWidth + 1);
-        }
-    });
-    useEffect(() => {
-        const element = ref.current;
-        if (!element) {
-            return;
-        }
-        const observer = new ResizeObserver(() =>
-            setOverflow(element.scrollWidth > element.clientWidth + 1),
-        );
-        observer.observe(element);
-        return () => observer.disconnect();
-    }, [ref]);
-    return overflow;
-}
-
 function OverflowStrip({ tabset }: { tabset: TabSetNode }) {
     const { engine } = useDockable();
-    const listRef = useRef<HTMLElement | null>(null);
-    const overflow = useOverflow(listRef);
+    const { hidden } = useTabOverflow(tabset);
     const [themeRef, theme] = useStageTheme();
-    const tabs = tabset.getTabNodes();
-    // `items` lets Select.Value show the selected tab's name instead of its id
-    const items = Object.fromEntries(
-        tabs.map((tab) => [tab.getId(), tab.getName()]),
-    );
+    // a tab with no name (an icon-only tab) is named by its altName in the menu
+    const label = (tab: TabNode) => tab.getName() || tab.getAltName();
 
     return (
-        <div
-            data-overflow={overflow ? "" : undefined}
-            className={cn(styles.tabsetHeader, "relative")}
-        >
+        <div className={styles.tabsetHeader}>
             <Dockable.TabList
-                ref={listRef}
                 aria-label={tabset.getName() ?? "Tabs"}
                 data-kit-tablist=""
-                // hidden, not unmounted: it keeps its measurements and the engine's strip
-                className={cn(styles.tabList, overflow && "invisible")}
+                className={styles.tabList}
             >
                 {(tab) => <KitTab node={tab} />}
             </Dockable.TabList>
-            {overflow ? (
-                <Select.Root
-                    items={items}
-                    value={tabset.getSelectedNode()?.getId() ?? null}
-                    onValueChange={(id) => {
-                        if (typeof id === "string") {
-                            engine.doAction(Actions.selectTab(id));
-                        }
-                    }}
+            <Select.Root
+                value={null}
+                onValueChange={(id) => {
+                    if (typeof id === "string") {
+                        engine.doAction(Actions.selectTab(id));
+                    }
+                }}
+            >
+                {/* the package's trigger (measured, shown only while tabs are hidden), rendered
+                    as the Select's trigger */}
+                <Dockable.TabOverflowTrigger
+                    ref={themeRef}
+                    aria-label={`${hidden.length} more tabs`}
+                    render={
+                        <Select.Trigger className="my-1 me-1 h-auto w-auto shrink-0 gap-1 self-center px-2 py-0.5 text-xs" />
+                    }
                 >
-                    <Select.Trigger
-                        ref={themeRef}
-                        aria-label="Open tab"
-                        className="absolute inset-y-1 start-1 h-auto w-56 max-w-[calc(100%-0.5rem)] py-0"
-                    >
-                        <Select.Value className="truncate text-palette-contrast" />
-                    </Select.Trigger>
-                    <Select.Content data-example-theme={theme}>
-                        {tabs.map((tab) => (
-                            <Select.Item key={tab.getId()} value={tab.getId()}>
-                                {items[tab.getId()]}
-                            </Select.Item>
-                        ))}
-                    </Select.Content>
-                </Select.Root>
-            ) : null}
+                    {`+${hidden.length}`}
+                </Dockable.TabOverflowTrigger>
+                <Select.Content data-example-theme={theme}>
+                    {hidden.map((tab) => (
+                        <Select.Item key={tab.getId()} value={tab.getId()}>
+                            {label(tab)}
+                        </Select.Item>
+                    ))}
+                </Select.Content>
+            </Select.Root>
         </div>
     );
 }

@@ -16,8 +16,9 @@ the orientation, Home and End move focus between tabs; Enter or Space selects."
 </Dockable.TabList>
 ```
 
-Render it inside a `Dockable.TabSet`. The engine measures it (the strip's rect is used for drop
-hit-testing).
+Render it inside a `Dockable.TabSet` (or a `Dockable.Border`). The engine measures it: the strip's
+rect is used for drop hit-testing, and the tabs that do not fit in it are hidden (tab overflow),
+for a [`Dockable.TabOverflowTrigger`](/docs/api/tab-overflow-trigger) to list.
 
 ## Props
 
@@ -27,6 +28,7 @@ hit-testing).
 | --- | --- | --- | --- |
 | `children` | `(tab: TabNode) => ReactNode` | required | renders a tab button (a `Dockable.Tab`) |
 | `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` (`"vertical"` in a left or right border) | the direction the tabs are laid out in, for arrow key navigation; default horizontal (vertical in a left or right border) |
+| `overflow` | `boolean` | `true` | tab overflow: the tabs that do not fit are hidden (the selected one stays), for a `Dockable.TabOverflowTrigger` to list; `false` keeps every tab, for a strip that wraps or scrolls |
 
 ## State
 
@@ -37,6 +39,8 @@ hit-testing).
 | `orientation` | `"horizontal" \| "vertical"` | the `orientation` prop |
 | `dropTarget` | `boolean` | the current drag would drop into this tab strip |
 | `dropIndex` | `number \| undefined` | while it is the drop target: the insertion index in the strip |
+| `overflowing` | `boolean` | some tabs do not fit, so they are hidden (list them with `Dockable.TabOverflowTrigger`) |
+| `hiddenCount` | `number` | how many tabs are hidden |
 
 ## Data attributes and ARIA
 
@@ -46,6 +50,7 @@ hit-testing).
 | `data-orientation` | `"horizontal"` or `"vertical"` |
 | `data-drop-target` | the current drag would drop into this tab strip |
 | `data-drop-index` | while it is the drop target: the insertion index among the tabset's children |
+| `data-overflowing` | some tabs do not fit, so they are hidden |
 | `role` | `"tablist"` |
 | `aria-orientation` | the orientation |
 | `aria-keyshortcuts` | the `focusNextTabset`/`focusPreviousTabset` bindings, when set |
@@ -58,7 +63,9 @@ Name it with `aria-label` (the tabset's `name` attribute is meant for it).
   the tabset's edge (gap 10).
 - Keep it at least ~30px tall at the top of the layout, or lower the global `edgeDockMargin`: the
   layout's top-edge docking band is 10px (gap 11).
-- No structural style: layout, overflow and wrapping are yours ([Tab overflow](/docs/guides/tab-overflow)).
+- No structural style: layout and wrapping are yours. Give the list a size the tabs can overflow
+  (`flex: 1; min-width: 0` in a header row, `overflow: hidden`): tab overflow compares the tabs'
+  sizes, plus the list's `gap`, with the list's inner size ([Tab overflow](/docs/guides/tab-overflow)).
 
 ## In a border
 
