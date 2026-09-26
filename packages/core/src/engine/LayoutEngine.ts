@@ -9,6 +9,7 @@ import {
 } from "../dnd/DragDropManager";
 import { type Action, Actions } from "../model/Actions";
 import { BorderNode } from "../model/BorderNode";
+import { DockLocation } from "../model/DockLocation";
 import type { DropInfo } from "../model/DropInfo";
 import type { ILayoutType } from "../model/IJsonModel";
 import { Model, type ModelChangeListener } from "../model/Model";
@@ -766,15 +767,18 @@ export class LayoutEngine {
 
     /** Dispatches an action through `onAction`, which may replace or veto it. */
     doAction(action: Action): Node | undefined {
+        const outcome = this.interceptAction(action);
+        return outcome !== undefined ? this.model.doAction(outcome) : undefined;
+    }
+
+    /**
+     * Runs `onAction` on an action without applying it: returns the action to apply (the same one,
+     * or the handler's replacement), or `undefined` when the handler vetoed it. `doAction` is
+     * `interceptAction` followed by `model.doAction`.
+     */
+    interceptAction(action: Action): Action | undefined {
         const onAction = this.mainEngine.onActionHandler;
-        if (onAction !== undefined) {
-            const outcome = onAction(action);
-            if (outcome !== undefined) {
-                return this.model.doAction(outcome);
-            }
-            return undefined;
-        }
-        return this.model.doAction(action);
+        return onAction !== undefined ? onAction(action) : action;
     }
 
     private onModelChange(action: Action) {
@@ -1097,6 +1101,62 @@ export class LayoutEngine {
         return this.getPopoutManager().isSupportsPopout();
     }
 
+    /** Whether `node` lives in a popout window's layout. */
+    isInWindow(node: TabNode | TabSetNode): boolean {
+        const layoutId = node.getLayoutId();
+        // the main layout reports the "window" type too: it is the main window's layout
+        return (
+            layoutId !== Model.MAIN_LAYOUT_ID &&
+            this.model.getLayouts().get(layoutId)?.getType() === "window"
+        );
+    }
+
+    /**
+     * Whether `node` (a tab, or a whole tabset) can be popped out into a window now: popouts are
+     * supported, it is not in a window already, and it (every tab of it) enables popout.
+     */
+    canPopout(node: TabNode | TabSetNode): boolean {
+        if (!this.isSupportsPopout() || this.isInWindow(node)) {
+            return false;
+        }
+        if (node instanceof TabSetNode) {
+            return node.getChildren().length > 0 && node.isAllowedInWindow();
+        }
+        return node.isAllowedInWindow();
+    }
+
+    /** Pops `node` (a tab, or a whole tabset) out into a window, through `onAction`. */
+    popout(node: TabNode | TabSetNode): Node | undefined {
+        return this.doAction(
+            node instanceof TabSetNode
+                ? Actions.popoutTabset(node.getId(), "window")
+                : Actions.popoutTab(node.getId(), "window"),
+        );
+    }
+
+    /**
+     * Moves `node` (a tab, or every tab of a tabset) from a window back into the main layout: into
+     * its active tabset, else its first one, else a new tabset. Emptying a window closes it.
+     */
+    dockBack(node: TabNode | TabSetNode): Node | undefined {
+        const tabs = node instanceof TabSetNode ? node.getChildren() : [node];
+        const target = dockTargetOf(this.model);
+        const moves = tabs.map((tab) =>
+            Actions.moveNode(
+                tab.getId(),
+                target.getId(),
+                DockLocation.CENTER,
+                -1,
+            ),
+        );
+        if (moves.length === 0) {
+            return undefined;
+        }
+        return this.doAction(
+            moves.length === 1 && moves[0] ? moves[0] : Actions.group(moves),
+        );
+    }
+
     /** the drag-and-drop state machine of this layout */
     getDragDropManager(): DragDropManager {
         return this.dragDropManager;
@@ -1249,4 +1309,20 @@ export function createLayoutEngine(
     options: ILayoutEngineOptions,
 ): LayoutEngine {
     return new LayoutEngine(options);
+}
+
+/** Where tabs docked back from a window go: the main layout's active tabset, else its first, else
+ * its root row (a drop there makes a new tabset). */
+export function dockTargetOf(model: Model): TabSetNode | RowNode {
+    const active = model.getActiveTabset(Model.MAIN_LAYOUT_ID);
+    if (active) {
+        return active;
+    }
+    let first: TabSetNode | undefined;
+    model.visitLayoutNodes(Model.MAIN_LAYOUT_ID, (node) => {
+        if (!first && node instanceof TabSetNode) {
+            first = node;
+        }
+    });
+    return first ?? (model.getRootRow() as RowNode);
 }

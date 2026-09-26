@@ -23,11 +23,16 @@ engine.doAction(Actions.selectTab("t1"));
 | --- | --- |
 | `of(model)` (static: `LayoutEngine.of(model)`) | the engine driving `model`'s main layout, once a view created it (a mounted `Dockable.Root`), else `undefined`. UI outside the layout uses it to dispatch through `onAction` |
 | `doAction(action)` | dispatches an action through `onAction`, which may replace or veto it. Returns the added node for `addTab` |
+| `interceptAction(action)` | runs `onAction` on an action without applying it: returns the action to apply (the same one, or the handler's replacement), or `undefined` when vetoed. `doAction` is `interceptAction` followed by `model.doAction` |
 | `sync()` | runs the measure-and-position cycle: measures every registered element into the model, positions the tab panels and discovers the splitter size. The primitives call it after every commit; call it yourself when something moved the tabsets without resizing any element (for example flipping `dir` at runtime, gap 4) |
 | `getModel()` | the model |
 | `getLayoutId()`, `getLayout()`, `isMainLayout()` | the layout this engine drives |
 | `getMainEngine()` | the main layout's engine (for a popout's engine) |
 | `isSupportsPopout()` | whether window layouts open as native popouts |
+| `isInWindow(node)` | whether a tab or tabset lives in a popout window's layout |
+| `canPopout(node)` | whether a tab (or a whole tabset) can be popped out now: popouts supported, not in a window already, and `enablePopout` on it (every tab of it) |
+| `popout(node)` | pops a tab or a whole tabset out into a window, through `onAction` |
+| `dockBack(node)` | moves a tab (or every tab of a tabset) from a window into the main layout's active tabset (else its first, else a new one); emptying a window closes it |
 | `isRealtimeResize()` | the `realtimeResize` option |
 | `isSplitterDragging()` | true while any splitter of the model is being dragged |
 | `getTabDragSpeed()` | seconds a view may take to animate the drop outline |
@@ -95,7 +100,7 @@ a resize or splitter drag does not require a re-render."
 | `tabDragSpeed` | seconds a view may take to animate the drop outline (default 0.3) |
 | `onExternalDrag` | `OnExternalDrag`: accepts foreign drags (files, links, other libraries) as new tabs (main engine only; popout layouts use the main engine's) |
 | `onAllowDrop` | `OnAllowDrop`: whether a drag may drop at a target, like `model.setOnAllowDrop`, which it sets while given (main engine only); removing it restores the model's previous rule |
-| `popout` | popout windows (main engine only): `popoutURL`, `supportsPopout`, `closePolicy`, `title`, `onPopoutOpen`, `onPopoutClose` |
+| `popout` | popout windows (main engine only): `popoutURL`, `supportsPopout`, `closePolicy`, `title`, `onPopoutOpen`, `onPopoutClose`, `mirrorRoot` (`true` or a list of `<html>`/`<body>` attribute names to mirror into each popout) |
 
 ## Helpers exported with it
 

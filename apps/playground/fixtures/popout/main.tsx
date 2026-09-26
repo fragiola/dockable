@@ -3,16 +3,63 @@ import {
     DockLocation,
     type LayoutEngine,
     Model,
+    type RowNode,
     type TabNode,
     TabSetNode,
 } from "@fragiola/dockable";
-import { Dockable, useDockable } from "@fragiola/dockable-react";
-import { StrictMode, useRef, useState } from "react";
+import { Dockable, useDockable, useDragNode } from "@fragiola/dockable-react";
+import { type ReactNode, StrictMode, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { layoutFromQuery } from "../../src/fixture/layouts";
-import { renderNode } from "../../src/fixture/renderNode";
 import { TabContent } from "../../src/fixture/TabContent";
 import "../../src/fixture/fixture.css";
+
+/** drags a whole tabset (the lower-layer hook: tabsets have no built-in drag handle) */
+function TabSetHandle({ tabset }: { tabset: TabSetNode }) {
+    const drag = useDragNode(tabset);
+    return (
+        <span
+            ref={drag.ref}
+            draggable={drag.draggable}
+            onDragStart={drag.onDragStart}
+            onDragEnd={drag.onDragEnd}
+            data-testid="tabset-handle"
+        >
+            ⠿
+        </span>
+    );
+}
+
+/** the fixture's recursion: the shared one, plus popout triggers and a tabset drag handle */
+function renderNode(child: TabSetNode | RowNode): ReactNode {
+    if (child instanceof TabSetNode) {
+        return (
+            <Dockable.TabSet node={child}>
+                <div style={{ display: "flex" }}>
+                    <TabSetHandle tabset={child} />
+                    <Dockable.TabList aria-label={child.getName() ?? "Tabs"}>
+                        {(tab) => (
+                            <Dockable.Tab node={tab}>
+                                {tab.getName()}
+                            </Dockable.Tab>
+                        )}
+                    </Dockable.TabList>
+                    <Dockable.PopoutTrigger data-testid="popout-tab">
+                        tab
+                    </Dockable.PopoutTrigger>
+                    <Dockable.PopoutTrigger
+                        target="tabset"
+                        data-testid="popout-tabset"
+                    >
+                        tabset
+                    </Dockable.PopoutTrigger>
+                </div>
+                <Dockable.TabSetContent />
+            </Dockable.TabSet>
+        );
+    }
+    return <Dockable.Row node={child as RowNode}>{renderNode}</Dockable.Row>;
+}
 
 /** hands the main engine to the page's own controls, outside the layout */
 function EngineRef({
@@ -56,7 +103,14 @@ function DockBack({ tab }: { tab: TabNode }) {
 }
 
 function App() {
-    const [model] = useState(() => Model.fromJson(layoutFromQuery()));
+    const [model] = useState(() => {
+        const created = Model.fromJson(layoutFromQuery());
+        // every layout of this fixture can pop out (popout is opt-in per tab)
+        created.doAction(
+            Actions.updateModelAttributes({ tabEnablePopout: true }),
+        );
+        return created;
+    });
     const engineRef = useRef<LayoutEngine | null>(null);
 
     const popOutSelected = () => {
@@ -83,6 +137,7 @@ function App() {
                 model={model}
                 popoutURL="/popout.html"
                 supportsPopout
+                popoutMirrorRoot
             >
                 <EngineRef engineRef={engineRef} />
                 <Dockable.Row>{renderNode}</Dockable.Row>
@@ -96,7 +151,12 @@ function App() {
                 </Dockable.Panels>
                 <Dockable.DropIndicator />
                 <Dockable.Popout>
-                    {() => <Dockable.Row>{renderNode}</Dockable.Row>}
+                    {() => (
+                        <>
+                            <Dockable.Row>{renderNode}</Dockable.Row>
+                            <Dockable.DropIndicator />
+                        </>
+                    )}
                 </Dockable.Popout>
             </Dockable.Root>
         </>

@@ -15,6 +15,7 @@
         "drop-indicator",
         "drop-zone",
         "popout",
+        "popout-trigger",
         "hooks",
         "---Core (@fragiola/dockable)---",
         "model",

@@ -41,6 +41,7 @@ const MODULE_PAGES: Record<string, string> = {
     "./DropIndicator": "drop-indicator",
     "./DropZone": "drop-zone",
     "./Popout": "popout",
+    "./PopoutTrigger": "popout-trigger",
     "./hooks": "hooks",
     "./context": "hooks",
     "./utils/useRender": "root",

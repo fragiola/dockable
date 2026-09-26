@@ -68,6 +68,12 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
     /** a popout window is closing */
     onPopoutClose?: PopoutCallback | undefined;
     /**
+     * copies the main document's `<html>` and `<body>` attributes into each popout and keeps them
+     * in sync (a theme class, `data-theme`, …): `true` copies them all (except `style` and `id`),
+     * a list copies those names. Default: only `lang` and `dir`.
+     */
+    popoutMirrorRoot?: boolean | readonly string[] | undefined;
+    /**
      * accepts a drag that did not start in a layout (files, links, text, another library's
      * element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called when
      * the drag enters the layout, when only `event.dataTransfer.types` is readable; read the data in
@@ -102,6 +108,7 @@ export function Root(props: RootProps) {
         popoutClosePolicy,
         onPopoutOpen,
         onPopoutClose,
+        popoutMirrorRoot,
         onExternalDrag,
         onAllowDrop,
         children,
@@ -120,6 +127,7 @@ export function Root(props: RootProps) {
             popoutURL,
             supportsPopout,
             closePolicy: popoutClosePolicy,
+            mirrorRoot: popoutMirrorRoot,
             title: (layout) => popoutHooks.current.title?.(layout),
             onPopoutOpen: (layout, win, doc) => {
                 onPopoutOpen?.(layout, win, doc);
