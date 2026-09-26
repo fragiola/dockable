@@ -1,0 +1,68 @@
+---
+title: Dockable.EdgeIndicator
+description: Marks the band along one edge of the layout where a drop docks to that edge.
+---
+
+"Marks the band along one edge of the layout where a drop docks to that edge. It is positioned
+(structurally) over the band the core computes (`edgeDockMargin` deep, `edgeDockLength` long,
+centred), shown only while a drag that can dock to the edges is over the layout and the model's
+`enableEdgeDockIndicators` is on. `pointer-events: none`, like the drop indicator. Place one per
+edge inside `Dockable.Root`; its stacking (`z-index`) is yours."
+
+```tsx
+{(["top", "bottom", "left", "right"] as const).map((edge) => (
+    <Dockable.EdgeIndicator
+        key={edge}
+        edge={edge}
+        className="z-10 flex items-center justify-center rounded bg-palette-ring/30 data-drop-target:bg-palette-ring"
+    >
+        <ArrowIcon aria-hidden />
+    </Dockable.EdgeIndicator>
+))}
+```
+
+## Props
+
+`EdgeIndicatorProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `edge` | `"top" \| "bottom" \| "left" \| "right"` | required | the layout edge it marks |
+| `children` | `ReactNode` | none | its content (an arrow icon); the primitive renders none |
+
+## State
+
+`EdgeIndicatorState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `edge` | `Edge` | the edge (`"top" \| "bottom" \| "left" \| "right"`) |
+| `visible` | `boolean` | a drag that can dock to the layout's edges is over the layout |
+| `dropTarget` | `boolean` | the drop would dock to this edge |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `/edge/<edge>`, e.g. `/edge/top` |
+| `data-edge` | the edge |
+| `data-visible` | shown |
+| `data-drop-target` | the drop would dock to this edge |
+| `aria-hidden` | `true` |
+
+## Structural style
+
+`position: absolute`, `left`, `top`, `width`, `height` (the band, relative to the root),
+`display: none` while hidden, and `pointer-events: none`.
+
+## The bands
+
+The core's `model.getEdgeDockRects()` returns the four bands of the main layout's root row: each
+`edgeDockMargin` px deep (default 10) and, while `enableEdgeDockIndicators` is on,
+`edgeDockLength` px long (default 100) centred on its edge. With indicators off the band spans the
+whole edge. The same bands decide where a drop docks to an edge, so the indicator is exactly the
+drop target.
+
+A tab strip at the top of the layout is inside the top band's depth: a drop aimed at the strip's
+middle docks to the top edge instead (gap 11). Lower `edgeDockMargin` (e.g. to 4), or show the
+indicators so users see where the edge target is.

@@ -1058,6 +1058,66 @@ export class Model {
         return this.attributes.enableEdgeDockIndicators as boolean;
     }
 
+    /** the depth in px of the edge drop bands (Dockable addition; FlexLayout hard-codes 10) */
+    getEdgeDockMargin() {
+        return this.attributes.edgeDockMargin as number;
+    }
+
+    /** the length in px of the edge drop bands while edge indicators are on (FlexLayout: 100) */
+    getEdgeDockLength() {
+        return this.attributes.edgeDockLength as number;
+    }
+
+    /**
+     * The edge drop bands of the main layout's root row, in layout coordinates: where a drop docks
+     * to an edge, and where an edge indicator goes. Empty when edge docking is off.
+     */
+    getEdgeDockRects(layoutId: string = Model.MAIN_LAYOUT_ID): {
+        location: DockLocation;
+        rect: Rect;
+    }[] {
+        const row = this.layouts.get(layoutId)?.getRootRow();
+        if (!this.isEnableEdgeDock() || !row) {
+            return [];
+        }
+        const r = row.getRect();
+        const margin = this.getEdgeDockMargin();
+        const length = this.isEnableEdgeDockIndicators()
+            ? Math.min(this.getEdgeDockLength(), r.width, r.height)
+            : undefined;
+        const across = (size: number) => length ?? size;
+        const w = across(r.width);
+        const h = across(r.height);
+        return [
+            {
+                location: DockLocation.TOP,
+                rect: new Rect(r.x + (r.width - w) / 2, r.y, w, margin),
+            },
+            {
+                location: DockLocation.BOTTOM,
+                rect: new Rect(
+                    r.x + (r.width - w) / 2,
+                    r.getBottom() - margin,
+                    w,
+                    margin,
+                ),
+            },
+            {
+                location: DockLocation.LEFT,
+                rect: new Rect(r.x, r.y + (r.height - h) / 2, margin, h),
+            },
+            {
+                location: DockLocation.RIGHT,
+                rect: new Rect(
+                    r.getRight() - margin,
+                    r.y + (r.height - h) / 2,
+                    margin,
+                    h,
+                ),
+            },
+        ];
+    }
+
     /**
      * Sets a function to allow/deny dropping a node
      * @param onAllowDrop function that takes the drag node and DropInfo and returns true if the drop is allowed (`undefined` removes it)
@@ -1349,6 +1409,18 @@ export class Model {
             .add("enableEdgeDockIndicators", true)
             .setType(Attribute.BOOLEAN)
             .setDescription(`show the edge indicators when dragging`);
+        attributeDefinitions
+            .add("edgeDockMargin", 10)
+            .setType(Attribute.NUMBER)
+            .setDescription(
+                `the depth in px of the band along each layout edge where a drop docks to that edge (a Dockable addition: FlexLayout hard-codes 10); lower it when a tab strip sits at the top edge`,
+            );
+        attributeDefinitions
+            .add("edgeDockLength", 100)
+            .setType(Attribute.NUMBER)
+            .setDescription(
+                `the length in px of each edge's drop band, centred on the edge, while enableEdgeDockIndicators is on (the whole edge otherwise); a Dockable addition: FlexLayout hard-codes 100`,
+            );
         attributeDefinitions
             .add("rootOrientationVertical", false)
             .setType(Attribute.BOOLEAN)

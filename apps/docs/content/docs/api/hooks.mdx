@@ -1,6 +1,6 @@
 ---
 title: Hooks
-description: useDockable, useTabSet, useSplitter, useDragNode, useDragSource, useDropZone and useTabSetDropState - the lower layer under the primitives.
+description: useDockable, useTabSet, useBorder, useSplitter, useDragNode, useDragSource, useDropZone and useTabSetDropState - the lower layer under the primitives.
 ---
 
 The primitives are built on four hooks, exported as the lower layer. Use `useDockable` all the
@@ -83,6 +83,20 @@ the tabset to `TabList`/`TabSetContent`, which only `Dockable.TabSet` does. Pref
 | `dropLocation` | `DropLocation \| undefined` | while it is the drop target: where the drag would dock relative to it |
 | `dropRefused` | `boolean` | the current drag is over this tabset, but a drop rule refuses it |
 
+## useBorder
+
+"The lower layer of `Dockable.Border`: its state and measurement ref."
+
+`useBorder(node: BorderNode): UseBorderResult`
+
+| field | type | description |
+| --- | --- | --- |
+| `state` | `BorderState` | see [Dockable.Border](/docs/api/border#state) |
+| `ref` | `RefCallback<HTMLElement>` | callback ref for the border's strip (measured as the border's tab header) |
+
+A custom strip must also provide the border to `Dockable.TabList`, which only `Dockable.Border`
+does: prefer `Dockable.Border` with `render`.
+
 ## useSplitter
 
 "The lower layer of `Dockable.Splitter`: a headless controller for the splitter before child
@@ -108,7 +122,8 @@ function MySplitter({ node, index }: RowSplitterProps) {
 }
 ```
 
-`useSplitter(node: RowNode, index: number): UseSplitterResult`
+`useSplitter(node: RowNode | BorderNode, index = 0): UseSplitterResult` (a border's splitter
+has no index)
 
 | field | type | description |
 | --- | --- | --- |
@@ -255,6 +270,6 @@ two tabs).
 
 ## Types
 
-Also exported: `TabSetState`, `UseDockableResult`, `UseTabSetResult`, `UseSplitterResult`,
+Also exported: `TabSetState`, `UseDockableResult`, `UseTabSetResult`, `UseBorderResult`, `UseSplitterResult`,
 `UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`, `UseDropZoneOptions`, `UseDropZoneResult`, `TabSetDropState`, and `GetLabel` (`(key: DockableLabel, ...args: (string | number)[]) => string
 | undefined`).

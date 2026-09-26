@@ -457,8 +457,11 @@ export class RowNode extends Node implements IDropTarget {
         const xx = x - this.rect.x;
         const w = this.rect.width;
         const h = this.rect.height;
-        const margin = 10; // height of edge rect
-        const half = this.model.isEnableEdgeDockIndicators() ? 50 : 9999; // half width of edge rect
+        // the edge bands (Model.getEdgeDockRects); FlexLayout hard-codes a 10px margin and 100px length
+        const margin = this.model.getEdgeDockMargin(); // height of edge rect
+        const half = this.model.isEnableEdgeDockIndicators()
+            ? this.model.getEdgeDockLength() / 2
+            : 9999; // half width of edge rect
         let dropInfo: DropInfo | undefined;
 
         const layout = this.getLayout();

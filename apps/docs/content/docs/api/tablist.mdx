@@ -26,7 +26,7 @@ hit-testing).
 | prop | type | default | description |
 | --- | --- | --- | --- |
 | `children` | `(tab: TabNode) => ReactNode` | required | renders a tab button (a `Dockable.Tab`) |
-| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | the direction the tabs are laid out in, for arrow key navigation; default horizontal |
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` (`"vertical"` in a left or right border) | the direction the tabs are laid out in, for arrow key navigation; default horizontal (vertical in a left or right border) |
 
 ## State
 
@@ -59,3 +59,9 @@ Name it with `aria-label` (the tabset's `name` attribute is meant for it).
 - Keep it at least ~30px tall at the top of the layout: the layout's top-edge docking band is
   10px (gap 11).
 - No structural style: layout, overflow and wrapping are yours ([Tab overflow](/docs/guides/tab-overflow)).
+
+## In a border
+
+`Dockable.TabList` works the same inside `Dockable.Border`: its path is
+`/border/<location>/tabstrip`, and it runs vertically in a left or right border. The border's strip
+(`Dockable.Border`) is what the engine measures there, not the tab list.

@@ -68,7 +68,8 @@ Render it from a `Dockable.TabList` child function.
 
 ## Behaviour
 
-- A click selects the tab (`Actions.selectTab`).
+- A click selects the tab (`Actions.selectTab`). In a border, a click on the selected tab
+  closes the border's panel (the same action, which the model turns into a deselect).
 - It is the drag source for its tab ([`useDragNode`](/docs/api/hooks#usedragnode)), and the
   element the browser snapshots as the drag image.
 - The engine measures it (for drop hit-testing within the strip).

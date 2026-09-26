@@ -1,10 +1,10 @@
 ---
 title: Dockable.Splitter
-description: A splitter between two children of a row (role="separator"), draggable and keyboard operable.
+description: A splitter between two children of a row, or beside a border's panel (role="separator"), draggable and keyboard operable.
 ---
 
-"A splitter between two children of a row (`role="separator"`). Drag it with the pointer, or
-focus it and use the arrow keys. While an outline (non-realtime) drag is in progress it carries
+"A splitter between two children of a row, or between a border's panel and the layout
+(`role="separator"`). Drag it with the pointer, or focus it and use the arrow keys. While an outline (non-realtime) drag is in progress it carries
 `data-dragging` and a structural `transform` previewing where it will land."
 
 `Dockable.Row` renders one between every two children. Render your own through `renderSplitter`:
@@ -21,8 +21,8 @@ function renderSplitter(props: RowSplitterProps) {
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `node` | `RowNode` | required | the row the splitter resizes |
-| `index` | `number` | required | the splitter sits before child `index` (1-based) |
+| `node` | `RowNode \| BorderNode` | required | the row (or border) the splitter resizes |
+| `index` | `number` | `0` | in a row, the splitter sits before child `index` (1-based); a border's splitter has none |
 | `children` | `ReactNode` | none | content such as a grip |
 
 ## State
@@ -39,13 +39,13 @@ function renderSplitter(props: RowSplitterProps) {
 
 | attribute | value |
 | --- | --- |
-| `data-layout-path` | `<row path>/s<index-1>`: `/s0` between the root row's first two children |
+| `data-layout-path` | `<row path>/s<index-1>`: `/s0` between the root row's first two children; a border's is `/border/<location>/s-1` (FlexLayout's scheme) |
 | `data-orientation` | `"vertical"` (a vertical bar between side by side children) or `"horizontal"` |
 | `data-dragging` | being dragged with the pointer |
 | `role` | `"separator"` |
 | `aria-orientation` | same as `data-orientation` |
-| `aria-valuenow` / `aria-valuemin` / `aria-valuemax` | row splitters: the 0–100 position within the row |
-| `aria-valuetext` | the formatted value, e.g. `"40%"` |
+| `aria-valuenow` / `aria-valuemin` / `aria-valuemax` | row splitters: the 0–100 position within the row; border splitters: the border's size, `minSize` and `maxSize` in px |
+| `aria-valuetext` | the formatted value, e.g. `"40%"` or `"200px"` |
 | `aria-label` | `getLabel(DockableLabel.Splitter)` |
 | `tabIndex` | `0` |
 
@@ -58,6 +58,9 @@ splitter size).
 ## Keyboard
 
 The arrow keys along its axis (Left/Right for a vertical bar, Up/Down for a horizontal one) move
-it by 10px. Modified arrows are ignored.
+it by 10px. Modified arrows are ignored. A border's splitter grows its panel towards the layout
+(ArrowUp grows a bottom border, ArrowRight a left one).
+
+`Dockable.BorderContent` renders a border's splitter; pass `renderSplitter` there to style it.
 
 See the [Splitters guide](/docs/guides/splitters) for hairline and wide styles.

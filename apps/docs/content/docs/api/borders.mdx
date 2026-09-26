@@ -1,0 +1,67 @@
+---
+title: Dockable.Borders
+description: The frame that places the borders (side bars with tabs) around the main layout.
+---
+
+"The frame that places the borders around the main layout, as FlexLayout does: the top and bottom
+strips span the full width, the left and right strips sit between them, and each border's panel
+area sits between its strip and the layout. Renders only structural flex. Place it directly in
+`Dockable.Root` instead of the root `Dockable.Row`, and pass the row as its child."
+
+```tsx
+<Dockable.Root model={model}>
+    <Dockable.Borders
+        renderBar={(border) => (
+            <Dockable.Border node={border} className="bar">
+                <Dockable.TabList>{(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}</Dockable.TabList>
+            </Dockable.Border>
+        )}
+    >
+        <Dockable.Row>{renderNode}</Dockable.Row>
+    </Dockable.Borders>
+    <Dockable.Panels>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
+</Dockable.Root>
+```
+
+Borders come from the model's `borders` (see [JSON model](/docs/api/json-model)). See the
+[Borders guide](/docs/guides/borders).
+
+## Props
+
+`BordersProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `renderBar` | `(border: BorderNode) => ReactNode` | required | renders a border's strip: a `Dockable.Border` |
+| `renderContent` | `(border: BorderNode) => ReactNode` | `<Dockable.BorderContent node={border} />` | renders a border's panel area |
+| `children` | `ReactNode` | none | the main layout: a `Dockable.Row` (its root row fills the area left by the borders) |
+
+## State
+
+`BordersState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `borders` | `boolean` | the layout has at least one border showing |
+
+## Which borders show
+
+A border shows when its `show` attribute is on and, if it is `enableAutoHide`, when it has tabs or
+a drag reveals it: while a tab is dragged near the edge of the layout that has an empty auto-hide
+border (within `edgeDockMargin`, away from the edge docking bands), that border appears so it can
+take the drop. It hides again when the drag ends. Borders only render in the main layout, never
+in a popout window.
+
+## Data attributes
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `"/borders"`; its inner elements are `/borders/middle`, `/borders/inner`, `/borders/center` and the main area `/main` |
+| `data-borders` | at least one border shows |
+
+## Structural style
+
+The frame fills the root (`position: absolute; inset: 0`) as a flex column. Its inner elements
+are flex rows and columns (`flex-grow: 1`, `min-width`/`min-height: 0`); `/borders/inner` and
+`/borders/center` are `position: relative` (overlay borders are positioned in them), and so is
+`/main`, which the root row fills.

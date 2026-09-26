@@ -211,6 +211,30 @@ export function Root(props: RootProps) {
         return () => doc.removeEventListener("keydown", onKeyDown);
     }, [engine, rootElement, focusNextTabset, focusPreviousTabset]);
 
+    // an open overlay border closes on a press elsewhere in the layout, and on its close key
+    const { closeOverlayBorder } = resolvedKeyMap;
+    React.useEffect(() => {
+        if (!rootElement) {
+            return;
+        }
+        const doc = rootElement.ownerDocument;
+        const onPointerDown = (event: PointerEvent) => {
+            engine.handleOverlayPointerDown(event);
+        };
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (!event.defaultPrevented) {
+                engine.handleOverlayKeyDown(event, closeOverlayBorder);
+            }
+        };
+        // capture: splitters and buttons stop the propagation of their presses
+        doc.addEventListener("pointerdown", onPointerDown, true);
+        doc.addEventListener("keydown", onKeyDown);
+        return () => {
+            doc.removeEventListener("pointerdown", onPointerDown, true);
+            doc.removeEventListener("keydown", onKeyDown);
+        };
+    }, [engine, rootElement, closeOverlayBorder]);
+
     const [extraLayers, setExtraLayers] = React.useState<
         ReadonlyMap<string, PanelLayer>
     >(new Map());

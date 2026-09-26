@@ -1,11 +1,20 @@
+export type { BorderProps, BorderState } from "./Border";
+export type { BorderContentProps } from "./BorderContent";
+export type { BordersProps, BordersState } from "./Borders";
 export type { GetLabel } from "./context";
 export { type DragGroupProps, useDragGroup } from "./DragGroup";
 export type { DragSourceProps, DragSourceState } from "./DragSource";
 export type { DropIndicatorProps, DropIndicatorState } from "./DropIndicator";
 export type { DropZoneProps, DropZoneState } from "./DropZone";
+export type {
+    Edge,
+    EdgeIndicatorProps,
+    EdgeIndicatorState,
+} from "./EdgeIndicator";
 export {
     type TabSetDropState,
     type TabSetState,
+    type UseBorderResult,
     type UseDockableResult,
     type UseDragNodeResult,
     type UseDragSourceOptions,
@@ -14,6 +23,7 @@ export {
     type UseDropZoneResult,
     type UseSplitterResult,
     type UseTabSetResult,
+    useBorder,
     useDockable,
     useDragNode,
     useDragSource,

@@ -3,6 +3,7 @@
 // see LICENSE.
 import {
     Actions,
+    BorderNode,
     getTabButtonId,
     getTabButtonPath,
     getTabPanelId,
@@ -83,9 +84,18 @@ export function Tab(props: TabProps) {
         (container.getSelectedNode() === undefined &&
             container.getTabNodes()[0] === node);
 
+    const inBorder = container instanceof BorderNode;
     const select = () => {
         if (!node.isSelected()) {
             engine.doAction(Actions.selectTab(node.getId()));
+        }
+    };
+    // a click on a border's selected tab closes the border's panel (FlexLayout's toggle)
+    const onClick = () => {
+        if (inBorder) {
+            engine.doAction(Actions.selectTab(node.getId()));
+        } else {
+            select();
         }
     };
 
@@ -201,7 +211,7 @@ export function Tab(props: TabProps) {
             draggable: drag.draggable,
             onDragStart: drag.onDragStart,
             onDragEnd: drag.onDragEnd,
-            onClick: select,
+            onClick,
             onKeyDown,
             children,
         },

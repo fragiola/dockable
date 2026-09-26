@@ -3,6 +3,7 @@
 // see LICENSE.
 import {
     Actions,
+    type BorderNode,
     createSplitterController,
     DragDropManager,
     type DragState,
@@ -180,6 +181,60 @@ export function useTabSet(node: TabSetNode): UseTabSetResult {
     return { state, ref, onPointerDown };
 }
 
+export interface BorderState {
+    /** the side of the layout the border is on */
+    location: "top" | "bottom" | "left" | "right";
+    /** the direction its tabs run: `"vertical"` for a left or right border */
+    orientation: "horizontal" | "vertical";
+    /** a tab is selected, so the border's panel is open */
+    open: boolean;
+    /** the panel opens over the layout (`borderType: "overlay"`) instead of beside it */
+    overlay: boolean;
+    /** the border has no tabs */
+    empty: boolean;
+    /** a left border's tab direction (`borderLeftTabDirection`): `"up"` or `"down"` */
+    tabDirection: "up" | "down" | undefined;
+    /** the current drag would drop into this border (its strip or its open panel) */
+    dropTarget: boolean;
+    /** the current drag is over this border, but a drop rule refuses it */
+    dropRefused: boolean;
+}
+
+export interface UseBorderResult {
+    state: BorderState;
+    /** callback ref for the border's strip (measured as the border's tab header) */
+    ref: React.RefCallback<HTMLElement>;
+}
+
+/** The lower layer of `Dockable.Border`: its state and measurement ref. */
+export function useBorder(node: BorderNode): UseBorderResult {
+    const { engine } = useLayoutContext("useBorder");
+    const drop = useTabSetDropState(engine, node.getId());
+    const location = node.getLocation().getName() as BorderState["location"];
+    const state: BorderState = {
+        location,
+        orientation: node.isHorizontal() ? "vertical" : "horizontal",
+        open: node.getSelected() !== -1,
+        overlay: node.isOverlay(),
+        empty: node.getChildren().length === 0,
+        tabDirection:
+            location === "left"
+                ? node.getModel().getBorderLeftTabDirection() === "down"
+                    ? "down"
+                    : "up"
+                : undefined,
+        dropTarget: drop.target,
+        dropRefused: drop.refused,
+    };
+    const ref = React.useCallback(
+        (element: HTMLElement | null) => {
+            engine.registerMeasurable(node, "borderheader", element);
+        },
+        [engine, node],
+    );
+    return { state, ref };
+}
+
 export interface UseSplitterResult {
     controller: SplitterController;
     state: ISplitterState;
@@ -194,7 +249,10 @@ export interface UseSplitterResult {
  * The lower layer of `Dockable.Splitter`: a headless controller for the splitter before child
  * `index` (1-based) of `node`, its drag state and ARIA values.
  */
-export function useSplitter(node: RowNode, index: number): UseSplitterResult {
+export function useSplitter(
+    node: RowNode | BorderNode,
+    index = 0,
+): UseSplitterResult {
     const { engine } = useLayoutContext("useSplitter");
     const controller = React.useMemo(
         () => createSplitterController(engine, node, index),
