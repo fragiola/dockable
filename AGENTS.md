@@ -26,6 +26,9 @@ Do not "fix" these.
    survives moves between tabsets, floats and popouts. The **only inline style a
    primitive applies is structural**: `position`, `inset`/`left`/`top`/`width`/
    `height`, `display: none`, flex sizing and indicator position. Nothing cosmetic.
+   **Maximize (deviation from FlexLayout):** FlexLayout portals the maximized tabset over the
+   layout; Dockable hides every tabset and row off its path (`model.isHiddenByMaximize`,
+   `display: none`), so nothing remounts.
 2. **Public API is composable primitives under one namespace** (`Dockable.Root`,
    `Row`, `TabSet`, `TabList`, `Tab`, `Panel`, `Splitter`, …). Hooks
    (`useDockable`, `useTabSet`, `useSplitter`, `useDragNode`) are exported as the

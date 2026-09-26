@@ -3,8 +3,14 @@ title: Maximize
 description: Let a tabset fill the layout, and style the maximized state.
 ---
 
-Maximizing a tabset makes it fill its layout: every other tabset and every row splitter is hidden
-(structurally, `display: none`), and the maximized tabset takes the whole root row.
+Maximizing a tabset makes it fill its layout: every other tabset, every row that does not contain
+it and every row splitter is hidden (structurally, `display: none`), so the maximized tabset takes
+the whole root row, however deeply it is nested.
+
+This differs from FlexLayout, which moves (portals) the maximized tabset over the layout. Dockable
+hides what is off the maximized tabset's path instead: nothing remounts, and the content keeps
+its moveable element. The rule is the core's `model.isHiddenByMaximize(node)`, which `TabSet` and
+`Row` read (`TabSetState.hidden`, `RowState.hidden`).
 
 <Example slug="maximize" />
 

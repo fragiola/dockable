@@ -156,12 +156,11 @@ function isAuxEvent(event: React.PointerEvent | React.MouseEvent) {
 /** The lower layer of `Dockable.TabSet`: its state, measurement ref and activation handler. */
 export function useTabSet(node: TabSetNode): UseTabSetResult {
     const { engine, layoutId } = useLayoutContext("useTabSet");
-    const maximizedTabset = node.getModel().getMaximizedTabset(layoutId);
     const drop = useTabSetDropState(engine, node.getId());
     const state: TabSetState = {
         active: node.isActive(),
         maximized: node.isMaximized(),
-        hidden: maximizedTabset !== undefined && maximizedTabset !== node,
+        hidden: node.getModel().isHiddenByMaximize(node),
         empty: node.getChildren().length === 0,
         dropTarget: drop.target,
         dropLocation: drop.location,

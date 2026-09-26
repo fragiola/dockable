@@ -44,6 +44,7 @@ Never mutate nodes. Change the model with actions, dispatched through the engine
 | `getRootRow(layoutId?)` | the root `RowNode` of a layout |
 | `getActiveTabset(layoutId?)` | the currently active tabset node |
 | `getMaximizedTabset(layoutId?)` | the currently maximized tabset node |
+| `isHiddenByMaximize(node)` | whether a tabset or row is hidden because a tabset of its layout is maximized: every other tabset, and every row not on the path to the maximized one (Dockable hides them instead of FlexLayout's portal, so nothing remounts) |
 | `getFirstTabSet(node?)` | finds the first (top left) tabset of the given node, defaulting to the main root row |
 | `getNodeById(id)` | gets a node by its id |
 | `visitNodes(fn)` | visits all the nodes in the model (every layout) and calls `fn(node, level)` for each |

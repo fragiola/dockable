@@ -872,6 +872,32 @@ export class Model {
     }
 
     /**
+     * Whether `node` (a tabset or a row) is hidden because a tabset of its layout is maximized:
+     * every tabset but the maximized one, and every row that does not contain it. The rows on the
+     * path to the maximized tabset stay, so it grows to fill the layout (Dockable hides the rest
+     * instead of FlexLayout's portal of the maximized tabset: nothing remounts).
+     */
+    isHiddenByMaximize(node: Node): boolean {
+        if (!(node instanceof TabSetNode || node instanceof RowNode)) {
+            return false;
+        }
+        const maximized = this.getMaximizedTabset(node.getLayoutId());
+        if (!maximized || maximized === node) {
+            return false;
+        }
+        for (
+            let parent = maximized.getParent();
+            parent;
+            parent = parent.getParent()
+        ) {
+            if (parent === node) {
+                return false; // on the path to the maximized tabset
+            }
+        }
+        return true;
+    }
+
+    /**
      * Gets the root RowNode of the model
      * @returns {RowNode}
      */
