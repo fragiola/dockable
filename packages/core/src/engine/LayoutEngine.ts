@@ -490,6 +490,11 @@ export class LayoutEngine {
                 (node as TabGroupNode).setPillRect(Rect.empty());
             } else if (kind === "groupendmarker") {
                 (node as TabGroupNode).setEndMarkerRect(Rect.empty());
+            } else if (kind === "borderheader") {
+                // an auto-hide border unmounts its strip: its ghost must not take drops
+                (node as BorderNode).setTabHeaderRect(Rect.empty());
+            } else if (kind === "bordercontent") {
+                (node as BorderNode).setContentRect(Rect.empty());
             }
         }
         // css-driven geometry changes (e.g. a font-size or theme change) do not resize the layout

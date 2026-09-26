@@ -1,5 +1,6 @@
 import {
     Actions,
+    BorderNode,
     DockLocation,
     type IJsonModel,
     type LayoutEngine,
@@ -127,8 +128,16 @@ function editorTarget(model: Model): TabSetNode | undefined {
 
 /** Opens a file: selects its tab when it is already open, adds one otherwise. */
 export function openFile(engine: LayoutEngine, model: Model, path: string) {
-    if (model.getNodeById(tabId(path))) {
-        engine.doAction(Actions.selectTab(tabId(path)));
+    const existing = model.getNodeById(tabId(path));
+    if (existing) {
+        // selecting a border's selected tab would close its panel: only select what is not
+        const openInBorder =
+            existing instanceof TabNode &&
+            existing.getParent() instanceof BorderNode &&
+            existing.isSelected();
+        if (!openInBorder) {
+            engine.doAction(Actions.selectTab(tabId(path)));
+        }
         return;
     }
     const target = editorTarget(model);

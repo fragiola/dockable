@@ -459,9 +459,12 @@ export class RowNode extends Node implements IDropTarget {
         const h = this.rect.height;
         // the edge bands (Model.getEdgeDockRects); FlexLayout hard-codes a 10px margin and 100px length
         const margin = this.model.getEdgeDockMargin(); // height of edge rect
-        const half = this.model.isEnableEdgeDockIndicators()
-            ? this.model.getEdgeDockLength() / 2
-            : 9999; // half width of edge rect
+        const length = this.model.isEnableEdgeDockIndicators()
+            ? this.model.getEdgeDockLength()
+            : 9999 * 2;
+        // half width of the edge rects, at most half the edge (as Model.getEdgeDockRects draws them)
+        const halfAcross = Math.min(length, w) / 2; // top and bottom bands
+        const halfAlong = Math.min(length, h) / 2; // left and right bands
         let dropInfo: DropInfo | undefined;
 
         const layout = this.getLayout();
@@ -476,8 +479,8 @@ export class RowNode extends Node implements IDropTarget {
         if (this.model.isEnableEdgeDock() && this.parent === undefined) {
             if (
                 x < this.rect.x + margin &&
-                yy > h / 2 - half &&
-                yy < h / 2 + half
+                yy > h / 2 - halfAlong &&
+                yy < h / 2 + halfAlong
             ) {
                 const dockLocation = DockLocation.LEFT;
                 const outlineRect = dockLocation.getDockRect(this.rect);
@@ -491,8 +494,8 @@ export class RowNode extends Node implements IDropTarget {
                 );
             } else if (
                 x > this.rect.getRight() - margin &&
-                yy > h / 2 - half &&
-                yy < h / 2 + half
+                yy > h / 2 - halfAlong &&
+                yy < h / 2 + halfAlong
             ) {
                 const dockLocation = DockLocation.RIGHT;
                 const outlineRect = dockLocation.getDockRect(this.rect);
@@ -507,8 +510,8 @@ export class RowNode extends Node implements IDropTarget {
                 );
             } else if (
                 y < this.rect.y + margin &&
-                xx > w / 2 - half &&
-                xx < w / 2 + half
+                xx > w / 2 - halfAcross &&
+                xx < w / 2 + halfAcross
             ) {
                 const dockLocation = DockLocation.TOP;
                 const outlineRect = dockLocation.getDockRect(this.rect);
@@ -522,8 +525,8 @@ export class RowNode extends Node implements IDropTarget {
                 );
             } else if (
                 y > this.rect.getBottom() - margin &&
-                xx > w / 2 - half &&
-                xx < w / 2 + half
+                xx > w / 2 - halfAcross &&
+                xx < w / 2 + halfAcross
             ) {
                 const dockLocation = DockLocation.BOTTOM;
                 const outlineRect = dockLocation.getDockRect(this.rect);

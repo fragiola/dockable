@@ -151,6 +151,58 @@ describe("edge docking bands", () => {
     });
 });
 
+describe("edge bands in a short layout", () => {
+    it("are drawn where a drop docks: at most the edge's length", () => {
+        const s = setup(withBorders([]));
+        // a 400x40 root row: the left and right bands are 40 long, the top and bottom 100
+        s.rects.set(s.row, 10, 20, 400, 40);
+        s.engine.sync();
+        const left = s.model
+            .getEdgeDockRects()
+            .find(({ location }) => location === DockLocation.LEFT)?.rect;
+        expect(left).toMatchObject({ x: 0, y: 0, width: 10, height: 40 });
+        const top = s.model
+            .getEdgeDockRects()
+            .find(({ location }) => location === DockLocation.TOP)?.rect;
+        expect(top).toMatchObject({ x: 150, width: 100 });
+        // outside the drawn top band (15px past its end), a drop does not dock to the top
+        const row = s.model.getRootRow();
+        const t0 = node<TabNode>(s.model, "t0");
+        expect(row?.canDrop(t0, 265, 2)?.location).not.toBe(DockLocation.TOP);
+        expect(row?.canDrop(t0, 245, 2)?.location).toBe(DockLocation.TOP);
+    });
+});
+
+describe("unmounted border parts", () => {
+    it("leave no ghost rect behind to take drops", () => {
+        const s = setup(
+            withBorders([
+                {
+                    type: "border",
+                    location: "left",
+                    children: [{ type: "tab", id: "b0", name: "Files" }],
+                },
+            ]),
+        );
+        const border = s.model
+            .getBorderSet()
+            .getBorderMap()
+            .get(DockLocation.LEFT) as BorderNode;
+        const strip = s.rects.set(
+            s.root.appendChild(document.createElement("div")),
+            10,
+            20,
+            30,
+            300,
+        ) as HTMLElement;
+        s.engine.registerMeasurable(border, "borderheader", strip);
+        s.engine.sync();
+        expect(border.getRect().width).toBe(30);
+        s.engine.registerMeasurable(border, "borderheader", null);
+        expect(border.getRect().width).toBe(0);
+    });
+});
+
 describe("auto-hide borders during a drag", () => {
     const bottomAutoHide = withBorders([
         {

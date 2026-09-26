@@ -1082,12 +1082,13 @@ export class Model {
         }
         const r = row.getRect();
         const margin = this.getEdgeDockMargin();
+        // as RowNode.canDrop: centred bands `edgeDockLength` long (at most the edge), or the whole
+        // edge without indicators
         const length = this.isEnableEdgeDockIndicators()
-            ? Math.min(this.getEdgeDockLength(), r.width, r.height)
-            : undefined;
-        const across = (size: number) => length ?? size;
-        const w = across(r.width);
-        const h = across(r.height);
+            ? this.getEdgeDockLength()
+            : Number.POSITIVE_INFINITY;
+        const w = Math.min(length, r.width);
+        const h = Math.min(length, r.height);
         return [
             {
                 location: DockLocation.TOP,
