@@ -54,3 +54,28 @@ test("the empty auto-hide border appears while a tab is dragged near its edge, a
         path(page, "/border/right/tabstrip").getByRole("tab"),
     ).toHaveText(["Calendar"]);
 });
+
+for (const theme of ["light", "dark", "paper"] as const) {
+    test(`an open overlay has a visible edge in the ${theme} theme`, async ({
+        page,
+    }) => {
+        await openExample(page, "overlay-borders", { theme });
+        const edge = (location: "left" | "bottom", side: "Right" | "Top") =>
+            path(page, `/border/${location}/content`).evaluate(
+                (element, name) =>
+                    Number.parseFloat(
+                        getComputedStyle(element).getPropertyValue(
+                            `border-${name.toLowerCase()}-width`,
+                        ),
+                    ) || 0,
+                side,
+            );
+        await path(page, "/border/left/tb0").click();
+        await expect(path(page, "/border/left/t0")).toBeVisible();
+        expect(await edge("left", "Right")).toBeGreaterThan(0);
+        await page.keyboard.press("Escape");
+        await path(page, "/border/bottom/tb0").click();
+        await expect(path(page, "/border/bottom/t0")).toBeVisible();
+        expect(await edge("bottom", "Top")).toBeGreaterThan(0);
+    });
+}

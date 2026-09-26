@@ -162,9 +162,15 @@ export const borderTab = [
 
 /**
  * `Dockable.BorderContent`: where a border's panel opens. An overlay border paints over the layout,
- * so it gets a stacking order (above the tabsets and their splitters) and a shadow.
+ * so it gets a stacking order (above the tabsets and their splitters), a shadow, and a line on the
+ * side facing the layout: in themes whose splitters are transparent, and on a dark floor where a
+ * shadow does not show, the line is where the overlay ends.
  */
-export const borderContent = "data-overlay:z-30 data-overlay:shadow-xl";
+export const borderContent = [
+    "data-overlay:z-30 data-overlay:shadow-xl data-overlay:border-palette-line",
+    "data-overlay:data-[location=left]:border-e data-overlay:data-[location=right]:border-s",
+    "data-overlay:data-[location=top]:border-b data-overlay:data-[location=bottom]:border-t",
+].join(" ");
 
 /**
  * `Dockable.EdgeIndicator`: the band along a layout edge where a drop docks to that edge, shown
