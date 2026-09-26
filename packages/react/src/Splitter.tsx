@@ -2,6 +2,7 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import {
+    BorderNode,
     DockableLabel,
     getSplitterPath,
     type ISplitterState,
@@ -22,25 +23,29 @@ export interface SplitterState extends ISplitterState {
 }
 
 export interface SplitterProps extends DivPrimitiveProps<SplitterState> {
-    /** the row the splitter resizes */
-    node: RowNode;
-    /** the splitter sits before child `index` (1-based) */
-    index: number;
+    /** the row (or border) the splitter resizes */
+    node: RowNode | BorderNode;
+    /** in a row, the splitter sits before child `index` (1-based); a border's splitter has none */
+    index?: number | undefined;
     children?: React.ReactNode;
 }
 
 /**
- * A splitter between two children of a row (`role="separator"`). Drag it with the pointer, or
- * focus it and use the arrow keys. While an outline (non-realtime) drag is in progress it carries
+ * A splitter between two children of a row, or between a border's panel and the layout
+ * (`role="separator"`). Drag it with the pointer, or focus it and use the arrow keys. While an outline (non-realtime) drag is in progress it carries
  * `data-dragging` and a structural `transform` previewing where it will land.
  */
 export function Splitter(props: SplitterProps) {
-    const { node, index, children, ...rest } = props;
+    const { node, index = 0, children, ...rest } = props;
     const { getLabel } = useDockableContext("Splitter");
     const { controller, state, aria, hidden, ref } = useSplitter(node, index);
     const horizontal = aria.orientation === "vertical";
 
     const structural: React.CSSProperties = {};
+    if (node instanceof BorderNode) {
+        // an overlay border's content ignores presses (pointer-events: none), except its splitter
+        structural.pointerEvents = "auto";
+    }
     if (hidden) {
         structural.display = "none";
     }

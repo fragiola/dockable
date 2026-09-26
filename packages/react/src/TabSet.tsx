@@ -1,7 +1,7 @@
 // Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/TabSet.tsx (sizing, activation on pointer down);
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
-import type { TabSetNode } from "@fragiola/dockable";
+import type { BorderNode, TabSetNode } from "@fragiola/dockable";
 import * as React from "react";
 import { type TabSetState, useTabSet } from "./hooks";
 import {
@@ -13,6 +13,21 @@ import {
 export type { TabSetState };
 
 export const TabSetContext = React.createContext<TabSetNode | null>(null);
+
+/** The tab container (a tabset or a border) of the parts inside it: `TabList`, `Tab`. */
+export const TabContainerContext = React.createContext<
+    TabSetNode | BorderNode | null
+>(null);
+
+export function useTabContainer(part: string): TabSetNode | BorderNode {
+    const container = React.useContext(TabContainerContext);
+    if (!container) {
+        throw new Error(
+            `Dockable.${part} must be rendered inside Dockable.TabSet or Dockable.Border`,
+        );
+    }
+    return container;
+}
 
 export function useTabSetNode(part: string): TabSetNode {
     const tabset = React.useContext(TabSetContext);
@@ -67,6 +82,10 @@ export function TabSet(props: TabSetProps) {
         },
     });
     return (
-        <TabSetContext.Provider value={node}>{element}</TabSetContext.Provider>
+        <TabSetContext.Provider value={node}>
+            <TabContainerContext.Provider value={node}>
+                {element}
+            </TabContainerContext.Provider>
+        </TabSetContext.Provider>
     );
 }

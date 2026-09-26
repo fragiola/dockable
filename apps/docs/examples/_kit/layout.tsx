@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    type BorderNode,
     type Model,
     type ModelLayout,
     type OnAction,
@@ -14,6 +15,7 @@ import {
     type RootProps,
     type RowSplitterProps,
 } from "@fragiola/dockable-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 import { getLabel } from "./labels";
@@ -179,6 +181,72 @@ export function createRenderNode(options: RenderNodeOptions = {}) {
     return { renderNode, renderSplitter };
 }
 
+/** Renders what goes inside a border's `Dockable.Tab` (default: the tab's name). */
+export type RenderBorderTab = (tab: TabNode) => ReactNode;
+
+/** The kit's border strip: a `Dockable.Border` with its tab list. */
+export function KitBorder({
+    node,
+    renderTab,
+}: {
+    node: BorderNode;
+    renderTab?: RenderBorderTab | undefined;
+}) {
+    return (
+        <Dockable.Border node={node} className={styles.border}>
+            <Dockable.TabList
+                aria-label={`${node.getLocation().getName()} panels`}
+                className={styles.borderTabList}
+            >
+                {(tab) => (
+                    <Dockable.Tab node={tab} className={styles.borderTab}>
+                        {renderTab ? renderTab(tab) : tab.getName()}
+                    </Dockable.Tab>
+                )}
+            </Dockable.TabList>
+        </Dockable.Border>
+    );
+}
+
+/** The kit's border panel area, with the kit's splitter on the layout's side of it. */
+export function KitBorderContent({ node }: { node: BorderNode }) {
+    return (
+        <Dockable.BorderContent
+            node={node}
+            className={styles.borderContent}
+            renderSplitter={(border) => (
+                <Dockable.Splitter node={border} className={styles.splitter}>
+                    <span aria-hidden="true" className={styles.splitterGrip} />
+                </Dockable.Splitter>
+            )}
+        />
+    );
+}
+
+const EDGES = [
+    ["top", ArrowUp],
+    ["bottom", ArrowDown],
+    ["left", ArrowLeft],
+    ["right", ArrowRight],
+] as const;
+
+/** The four edge indicators, each with an arrow pointing at its edge. */
+export function KitEdgeIndicators() {
+    return (
+        <>
+            {EDGES.map(([edge, Arrow]) => (
+                <Dockable.EdgeIndicator
+                    key={edge}
+                    edge={edge}
+                    className={styles.edgeIndicator}
+                >
+                    <Arrow aria-hidden="true" className="size-3" />
+                </Dockable.EdgeIndicator>
+            ))}
+        </>
+    );
+}
+
 /** The popout host page, under the site's base path (it is opened by hand, not by Next). */
 export const popoutURL = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/popout.html`;
 
@@ -249,11 +317,15 @@ export interface DockLayoutProps extends RenderNodeOptions {
     rootProps?: Partial<RootProps> | undefined;
     /** extra elements inside the root (overlays, effects that need `useDockable`) */
     children?: ReactNode;
+    /** the content of a border's tab button (the model's `borders`) */
+    renderBorderTab?: RenderBorderTab | undefined;
+    /** show the edge docking targets (`Dockable.EdgeIndicator`) during a drag */
+    edgeIndicators?: boolean | undefined;
 }
 
 /**
- * A complete themed layout: `Dockable.Root` with the kit's recursion, the panel layer, the drop
- * indicator and popout windows.
+ * A complete themed layout: `Dockable.Root` with the kit's recursion, the borders of the model
+ * around it, the panel layer, the drop indicator and popout windows.
  */
 export function DockLayout(props: DockLayoutProps) {
     const {
@@ -265,6 +337,8 @@ export function DockLayout(props: DockLayoutProps) {
         className,
         rootProps,
         children,
+        renderBorderTab,
+        edgeIndicators,
         ...options
     } = props;
     const { renderNode, renderSplitter } = createRenderNode(options);
@@ -285,9 +359,18 @@ export function DockLayout(props: DockLayoutProps) {
                 className={cn(styles.root, className)}
                 {...rootProps}
             >
-                <Dockable.Row renderSplitter={renderSplitter}>
-                    {renderNode}
-                </Dockable.Row>
+                <Dockable.Borders
+                    renderBar={(border) => (
+                        <KitBorder node={border} renderTab={renderBorderTab} />
+                    )}
+                    renderContent={(border) => (
+                        <KitBorderContent node={border} />
+                    )}
+                >
+                    <Dockable.Row renderSplitter={renderSplitter}>
+                        {renderNode}
+                    </Dockable.Row>
+                </Dockable.Borders>
                 <Dockable.Panels>
                     {(tab) => (
                         <Dockable.Panel
@@ -328,6 +411,7 @@ export function DockLayout(props: DockLayoutProps) {
                         </>
                     )}
                 </Dockable.Popout>
+                {edgeIndicators ? <KitEdgeIndicators /> : null}
                 {children}
             </Dockable.Root>
         </div>

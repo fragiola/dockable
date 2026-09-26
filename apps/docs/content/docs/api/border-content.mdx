@@ -1,0 +1,70 @@
+---
+title: Dockable.BorderContent
+description: Where a border's panel opens - an area sized by the border, and the border's splitter.
+---
+
+"The place a border's panel opens: an area sized by the border's `size` (the engine positions the
+selected tab's panel over it) and the border's splitter, on the layout's side of it. Hidden while
+no tab is selected. A split border sits beside the layout and shrinks it; an overlay border
+(`borderType: "overlay"`) is positioned over the layout's edge, so its stacking (`z-index`) is
+yours. Render it from `Dockable.Borders`'s `renderContent`."
+
+```tsx
+<Dockable.Borders
+    renderBar={renderBar}
+    renderContent={(border) => (
+        <Dockable.BorderContent
+            node={border}
+            className="data-overlay:z-20 data-overlay:shadow-xl"
+            renderSplitter={(node) => <Dockable.Splitter node={node} className="splitter" />}
+        />
+    )}
+>
+```
+
+## Props
+
+`BorderContentProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `node` | `BorderNode` | required | the border |
+| `renderSplitter` | `(border: BorderNode) => ReactNode` | `<Dockable.Splitter node={border} />` | renders the border's splitter |
+| `splitter` | `boolean` | `true` | `false` renders no splitter (the panel keeps its size) |
+
+## State
+
+The border's `BorderState` (see [Dockable.Border](/docs/api/border#state)).
+
+## Data attributes
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `/border/<location>/content`; the sized area inside is `/border/<location>/area`, the splitter `/border/<location>/s-1` |
+| `data-location`, `data-orientation`, `data-open`, `data-overlay`, `data-docked`, `data-empty` | as on [Dockable.Border](/docs/api/border#data-attributes-and-aria) |
+| `data-dockable-overlay` | on an overlay border: a press inside it does not close the overlay |
+
+## Structural style
+
+- The element: `display: flex` (a row for left and right borders, a column otherwise) or
+  `display: none` while closed, `flex-shrink: 0`. On an overlay border also `position: absolute`
+  against the layout's edge (`left: 0; top: 0; bottom: 0` for a left border, and so on); a left or
+  right overlay stops above and below the open top and bottom overlays. An overlay is also
+  `pointer-events: none`, so presses reach the tab panel positioned over its area; its splitter
+  (`Dockable.Splitter` of a border is `pointer-events: auto`) keeps taking them. Hit-testing, not
+  cosmetics.
+- The area: `width`, `min-width`, `max-width` (left and right) or `height`, `min-height`,
+  `max-height` (top and bottom), from the border's `size`, `minSize` and `maxSize`.
+
+## Overlay borders
+
+An overlay border's panel opens over the layout instead of shrinking it. It closes:
+
+- on a press in the layout outside the panel (a tabset, a splitter; not a border strip, and not
+  anything marked `data-dockable-overlay`);
+- on `keyMap.closeOverlayBorder` (`"Escape"`) with focus in the panel or on its tab button; focus
+  goes back to the tab button.
+
+Both go through `onAction` (an `Actions.selectTab` that deselects). Turn a border into an overlay
+with `Actions.setBorderType(borderId, "overlay")` (border ids are `border_<location>`), or
+`borderType: "overlay"` in its JSON.

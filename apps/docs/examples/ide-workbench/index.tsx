@@ -7,7 +7,7 @@ import {
     Model,
     TabNode,
 } from "@fragiola/dockable";
-import { GitBranch } from "lucide-react";
+import { Bug, FolderTree, GitBranch, SquareTerminal } from "lucide-react";
 import { useRef, useState } from "react";
 import { Clickable } from "@/components/atoms/clickable";
 import { AlertDialog } from "@/components/ui/alert-dialog";
@@ -27,10 +27,28 @@ import {
     saveLayout,
 } from "./workspace";
 
-// A code-editor workbench. The explorer and the status bar live outside the layout and drive it
-// through the engine; the tabs follow their content (a dot while modified); closing a modified
+// A code-editor workbench. The explorer (a left border) and the terminal and problems (a bottom
+// border) are borders around the editors; the explorer and the status bar drive the layout through
+// the engine; the tabs follow their content (a dot while modified); closing a modified
 // tab is intercepted in onAction, whatever closed it (button, menu, Ctrl+Delete); and the layout
 // is saved on every change and restored on the next visit.
+
+const BORDER_ICONS = {
+    explorer: FolderTree,
+    terminal: SquareTerminal,
+    problems: Bug,
+} as const;
+
+/** A border's tab button: its icon and name. */
+function renderBorderTab(tab: TabNode) {
+    const Icon = BORDER_ICONS[tab.getComponent() as keyof typeof BORDER_ICONS];
+    return (
+        <>
+            {Icon ? <Icon aria-hidden="true" className="size-3.5" /> : null}
+            {tab.getName()}
+        </>
+    );
+}
 
 export default function IdeWorkbench() {
     const [workspace] = useState(createWorkspace);
@@ -107,6 +125,15 @@ export default function IdeWorkbench() {
                 return <TerminalPanel workspace={workspace} />;
             case "problems":
                 return <ProblemsPanel onOpen={open} />;
+            case "explorer":
+                return (
+                    <Explorer
+                        activePath={activePath}
+                        dirtyPaths={dirtyPaths}
+                        onOpen={open}
+                        onResetLayout={resetLayout}
+                    />
+                );
             default:
                 return null;
         }
@@ -117,25 +144,18 @@ export default function IdeWorkbench() {
             ref={container}
             className="flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)"
         >
-            <div className="flex min-h-0 flex-1">
-                <Explorer
-                    activePath={activePath}
-                    dirtyPaths={dirtyPaths}
-                    onOpen={open}
-                    onResetLayout={resetLayout}
-                />
-                {/* hairline splitters with a wider grab area, whatever the theme */}
-                <div className="flex min-w-0 flex-1 flex-col [--dk-splitter-grab:7px] [--dk-splitter-size:1px]">
-                    <DockLayout
-                        model={model}
-                        onAction={onAction}
-                        onModelChange={onModelChange}
-                        renderTabSet={(node) => <WorkbenchTabSet node={node} />}
-                        renderContent={renderContent}
-                    >
-                        <EngineBridge onEngine={setEngine} />
-                    </DockLayout>
-                </div>
+            {/* hairline splitters with a wider grab area, whatever the theme */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col [--dk-splitter-grab:7px] [--dk-splitter-size:1px]">
+                <DockLayout
+                    model={model}
+                    onAction={onAction}
+                    onModelChange={onModelChange}
+                    renderTabSet={(node) => <WorkbenchTabSet node={node} />}
+                    renderBorderTab={renderBorderTab}
+                    renderContent={renderContent}
+                >
+                    <EngineBridge onEngine={setEngine} />
+                </DockLayout>
             </div>
 
             <footer className="palette-blue flex h-6 shrink-0 items-center gap-4 bg-palette-base px-3 text-xs text-palette-contrast">

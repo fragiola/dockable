@@ -70,9 +70,12 @@ Use `type` `"window"` (the default). `"float"` layouts are kept in the model but
 | --- | --- | --- | --- |
 | `group(actions: Action[])` | `GROUP` | the actions (as `data`) and `actions` | Groups multiple actions into a single `GroupAction`. When performed, the model applies the contained actions in sequence between a single `onBeforeAction`/`onAfterAction` listener pair, so the batch is a single undo step and a single entry in an action log. |
 
-## Not rendered yet: borders, floats and tab groups
+## Borders, floats and tab groups
 
-The model applies these (they are ported from FlexLayout and unit-tested), but no primitive renders borders, floats or tab groups yet, so their effect is not visible. See [Limitations](/docs/limitations).
+`setBorderType` and `adjustBorderSplit` act on borders, which `Dockable.Borders` renders (see
+[Borders](/docs/guides/borders)). The float and tab group actions are applied by the model (they
+are ported from FlexLayout and unit-tested), but no primitive renders floats or tab groups yet, so
+their effect is not visible. See [Limitations](/docs/limitations).
 
 | creator | type constant | `action.data` | description |
 | --- | --- | --- | --- |

@@ -47,7 +47,7 @@ Command shortcuts come from a **key map**: `"Ctrl+Shift+Key"` strings, merged ov
 | `focusTabToggle` | off | toggles focus between the selected tab button and its content |
 | `focusNextTabset` | off | moves focus to the selected tab of the next tabset (wrapping), from anywhere in the layout, including inside tab content; that tabset becomes active |
 | `focusPreviousTabset` | off | the same, backwards |
-| `closeOverlayBorder` | `Escape` | for overlay borders, which are not rendered yet |
+| `closeOverlayBorder` | `Escape` | closes an open overlay border's panel, with focus in it or on its tab button ([Borders](/docs/guides/borders#overlay-borders)) |
 
 Passing an explicit `undefined` disables a binding: `keyMap={{ closeTab: undefined }}`. Modifiers
 can be in any order; the key is compared case-insensitively with `KeyboardEvent.key`.

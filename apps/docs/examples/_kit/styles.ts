@@ -130,3 +130,47 @@ export const solidButton = [
 /** An example's toolbar, above the layout. */
 export const toolbar =
     "palette-surface flex flex-wrap items-center gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast";
+
+/**
+ * `Dockable.Border`: a border's strip, `--dk-tab-height` thick, on the floor's colour, with a line
+ * on the layout's side. `data-orientation` is the direction its tabs run.
+ */
+export const border = [
+    "palette-surface shrink-0 bg-palette-base text-palette-contrast",
+    "data-[orientation=vertical]:w-(--dk-tab-height) data-[orientation=horizontal]:h-(--dk-tab-height)",
+    "data-[location=left]:border-e data-[location=right]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
+    "data-drop-target:bg-palette-soft",
+].join(" ");
+
+/** The border's `Dockable.TabList`: a column in a side border. */
+export const borderTabList =
+    "flex min-h-0 min-w-0 flex-1 gap-(--dk-tab-gap) p-1 data-[orientation=vertical]:flex-col";
+
+/**
+ * A border's `Dockable.Tab`. Side borders turn their labels with `writing-mode`, and a left
+ * border that reads "up" (the model's `borderLeftTabDirection`, on the strip as
+ * `data-tab-direction`) turns them half a turn more. The tabs stay in order from the top.
+ */
+export const borderTab = [
+    "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-sm px-2 py-1",
+    "font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
+    "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
+    "data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40",
+    "in-data-[orientation=vertical]:[writing-mode:vertical-rl] in-data-[orientation=vertical]:px-1 in-data-[orientation=vertical]:py-2",
+    "in-data-[tab-direction=up]:rotate-180",
+].join(" ");
+
+/**
+ * `Dockable.BorderContent`: where a border's panel opens. An overlay border paints over the layout,
+ * so it gets a stacking order (above the tabsets and their splitters) and a shadow.
+ */
+export const borderContent = "data-overlay:z-30 data-overlay:shadow-xl";
+
+/**
+ * `Dockable.EdgeIndicator`: the band along a layout edge where a drop docks to that edge, shown
+ * during a drag. Orange like the edge drop outline; solid while the drop would go there.
+ */
+export const edgeIndicator = [
+    "palette-orange z-20 flex items-center justify-center rounded-sm bg-palette-base/40 text-palette-contrast",
+    "transition-colors duration-(--dk-motion) data-drop-target:bg-palette-base",
+].join(" ");

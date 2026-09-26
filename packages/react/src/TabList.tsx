@@ -2,6 +2,7 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import {
+    BorderNode,
     getTabStripPath,
     type TabNode,
     toAriaKeyShortcuts,
@@ -13,7 +14,7 @@ import {
     useLayoutContext,
 } from "./context";
 import { useTabSetDropState } from "./hooks";
-import { useTabSetNode } from "./TabSet";
+import { useTabContainer } from "./TabSet";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -31,24 +32,37 @@ export interface TabListState {
 export interface TabListProps extends DivPrimitiveProps<TabListState> {
     /** renders a tab button (a `Dockable.Tab`) */
     children: (tab: TabNode) => React.ReactNode;
-    /** the direction the tabs are laid out in, for arrow key navigation; default horizontal */
+    /**
+     * the direction the tabs are laid out in, for arrow key navigation; default horizontal
+     * (vertical in a left or right border)
+     */
     orientation?: "horizontal" | "vertical" | undefined;
 }
 
 /**
- * The tabset's tab strip (`role="tablist"`). Calls the child function per tab. Arrow keys along
- * the orientation, Home and End move focus between tabs; Enter or Space selects.
+ * The tab strip (`role="tablist"`) of a tabset or a border. Calls the child function per tab.
+ * Arrow keys along the orientation, Home and End move focus between tabs; Enter or Space selects.
  */
 export function TabList(props: TabListProps) {
-    const { children, orientation = "horizontal", ...rest } = props;
-    const tabset = useTabSetNode("TabList");
+    const tabset = useTabContainer("TabList");
+    const border = tabset instanceof BorderNode;
+    const {
+        children,
+        orientation = border && tabset.isHorizontal()
+            ? "vertical"
+            : "horizontal",
+        ...rest
+    } = props;
     const { keyMap } = useDockableContext("TabList");
     const { engine } = useLayoutContext("TabList");
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(tabset, "tabstrip", element);
+            // a border's strip is measured as a whole by Dockable.Border
+            if (!border) {
+                engine.registerMeasurable(tabset, "tabstrip", element);
+            }
         },
-        [engine, tabset],
+        [engine, tabset, border],
     );
 
     const keyShortcuts =

@@ -8,6 +8,7 @@ import {
     type OnExternalDrag,
 } from "../dnd/DragDropManager";
 import type { DragGroup } from "../dnd/DragGroup";
+import { type IKeyEventLike, matchesKey } from "../keyboard/keymap";
 import { type Action, Actions } from "../model/Actions";
 import { BorderNode } from "../model/BorderNode";
 import { DockLocation } from "../model/DockLocation";
@@ -22,6 +23,7 @@ import type { TabGroupNode } from "../model/TabGroupNode";
 import type { TabNode } from "../model/TabNode";
 import { TabSetNode } from "../model/TabSetNode";
 import { randomUUID } from "../model/Utils";
+import { getTabButtonId, getTabPanelId } from "../paths";
 import { type IPopoutOptions, PopoutManager } from "../popout/PopoutManager";
 
 /** The kinds of element whose geometry feeds the model. */
@@ -488,6 +490,11 @@ export class LayoutEngine {
                 (node as TabGroupNode).setPillRect(Rect.empty());
             } else if (kind === "groupendmarker") {
                 (node as TabGroupNode).setEndMarkerRect(Rect.empty());
+            } else if (kind === "borderheader") {
+                // an auto-hide border unmounts its strip: its ghost must not take drops
+                (node as BorderNode).setTabHeaderRect(Rect.empty());
+            } else if (kind === "bordercontent") {
+                (node as BorderNode).setContentRect(Rect.empty());
             }
         }
         // css-driven geometry changes (e.g. a font-size or theme change) do not resize the layout
@@ -1004,6 +1011,107 @@ export class LayoutEngine {
     // Keyboard focus
     // *********************************************************************************
 
+    /** The overlay borders that are showing with an open panel. */
+    private openOverlayBorders(): BorderNode[] {
+        return this.model
+            .getBorderSet()
+            .getBorders()
+            .filter(
+                (border) =>
+                    border.isShowing() &&
+                    border.isOverlay() &&
+                    border.getSelected() !== -1,
+            );
+    }
+
+    /**
+     * Closes an overlay border's panel (deselects its tab, through `onAction`). When focus was in
+     * the panel, it goes back to the tab button.
+     */
+    closeOverlayBorder(border: BorderNode): void {
+        const tab = border.getSelectedNode();
+        if (!tab) {
+            return;
+        }
+        const doc = this.currentDocument;
+        const panel = doc?.getElementById(getTabPanelId(tab));
+        const refocus =
+            doc?.activeElement != null && panel?.contains(doc.activeElement);
+        this.doAction(Actions.selectTab(tab.getId())); // selecting the selected border tab closes it
+        if (refocus) {
+            doc?.getElementById(getTabButtonId(tab))?.focus();
+        }
+    }
+
+    /**
+     * Ported from FlexLayout's LayoutController.onOverlayBorderPointerDown. Call it on every
+     * `pointerdown` of the document (capture phase: splitters and buttons stop propagation). A press
+     * in the main layout's area (not on a border strip) outside an open overlay panel closes that
+     * panel. Presses inside an overlay (its panel, splitter, anything marked
+     * `data-dockable-overlay`) keep it open. Returns true when a panel closed.
+     */
+    handleOverlayPointerDown(event: {
+        target: EventTarget | null;
+        clientX: number;
+        clientY: number;
+    }): boolean {
+        const open = this.openOverlayBorders();
+        if (open.length === 0 || !this.layoutRef) {
+            return false;
+        }
+        const target = event.target as Element | null;
+        if (target?.closest?.(`[${OVERLAY_ATTRIBUTE}]`)) {
+            return false;
+        }
+        const root = this.getFreshDomRect();
+        const x = event.clientX - root.x;
+        const y = event.clientY - root.y;
+        const main = this.model.getRootRow(Model.MAIN_LAYOUT_ID)?.getRect();
+        if (!main?.contains(x, y)) {
+            return false; // a border strip, or outside the layout
+        }
+        let closed = false;
+        for (const border of open) {
+            if (!border.getContentRect().contains(x, y)) {
+                this.closeOverlayBorder(border);
+                closed = true;
+            }
+        }
+        return closed;
+    }
+
+    /**
+     * Ported from FlexLayout's LayoutController.onOverlayBorderKeyDown. Call it on every `keydown`
+     * of the document with the close key (`keyMap.closeOverlayBorder`, "Escape" by default): with
+     * focus in an open overlay panel or on its tab button, the key closes the panel and focus goes
+     * to the tab button. Returns true (and prevents the default) when a panel closed.
+     */
+    handleOverlayKeyDown(
+        event: IKeyEventLike & { preventDefault(): void },
+        key: string | undefined,
+    ): boolean {
+        const doc = this.currentDocument;
+        const active = doc?.activeElement;
+        if (!key || !doc || !active || !matchesKey(event, key)) {
+            return false;
+        }
+        for (const border of this.openOverlayBorders()) {
+            const tab = border.getSelectedNode();
+            if (!tab) {
+                continue;
+            }
+            const button = doc.getElementById(getTabButtonId(tab));
+            const panel = doc.getElementById(getTabPanelId(tab));
+            if (active === button || panel?.contains(active)) {
+                this.closeOverlayBorder(border);
+                button?.focus();
+                event.preventDefault();
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Moves focus to the selected tab button of the next/previous tabset in this layout
      * (wrapping), starting from the tabset containing focus (its strip or its selected tab's
@@ -1316,6 +1424,12 @@ export function isTabPanelVisible(tab: TabNode): boolean {
     }
     return !(container instanceof BorderNode) || container.isShowing();
 }
+
+/**
+ * Marks an element that belongs to an open overlay border (its wrapper, splitter, toolbar): a
+ * press on it does not close the overlay.
+ */
+export const OVERLAY_ATTRIBUTE = "data-dockable-overlay";
 
 /** the scroll listener installed on each moveable element, and the tab it currently hosts */
 const scrollTracking = new WeakMap<HTMLElement, { tab: TabNode }>();

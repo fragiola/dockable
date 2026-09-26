@@ -39,7 +39,14 @@ test("drop into a tabset and at the layout's edge", async ({ page }) => {
     await moveDragTo(page, { x: box.x + 4, y: box.y + box.height / 2 });
     await expect(indicator).toHaveAttribute("data-drop-kind", "edge");
     await expect(indicator).toHaveAttribute("data-drop-location", "left");
+    // the edge indicators show during the drag; the left one is the target
+    await expect(path(page, "/edge/top")).toHaveAttribute("data-visible", "");
+    await expect(path(page, "/edge/left")).toHaveAttribute(
+        "data-drop-target",
+        "",
+    );
     await page.mouse.up();
+    await expect(path(page, "/edge/left")).toBeHidden();
     await expect(path(page, "/ts0/tabstrip").getByRole("tab")).toHaveText([
         "Drag me",
     ]);

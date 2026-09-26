@@ -125,13 +125,16 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
   `position`/geometry/`display`, so those keys are dropped from the consumer's style.
 - **Structural inline style only**: `position`, `inset`/`left`/`top`/`width`/`height`,
   `display` (`flex`, or `none` to hide), flex sizing (`flex-direction`, `flex-basis`,
-  `flex-grow`, `min-*`/`max-*`), `overflow: hidden` on rows and tabsets, and the splitter's
-  preview `transform`.
+  `flex-grow`, `flex-shrink`, `min-*`/`max-*`), `overflow: hidden` on rows and tabsets, the
+  splitter's preview `transform`, and `pointer-events` where it is hit-testing (`none` on the drop
+  and edge indicators and an overlay border's content, `auto` on a border's splitter).
 - **State only through `data-*` and ARIA**, present or absent (never `"false"`):
   `data-selected`, `data-active`, `data-maximized`, `data-orientation`, `data-dragging`,
-  `data-pinned`, `data-visible`, `data-empty`, `data-root`.
+  `data-pinned`, `data-visible`, `data-empty`, `data-root`, and on borders `data-location`,
+  `data-open`, `data-overlay`/`data-docked`, `data-tab-direction`.
 - **`data-layout-path` on every element**: `/layout` (Root), `/row` (root row), `/r0`, `/ts0`,
-  `/ts0/tabstrip`, `/ts0/content`, `/ts0/tb0`, `/ts0/t0`, `/s0`.
+  `/ts0/tabstrip`, `/ts0/content`, `/ts0/tb0`, `/ts0/t0`, `/s0`; with borders `/borders`, `/main`,
+  `/border/left`, `/border/left/tb0`, `/border/left/content`, `/border/left/s-1`; `/edge/top`.
 - **No text.** Primitives render only their children. Accessible names come from the consumer
   (`aria-label`, children) or from `getLabel(key)` on `Dockable.Root`.
 - **The developer owns the recursion** (children functions: `Row`, `TabList`, `Panels`). `Row`

@@ -1,7 +1,11 @@
+export { Border } from "./Border";
+export { BorderContent } from "./BorderContent";
+export { Borders } from "./Borders";
 export { DragGroup } from "./DragGroup";
 export { DragSource } from "./DragSource";
 export { DropIndicator } from "./DropIndicator";
 export { DropZone } from "./DropZone";
+export { EdgeIndicator } from "./EdgeIndicator";
 export { Panel } from "./Panel";
 export { Panels } from "./Panels";
 export { Popout } from "./Popout";

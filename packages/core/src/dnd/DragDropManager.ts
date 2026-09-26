@@ -62,14 +62,19 @@ export interface IDropIndicatorState {
     readonly tabDragSpeed: number;
     /** the id of the drop target node (a tabset, a row for edge drops, a border, a tab group) */
     readonly targetNodeId: string | undefined;
-    /** the id of the tabset the drop goes into or beside (also for strip and group drops) */
+    /** the id of the tabset (or border) the drop goes into or beside (also for strip and group drops) */
     readonly targetTabSetId: string | undefined;
     /** the insertion index in the target's tab strip, or -1 for a drop on the content area */
     readonly index: number;
     /** the pointer is over a target that a drop rule refused (`onAllowDrop`, `enableDrop`, …) */
     readonly refused: boolean;
-    /** the id of the tabset that refused the drop, when it was a tabset */
+    /** the id of the tabset (or border) that refused the drop, when it was one */
     readonly refusedTabSetId: string | undefined;
+    /**
+     * an auto-hide border with no tabs that the drag reveals, because the pointer is near its edge
+     * of the layout (so it can take the drop); main layout only
+     */
+    readonly revealedBorder: Exclude<DropLocation, "center"> | undefined;
 }
 
 /** Options of a drop zone: a consumer element that takes a layout drag. */
@@ -265,6 +270,7 @@ export class DragDropManager {
             index: -1,
             refused: false,
             refusedTabSetId: undefined,
+            revealedBorder: undefined,
         };
     }
 
@@ -283,7 +289,8 @@ export class DragDropManager {
             prev.targetTabSetId === next.targetTabSetId &&
             prev.index === next.index &&
             prev.refused === next.refused &&
-            prev.refusedTabSetId === next.refusedTabSetId
+            prev.refusedTabSetId === next.refusedTabSetId &&
+            prev.revealedBorder === next.revealedBorder
         ) {
             return;
         }
@@ -694,6 +701,7 @@ export class DragDropManager {
             index: -1,
             refused: false,
             refusedTabSetId: undefined,
+            revealedBorder: undefined,
         });
     };
 
@@ -725,6 +733,12 @@ export class DragDropManager {
         const y = event.clientY - root.y;
 
         const model = this.engine.getModel();
+        const revealedBorder = dragState.dockFloatToMain
+            ? undefined
+            : this.borderToReveal(x, y);
+        if (revealedBorder !== this.indicator.revealedBorder) {
+            this.setIndicator({ ...this.indicator, revealedBorder });
+        }
         model.beginDropProbe();
         let dropInfo = model.findDropTargetNode(
             this.engine.getLayoutId(),
@@ -782,6 +796,58 @@ export class DragDropManager {
             refusedTabSetId: undefined,
         });
     };
+
+    /**
+     * Ported from FlexLayout's LayoutController.checkForBorderToShow: the auto-hide border (with no
+     * tabs) whose edge of the main area the pointer is within `edgeDockMargin` of, except over the
+     * edge docking bands; `undefined` for none. Unlike FlexLayout, it resets when the drag ends.
+     */
+    private borderToReveal(
+        x: number,
+        y: number,
+    ): IDropIndicatorState["revealedBorder"] {
+        if (!this.engine.isMainLayout()) {
+            return undefined;
+        }
+        const model = this.engine.getModel();
+        const row = model.getRootRow(this.engine.getLayoutId());
+        const r = row?.getRect();
+        if (!r || r.width === 0 || r.height === 0) {
+            return undefined;
+        }
+        const margin = model.getEdgeDockMargin();
+        const half = model.getEdgeDockLength() / 2;
+        const c = r.getCenter();
+        const overEdge =
+            model.isEnableEdgeDock() &&
+            this.indicator.revealedBorder === undefined &&
+            (Math.abs(y - c.y) < half || Math.abs(x - c.x) < half);
+        if (overEdge) {
+            return undefined;
+        }
+        const location =
+            x <= r.x + margin
+                ? DockLocation.LEFT
+                : x >= r.getRight() - margin
+                  ? DockLocation.RIGHT
+                  : y <= r.y + margin
+                    ? DockLocation.TOP
+                    : y >= r.getBottom() - margin
+                      ? DockLocation.BOTTOM
+                      : undefined;
+        const border = location
+            ? model.getBorderSet().getBorderMap().get(location)
+            : undefined;
+        if (
+            !location ||
+            !border?.isShowing() ||
+            !border.isAutoHide() ||
+            border.getChildren().length > 0
+        ) {
+            return undefined;
+        }
+        return location.getName() as IDropIndicatorState["revealedBorder"];
+    }
 
     onDragLeave = (_event: DragEventLike) => {
         if (!this.belongsToDrag()) {
@@ -1050,13 +1116,16 @@ export class DragDropManager {
 }
 
 /** The tabset a drop target belongs to: itself, or the tabset holding a tab group. */
-function tabSetOf(node: Node | undefined): TabSetNode | undefined {
-    if (node instanceof TabSetNode) {
+/** the tab container (a tabset or a border) a drop target belongs to */
+function tabSetOf(node: Node | undefined): TabSetNode | BorderNode | undefined {
+    if (node instanceof TabSetNode || node instanceof BorderNode) {
         return node;
     }
     if (node instanceof TabGroupNode) {
         const parent = node.getParent();
-        return parent instanceof TabSetNode ? parent : undefined;
+        return parent instanceof TabSetNode || parent instanceof BorderNode
+            ? parent
+            : undefined;
     }
     return undefined;
 }

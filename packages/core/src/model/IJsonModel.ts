@@ -155,6 +155,20 @@ export interface IGlobalAttributes {
     borderSize?: number;
 
     /**
+	  the length in px of each edge's drop band, centred on the edge, while enableEdgeDockIndicators is on (the whole edge otherwise); a Dockable addition: FlexLayout hard-codes 100
+
+	  Default: 100
+	 */
+    edgeDockLength?: number;
+
+    /**
+	  the depth in px of the band along each layout edge where a drop docks to that edge (a Dockable addition: FlexLayout hard-codes 10); lower it when a tab strip sits at the top edge
+
+	  Default: 10
+	 */
+    edgeDockMargin?: number;
+
+    /**
 	  enable docking to the edges of the layout
 
 	  Default: true

@@ -32,10 +32,13 @@ engine.doAction(Actions.selectTab("t1"));
 | `isInWindow(node)` | whether a tab or tabset lives in a popout window's layout |
 | `canPopout(node)` | whether a tab (or a whole tabset) can be popped out now: popouts supported, not in a window already, and `enablePopout` on it (every tab of it) |
 | `popout(node)` | pops a tab or a whole tabset out into a window, through `onAction` |
-| `dockBack(node)` | moves a tab (or every tab of a tabset) from a window into the main layout's active tabset (else its first, else a new one); emptying a window closes it |
+| `dockBack(node)` | moves a tab (or every tab of a tabset) from a window into the main layout's active tabset (else its first); emptying a window closes it |
 | `isRealtimeResize()` | the `realtimeResize` option |
 | `isSplitterDragging()` | true while any splitter of the model is being dragged |
 | `getTabDragSpeed()` | seconds a view may take to animate the drop outline |
+| `handleOverlayPointerDown(event)` | call on every `pointerdown` of the document (capture phase): a press in the main layout's area outside an open overlay border's panel closes it (`Dockable.Root` does). Returns true when a panel closed |
+| `handleOverlayKeyDown(event, key)` | call on every `keydown` with the close key (`keyMap.closeOverlayBorder`): with focus in an open overlay panel or on its tab button, closes it and focuses the tab button (`Dockable.Root` does) |
+| `closeOverlayBorder(border)` | closes a border's panel (deselects its tab through `onAction`); focus in the panel goes back to the tab button |
 | `focusAdjacentTabset(delta)` | moves focus to the selected tab button of the next (`1`) or previous (`-1`) tabset in this layout (wrapping); the target also becomes the active tabset. Returns true when focus moved |
 | `getPopoutManager()` | the popout windows of the model (owned by the main engine) |
 | `getDragDropManager()` | the drag-and-drop state machine of this layout (`addTabWithDragAndDrop(event, json, onDrop?, dragImage?)` starts a new-tab drag from any element) |

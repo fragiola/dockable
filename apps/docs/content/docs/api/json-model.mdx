@@ -56,9 +56,10 @@ close key), `enableDeleteWhenEmpty`, `enableMaximize` (the model refuses to maxi
 `autoSelectTab`, `pinned`, `enablePopout`, `enableRenderOnDemand`, `enableScrollbars`,
 `enableWindowReMount`, `enableEdgeDock` and `rootOrientationVertical`.
 
-Border attributes (`borders`, `border*` globals) and float, group and sub-layout-in-tab
-attributes are read and saved, but borders, floats and tab groups are not rendered yet (see
-[Limitations](/docs/limitations)).
+Border attributes (`borders`, `border*` globals) apply to the borders `Dockable.Borders` renders
+(see [Borders](/docs/guides/borders)); `borderEnableTabScrollbar` and tab groups inside borders do
+not render yet. Float, group and sub-layout-in-tab attributes are read and saved, but floats and
+tab groups are not rendered yet (see [Limitations](/docs/limitations)).
 
 ## Inheritance
 
@@ -95,6 +96,8 @@ wins. The defaults below say "(global `…`)" when they come from one.
 | `borderSize` | `number` | `200` | size of the tab area when selected |
 | `enableEdgeDock` | `boolean` | `true` | enable docking to the edges of the layout |
 | `enableEdgeDockIndicators` | `boolean` | `true` | show the edge indicators when dragging |
+| `edgeDockMargin` | `number` | `10` | the depth in px of the band along each layout edge where a drop docks to that edge (a Dockable addition: FlexLayout hard-codes 10); lower it when a tab strip sits at the top edge |
+| `edgeDockLength` | `number` | `100` | the length in px of each edge's drop band, centred on the edge, while `enableEdgeDockIndicators` is on (the whole edge otherwise); a Dockable addition: FlexLayout hard-codes 100 |
 | `enableRotateBorderIcons` | `boolean` | `true` | boolean indicating if tab icons should rotate with the text in the left and right borders |
 | `rootOrientationVertical` | `boolean` | `false` | the top level 'row' will layout horizontally by default, set this option true to make it layout vertically |
 | `tabBorderHeight` | `number` | `-1` | the height of this tab when shown in a border; -1 uses the border's default size |
