@@ -5,11 +5,11 @@ import {
     type LayoutEngine,
     Model,
     type TabNode,
-    UndoManager,
 } from "@fragiola/dockable";
 import { type KeyboardEvent, useState, useSyncExternalStore } from "react";
 import { EngineBridge } from "../_kit/engine-bridge";
 import { DockLayout } from "../_kit/layout";
+import { UndoManager } from "../_kit/undo";
 import { DEFAULT_FILTERS, type Filters, layout } from "./data";
 import { Header } from "./header";
 import { TabContent, TabSetActions, tabClassName } from "./tabs";

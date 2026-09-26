@@ -23,4 +23,3 @@ export * from "./model/TabSetNode";
 export * from "./paths";
 export * from "./popout/PopoutManager";
 export * from "./splitter/SplitterController";
-export * from "./undo/UndoManager";

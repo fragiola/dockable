@@ -21,7 +21,6 @@
         "actions",
         "json-model",
         "layout-engine",
-        "undo-manager",
         "labels"
     ]
 }

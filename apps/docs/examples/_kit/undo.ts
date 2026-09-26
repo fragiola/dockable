@@ -1,10 +1,10 @@
-// Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/view/useUndo.ts.
-// Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+// Undo/redo for a Dockable model, as example code: the package ships none, so undo/redo is the
+// app's to design (what counts as a step, what to ignore, how steps across layouts combine).
+// Copy this file and change it freely.
 //
-// The React hook is rewritten as a framework-agnostic class: an adapter wraps it with its own
-// subscription primitive (for example `useSyncExternalStore`).
-import { type Action, Actions } from "../model/Actions";
-import { Model } from "../model/Model";
+// Adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/useUndo.ts, rewritten as
+// a framework-agnostic class. Copyright (c) 2017 Caplin Systems Ltd. MIT licence.
+import { type Action, Actions, Model } from "@fragiola/dockable";
 
 /** actions that don't create an undo step by default */
 const DEFAULT_IGNORE_ACTION_TYPES = [Actions.SET_ACTIVE_TABSET];

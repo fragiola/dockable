@@ -3,10 +3,8 @@
 import {
     Actions,
     DockLocation,
-    type IUndoSnapshot,
     type LayoutEngine,
     type Model,
-    type UndoManager,
 } from "@fragiola/dockable";
 import { Plus, Redo2, Undo2 } from "lucide-react";
 import { useRef } from "react";
@@ -15,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
 import * as styles from "../_kit/styles";
 import { usePopupTheme } from "../_kit/theme";
+import type { IUndoSnapshot, UndoManager } from "../_kit/undo";
 import { type Filters, REGIONS, WIDGETS } from "./data";
 
 // The header OUTSIDE the layout: shared filters (read by every widget through context), the

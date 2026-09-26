@@ -11,7 +11,7 @@ This repo is the first of a family (Angular and Vue adapters will follow), so
 
 | package | name | contains | depends on |
 |---|---|---|---|
-| `packages/core` | `@fragiola/dockable` | model, actions, JSON serialization, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle, undo/redo | DOM only |
+| `packages/core` | `@fragiola/dockable` | model, actions, JSON serialization, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | DOM only |
 | `packages/react` | `@fragiola/dockable-react` | composable primitives over the core | peer `react`, `react-dom` (^19) |
 | `apps/playground` | private | unstyled fixture pages driven by Playwright, `popout.html`, styled examples | both packages |
 
@@ -53,6 +53,10 @@ Do not "fix" these.
     in plain Node.
 11. **The core has zero runtime dependencies** and never imports `react`,
     `react-dom` or React types. A guard test enforces it.
+12. **App policy stays in the app.** The packages ship no undo/redo, no translations and no
+    persistence. They expose the model, its actions and its change events; the docs examples
+    show how to build those features (`apps/docs/examples/_kit/undo.ts` is copyable code, not
+    part of a package).
 
 ## Commands
 

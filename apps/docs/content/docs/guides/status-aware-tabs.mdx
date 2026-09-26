@@ -71,7 +71,7 @@ engine.doAction(
 ```
 
 The strip re-renders with the model, so `tab.getConfig()?.unread` is current in the `TabList`
-child function. Each update is an action (visible to `onAction`, recorded by `UndoManager`), so
+child function. Each update is an action (visible to `onAction`, and to an undo history if you keep one), so
 use it for occasional changes, not for a value that ticks every second.
 
 ## Closing a dirty tab

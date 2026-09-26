@@ -8,7 +8,6 @@ import {
     Model,
     type RowNode,
     type TabSetNode,
-    UndoManager,
 } from "@fragiola/dockable";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as React from "react";
@@ -555,33 +554,36 @@ describe("panels and content", () => {
         expect(mustPath("/ts0/t0")).toContainElement(content);
     });
 
-    it("keeps content state through an undo/redo model swap", () => {
-        const undo = new UndoManager(fresh());
-        function Undoable() {
-            const snapshot = React.useSyncExternalStore(
-                undo.subscribe,
-                undo.getSnapshot,
-            );
-            return snapshot.model ? <Layout model={snapshot.model} /> : null;
+    it("keeps content state through a model swap (Model.fromJson with the previous model)", () => {
+        // what an undo/redo does: render a new model rebuilt from saved JSON, adopting the old one
+        let setModel: (model: Model) => void = () => {};
+        function Swappable({ initial }: { initial: Model }) {
+            const [model, set] = React.useState(initial);
+            setModel = set;
+            return <Layout model={model} />;
         }
-        render(<Undoable />);
+        const first = fresh();
+        render(<Swappable initial={first} />);
         fireEvent.click(screen.getByTestId("inc-t2"));
         fireEvent.change(screen.getByTestId("input-t2"), {
             target: { value: "typed" },
         });
         const content = screen.getByTestId("content-t2");
+        const saved = first.toJson();
 
         act(() => {
-            undo.getModel()?.doAction(
+            first.doAction(
                 Actions.moveNode("t2", "ts0", DockLocation.CENTER, -1),
             );
         });
+        const moved = first.toJson();
+        const undone = Model.fromJson(saved, first);
         act(() => {
-            undo.undo();
+            setModel(undone); // "undo"
         });
         expect(screen.getByTestId("content-t2")).toBe(content);
         act(() => {
-            undo.redo();
+            setModel(Model.fromJson(moved, undone)); // "redo"
         });
 
         expect(screen.getByTestId("content-t2")).toBe(content);
