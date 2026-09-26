@@ -166,3 +166,55 @@ test("the install command lists what the example imports", async ({ page }) => {
     await expect(install).toContainText("/r/input.json");
     await expect(install).not.toContainText("/r/fields.json");
 });
+
+test("the list keeps its scroll, the filter and the theme while moving between examples", async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await openExample(page, first.slug, { theme: "paper" });
+    const list = page.getByRole("navigation", { name: "Examples" });
+    const scroller = list.locator(".overflow-y-auto");
+    await page.evaluate(() => {
+        (window as unknown as { marker: boolean }).marker = true;
+    });
+
+    // scroll to the bottom, and open an example near the end
+    await scroller.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+    });
+    const scrolled = await scroller.evaluate((element) => element.scrollTop);
+    expect(scrolled).toBeGreaterThan(0);
+    const last = EXAMPLES[EXAMPLES.length - 1];
+    if (!last) throw new Error("no examples");
+    const link = list.getByRole("link", { name: last.meta.title, exact: true });
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`/examples/${last.slug}/`));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        last.meta.title,
+    );
+    await expect(link).toHaveAttribute("aria-current", "page");
+    expect(await scroller.evaluate((element) => element.scrollTop)).toBe(
+        scrolled,
+    );
+    // a client-side navigation (no reload), the theme kept
+    expect(
+        await page.evaluate(
+            () => (window as unknown as { marker?: boolean }).marker,
+        ),
+    ).toBe(true);
+    await expect(page.getByTestId("stage")).toHaveAttribute(
+        "data-example-theme",
+        "paper",
+    );
+    await expect(page).toHaveURL(/theme=paper/);
+
+    // the filter survives a navigation too
+    await list.getByRole("searchbox").fill("splitter");
+    await list
+        .getByRole("link", { name: "Wide splitter", exact: true })
+        .click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        "Wide splitter",
+    );
+    await expect(list.getByRole("searchbox")).toHaveValue("splitter");
+});
