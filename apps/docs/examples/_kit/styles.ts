@@ -146,16 +146,21 @@ export const border = [
 export const borderTabList =
     "flex min-h-0 min-w-0 flex-1 gap-(--dk-tab-gap) p-1 data-[orientation=vertical]:flex-col";
 
-/**
- * A border's `Dockable.Tab`. Side borders turn their labels with `writing-mode`, and a left
- * border that reads "up" (the model's `borderLeftTabDirection`, on the strip as
- * `data-tab-direction`) turns them half a turn more. The tabs stay in order from the top.
- */
+/** A border's `Dockable.Tab`: the button, whichever way its label reads. */
 export const borderTab = [
     "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-sm px-2 py-1",
     "font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
     "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
     "data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40",
+].join(" ");
+
+/**
+ * The kit's default for side borders: labels turned with `writing-mode`, and a left border that
+ * reads "up" (the model's `borderLeftTabDirection`, on the strip as `data-tab-direction`) turns
+ * them half a turn more. The tabs stay in order from the top. Pure styling: `DockLayout`'s
+ * `borderTabClassName` replaces it (upright labels, icon-only tabs).
+ */
+export const borderTabVertical = [
     "in-data-[orientation=vertical]:[writing-mode:vertical-rl] in-data-[orientation=vertical]:px-1 in-data-[orientation=vertical]:py-2",
     "in-data-[tab-direction=up]:rotate-180",
 ].join(" ");

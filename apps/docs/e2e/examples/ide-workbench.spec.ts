@@ -59,3 +59,26 @@ test("opening an open file selects its tab, and closing a modified tab asks firs
     await expect(tab("store.ts")).toHaveCount(0);
     await expect(dialog).toBeHidden();
 });
+
+test("the left border is an activity bar: an upright icon named Explorer", async ({
+    page,
+}) => {
+    await openExample(page, "ide-workbench", { theme: "ide" });
+    const explorer = page.locator('[data-layout-path="/border/left/tb0"]');
+    await expect(explorer).toHaveAccessibleName("Explorer");
+    await expect(explorer.locator("svg")).toHaveCount(1);
+    await expect(explorer).toHaveText("");
+    const style = await explorer.evaluate((element) => {
+        const computed = getComputedStyle(element);
+        return {
+            writingMode: computed.writingMode,
+            transform: computed.transform,
+        };
+    });
+    expect(style.writingMode).toBe("horizontal-tb");
+    expect(style.transform).toBe("none");
+    // the bottom border's tabs keep their names
+    await expect(
+        page.locator('[data-layout-path="/border/bottom/tb0"]'),
+    ).toHaveText("Terminal");
+});

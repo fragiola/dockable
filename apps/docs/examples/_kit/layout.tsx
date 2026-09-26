@@ -184,23 +184,65 @@ export function createRenderNode(options: RenderNodeOptions = {}) {
 /** Renders what goes inside a border's `Dockable.Tab` (default: the tab's name). */
 export type RenderBorderTab = (tab: TabNode) => ReactNode;
 
+/** How a border's strip and tabs look, per example (the kit's default: vertical side labels). */
+export interface BorderOptions {
+    /** the content of a border's tab button (default: the tab's name) */
+    renderBorderTab?: RenderBorderTab | undefined;
+    /**
+     * classes for a border's tab, replacing the kit's vertical side labels
+     * (`styles.borderTabVertical`) when given: upright labels, icon-only tabs
+     */
+    borderTabClassName?:
+        | string
+        | ((tab: TabNode) => string | undefined)
+        | undefined;
+    /** an accessible name for a border's tab, when its content has no text (an icon) */
+    borderTabLabel?: ((tab: TabNode) => string | undefined) | undefined;
+    /** extra classes for a border's strip (its width, say) */
+    borderClassName?:
+        | string
+        | ((border: BorderNode) => string | undefined)
+        | undefined;
+}
+
 /** The kit's border strip: a `Dockable.Border` with its tab list. */
 export function KitBorder({
     node,
-    renderTab,
+    options = {},
 }: {
     node: BorderNode;
-    renderTab?: RenderBorderTab | undefined;
+    options?: BorderOptions | undefined;
 }) {
+    const tabClass = (tab: TabNode) =>
+        typeof options.borderTabClassName === "function"
+            ? options.borderTabClassName(tab)
+            : options.borderTabClassName;
     return (
-        <Dockable.Border node={node} className={styles.border}>
+        <Dockable.Border
+            node={node}
+            className={cn(
+                styles.border,
+                typeof options.borderClassName === "function"
+                    ? options.borderClassName(node)
+                    : options.borderClassName,
+            )}
+        >
             <Dockable.TabList
                 aria-label={`${node.getLocation().getName()} panels`}
                 className={styles.borderTabList}
             >
                 {(tab) => (
-                    <Dockable.Tab node={tab} className={styles.borderTab}>
-                        {renderTab ? renderTab(tab) : tab.getName()}
+                    <Dockable.Tab
+                        node={tab}
+                        aria-label={options.borderTabLabel?.(tab)}
+                        className={cn(
+                            styles.borderTab,
+                            tabClass(tab) ?? styles.borderTabVertical,
+                        )}
+                    >
+                        {options.renderBorderTab
+                            ? options.renderBorderTab(tab)
+                            : tab.getName()}
                     </Dockable.Tab>
                 )}
             </Dockable.TabList>
@@ -317,8 +359,8 @@ export interface DockLayoutProps extends RenderNodeOptions {
     rootProps?: Partial<RootProps> | undefined;
     /** extra elements inside the root (overlays, effects that need `useDockable`) */
     children?: ReactNode;
-    /** the content of a border's tab button (the model's `borders`) */
-    renderBorderTab?: RenderBorderTab | undefined;
+    /** how the model's borders look (see `BorderOptions`) */
+    borders?: BorderOptions | undefined;
     /** show the edge docking targets (`Dockable.EdgeIndicator`) during a drag */
     edgeIndicators?: boolean | undefined;
 }
@@ -337,7 +379,7 @@ export function DockLayout(props: DockLayoutProps) {
         className,
         rootProps,
         children,
-        renderBorderTab,
+        borders,
         edgeIndicators,
         ...options
     } = props;
@@ -361,7 +403,7 @@ export function DockLayout(props: DockLayoutProps) {
             >
                 <Dockable.Borders
                     renderBar={(border) => (
-                        <KitBorder node={border} renderTab={renderBorderTab} />
+                        <KitBorder node={border} options={borders} />
                     )}
                     renderContent={(border) => (
                         <KitBorderContent node={border} />
