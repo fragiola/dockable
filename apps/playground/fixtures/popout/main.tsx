@@ -18,7 +18,9 @@ import "../../src/fixture/fixture.css";
 function TabSetHandle({ tabset }: { tabset: TabSetNode }) {
     const drag = useDragNode(tabset);
     return (
-        <span
+        <button
+            type="button"
+            aria-label="Move tabset"
             ref={drag.ref}
             draggable={drag.draggable}
             onDragStart={drag.onDragStart}
@@ -26,7 +28,7 @@ function TabSetHandle({ tabset }: { tabset: TabSetNode }) {
             data-testid="tabset-handle"
         >
             ⠿
-        </span>
+        </button>
     );
 }
 
