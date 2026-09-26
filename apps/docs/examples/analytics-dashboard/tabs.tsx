@@ -3,12 +3,11 @@
 import {
     Actions,
     DockableLabel,
-    DockLocation,
     Model,
     type TabNode,
     type TabSetNode,
 } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { Dockable, useDockable } from "@fragiola/dockable-react";
 import {
     ChartLine,
     ExternalLink,
@@ -79,55 +78,36 @@ export function TabContent({ tab }: { tab: TabNode }) {
 
 /** The kit's `renderActions`: maximize, and pop out (or dock back when already popped out). */
 export function TabSetActions({ tabset }: { tabset: TabSetNode }) {
-    const { engine, mainEngine, model } = useDockable();
+    const { engine } = useDockable();
     const selected = tabset.getSelectedNode() as TabNode | undefined;
     const inPopout = tabset.getLayoutId() !== Model.MAIN_LAYOUT_ID;
     const maximized = tabset.isMaximized();
 
-    const dockBack = () => {
-        const target = model.getFirstTabSet();
-        if (selected && target) {
-            mainEngine.doAction(
-                Actions.moveNode(
-                    selected.getId(),
-                    target.getId(),
-                    DockLocation.CENTER,
-                    -1,
-                ),
-            );
-        }
-    };
+    // one trigger both ways: it pops the selected tab out, and in the window docks it back
+    const popoutTrigger = selected ? (
+        <Dockable.PopoutTrigger
+            aria-label={
+                inPopout
+                    ? `Dock ${selected.getName()} back`
+                    : `${label(DockableLabel.Popout_Tab)} ${selected.getName()}`
+            }
+            data-testid={inPopout ? "dock-back" : "popout"}
+            className={styles.iconButton}
+        >
+            {inPopout ? (
+                <PanelTopClose aria-hidden="true" className="size-4" />
+            ) : (
+                <ExternalLink aria-hidden="true" className="size-3.5" />
+            )}
+        </Dockable.PopoutTrigger>
+    ) : null;
 
     if (inPopout) {
-        return selected ? (
-            <button
-                type="button"
-                aria-label={`Dock ${selected.getName()} back`}
-                data-testid="dock-back"
-                onClick={dockBack}
-                className={styles.iconButton}
-            >
-                <PanelTopClose aria-hidden="true" className="size-4" />
-            </button>
-        ) : null;
+        return popoutTrigger;
     }
     return (
         <>
-            {selected?.isEnablePopout() && mainEngine.isSupportsPopout() ? (
-                <button
-                    type="button"
-                    aria-label={`${label(DockableLabel.Popout_Tab)} ${selected.getName()}`}
-                    data-testid="popout"
-                    onClick={() =>
-                        engine.doAction(
-                            Actions.popoutTab(selected.getId(), "window"),
-                        )
-                    }
-                    className={styles.iconButton}
-                >
-                    <ExternalLink aria-hidden="true" className="size-3.5" />
-                </button>
-            ) : null}
+            {popoutTrigger}
             <button
                 type="button"
                 aria-label={label(

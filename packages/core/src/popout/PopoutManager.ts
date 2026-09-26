@@ -12,13 +12,10 @@
 //   tabs back into the main layout; "float" dispatches Actions.closePopout (FlexLayout parity);
 // - adoptedStyleSheets (constructable stylesheets) are mirrored too;
 // - nothing names or titles the window unless the consumer provides a title.
-import { LayoutEngine } from "../engine/LayoutEngine";
-import { type Action, Actions } from "../model/Actions";
-import { DockLocation } from "../model/DockLocation";
-import { Model } from "../model/Model";
+import { dockTabs, LayoutEngine } from "../engine/LayoutEngine";
+import { Actions } from "../model/Actions";
 import type { ModelLayout } from "../model/ModelLayout";
 import { TabNode } from "../model/TabNode";
-import { TabSetNode } from "../model/TabSetNode";
 
 /** Timeout for blocked stylesheets. */
 export const STYLE_LOAD_TIMEOUT_MS = 2000;
@@ -55,6 +52,12 @@ export interface IPopoutOptions {
     onPopoutOpen?: PopoutCallback | undefined;
     /** the popout window is closing */
     onPopoutClose?: PopoutCallback | undefined;
+    /**
+     * copies the main document's `<html>` and `<body>` attributes into each popout, and keeps them
+     * in sync (a theme class, `data-theme`, …): `true` copies them all (except `style` and `id`),
+     * a list copies those names only. Default: only `lang` and `dir` of `<html>`.
+     */
+    mirrorRoot?: boolean | readonly string[] | undefined;
 }
 
 interface PopoutEntry {
@@ -330,15 +333,12 @@ export class PopoutManager {
             popoutDocument.title = title;
         }
         // carry over the language/direction so assistive technology in the popout announces
-        // content correctly
-        if (mainDocument.documentElement.lang) {
-            popoutDocument.documentElement.lang =
-                mainDocument.documentElement.lang;
-        }
-        if (mainDocument.documentElement.dir) {
-            popoutDocument.documentElement.dir =
-                mainDocument.documentElement.dir;
-        }
+        // content correctly, and the root attributes the consumer asked to mirror
+        const stopMirroringRoot = mirrorRootAttributes(
+            mainDocument,
+            popoutDocument,
+            this.options.mirrorRoot,
+        );
         const contentRoot = popoutDocument.createElement("div");
         contentRoot.setAttribute(POPOUT_ATTRIBUTE, entry.layoutId);
         popoutDocument.body.appendChild(contentRoot);
@@ -376,6 +376,7 @@ export class PopoutManager {
         popout.addEventListener("beforeunload", onPopoutBeforeUnload);
 
         entry.cleanup = () => {
+            stopMirroringRoot();
             mirror.dispose();
             popout.removeEventListener("beforeunload", onPopoutBeforeUnload);
         };
@@ -404,45 +405,13 @@ export class PopoutManager {
             this.engine.doAction(Actions.closePopout(layoutId));
             return;
         }
-        const target = this.dockTarget(model);
-        if (!target) {
-            return;
-        }
-        const moves: Action[] = [];
+        const tabIds: string[] = [];
         model.visitLayoutNodes(layoutId, (node) => {
             if (node instanceof TabNode) {
-                moves.push(
-                    Actions.moveNode(
-                        node.getId(),
-                        target.getId(),
-                        DockLocation.CENTER,
-                        -1,
-                    ),
-                );
+                tabIds.push(node.getId());
             }
         });
-        if (moves.length > 0) {
-            this.engine.doAction(
-                moves.length === 1 && moves[0]
-                    ? moves[0]
-                    : Actions.group(moves),
-            );
-        }
-    }
-
-    /** the main layout's active tabset, else its first tabset */
-    private dockTarget(model: Model): TabSetNode | undefined {
-        const active = model.getActiveTabset(Model.MAIN_LAYOUT_ID);
-        if (active) {
-            return active;
-        }
-        let first: TabSetNode | undefined;
-        model.visitLayoutNodes(Model.MAIN_LAYOUT_ID, (node) => {
-            if (!first && node instanceof TabSetNode) {
-                first = node;
-            }
-        });
-        return first;
+        dockTabs(this.engine, tabIds);
     }
 }
 
@@ -718,4 +687,81 @@ function syncStyleElement(source: HTMLStyleElement, clone: HTMLStyleElement) {
             // cross-origin sheets or unreadable rules are ignored
         }
     }
+}
+
+/** Attributes never mirrored with `mirrorRoot: true`: they belong to each document. */
+const UNMIRRORED = new Set(["style", "id"]);
+
+/**
+ * Copies `<html>` and `<body>` attributes from `source` to `target` and keeps them in sync until the
+ * returned function is called. `lang` and `dir` of `<html>` are always copied.
+ */
+export function mirrorRootAttributes(
+    source: Document,
+    target: Document,
+    mirror: boolean | readonly string[] | undefined,
+): () => void {
+    const pairs: [Element, Element][] = [
+        [source.documentElement, target.documentElement],
+        [source.body, target.body],
+    ];
+    const listed = Array.isArray(mirror) ? new Set(mirror) : undefined;
+    const mirrored = (element: Element, name: string) => {
+        if (
+            element === source.documentElement &&
+            (name === "lang" || name === "dir")
+        ) {
+            return true;
+        }
+        if (mirror === true) {
+            return !UNMIRRORED.has(name);
+        }
+        return listed?.has(name) ?? false;
+    };
+    const copy = (from: Element, to: Element, name: string) => {
+        const value = from.getAttribute(name);
+        if (name === "class") {
+            // keep the popout's own classes: add the mirrored ones on top (the observer removes
+            // the ones the main document drops, one by one)
+            for (const cls of (value ?? "").split(/\s+/).filter(Boolean)) {
+                to.classList.add(cls);
+            }
+        } else if (value === null) {
+            to.removeAttribute(name);
+        } else {
+            to.setAttribute(name, value);
+        }
+    };
+    for (const [from, to] of pairs) {
+        for (const { name } of Array.from(from.attributes)) {
+            if (mirrored(from, name)) copy(from, to, name);
+        }
+    }
+    const view = source.defaultView;
+    if (!mirror || !view?.MutationObserver) {
+        return () => {};
+    }
+    const observer = new view.MutationObserver((records) => {
+        for (const record of records) {
+            const name = record.attributeName;
+            const from = record.target as Element;
+            const pair = pairs.find(([element]) => element === from);
+            if (!name || !pair || !mirrored(from, name)) continue;
+            if (name === "class") {
+                // a class removed from the main document goes from the popout too
+                const before = new Set(
+                    (record.oldValue ?? "").split(/\s+/).filter(Boolean),
+                );
+                const now = new Set(from.classList);
+                for (const cls of before) {
+                    if (!now.has(cls)) pair[1].classList.remove(cls);
+                }
+            }
+            copy(from, pair[1], name);
+        }
+    });
+    for (const [from] of pairs) {
+        observer.observe(from, { attributes: true, attributeOldValue: true });
+    }
+    return () => observer.disconnect();
 }

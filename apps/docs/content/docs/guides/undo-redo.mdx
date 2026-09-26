@@ -1,11 +1,22 @@
 ---
 title: Undo and redo
-description: UndoManager records a snapshot before each change and swaps models without remounting content.
+description: The package ships no undo/redo. It gives you the events and the model to build yours; the examples' UndoManager is a starting point to copy.
 ---
 
-`UndoManager` (from `@fragiola/dockable`) gives a layout undo and redo. It owns the current model,
-records a JSON snapshot before each change, and on undo or redo **replaces** the model with
-`Model.fromJson(snapshot, current)`, so tab content that is still in the layout keeps its state.
+Dockable ships **no** undo/redo: what counts as a step, what to ignore, and how steps across
+several layouts combine are your app's decisions. The package gives you what you need to build it:
+
+- **every change as an event**: `model.addChangeListener(listener)` (or `onModelChange` on
+  `Dockable.Root`) sees each action after the model applied it, and `action.isAdjusting()` tells
+  the steps of a gesture (a splitter drag) from its end;
+- **the state as JSON**: `model.toJson()`;
+- **a swap that keeps content**: `Model.fromJson(json, previousModel)` builds a model whose tabs
+  adopt the previous model's mounted content, by id.
+
+The examples' `UndoManager` (`examples/_kit/undo.ts`, in the code panel of the example below)
+puts these together: it owns the current model, records a JSON snapshot before each change, and on
+undo or redo **replaces** the model with `Model.fromJson(snapshot, current)`. Copy it, and change
+it to fit your app.
 
 <Example slug="undo-redo" />
 
@@ -16,7 +27,8 @@ straight into `useSyncExternalStore`. Render `Dockable.Root` with the snapshot's
 model identity makes the root create a new engine.
 
 ```tsx
-import { type IJsonModel, Model, UndoManager } from "@fragiola/dockable";
+import { type IJsonModel, Model } from "@fragiola/dockable";
+import { UndoManager } from "./undo"; // the examples' _kit/undo.ts, copied into your app
 import { Dockable } from "@fragiola/dockable-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -51,8 +63,9 @@ inputs keep their own undo.
 
 ## What is recorded
 
-The manager listens to the model (`addChangeListener`), so it records **every** action, whether
-it came through `engine.doAction` or `model.doAction`.
+The example manager listens to the model (`addChangeListener`), so it records **every** action,
+whether it came through `engine.doAction` or `model.doAction`. These are its choices; yours can
+differ:
 
 - **A gesture is one step.** A live splitter drag dispatches many *adjusting* `adjustWeights`
   actions and one final one; only the state before the first is recorded.
@@ -93,6 +106,7 @@ Tabs that exist before and after an undo keep their mounted content: the new mod
 the old model's view state (their moveable element) by id. A tab that an undo **removes** is
 unmounted; if a redo brings it back, it mounts fresh.
 
-## Reference
+## Layouts that exchange tabs
 
-[`UndoManager`](/docs/api/undo-manager).
+When tabs move between two layouts (two models), a step touches both models, so a history kept
+per model is not enough: keep one history for the group of layouts.

@@ -11,17 +11,18 @@
         "panels",
         "panel",
         "splitter",
+        "drag-group",
         "drag-source",
         "drop-indicator",
         "drop-zone",
         "popout",
+        "popout-trigger",
         "hooks",
         "---Core (@fragiola/dockable)---",
         "model",
         "actions",
         "json-model",
         "layout-engine",
-        "undo-manager",
         "labels"
     ]
 }

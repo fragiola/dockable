@@ -37,10 +37,12 @@ const MODULE_PAGES: Record<string, string> = {
     "./Panels": "panels",
     "./Panel": "panel",
     "./Splitter": "splitter",
+    "./DragGroup": "drag-group",
     "./DragSource": "drag-source",
     "./DropIndicator": "drop-indicator",
     "./DropZone": "drop-zone",
     "./Popout": "popout",
+    "./PopoutTrigger": "popout-trigger",
     "./hooks": "hooks",
     "./context": "hooks",
     "./utils/useRender": "root",
@@ -128,11 +130,7 @@ function sourceOf(module: string): string {
     }
 }
 
-const CORE_FILES = [
-    "splitter/SplitterController.ts",
-    "dnd/DragDropManager.ts",
-    "undo/UndoManager.ts",
-];
+const CORE_FILES = ["splitter/SplitterController.ts", "dnd/DragDropManager.ts"];
 
 /** Fields of an interface, following `extends` into the core for `I…` bases. */
 function allFields(source: string, name: string): string[] {
@@ -239,7 +237,7 @@ describe("the React reference", () => {
     it("gives every primitive page its data-layout-path", () => {
         for (const { module } of partExports) {
             const slug = MODULE_PAGES[module] ?? "";
-            if (slug === "panels") continue; // renders no element
+            if (slug === "panels" || slug === "drag-group") continue; // renders no element
             // lives outside any layout: its page says it has no layout path
             if (slug === "drag-source" || slug === "drop-zone") continue;
             expect(page(slug), `api/${slug}.mdx`).toContain(
@@ -304,7 +302,6 @@ describe("the core reference", () => {
     it.each([
         ["engine/LayoutEngine.ts", "LayoutEngine", "layout-engine"],
         ["model/Model.ts", "Model", "model"],
-        ["undo/UndoManager.ts", "UndoManager", "undo-manager"],
     ])("documents every public method of %s", (file, name, slug) => {
         const source = read(join(CORE_SRC, file));
         const start = source.indexOf(`export class ${name}`);
@@ -324,16 +321,6 @@ describe("the core reference", () => {
                 rows.has(method) || mentions(mdx, method),
                 `${name}.${method} on api/${slug}.mdx`,
             ).toBe(true);
-        }
-    });
-
-    it("lists every UndoManager option and snapshot field", () => {
-        const source = read(join(CORE_SRC, "undo/UndoManager.ts"));
-        const rows = tableRowNames(page("undo-manager"));
-        for (const name of ["IUndoOptions", "IUndoSnapshot"]) {
-            for (const field of interfaceFields(source, name)?.fields ?? []) {
-                expect(rows.has(field), `${name}.${field}`).toBe(true);
-            }
         }
     });
 });

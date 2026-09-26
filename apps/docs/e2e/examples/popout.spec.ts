@@ -1,27 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
-import { openExample, path } from "../helpers";
-
-/** The popout window, once exactly one extra page stays open (as the playground waits). */
-async function waitForPopout(page: Page): Promise<Page> {
-    let candidate: Page | null = null;
-    await expect
-        .poll(
-            () => {
-                const live = page
-                    .context()
-                    .pages()
-                    .filter((p) => p !== page && !p.isClosed());
-                const next = live.length === 1 ? (live[0] ?? null) : null;
-                const stable = next !== null && next === candidate;
-                candidate = next;
-                return stable;
-            },
-            { timeout: 15000, intervals: [250] },
-        )
-        .toBe(true);
-    if (!candidate) throw new Error("no popout window");
-    return candidate;
-}
+import { expect, test } from "@playwright/test";
+import { openExample, path, waitForPopout } from "../helpers";
 
 test("the content keeps its state through pop out and dock back", async ({
     page,
@@ -35,7 +13,8 @@ test("the content keeps its state through pop out and dock back", async ({
     await path(page, "/ts0")
         .getByRole("button", { name: "Pop out Editor" })
         .click();
-    const popout = await waitForPopout(page);
+    const [popout] = await waitForPopout(page);
+    if (!popout) throw new Error("no popout");
     const popped = popout.getByRole("tabpanel");
     await expect(popped.getByTestId("counter")).toHaveText("Count: 2");
     await expect(popped.getByTestId("notes")).toHaveValue("kept");
@@ -71,7 +50,8 @@ test("a popout takes the example theme, and closing it docks the tab back", asyn
     await path(page, "/ts1")
         .getByRole("button", { name: "Pop out Chat" })
         .click();
-    const popout = await waitForPopout(page);
+    const [popout] = await waitForPopout(page);
+    if (!popout) throw new Error("no popout");
     await expect(popout.locator("body")).toHaveAttribute(
         "data-example-theme",
         "terminal",

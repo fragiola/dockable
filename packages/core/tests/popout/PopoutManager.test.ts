@@ -520,3 +520,84 @@ describe("moveable elements across documents", () => {
         expect(input.value).toBe("kept");
     });
 });
+
+describe("root attribute mirroring (mirrorRoot)", () => {
+    afterEach(() => {
+        for (const name of ["data-theme", "class", "data-other"]) {
+            document.documentElement.removeAttribute(name);
+            document.body.removeAttribute(name);
+        }
+    });
+
+    async function openWith(mirrorRoot: IPopoutOptions["mirrorRoot"]) {
+        const { manager, layout, opened, layoutId } = setup({ mirrorRoot });
+        manager.open(layout);
+        const win = opened[0] as Window;
+        await load(win);
+        return { manager, win, layoutId };
+    }
+
+    it("copies only lang and dir by default", async () => {
+        document.documentElement.dataset.theme = "dark";
+        const { win } = await openWith(undefined);
+        expect(win.document.documentElement.hasAttribute("data-theme")).toBe(
+            false,
+        );
+    });
+
+    it("copies every <html> and <body> attribute with true, and keeps them in sync", async () => {
+        document.documentElement.dataset.theme = "dark";
+        document.body.className = "palette-surface app";
+        const { win } = await openWith(true);
+        const html = win.document.documentElement;
+        const body = win.document.body;
+        expect(html.dataset.theme).toBe("dark");
+        expect(body.classList.contains("palette-surface")).toBe(true);
+        expect(body.classList.contains("app")).toBe(true);
+
+        document.documentElement.dataset.theme = "light";
+        document.body.classList.remove("app");
+        document.body.classList.add("compact");
+        await tick();
+        expect(html.dataset.theme).toBe("light");
+        expect(body.classList.contains("app")).toBe(false);
+        expect(body.classList.contains("compact")).toBe(true);
+        expect(body.classList.contains("palette-surface")).toBe(true);
+
+        document.documentElement.removeAttribute("data-theme");
+        await tick();
+        expect(html.hasAttribute("data-theme")).toBe(false);
+    });
+
+    it("keeps the popout's own classes when the main document drops its class attribute", async () => {
+        document.body.className = "app";
+        const { win } = await openWith(true);
+        const body = win.document.body;
+        body.classList.add("popout-only");
+        expect(body.classList.contains("app")).toBe(true);
+
+        document.body.removeAttribute("class");
+        await tick();
+        expect(body.classList.contains("app")).toBe(false);
+        expect(body.classList.contains("popout-only")).toBe(true);
+    });
+
+    it("copies only the listed attributes", async () => {
+        document.documentElement.dataset.theme = "dark";
+        document.documentElement.dataset.other = "x";
+        const { win } = await openWith(["data-theme"]);
+        expect(win.document.documentElement.dataset.theme).toBe("dark");
+        expect(win.document.documentElement.hasAttribute("data-other")).toBe(
+            false,
+        );
+    });
+
+    it("stops syncing once the window is closed", async () => {
+        document.documentElement.dataset.theme = "dark";
+        const { manager, win, layoutId } = await openWith(true);
+        manager.close(layoutId);
+        document.documentElement.dataset.theme = "light";
+        await tick();
+        expect(win.document.documentElement.dataset.theme).toBe("dark");
+    });
+});

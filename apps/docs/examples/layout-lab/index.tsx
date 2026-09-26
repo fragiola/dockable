@@ -8,7 +8,6 @@ import {
     type LayoutEngine,
     Model,
     type TabNode,
-    UndoManager,
 } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
@@ -20,6 +19,7 @@ import { label } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { usePopupTheme } from "../_kit/theme";
+import { UndoManager } from "../_kit/undo";
 import { appendToLog, initialLayout, type LogEntry } from "./actions";
 import { ActionLog, JsonEditor, type Veto, VetoControl } from "./panels";
 

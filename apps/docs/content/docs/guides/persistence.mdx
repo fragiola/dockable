@@ -86,7 +86,7 @@ engine.doAction(Actions.updateNodeAttributes(tab.getId(), { config: { ...tab.get
 ```
 
 Each such action is an undo step; add `Actions.UPDATE_NODE_ATTRIBUTES` to the
-[`UndoManager`](/docs/guides/undo-redo)'s `ignoreActionTypes` if it should not be.
+your [undo history](/docs/guides/undo-redo)'s ignored actions if it should not be.
 
 ## Versioning saved layouts
 

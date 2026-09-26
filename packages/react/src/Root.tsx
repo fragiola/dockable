@@ -23,6 +23,7 @@ import {
     type PanelLayer,
     type PopoutHooks,
 } from "./context";
+import { DragGroupContext } from "./DragGroup";
 import { useDragState } from "./hooks";
 import {
     type DivPrimitiveProps,
@@ -68,6 +69,12 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
     /** a popout window is closing */
     onPopoutClose?: PopoutCallback | undefined;
     /**
+     * copies the main document's `<html>` and `<body>` attributes into each popout and keeps them
+     * in sync (a theme class, `data-theme`, …): `true` copies them all (except `style` and `id`),
+     * a list copies those names. Default: only `lang` and `dir`.
+     */
+    popoutMirrorRoot?: boolean | readonly string[] | undefined;
+    /**
      * accepts a drag that did not start in a layout (files, links, text, another library's
      * element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called when
      * the drag enters the layout, when only `event.dataTransfer.types` is readable; read the data in
@@ -102,12 +109,14 @@ export function Root(props: RootProps) {
         popoutClosePolicy,
         onPopoutOpen,
         onPopoutClose,
+        popoutMirrorRoot,
         onExternalDrag,
         onAllowDrop,
         children,
         ...rest
     } = props;
     const popoutHooks = React.useRef<PopoutHooks>({});
+    const dragGroup = React.useContext(DragGroupContext);
     const engine = React.useMemo(() => createLayoutEngine({ model }), [model]);
     engine.setOptions({
         onAction,
@@ -116,10 +125,12 @@ export function Root(props: RootProps) {
         tabDragSpeed,
         onExternalDrag,
         onAllowDrop,
+        dragGroup: dragGroup?.group,
         popout: {
             popoutURL,
             supportsPopout,
             closePolicy: popoutClosePolicy,
+            mirrorRoot: popoutMirrorRoot,
             title: (layout) => popoutHooks.current.title?.(layout),
             onPopoutOpen: (layout, win, doc) => {
                 onPopoutOpen?.(layout, win, doc);
@@ -131,6 +142,9 @@ export function Root(props: RootProps) {
             },
         },
     });
+    // leave the group when this root unmounts or its engine is replaced (a new model), so the group
+    // never reaches a layout that is gone; the setup re-joins after a StrictMode remount
+    React.useEffect(() => dragGroup?.group.join(engine), [dragGroup, engine]);
     const dragState = useDragState();
     const manager = engine.getDragDropManager();
     const refused = React.useSyncExternalStore(

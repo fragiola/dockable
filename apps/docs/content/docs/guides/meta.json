@@ -11,6 +11,7 @@
         "drop-zones",
         "external-drag",
         "popouts",
+        "cross-layout-drag",
         "maximize",
         "menus",
         "undo-redo",

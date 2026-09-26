@@ -183,50 +183,38 @@ export function createRenderNode(options: RenderNodeOptions = {}) {
 export const popoutURL = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/popout.html`;
 
 /**
- * Keeps each open popout on the same theme as the element the layout lives in. The palettes and
- * the kit tokens are keyed off `data-example-theme` and the body's palette class, which a new
- * window does not have: the core copies only `lang` and `dir` (gap 3), so the kit copies the
- * theme on open and again whenever it changes.
+ * Keeps each open popout on the example's theme. The page's own `<html>`/`<body>` attributes
+ * (light/dark, the body's palette class) are mirrored by the core (`popoutMirrorRoot` on the root);
+ * the example theme lives on the docs stage, not on the page's root, so the kit copies it into the
+ * popout's `<body>` on open and whenever it changes. An app that themes `<html>` or `<body>` needs
+ * only `popoutMirrorRoot`.
  */
 function usePopoutTheme(root: React.RefObject<HTMLElement | null>) {
     const documents = useRef(new Set<Document>());
 
     const apply = useCallback(
         (doc: Document) => {
-            const themed = root.current?.closest<HTMLElement>(
+            const theme = root.current?.closest<HTMLElement>(
                 "[data-example-theme]",
-            );
-            const theme = themed?.dataset.exampleTheme;
+            )?.dataset.exampleTheme;
             if (theme) {
                 doc.body.dataset.exampleTheme = theme;
             }
-            const pageTheme =
-                root.current?.ownerDocument.documentElement.dataset.theme;
-            if (pageTheme) {
-                doc.documentElement.dataset.theme = pageTheme;
-            }
-            doc.body.classList.add("palette-surface");
         },
         [root],
     );
 
     useEffect(() => {
         const themed = root.current?.closest("[data-example-theme]");
-        const page = root.current?.ownerDocument.documentElement;
+        if (!themed) {
+            return;
+        }
         const observer = new MutationObserver(() => {
             for (const doc of documents.current) {
                 apply(doc);
             }
         });
-        // the example's theme, and the page's light/dark (the palettes read both)
-        if (themed) {
-            observer.observe(themed, {
-                attributeFilter: ["data-example-theme"],
-            });
-        }
-        if (page) {
-            observer.observe(page, { attributeFilter: ["data-theme"] });
-        }
+        observer.observe(themed, { attributeFilter: ["data-example-theme"] });
         return () => observer.disconnect();
     }, [root, apply]);
 
@@ -292,6 +280,8 @@ export function DockLayout(props: DockLayoutProps) {
                 onModelChange={onModelChange}
                 getLabel={getLabel}
                 popoutURL={popoutURL}
+                // the page's light/dark and body palette class, into each popout (kept in sync)
+                popoutMirrorRoot
                 className={cn(styles.root, className)}
                 {...rootProps}
             >
@@ -324,9 +314,18 @@ export function DockLayout(props: DockLayoutProps) {
                     className={styles.root}
                 >
                     {() => (
-                        <Dockable.Row renderSplitter={renderSplitter}>
-                            {renderNode}
-                        </Dockable.Row>
+                        <>
+                            <Dockable.Row renderSplitter={renderSplitter}>
+                                {renderNode}
+                            </Dockable.Row>
+                            {/* a window shows its own outline during a drag into it */}
+                            <Dockable.DropIndicator
+                                className={styles.dropIndicator}
+                                style={(state) => ({
+                                    transitionDuration: `${state.tabDragSpeed}s`,
+                                })}
+                            />
+                        </>
                     )}
                 </Dockable.Popout>
                 {children}

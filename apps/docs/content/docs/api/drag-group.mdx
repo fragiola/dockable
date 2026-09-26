@@ -1,0 +1,55 @@
+---
+title: Dockable.DragGroup
+description: Layouts of different models that exchange tabs by drag and drop, keeping each tab's content mounted.
+---
+
+"Layouts of different models that exchange tabs by drag and drop. Wrap the `Dockable.Root`s in it:
+a tab dragged from one drops into another (each root's `onAction` can veto), and its content keeps
+its state. Renders no element of its own."
+
+```tsx
+<Dockable.DragGroup onTransfer={(transfer) => history.push(transfer)}>
+    <Dockable.Root model={workspace}>{/* … */}</Dockable.Root>
+    <Dockable.Root model={scratch}>{/* … */}</Dockable.Root>
+</Dockable.DragGroup>
+```
+
+See [Drag across windows and layouts](/docs/guides/cross-layout-drag).
+
+## Props
+
+`DragGroupProps`:
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | none | the layouts (`Dockable.Root`s) that exchange tabs, anywhere below |
+| `onTransfer` | `(transfer: ITransfer) => void` | none | called after a tab moved from one layout to another, with where it came from and where it went (what an app's undo needs) |
+
+`ITransfer` (from `@fragiola/dockable`): `tab` (the tab in the target model, same id), `json` (its
+JSON as it left), `from` and `to` (`{ model, layoutId, tabsetId, index }`).
+
+## How it works
+
+- Each `Dockable.Root` inside joins the group (the engine's `dragGroup` option).
+- A drop into another model asks the target's `onAction` (an `addTab`), then the source's (a
+  `deleteTab`). A veto on either side changes nothing. Both actions carry `userData.transfer`.
+- The group renders every tab's content in one place (directly under it), so moving a tab between
+  roots keeps its component state. Without a `DragGroup`, panels render their content themselves.
+  The content gets the layout's contexts, but not providers or boundaries placed between the group
+  and the panel: put those above the group, or inside the content.
+- A source veto comes after the target's `onAction` has seen the `addTab`: record history from
+  `onTransfer` or `onModelChange`, not from `onAction`.
+- A root that unmounts (or gets a new model) leaves the group.
+
+## Data attributes
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | none: it renders no element |
+
+## useDragGroup
+
+`useDragGroup()` returns the core `DragGroup` of the enclosing `Dockable.DragGroup`, for code that
+moves tabs between its layouts, as an undo would: `group.transfer(tabId, fromModel, toModel,
+toNodeId, location, index)` returns the new tab (or `undefined` when vetoed or impossible), and
+`group.onTransfer(listener)` subscribes to transfers.

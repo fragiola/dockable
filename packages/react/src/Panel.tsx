@@ -14,7 +14,8 @@ import {
 } from "@fragiola/dockable";
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { useDockableContext } from "./context";
+import { DockableContext, LayoutContext, useDockableContext } from "./context";
+import { DragGroupContext } from "./DragGroup";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -58,6 +59,18 @@ function withoutEngineKeys(
         delete rest[key];
     }
     return rest as React.CSSProperties;
+}
+
+/** A stable key per moveable element, for a drag group's content host. */
+const moveableKeys = new WeakMap<HTMLElement, string>();
+let nextMoveableKey = 0;
+function keyOfMoveable(element: HTMLElement): string {
+    let key = moveableKeys.get(element);
+    if (key === undefined) {
+        key = `moveable-${nextMoveableKey++}`;
+        moveableKeys.set(element, key);
+    }
+    return key;
 }
 
 /**
@@ -186,12 +199,39 @@ export function Panel(props: PanelProps) {
     const contentKey =
         node.getId() + (node.isEnableWindowReMount() ? windowId : "");
 
+    // in a drag group, the content renders in the group's host, so it survives the tab moving to
+    // another root; the panel hands over its context along with it. The host keys it by the
+    // moveable element, which a transferred tab adopts: two models' tabs may share an id
+    const dragGroup = React.useContext(DragGroupContext);
+    const groupKey =
+        keyOfMoveable(moveable) +
+        (node.isEnableWindowReMount() ? windowId : "");
+    const dockable = React.useContext(DockableContext);
+    const layout = React.useContext(LayoutContext);
+    const owner = React.useRef({}).current;
+    React.useLayoutEffect(() => {
+        dragGroup?.registry.set(
+            groupKey,
+            owner,
+            moveable,
+            <DockableContext.Provider value={dockable}>
+                <LayoutContext.Provider value={layout}>
+                    {children}
+                </LayoutContext.Provider>
+            </DockableContext.Provider>,
+        );
+    });
+    React.useLayoutEffect(
+        () => () => dragGroup?.registry.remove(groupKey, owner),
+        [dragGroup, groupKey, owner],
+    );
+
     return (
         <>
             {layer
                 ? createPortal(panel, layer.element, `panel:${layoutId}`)
                 : null}
-            {createPortal(children, moveable, contentKey)}
+            {dragGroup ? null : createPortal(children, moveable, contentKey)}
         </>
     );
 }

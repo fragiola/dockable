@@ -625,9 +625,27 @@ export class DragDropManager {
     }
 
     private belongsToDrag(): boolean {
+        const state = DragDropManager.dragState;
+        if (!state) {
+            return false;
+        }
+        const main = this.engine.getMainEngine();
+        if (main === state.mainEngine) {
+            return true;
+        }
+        // a tab of another model in the same drag group
+        return this.isGroupTransfer(state);
+    }
+
+    /** a drag of a tab of another model whose layout is in this layout's drag group */
+    private isGroupTransfer(state: DragState): boolean {
+        const group = this.engine.getDragGroup();
         return (
-            this.engine.getMainEngine() ===
-            DragDropManager.dragState?.mainEngine
+            group !== undefined &&
+            state.dragSource === "internal" &&
+            state.dragNode instanceof TabNode &&
+            state.mainEngine.getModel() !== this.engine.getModel() &&
+            group.has(state.mainEngine)
         );
     }
 
@@ -815,7 +833,18 @@ export class DragDropManager {
                     dropInfo = undefined;
                 }
             }
-            if (dropInfo && dragState.dragJson !== undefined) {
+            if (dropInfo && this.isGroupTransfer(dragState)) {
+                this.engine
+                    .getDragGroup()
+                    ?.transferTab(
+                        dragState.mainEngine,
+                        this.engine,
+                        dragState.dragNode as TabNode,
+                        dropInfo.node.getId(),
+                        dropInfo.location,
+                        dropInfo.index,
+                    );
+            } else if (dropInfo && dragState.dragJson !== undefined) {
                 const added = this.engine.doAction(
                     Actions.addTab(
                         dragState.dragJson,
@@ -855,6 +884,10 @@ export class DragDropManager {
 
             this.clearDragMain();
             this.removeLostDragGuard?.();
+            if (dragState.mainEngine !== this.engine.getMainEngine()) {
+                // a drag from another layout of the group: clear the source's layouts too
+                dragState.mainEngine.getDragDropManager().clearDragMain();
+            }
             DragDropManager.setDragState(undefined);
         }
         this.dragEnterCount = 0;

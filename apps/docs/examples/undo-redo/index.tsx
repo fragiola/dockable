@@ -9,7 +9,6 @@ import {
     type OnModelChange,
     type TabNode,
     type TabSetNode,
-    UndoManager,
 } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
@@ -18,8 +17,9 @@ import { cn } from "@/lib/cn";
 import { Card, PanelBody } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
+import { UndoManager } from "../_kit/undo";
 
-// Undo and redo with the core's UndoManager. It owns the current model: it records a snapshot
+// Undo and redo with the examples' UndoManager (`_kit/undo.ts`: the package ships no undo). It owns the current model: it records a snapshot
 // before every action and swaps in a new model on undo/redo (`Model.fromJson(json, current)`, so
 // mounted content is kept). A splitter drag, many "adjusting" actions, is a single step.
 

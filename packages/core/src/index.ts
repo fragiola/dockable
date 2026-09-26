@@ -1,4 +1,5 @@
 export * from "./dnd/DragDropManager";
+export * from "./dnd/DragGroup";
 export * from "./engine/LayoutEngine";
 export * from "./keyboard/keymap";
 export * from "./labels/DockableLabel";
@@ -23,4 +24,3 @@ export * from "./model/TabSetNode";
 export * from "./paths";
 export * from "./popout/PopoutManager";
 export * from "./splitter/SplitterController";
-export * from "./undo/UndoManager";

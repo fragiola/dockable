@@ -62,27 +62,22 @@ positioned in its own window.
 
 ## 4. Pop a tab out
 
-Allow it per tab (`enablePopout: true`, or `tabEnablePopout` globally), then dispatch
-`Actions.popoutTab`:
+Allow it per tab (`enablePopout: true`, or `tabEnablePopout` globally), then put a
+`Dockable.PopoutTrigger` in the tabset's header. It pops the selected tab out, and in the window
+the same button docks it back (`data-mode` is `"popout"` or `"dock"`). It renders nothing when
+neither is possible (popouts unsupported, the tab does not allow it):
 
 ```tsx
-function PopoutButton({ tabset }: { tabset: TabSetNode }) {
-    const { engine, mainEngine } = useDockable();
-    const selected = tabset.getSelectedNode() as TabNode | undefined;
-    // only in the main window, for a tab that allows it, where windows are supported
-    if (!selected?.isEnablePopout() || !mainEngine.isSupportsPopout() || tabset.getLayoutId() !== Model.MAIN_LAYOUT_ID) {
-        return null;
-    }
-    return (
-        <button type="button" aria-label={`Pop out ${selected.getName()}`} onClick={() => engine.doAction(Actions.popoutTab(selected.getId(), "window"))}>
-            <ExternalLinkIcon aria-hidden="true" />
-        </button>
-    );
-}
+<Dockable.PopoutTrigger aria-label="Pop out" className="group">
+    <ExternalLinkIcon aria-hidden className="group-data-[mode=dock]:hidden" />
+    <DockIcon aria-hidden className="hidden group-data-[mode=dock]:block" />
+</Dockable.PopoutTrigger>
 ```
 
-`Tab` exposes `data-popout-enabled` (the tab allows it and popouts are supported) if the button
-lives in the tab. A button for the tabset's selected tab has to compute it as above (gap 7).
+`target="tabset"` moves the whole tabset into one window. From code, use
+`engine.popout(node)`/`engine.dockBack(node)` (and `engine.canPopout(node)` to know whether it
+can), or dispatch `Actions.popoutTab` yourself. `Tab` also exposes `data-popout-enabled`, for a
+button that lives in the tab.
 
 `supportsPopout` on `Root` decides whether windows open at all; the default is "a desktop
 pointer is present". Without support, window layouts are docked back immediately.
@@ -93,21 +88,19 @@ The core copies into the popout document: every `<link rel="stylesheet">`, every
 (including later edits), CSSOM rules inserted at runtime (polled), `adoptedStyleSheets`, and the
 page's `lang` and `dir`.
 
-It does **not** copy other attributes of `<html>` and `<body>`. If your theme keys off
-`:root[data-theme]` or a body class, copy them in `onOpen`, which runs when the popout document
-is ready and before its content renders:
+If your theme keys off `:root[data-theme]`, a class on `<html>` or on `<body>`, turn on
+`popoutMirrorRoot`: it copies the attributes of `<html>` and `<body>` into every popout and keeps
+them in sync, so a theme switch follows into open windows:
 
 ```tsx
-<Dockable.Popout
-    onOpen={(_layout, _window, doc) => {
-        doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
-        doc.body.classList.add("palette-surface");
-    }}
->
+<Dockable.Root model={model} popoutMirrorRoot>                  {/* all but style and id */}
+<Dockable.Root model={model} popoutMirrorRoot={["data-theme"]}> {/* only these */}
 ```
 
-This is gap 3 in [Limitations](/docs/limitations), removed by Epic
-[#20](https://github.com/fragiola/dockable/issues/20). `onPopoutOpen`/`onPopoutClose` on `Root`
+A theme that lives on another element (a wrapper `div`) is not on the document root: set it in
+`Dockable.Popout`'s `onOpen`, which runs when the popout document is ready and before its content
+renders (the examples' kit does this for its per-example theme).
+`onPopoutOpen`/`onPopoutClose` on `Root`
 receive the same `(layout, window, document)` arguments, for set-up that is not about rendering
 (a CSS-in-JS cache for the new document, analytics).
 
@@ -147,8 +140,7 @@ if (target) mainEngine.doAction(Actions.moveNode(tab.getId(), target.getId(), Do
   splitters, tabs, keyboard and maximize work inside the window; the window's layout is saved by
   `model.toJson()` under `subLayouts` and reopened by `Model.fromJson` (the browser may block a
   window opened without a user gesture).
-- **Not yet**: dragging a tab between the main window and a popout, or between popouts, and
-  popping out a whole tabset (`Actions.popoutTabset`) are Epic
-  [#20](https://github.com/fragiola/dockable/issues/20).
+- **Drags**: tabs drag between the main window and a popout, and between popouts, like between
+  tabsets. See [Drag across windows and layouts](/docs/guides/cross-layout-drag).
 
 <Example slug="analytics-dashboard" />

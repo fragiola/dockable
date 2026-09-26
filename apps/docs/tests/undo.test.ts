@@ -1,15 +1,17 @@
 // Ported from FlexLayout (https://github.com/caplin/FlexLayout), tests/useUndo.test.tsx.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 //
-// The hook tests are rewritten against the framework-agnostic UndoManager: same cases, no React.
-import { describe, expect, it, vi } from "vitest";
+// The hook tests, rewritten against the examples' framework-agnostic UndoManager (the kit's
+// `_kit/undo.ts`): same cases, no React.
+
 import {
     Actions,
     DockLocation,
     type IJsonModel,
     Model,
-    UndoManager,
-} from "../../src";
+} from "@fragiola/dockable";
+import { describe, expect, it, vi } from "vitest";
+import { UndoManager } from "../examples/_kit/undo";
 
 const json: IJsonModel = {
     global: {},

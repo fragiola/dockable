@@ -262,3 +262,57 @@ export async function dragOver(
         await page.mouse.up();
     };
 }
+
+/**
+ * Drags `source` into another window's layout with synthetic drag events: HTML5 drag and drop
+ * cannot be driven across windows with the mouse (ported from FlexLayout's dragAcrossWindows).
+ * The drag state lives in JavaScript (shared by the windows of a page), so the events only need to
+ * reach the right elements. `drop: false` stops over the target, for checks mid-drag.
+ */
+export async function dragAcrossWindows(
+    source: Locator,
+    targetPage: Page,
+    target: Locator,
+    loc: Location,
+    options: { drop?: boolean } = {},
+) {
+    const fr = await waitForBox(source, "cross-window drag source");
+    const tr = await waitForBox(target, "cross-window drag target");
+    const cf = getLocation(fr, Location.CENTER);
+    const ct = getLocation(tr, loc);
+
+    await source.evaluate(
+        (el, { x, y }: { x: number; y: number }) => {
+            const dt = new DataTransfer();
+            el.dispatchEvent(
+                new DragEvent("dragstart", {
+                    bubbles: true,
+                    cancelable: true,
+                    dataTransfer: dt,
+                    clientX: x,
+                    clientY: y,
+                }),
+            );
+        },
+        { x: cf.x, y: cf.y },
+    );
+    await target.evaluate(
+        (el, { x, y, drop }: { x: number; y: number; drop: boolean }) => {
+            const dt = new DataTransfer();
+            const init = {
+                bubbles: true,
+                cancelable: true,
+                dataTransfer: dt,
+                clientX: x,
+                clientY: y,
+            };
+            el.dispatchEvent(new DragEvent("dragenter", init));
+            el.dispatchEvent(new DragEvent("dragover", init));
+            if (drop) {
+                el.dispatchEvent(new DragEvent("drop", init));
+            }
+        },
+        { x: ct.x, y: ct.y, drop: options.drop !== false },
+    );
+    void targetPage;
+}
