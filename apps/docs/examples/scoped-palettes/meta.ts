@@ -3,7 +3,7 @@ import type { ExampleMeta } from "../meta-types";
 export default {
     title: "Scoped palettes",
     description:
-        "Fragiola palettes scoped per tabset: a DropdownMenu in each header picks blue, orange, green, purple, surface or raised, saved in the tabset's config. The tabset and its panels take the palette's six roles.",
+        "Give each tabset its own colour scheme. A dropdown in the tabset header picks a palette (blue, orange, green, purple, surface or raised), stored in the tabset's config through an action, so it is saved with the layout. A palette is just a CSS class that sets a few colour variables (background, soft fill, line, text, accent and focus ring); the tabs and panels inside the tabset read them.",
     level: "intermediate",
     order: 11,
     features: [

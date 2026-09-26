@@ -37,3 +37,36 @@ test("maximize by button and double-click, restore with Escape", async ({
     });
     await expect(root).not.toHaveAttribute("data-maximized");
 });
+
+test("a maximized tabset fills the layout, whatever its nesting, and restoring brings the weights back", async ({
+    page,
+}) => {
+    await openExample(page, "maximize");
+    const row = path(page, "/row");
+    const rowBox = await row.boundingBox();
+    if (!rowBox) throw new Error("no root row");
+    for (const tabset of ["/ts0", "/r1/ts0", "/r1/ts1"]) {
+        const target = path(page, tabset);
+        const before = await target.boundingBox();
+        await target.getByRole("button", { name: "Maximize" }).click();
+        await expect(target).toHaveAttribute("data-maximized", "");
+        await expect
+            .poll(async () => {
+                const box = await target.boundingBox();
+                return box
+                    ? Math.max(
+                          Math.abs(box.x - rowBox.x),
+                          Math.abs(box.y - rowBox.y),
+                          Math.abs(box.width - rowBox.width),
+                          Math.abs(box.height - rowBox.height),
+                      )
+                    : Number.POSITIVE_INFINITY;
+            }, `${tabset} fills the root row`)
+            .toBeLessThanOrEqual(1);
+        await page.keyboard.press("Escape");
+        await expect(target).not.toHaveAttribute("data-maximized");
+        await expect
+            .poll(async () => (await target.boundingBox())?.width)
+            .toBeCloseTo(before?.width ?? 0, 0);
+    }
+});

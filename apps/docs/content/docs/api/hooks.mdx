@@ -1,6 +1,6 @@
 ---
 title: Hooks
-description: useDockable, useTabSet, useBorder, useSplitter, useDragNode, useDragSource, useDropZone and useTabSetDropState - the lower layer under the primitives.
+description: useDockable, useTabSet, useBorder, useTabOverflow, useSplitter, useDragNode, useDragSource, useDropZone and useTabSetDropState - the lower layer under the primitives.
 ---
 
 The primitives are built on four hooks, exported as the lower layer. Use `useDockable` all the
@@ -96,6 +96,23 @@ the tabset to `TabList`/`TabSetContent`, which only `Dockable.TabSet` does. Pref
 
 A custom strip must also provide the border to `Dockable.TabList`, which only `Dockable.Border`
 does: prefer `Dockable.Border` with `render`.
+
+## useTabOverflow
+
+"Tab overflow of a tabset or a border: which of its tabs are hidden because they do not fit in its
+`Dockable.TabList` (the engine measures the list, the tabs and the `Dockable.TabOverflowTrigger`).
+The selected tab is never hidden."
+
+`useTabOverflow(container: TabSetNode | BorderNode): UseTabOverflowResult`
+
+| field | type | description |
+| --- | --- | --- |
+| `overflowing` | `boolean` | some of the container's tabs do not fit, so they are hidden |
+| `hidden` | `TabNode[]` | the hidden tabs, in model order: what an overflow menu lists |
+| `visible` | `TabNode[]` | the tabs that stay in the strip, in model order |
+
+It re-renders only when the container's hidden tabs change. See
+[Tab overflow](/docs/guides/tab-overflow).
 
 ## useSplitter
 
@@ -270,6 +287,6 @@ two tabs).
 
 ## Types
 
-Also exported: `TabSetState`, `UseDockableResult`, `UseTabSetResult`, `UseBorderResult`, `UseSplitterResult`,
+Also exported: `TabSetState`, `UseDockableResult`, `UseTabSetResult`, `UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`,
 `UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`, `UseDropZoneOptions`, `UseDropZoneResult`, `TabSetDropState`, and `GetLabel` (`(key: DockableLabel, ...args: (string | number)[]) => string
 | undefined`).

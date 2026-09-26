@@ -3,6 +3,7 @@
 import {
     type Action,
     Actions,
+    BorderNode,
     type LayoutEngine,
     Model,
     TabNode,
@@ -11,8 +12,9 @@ import { Bug, FolderTree, GitBranch, SquareTerminal } from "lucide-react";
 import { useRef, useState } from "react";
 import { Clickable } from "@/components/atoms/clickable";
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { Tooltip } from "@/components/ui/tooltip";
 import { EngineBridge } from "../_kit/engine-bridge";
-import { DockLayout } from "../_kit/layout";
+import { type BorderOptions, DockLayout } from "../_kit/layout";
 import { usePopupTheme } from "../_kit/theme";
 import { Explorer } from "./explorer";
 import { EditorPanel, ProblemsPanel, TerminalPanel } from "./panels";
@@ -39,15 +41,60 @@ const BORDER_ICONS = {
     problems: Bug,
 } as const;
 
-/** A border's tab button: its icon and name. */
-function renderBorderTab(tab: TabNode) {
-    const Icon = BORDER_ICONS[tab.getComponent() as keyof typeof BORDER_ICONS];
-    return (
-        <>
-            {Icon ? <Icon aria-hidden="true" className="size-3.5" /> : null}
-            {tab.getName()}
-        </>
-    );
+/** A tab of a side border (the activity bar): its button shows only the icon, upright. */
+function inSideBorder(tab: TabNode) {
+    const parent = tab.getParent();
+    return parent instanceof BorderNode && parent.isHorizontal();
+}
+
+/**
+ * The borders' look. The left border is an activity bar, as in VS Code: an upright icon per tab,
+ * named by `aria-label` and a tooltip (the kit's vertical labels are replaced). The bottom border's
+ * tabs keep their icon and name.
+ */
+function borderOptions(
+    popupTheme: ReturnType<typeof usePopupTheme>,
+): BorderOptions {
+    return {
+        renderBorderTab: (tab) => {
+            const Icon =
+                BORDER_ICONS[tab.getComponent() as keyof typeof BORDER_ICONS];
+            const icon = Icon ? (
+                <Icon aria-hidden="true" className="size-4 shrink-0" />
+            ) : null;
+            if (!inSideBorder(tab)) {
+                return (
+                    <>
+                        {icon}
+                        {tab.getName()}
+                    </>
+                );
+            }
+            return (
+                <Tooltip.Root>
+                    <Tooltip.Trigger
+                        render={<span />}
+                        className="grid place-items-center"
+                    >
+                        {icon}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content {...popupTheme}>
+                        {tab.getName()}
+                    </Tooltip.Content>
+                </Tooltip.Root>
+            );
+        },
+        // upright and centred: no writing-mode, no rotation
+        borderTabClassName: (tab) =>
+            inSideBorder(tab) ? "justify-center p-2" : undefined,
+        borderTabLabel: (tab) =>
+            inSideBorder(tab) ? tab.getName() : undefined,
+        // the bar is as wide as its icon buttons
+        borderClassName: (border) =>
+            border.isHorizontal()
+                ? "data-[orientation=vertical]:w-10"
+                : undefined,
+    };
 }
 
 export default function IdeWorkbench() {
@@ -60,6 +107,7 @@ export default function IdeWorkbench() {
     const confirmed = useRef(new Set<string>());
     const container = useRef<HTMLDivElement | null>(null);
     const popupTheme = usePopupTheme(container);
+    const borders = borderOptions(popupTheme);
 
     const onAction = (action: Action) => {
         if (action.type === Actions.DELETE_TAB) {
@@ -151,7 +199,7 @@ export default function IdeWorkbench() {
                     onAction={onAction}
                     onModelChange={onModelChange}
                     renderTabSet={(node) => <WorkbenchTabSet node={node} />}
-                    renderBorderTab={renderBorderTab}
+                    borders={borders}
                     renderContent={renderContent}
                 >
                     <EngineBridge onEngine={setEngine} />

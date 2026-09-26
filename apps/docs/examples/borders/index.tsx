@@ -116,7 +116,9 @@ export default function Borders() {
     return (
         <DockLayout
             model={model}
-            renderBorderTab={(tab) => <BorderTabLabel tab={tab} />}
+            borders={{
+                renderBorderTab: (tab) => <BorderTabLabel tab={tab} />,
+            }}
             renderContent={(tab) => <Content tab={tab} />}
         />
     );

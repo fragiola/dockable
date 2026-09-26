@@ -350,7 +350,7 @@ describe("LayoutEngine registration bookkeeping", () => {
         expect(engine.getRegistrations().tabPanels.size).toBe(2);
     });
 
-    it("does not watch tab buttons", () => {
+    it("watches tab buttons: a tab that grows can make its strip overflow", () => {
         const { model, engine, root } = setup();
         const button = root.appendChild(document.createElement("div"));
         engine.registerMeasurable(
@@ -359,7 +359,7 @@ describe("LayoutEngine registration bookkeeping", () => {
             button,
         );
         expect(RecordingResizeObserver.instances[0]?.observed.has(button)).toBe(
-            false,
+            true,
         );
     });
 

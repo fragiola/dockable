@@ -146,25 +146,36 @@ export const border = [
 export const borderTabList =
     "flex min-h-0 min-w-0 flex-1 gap-(--dk-tab-gap) p-1 data-[orientation=vertical]:flex-col";
 
-/**
- * A border's `Dockable.Tab`. Side borders turn their labels with `writing-mode`, and a left
- * border that reads "up" (the model's `borderLeftTabDirection`, on the strip as
- * `data-tab-direction`) turns them half a turn more. The tabs stay in order from the top.
- */
+/** A border's `Dockable.Tab`: the button, whichever way its label reads. */
 export const borderTab = [
     "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-sm px-2 py-1",
     "font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
     "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
     "data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40",
+].join(" ");
+
+/**
+ * The kit's default for side borders: labels turned with `writing-mode`, and a left border that
+ * reads "up" (the model's `borderLeftTabDirection`, on the strip as `data-tab-direction`) turns
+ * them half a turn more. The tabs stay in order from the top. Pure styling: `DockLayout`'s
+ * `borderTabClassName` replaces it (upright labels, icon-only tabs).
+ */
+export const borderTabVertical = [
     "in-data-[orientation=vertical]:[writing-mode:vertical-rl] in-data-[orientation=vertical]:px-1 in-data-[orientation=vertical]:py-2",
     "in-data-[tab-direction=up]:rotate-180",
 ].join(" ");
 
 /**
  * `Dockable.BorderContent`: where a border's panel opens. An overlay border paints over the layout,
- * so it gets a stacking order (above the tabsets and their splitters) and a shadow.
+ * so it gets a stacking order (above the tabsets and their splitters), a shadow, and a line on the
+ * side facing the layout: in themes whose splitters are transparent, and on a dark floor where a
+ * shadow does not show, the line is where the overlay ends.
  */
-export const borderContent = "data-overlay:z-30 data-overlay:shadow-xl";
+export const borderContent = [
+    "data-overlay:z-30 data-overlay:shadow-xl data-overlay:border-palette-line",
+    "data-overlay:data-[location=left]:border-e data-overlay:data-[location=right]:border-s",
+    "data-overlay:data-[location=top]:border-b data-overlay:data-[location=bottom]:border-t",
+].join(" ");
 
 /**
  * `Dockable.EdgeIndicator`: the band along a layout edge where a drop docks to that edge, shown

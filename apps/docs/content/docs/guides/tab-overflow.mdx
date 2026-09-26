@@ -1,34 +1,88 @@
 ---
 title: Tab overflow
-description: When a strip has more tabs than fit - clip, wrap, scroll, or list the hidden tabs in a menu.
+description: When a strip has more tabs than fit - the tabs that do not fit go to your menu, the selected one stays; or wrap and scroll.
 ---
 
-There is no overflow primitive yet: the tab strip is your element, and what happens when tabs do
-not fit is a styling and UI decision. Four patterns, from simplest:
+When a strip has more tabs than it can show, Dockable hides the ones that do not fit, one by one
+as the strip narrows, and always keeps the selected tab in view (the VS Code behaviour). You list
+the hidden tabs in a menu of your own, opened by `Dockable.TabOverflowTrigger`.
 
 <Example slug="overflow-select" />
 
-## 1. Clip
+## 1. Let the strip overflow
 
-`overflow: hidden` on the `TabList` and `flex-shrink: 0` on tabs. Tabs past the end are hidden;
-the selected one can still be reached with the keyboard (arrow keys move through all tabs) but
-not seen. Fine for strips that rarely overflow.
-
-## 2. Shrink
-
-Let tabs shrink with a minimum width and truncate their label:
+Nothing to switch on: `Dockable.TabList` measures itself and its tabs. Give it a size the tabs can
+overflow. In a header row, let it shrink:
 
 ```tsx
-<Dockable.Tab node={tab} className="flex min-w-16 max-w-48 shrink items-center px-3">
-    <span className="truncate">{tab.getName()}</span>
-</Dockable.Tab>
+<div className="flex">
+    <Dockable.TabList className="flex min-w-0 flex-1 overflow-hidden gap-1 ps-1">
+        {(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}
+    </Dockable.TabList>
+    {/* the trigger, step 2 */}
+</div>
 ```
 
-## 3. Wrap or scroll
+The engine compares the tabs' sizes (and the list's `gap`) with the list's inner size (its size
+minus padding and border). The tabs fit from the start of the strip; when the selected tab is past
+the end, tabs are taken off the end until it fits, and it shows in their place. Down to a single
+visible tab: the selected one.
 
-`flex-wrap: wrap` on the strip gives several rows of tabs (the tabset's `enableTabWrap` attribute
-is a natural switch: `node.isEnableTabWrap()`). `overflow-x: auto` gives a scrollable strip;
-scroll the selected tab into view when the selection changes:
+A tab that does not fit gets `display: none` and `data-overflow-hidden`, and the tab list gets
+`data-overflowing`. The arrow keys still reach a hidden tab: moving onto it selects it, which
+brings it into the strip.
+
+## 2. Add the trigger and your menu
+
+`Dockable.TabOverflowTrigger` renders only while tabs are hidden, next to the tab list. The engine
+reserves the space it takes, so tabs and trigger never overlap. It is a button with no text and
+no menu: make it the trigger of yours, and list the hidden tabs from `useTabOverflow`:
+
+```tsx
+import { Actions, type TabSetNode } from "@fragiola/dockable";
+import { Dockable, useDockable, useTabOverflow } from "@fragiola/dockable-react";
+
+function OverflowMenu({ tabset }: { tabset: TabSetNode }) {
+    const { engine } = useDockable();
+    const { hidden } = useTabOverflow(tabset);
+    return (
+        <Menu.Root>
+            <Dockable.TabOverflowTrigger aria-label="More tabs" render={<Menu.Trigger />}>
+                {`+${hidden.length}`}
+            </Dockable.TabOverflowTrigger>
+            <Menu.Content>
+                {hidden.map((tab) => (
+                    <Menu.Item key={tab.getId()} onClick={() => engine.doAction(Actions.selectTab(tab.getId()))}>
+                        {tab.getName() || tab.getAltName()}
+                    </Menu.Item>
+                ))}
+            </Menu.Content>
+        </Menu.Root>
+    );
+}
+```
+
+Selecting a hidden tab (`Actions.selectTab`, through `onAction`) brings it into the strip; another
+tab goes to the menu in its place. `altName` is "the name used in the overflow menu when the tab
+has no name (e.g. an icon-only tab)". The label key `DockableLabel.Overflow_Menu_Tooltip` names the
+trigger when you pass `getLabel` to the root.
+
+The [`overflow-select`](/examples/overflow-select/) example uses Fragiola UI's `Select`, with
+`Dockable.TabOverflowTrigger` rendered as its trigger.
+
+## It works everywhere tabs do
+
+- **Borders**: a side border's vertical tab list hides along its height.
+- **Popout windows**: each window measures its own strips.
+- **Drag and drop**: a drop into a strip lands between the visible tabs; hidden tabs take no drop
+  position.
+
+## Wrap or scroll instead
+
+A strip that wraps (`flex-wrap: wrap`, several rows of tabs; the tabset's `enableTabWrap`
+attribute is a natural switch) or scrolls (`overflow-x: auto`) keeps every tab: turn tab overflow
+off with `overflow={false}` on the tab list. For a scrolling strip, scroll the selected tab into
+view when the selection changes:
 
 ```tsx
 function ScrollingTab({ tab }: { tab: TabNode }) {
@@ -45,43 +99,23 @@ function ScrollingTab({ tab }: { tab: TabNode }) {
 }
 ```
 
+Tabs that shrink (`flex-shrink: 1` with a minimum width, a truncated label) combine with either:
+they shrink first, and overflow once they reach their minimum.
+
 Keep the strip's start padding in every case: a drop before the first tab needs it (gap 10).
 
-## 4. A menu of the tabs
+## Your own measuring
 
-List the tabset's tabs in a select or menu at the end of the strip, and select with the same
-action a click dispatches:
+The decision itself is a pure function of the core, for a custom strip:
 
-```tsx
-import { Actions, type TabNode, type TabSetNode } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+```ts
+import { computeTabOverflow } from "@fragiola/dockable";
 
-function TabPicker({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
-    const selected = tabset.getSelectedNode() as TabNode | undefined;
-    return (
-        <select
-            aria-label="All tabs"
-            value={selected?.getId() ?? ""}
-            onChange={(event) => engine.doAction(Actions.selectTab(event.target.value))}
-        >
-            {tabset.getTabNodes().map((tab) => (
-                <option key={tab.getId()} value={tab.getId()}>
-                    {tab.getName() || tab.getAltName()}
-                </option>
-            ))}
-        </select>
-    );
-}
+const { visible, hidden } = computeTabOverflow({
+    available: 420, // the strip's inner size
+    sizes: [96, 80, 120, 88], // each tab's natural size, in model order
+    gap: 4,
+    selectedIndex: 3,
+    reserve: 32, // the trigger's space, used only when something is hidden
+});
 ```
-
-`altName` is "the name used in the overflow menu when the tab has no name (e.g. an icon-only
-tab)". The [`overflow-select`](/examples/overflow-select/) example uses Fragiola UI's `Select`
-and shows only the tabs that are actually hidden, by measuring the strip.
-
-The label key `DockableLabel.Overflow_Menu_Tooltip` exists for the overflow button's name.
-
-## What is coming
-
-An overflow hook and trigger primitive (measuring which tabs are hidden for you) are planned
-with tab groups; they are not scheduled in an Epic yet. See [Limitations](/docs/limitations).

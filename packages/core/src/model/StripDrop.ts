@@ -24,7 +24,8 @@ function getChildLineRect(
         return child.getLineRectAt(x, y);
     }
     const r = child.getTabRect();
-    if (r === undefined) {
+    // Dockable: a tab hidden by tab overflow has an empty rect; it is not on any line
+    if (r === undefined || (r.width === 0 && r.height === 0)) {
         return undefined;
     }
     return vertical

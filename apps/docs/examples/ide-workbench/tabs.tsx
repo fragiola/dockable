@@ -8,9 +8,13 @@ import {
     type TabNode,
     type TabSetNode,
 } from "@fragiola/dockable";
-import { Dockable, useDockable } from "@fragiola/dockable-react";
+import {
+    Dockable,
+    useDockable,
+    useTabOverflow,
+} from "@fragiola/dockable-react";
 import { Bug, Maximize2, Minimize2, SquareTerminal, X } from "lucide-react";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { ContextMenu } from "@/components/ui/context-menu";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
@@ -21,43 +25,9 @@ import { FileIcon } from "./explorer";
 import { editorConfig } from "./workspace";
 
 // The workbench's tabset: file tabs with an icon, a dirty dot and a close button, a context
-// menu per tab, a Select listing every tab when they no longer fit, and a maximize button.
+// menu per tab, a Select listing the tabs that no longer fit (tab overflow hides them; the selected
+// one always stays), and a maximize button.
 // Everything is a consumer choice made of Dockable primitives, actions and data-*.
-
-/** True while the tab list's content is wider than the list. */
-function useOverflow(ref: RefObject<HTMLElement | null>, tabCount: number) {
-    const [overflowing, setOverflowing] = useState(false);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure when tabs come and go
-    useEffect(() => {
-        const list = ref.current;
-        if (!list) return;
-        const measure = () =>
-            setOverflowing(list.scrollWidth > list.clientWidth + 1);
-        measure();
-        const observer = new ResizeObserver(measure);
-        observer.observe(list);
-        return () => observer.disconnect();
-    }, [ref, tabCount]);
-    return overflowing;
-}
-
-/** Scrolls the strip so the selected tab is in view (the strip clips, it does not wrap). */
-function useSelectedInView(
-    ref: RefObject<HTMLElement | null>,
-    selectedId: string | undefined,
-) {
-    // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the selection changes
-    useEffect(() => {
-        const list = ref.current;
-        const tab = list?.querySelector<HTMLElement>("[data-selected]");
-        if (!list || !tab) return;
-        const outer = list.getBoundingClientRect();
-        const inner = tab.getBoundingClientRect();
-        if (inner.left < outer.left) list.scrollLeft -= outer.left - inner.left;
-        else if (inner.right > outer.right)
-            list.scrollLeft += inner.right - outer.right;
-    }, [ref, selectedId]);
-}
 
 function closeAll(engine: LayoutEngine, tabs: TabNode[]) {
     for (const tab of tabs) {
@@ -217,12 +187,9 @@ function WorkbenchTab({
 export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
     const { engine } = useDockable();
     const list = useRef<HTMLDivElement | null>(null);
-    const tabs = node.getChildren() as TabNode[];
-    const selected = node.getSelectedNode() as TabNode | undefined;
-    const overflowing = useOverflow(list, tabs.length);
+    const { hidden } = useTabOverflow(node);
     const popupTheme = usePopupTheme(list);
     const maximized = node.isMaximized();
-    useSelectedInView(list, selected?.getId());
 
     return (
         <Dockable.TabSet
@@ -242,39 +209,35 @@ export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
                     )}
                 </Dockable.TabList>
                 <div className={styles.tabsetActions}>
-                    {/* the strip clips its tabs; when it does, every tab is one click away */}
-                    {overflowing ? (
-                        <Select.Root
-                            value={selected?.getId() ?? null}
-                            items={tabs.map((tab) => ({
-                                value: tab.getId(),
-                                label: tab.getName(),
-                            }))}
-                            onValueChange={(id) => {
-                                if (typeof id === "string") {
-                                    engine.doAction(Actions.selectTab(id));
-                                }
-                            }}
+                    {/* the tabs that do not fit, one click away (rendered only while there are some) */}
+                    <Select.Root
+                        value={null}
+                        onValueChange={(id) => {
+                            if (typeof id === "string") {
+                                engine.doAction(Actions.selectTab(id));
+                            }
+                        }}
+                    >
+                        <Dockable.TabOverflowTrigger
+                            aria-label={`${hidden.length} more tabs`}
+                            data-testid="overflow-select"
+                            render={
+                                <Select.Trigger className="h-6 min-w-0 gap-1 rounded-sm px-2 py-0 text-xs" />
+                            }
                         >
-                            <Select.Trigger
-                                aria-label="Open tabs"
-                                data-testid="overflow-select"
-                                className="h-6 max-w-36 min-w-0 gap-1 rounded-sm px-2 py-0 text-xs"
-                            >
-                                <Select.Value className="truncate text-xs" />
-                            </Select.Trigger>
-                            <Select.Content {...popupTheme}>
-                                {tabs.map((tab) => (
-                                    <Select.Item
-                                        key={tab.getId()}
-                                        value={tab.getId()}
-                                    >
-                                        {tab.getName()}
-                                    </Select.Item>
-                                ))}
-                            </Select.Content>
-                        </Select.Root>
-                    ) : null}
+                            {`+${hidden.length}`}
+                        </Dockable.TabOverflowTrigger>
+                        <Select.Content {...popupTheme}>
+                            {hidden.map((tab) => (
+                                <Select.Item
+                                    key={tab.getId()}
+                                    value={tab.getId()}
+                                >
+                                    {tab.getName()}
+                                </Select.Item>
+                            ))}
+                        </Select.Content>
+                    </Select.Root>
                     <button
                         type="button"
                         aria-label={label(
@@ -308,7 +271,7 @@ export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
             <Dockable.TabSetContent
                 render={
                     <div>
-                        {tabs.length === 0 ? (
+                        {node.getChildren().length === 0 ? (
                             <p className="grid h-full place-items-center p-4 text-center text-sm text-palette-accent/85">
                                 Open a file from the explorer.
                             </p>

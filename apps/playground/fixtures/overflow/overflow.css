@@ -1,0 +1,29 @@
+/* Structural only: the header is a row where the tab list shrinks and the trigger sits after it. */
+.header {
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+}
+
+.header [role="tablist"] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+[role="tab"] {
+    padding-inline: 12px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+[role="menu"] {
+    position: absolute;
+    z-index: 20;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    background: white;
+    border: 1px solid #999;
+}

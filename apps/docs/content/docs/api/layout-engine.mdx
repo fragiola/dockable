@@ -36,6 +36,10 @@ engine.doAction(Actions.selectTab("t1"));
 | `isRealtimeResize()` | the `realtimeResize` option |
 | `isSplitterDragging()` | true while any splitter of the model is being dragged |
 | `getTabDragSpeed()` | seconds a view may take to animate the drop outline |
+| `registerTabList(container, element, vertical?)` | registers (or, with `null`, unregisters) a tabset's or border's tab list for tab overflow: the tabs that do not fit are hidden, keeping the selected one (`Dockable.TabList` does) |
+| `registerOverflowTrigger(container, element)` | registers the overflow trigger beside a tab list: the space it takes is reserved in the strip (`Dockable.TabOverflowTrigger` does) |
+| `getHiddenTabs(containerId)` | the ids of a container's tabs hidden by tab overflow, in model order (the same array until it changes) |
+| `subscribeOverflow(listener)` | calls `listener` when a container's hidden tabs change; returns the unsubscribe function |
 | `handleOverlayPointerDown(event)` | call on every `pointerdown` of the document (capture phase): a press in the main layout's area outside an open overlay border's panel closes it (`Dockable.Root` does). Returns true when a panel closed |
 | `handleOverlayKeyDown(event, key)` | call on every `keydown` with the close key (`keyMap.closeOverlayBorder`): with focus in an open overlay panel or on its tab button, closes it and focuses the tab button (`Dockable.Root` does) |
 | `closeOverlayBorder(border)` | closes a border's panel (deselects its tab through `onAction`); focus in the panel goes back to the tab button |

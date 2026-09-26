@@ -48,6 +48,7 @@ Spread it on a `Dockable.Splitter`: `(props) => <Dockable.Splitter {...props} cl
 | --- | --- | --- |
 | `orientation` | `"horizontal" \| "vertical"` | `"horizontal"`: children side by side; `"vertical"`: stacked |
 | `root` | `boolean` | the layout's root row |
+| `hidden` | `boolean` | a tabset of the layout is maximized outside this row, so the row is hidden (`model.isHiddenByMaximize`) |
 
 ## Data attributes
 
@@ -59,7 +60,7 @@ Spread it on a `Dockable.Splitter`: `(props) => <Dockable.Splitter {...props} cl
 
 ## Structural style
 
-`display: flex`, `flex-direction` (`row` or `column`), `flex-basis: 0`, `flex-grow` from the
+`display: flex` (`none` while a tabset maximized outside the row fills the layout), `flex-direction` (`row` or `column`), `flex-basis: 0`, `flex-grow` from the
 weight (at least 1), `min-width`/`min-height`/`max-width`/`max-height` from the model,
 `overflow: hidden`. The root row adds `position: absolute; inset: 0` to fill the root.
 

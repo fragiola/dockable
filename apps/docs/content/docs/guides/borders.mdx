@@ -118,6 +118,26 @@ With Tailwind, as the examples do: `in-data-[orientation=vertical]:[writing-mode
 in-data-[tab-direction=up]:rotate-180` on the tab. Drops into the strip are hit-tested against the
 tab buttons' measured boxes, so any styling works.
 
+### Tab orientation is styling
+
+Nothing in the package turns a side border's labels: `Dockable.Border` lays its tab list out as a
+column and exposes `data-orientation` and `data-tab-direction`. Vertical labels, upright labels in
+a column, or icon-only tabs as in an IDE's activity bar are all class names:
+
+```tsx
+// an activity bar: an upright icon per tab, named for assistive technology
+<Dockable.Tab node={tab} aria-label={tab.getName()} className="grid place-items-center p-2">
+    <FilesIcon aria-hidden />
+</Dockable.Tab>
+```
+
+An icon-only tab has no text: give it an `aria-label` (and a tooltip for sighted users). The
+[border tab orientation](/examples/border-tab-orientation/) example switches the same borders
+between vertical and upright labels, and the [IDE workbench](/examples/ide-workbench/) has an
+activity bar.
+
+<Example slug="border-tab-orientation" />
+
 ## 4. Open, close and resize
 
 - **Click** a tab to open its panel; click the selected tab again to close it. Both are

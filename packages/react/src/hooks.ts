@@ -19,6 +19,7 @@ import {
     type Node,
     type RowNode,
     type SplitterController,
+    type TabNode,
     type TabSetNode,
 } from "@fragiola/dockable";
 import * as React from "react";
@@ -156,12 +157,11 @@ function isAuxEvent(event: React.PointerEvent | React.MouseEvent) {
 /** The lower layer of `Dockable.TabSet`: its state, measurement ref and activation handler. */
 export function useTabSet(node: TabSetNode): UseTabSetResult {
     const { engine, layoutId } = useLayoutContext("useTabSet");
-    const maximizedTabset = node.getModel().getMaximizedTabset(layoutId);
     const drop = useTabSetDropState(engine, node.getId());
     const state: TabSetState = {
         active: node.isActive(),
         maximized: node.isMaximized(),
-        hidden: maximizedTabset !== undefined && maximizedTabset !== node,
+        hidden: node.getModel().isHiddenByMaximize(node),
         empty: node.getChildren().length === 0,
         dropTarget: drop.target,
         dropLocation: drop.location,
@@ -233,6 +233,50 @@ export function useBorder(node: BorderNode): UseBorderResult {
         [engine, node],
     );
     return { state, ref };
+}
+
+export interface UseTabOverflowResult {
+    /** some of the container's tabs do not fit, so they are hidden */
+    overflowing: boolean;
+    /** the hidden tabs, in model order: what an overflow menu lists */
+    hidden: TabNode[];
+    /** the tabs that stay in the strip, in model order */
+    visible: TabNode[];
+}
+
+/**
+ * Tab overflow of a tabset or a border: which of its tabs are hidden because they do not fit in
+ * its `Dockable.TabList` (the engine measures the list, the tabs and the
+ * `Dockable.TabOverflowTrigger`). The selected tab is never hidden.
+ */
+export function useTabOverflow(
+    container: TabSetNode | BorderNode,
+): UseTabOverflowResult {
+    const { engine } = useLayoutContext("useTabOverflow");
+    const id = container.getId();
+    const hiddenIds = React.useSyncExternalStore(
+        engine.subscribeOverflow,
+        () => engine.getHiddenTabs(id),
+        () => engine.getHiddenTabs(id),
+    );
+    const tabs = container.getTabNodes();
+    const hiddenSet = new Set(hiddenIds);
+    return {
+        overflowing: hiddenIds.length > 0,
+        hidden: tabs.filter((tab) => hiddenSet.has(tab.getId())),
+        visible: tabs.filter((tab) => !hiddenSet.has(tab.getId())),
+    };
+}
+
+/** Whether tab overflow hides `tab` (a string-free snapshot, so only its own changes re-render). */
+export function useTabHidden(tab: TabNode): boolean {
+    const { engine } = useLayoutContext("useTabHidden");
+    const containerId = tab.getTabContainer().getId();
+    return React.useSyncExternalStore(
+        engine.subscribeOverflow,
+        () => engine.getHiddenTabs(containerId).includes(tab.getId()),
+        () => false,
+    );
 }
 
 export interface UseSplitterResult {

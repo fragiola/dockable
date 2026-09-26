@@ -23,6 +23,7 @@ import type { TabGroupNode } from "../model/TabGroupNode";
 import type { TabNode } from "../model/TabNode";
 import { TabSetNode } from "../model/TabSetNode";
 import { randomUUID } from "../model/Utils";
+import { computeTabOverflow } from "../overflow/tabOverflow";
 import { getTabButtonId, getTabPanelId } from "../paths";
 import { type IPopoutOptions, PopoutManager } from "../popout/PopoutManager";
 
@@ -153,6 +154,22 @@ export class LayoutEngine {
     // watches the root and the measured elements so css-driven geometry changes (e.g. a font-size
     // or theme change altering the tabstrip height without resizing the layout root) re-measure
     private geometryResizeObserver: ResizeObserver | undefined;
+    /** tab overflow: the tab lists and triggers per tab container, and what each hides */
+    private readonly tabLists = new Map<
+        string,
+        {
+            container: TabSetNode | BorderNode;
+            element: HTMLElement;
+            vertical: boolean;
+        }
+    >();
+    private readonly overflowTriggers = new Map<string, HTMLElement>();
+    /** each tab's natural size along its strip, kept while it is hidden so it can come back */
+    private readonly naturalTabSizes = new Map<string, number>();
+    /** the space each container's trigger took the last time it showed */
+    private readonly triggerSpace = new Map<string, number>();
+    private readonly hiddenTabs = new Map<string, readonly string[]>();
+    private readonly overflowListeners = new Set<() => void>();
     private healFrame: number | undefined;
     private splitterDragging = false;
     private revision = 0;
@@ -449,6 +466,9 @@ export class LayoutEngine {
         this.tabPanels.clear();
         this.splitters.clear();
         this.listeners.clear();
+        this.tabLists.clear();
+        this.overflowTriggers.clear();
+        this.overflowListeners.clear();
         const layout = this.model.getLayouts().get(this.layoutId);
         if (layout?.getController() === this) {
             layout.setController(undefined);
@@ -498,14 +518,187 @@ export class LayoutEngine {
             }
         }
         // css-driven geometry changes (e.g. a font-size or theme change) do not resize the layout
-        // root, so also watch the measured elements and re-measure when they resize; tab buttons are
-        // excluded since their overflow is handled separately
-        if (kind !== "tabbutton" && prev?.element !== element) {
+        // root, so also watch the measured elements and re-measure when they resize; tab buttons
+        // too, since a tab that grows (a web font, a badge) can make its strip overflow
+        if (prev?.element !== element) {
             if (prev) {
                 this.geometryResizeObserver?.unobserve(prev.element);
             }
             if (element) {
                 this.geometryResizeObserver?.observe(element);
+            }
+        }
+    }
+
+    /**
+     * Registers (or, with `null`, unregisters) a tab container's tab list for tab overflow: when its
+     * tabs do not fit, the engine hides the ones that do not (keeping the selected one) and reports
+     * them through {@link getHiddenTabs}. `vertical` is the direction the tabs run.
+     */
+    registerTabList(
+        container: TabSetNode | BorderNode,
+        element: HTMLElement | null,
+        vertical = false,
+    ) {
+        const id = container.getId();
+        const prev = this.tabLists.get(id);
+        if (prev && prev.element !== element) {
+            this.geometryResizeObserver?.unobserve(prev.element);
+        }
+        if (element) {
+            this.tabLists.set(id, { container, element, vertical });
+            if (prev?.element !== element) {
+                this.geometryResizeObserver?.observe(element);
+            }
+        } else {
+            this.tabLists.delete(id);
+            this.setHiddenTabs(id, []);
+        }
+    }
+
+    /**
+     * Registers (or unregisters) the overflow trigger of a tab container: the element that opens the
+     * consumer's menu of hidden tabs, rendered next to the tab list while tabs are hidden. The space
+     * it takes is reserved in the strip.
+     */
+    registerOverflowTrigger(
+        container: TabSetNode | BorderNode,
+        element: HTMLElement | null,
+    ) {
+        const id = container.getId();
+        const prev = this.overflowTriggers.get(id);
+        if (prev && prev !== element) {
+            this.geometryResizeObserver?.unobserve(prev);
+        }
+        if (element) {
+            this.overflowTriggers.set(id, element);
+            this.geometryResizeObserver?.observe(element);
+        } else {
+            this.overflowTriggers.delete(id);
+        }
+    }
+
+    /** The ids of a tab container's tabs hidden by tab overflow (the same array until it changes). */
+    getHiddenTabs = (containerId: string): readonly string[] =>
+        this.hiddenTabs.get(containerId) ?? NO_TABS;
+
+    /** Calls `listener` when a container's hidden tabs change. Returns the unsubscribe function. */
+    subscribeOverflow = (listener: () => void): (() => void) => {
+        this.overflowListeners.add(listener);
+        return () => {
+            this.overflowListeners.delete(listener);
+        };
+    };
+
+    private setHiddenTabs(containerId: string, hidden: readonly string[]) {
+        const prev = this.getHiddenTabs(containerId);
+        if (
+            prev.length === hidden.length &&
+            prev.every((id, i) => id === hidden[i])
+        ) {
+            return false;
+        }
+        if (hidden.length === 0) {
+            this.hiddenTabs.delete(containerId);
+        } else {
+            this.hiddenTabs.set(containerId, hidden);
+        }
+        return true;
+    }
+
+    /** measures every registered tab list and decides which tabs it hides; notifies on change */
+    private updateTabOverflow() {
+        let changed = false;
+        for (const [id, list] of this.tabLists) {
+            const { container, element, vertical } = list;
+            if (!container.getParent() && !(container instanceof BorderNode)) {
+                continue; // the tabset left the model (it is being removed)
+            }
+            const tabs = container.getTabNodes();
+            const hidden = new Set(this.getHiddenTabs(id));
+            const listRect = this.measureElement(element);
+            const view = element.ownerDocument.defaultView;
+            const style = view?.getComputedStyle(element);
+            const px = (value: string | undefined) =>
+                Number.parseFloat(value ?? "") || 0;
+            // a border only counts when drawn (some engines report a width for `none`)
+            const line = (
+                width: string | undefined,
+                kind: string | undefined,
+            ) => (kind === "none" || kind === "hidden" ? 0 : px(width));
+            const inset = vertical
+                ? px(style?.paddingTop) +
+                  px(style?.paddingBottom) +
+                  line(style?.borderTopWidth, style?.borderTopStyle) +
+                  line(style?.borderBottomWidth, style?.borderBottomStyle)
+                : px(style?.paddingLeft) +
+                  px(style?.paddingRight) +
+                  line(style?.borderLeftWidth, style?.borderLeftStyle) +
+                  line(style?.borderRightWidth, style?.borderRightStyle);
+            const gap = px(vertical ? style?.rowGap : style?.columnGap);
+            const inner = (vertical ? listRect.height : listRect.width) - inset;
+            if (inner <= 0) {
+                continue; // not laid out (hidden, or not measured yet)
+            }
+            const sizes = tabs.map((tab) => {
+                const button = this.measurables.get(
+                    `tabbutton:${tab.getId()}`,
+                )?.element;
+                if (button && !hidden.has(tab.getId())) {
+                    const r = this.measureElement(button);
+                    const size = vertical ? r.height : r.width;
+                    if (size > 0) {
+                        this.naturalTabSizes.set(tab.getId(), size);
+                    }
+                }
+                return this.naturalTabSizes.get(tab.getId()) ?? 0;
+            });
+            // the space the trigger takes while it shows: its size, its margins and the gap before
+            // it in its flex container. The list gives up that much (whatever sits between them)
+            const trigger = this.overflowTriggers.get(id);
+            let taken = 0;
+            if (trigger) {
+                const r = this.measureElement(trigger);
+                const own = view?.getComputedStyle(trigger);
+                const parent = trigger.parentElement;
+                const parentStyle = parent
+                    ? view?.getComputedStyle(parent)
+                    : undefined;
+                const siblings = parent ? parent.children.length > 1 : false;
+                taken =
+                    (vertical ? r.height : r.width) +
+                    (vertical
+                        ? px(own?.marginTop) + px(own?.marginBottom)
+                        : px(own?.marginLeft) + px(own?.marginRight)) +
+                    (siblings
+                        ? px(
+                              vertical
+                                  ? parentStyle?.rowGap
+                                  : parentStyle?.columnGap,
+                          )
+                        : 0);
+                if (taken > 0) {
+                    this.triggerSpace.set(id, taken);
+                }
+            }
+            const selected = container.getSelectedNode();
+            const result = computeTabOverflow({
+                available: inner + taken,
+                sizes,
+                gap,
+                selectedIndex: selected
+                    ? tabs.indexOf(selected as TabNode)
+                    : -1,
+                reserve: this.triggerSpace.get(id) ?? 0,
+            });
+            const next = result.hidden.map(
+                (index) => tabs[index]?.getId() ?? "",
+            );
+            changed = this.setHiddenTabs(id, next) || changed;
+        }
+        if (changed) {
+            for (const listener of [...this.overflowListeners]) {
+                listener();
             }
         }
     }
@@ -717,6 +910,7 @@ export class LayoutEngine {
     private applyMeasuredGeometry(): boolean {
         const changed = this.syncLayoutMetrics();
         this.positionTabPanels();
+        this.updateTabOverflow();
         const splitterSizeChanged = this.syncSplitterSize();
         if (splitterSizeChanged || this.reLayout) {
             this.reLayout = false;
@@ -751,12 +945,16 @@ export class LayoutEngine {
     private setGeometryResizeObserver(observer: ResizeObserver | undefined) {
         this.geometryResizeObserver = observer;
         if (observer) {
-            for (const { kind, element } of this.measurables.values()) {
-                if (kind !== "tabbutton") {
-                    observer.observe(element);
-                }
+            for (const { element } of this.measurables.values()) {
+                observer.observe(element);
             }
             for (const element of this.mainEngine.splitters.keys()) {
+                observer.observe(element);
+            }
+            for (const { element } of this.tabLists.values()) {
+                observer.observe(element);
+            }
+            for (const element of this.overflowTriggers.values()) {
                 observer.observe(element);
             }
         }
@@ -1430,6 +1628,8 @@ export function isTabPanelVisible(tab: TabNode): boolean {
  * press on it does not close the overlay.
  */
 export const OVERLAY_ATTRIBUTE = "data-dockable-overlay";
+
+const NO_TABS: readonly string[] = Object.freeze([]);
 
 /** the scroll listener installed on each moveable element, and the tab it currently hosts */
 const scrollTracking = new WeakMap<HTMLElement, { tab: TabNode }>();

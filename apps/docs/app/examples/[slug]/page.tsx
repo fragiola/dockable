@@ -4,11 +4,12 @@ import { ServerCodeBlock } from "fumadocs-ui/components/codeblock.rsc";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { SourceFile } from "@/components/site/code-panel";
-import { ExamplesShell } from "@/components/site/examples-shell";
+import { ExampleView } from "@/components/site/examples-shell";
 import { THEMES } from "@/examples/_themes/themes";
 import { EXAMPLES } from "@/examples/manifest.generated";
 
-// One page per example, generated at build time. The page reads the example's
+// One page per example, generated at build time, inside the examples' layout (the list and the
+// shell state, which stay mounted between examples). The page reads the example's
 // files from disk (the list comes from the manifest, which follows the
 // example's imports) and highlights them on the server, so the code panel
 // shows exactly the files that were compiled.
@@ -75,8 +76,7 @@ export default async function ExamplePage(props: {
     );
 
     return (
-        <ExamplesShell
-            examples={EXAMPLES}
+        <ExampleView
             example={example}
             files={files}
             themeFiles={themeFiles}

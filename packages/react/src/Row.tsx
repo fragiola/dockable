@@ -15,6 +15,8 @@ export interface RowState {
     orientation: "horizontal" | "vertical";
     /** the layout's root row */
     root: boolean;
+    /** a tabset of the layout is maximized outside this row, so the row is hidden */
+    hidden: boolean;
 }
 
 export interface RowSplitterProps {
@@ -81,9 +83,11 @@ export function Row(props: RowProps) {
     const state: RowState = {
         orientation: horizontal ? "horizontal" : "vertical",
         root,
+        // a maximized tabset fills the layout: the rows off its path give up their space
+        hidden: row.getModel().isHiddenByMaximize(row),
     };
     const structural: React.CSSProperties = {
-        display: "flex",
+        display: state.hidden ? "none" : "flex",
         flexDirection: horizontal ? "row" : "column",
         flexBasis: 0,
         // NOTE: flex-grow cannot have values < 1 otherwise it will not fill the parent

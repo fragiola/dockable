@@ -18,7 +18,7 @@ import {
     useDockableContext,
     useLayoutContext,
 } from "./context";
-import { useDragNode } from "./hooks";
+import { useDragNode, useTabHidden } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -34,6 +34,8 @@ export interface TabState {
     dragging: boolean;
     /** the tab can be popped out into a window */
     popoutEnabled: boolean;
+    /** the tab does not fit in its strip, so it is hidden (tab overflow) */
+    overflowHidden: boolean;
 }
 
 export interface TabProps extends DivPrimitiveProps<TabState> {
@@ -114,6 +116,19 @@ export function Tab(props: TabProps) {
                 : to === "last"
                   ? tabs[tabs.length - 1]
                   : tabs[tabs.indexOf(self) + to];
+        if (next?.hasAttribute("data-overflow-hidden")) {
+            // a tab hidden by tab overflow: select it, which brings it into the strip, then focus it
+            const target = container
+                .getTabNodes()
+                .find((tab) => getTabButtonId(tab) === next.id);
+            if (target) {
+                engine.doAction(Actions.selectTab(target.getId()));
+                self.ownerDocument.defaultView?.requestAnimationFrame(() =>
+                    self.ownerDocument.getElementById(next.id)?.focus(),
+                );
+            }
+            return true;
+        }
         next?.focus();
         return next !== undefined;
     };
@@ -190,6 +205,7 @@ export function Tab(props: TabProps) {
         pinned: node.isPinned(),
         dragging: drag.dragging,
         popoutEnabled: node.isEnablePopout() && engine.isSupportsPopout(),
+        overflowHidden: useTabHidden(node),
     };
     return useRenderElement("div", rest, {
         state,
@@ -207,6 +223,7 @@ export function Tab(props: TabProps) {
                 pinned: state.pinned,
                 dragging: state.dragging,
                 "popout-enabled": state.popoutEnabled,
+                "overflow-hidden": state.overflowHidden,
             }),
             draggable: drag.draggable,
             onDragStart: drag.onDragStart,
@@ -215,5 +232,7 @@ export function Tab(props: TabProps) {
             onKeyDown,
             children,
         },
+        // a tab that does not fit is taken out of the strip (tab overflow)
+        style: state.overflowHidden ? { display: "none" } : undefined,
     });
 }
