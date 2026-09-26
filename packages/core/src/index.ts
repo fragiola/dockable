@@ -1,4 +1,5 @@
 export * from "./dnd/DragDropManager";
+export * from "./dnd/DragGroup";
 export * from "./engine/LayoutEngine";
 export * from "./keyboard/keymap";
 export * from "./labels/DockableLabel";

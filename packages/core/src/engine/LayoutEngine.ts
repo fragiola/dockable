@@ -7,6 +7,7 @@ import {
     type IDropZoneOptions,
     type OnExternalDrag,
 } from "../dnd/DragDropManager";
+import type { DragGroup } from "../dnd/DragGroup";
 import { type Action, Actions } from "../model/Actions";
 import { BorderNode } from "../model/BorderNode";
 import { DockLocation } from "../model/DockLocation";
@@ -70,6 +71,11 @@ export interface ILayoutEngineOptions {
      * given (main engine only). Removing it restores the model's previous rule.
      */
     onAllowDrop?: OnAllowDrop;
+    /**
+     * a group of layouts of other models this layout exchanges tabs with by drag and drop (main
+     * engine only). Without one, drags never cross models.
+     */
+    dragGroup?: DragGroup | undefined;
 }
 
 /** Whether `dragNode` may be dropped as `dropInfo` describes. */
@@ -116,6 +122,8 @@ export class LayoutEngine {
     private tabDragSpeed: number;
     private onExternalDragHandler: OnExternalDrag | undefined;
     private onAllowDropHandler: OnAllowDrop | undefined;
+    private dragGroup: DragGroup | undefined;
+    private leaveDragGroup: (() => void) | undefined;
     // the model's rule before this engine installed its own, restored when the option goes away
     private previousAllowDrop: OnAllowDrop | undefined;
     private readonly allowDrop: OnAllowDrop = (dragNode, dropInfo) =>
@@ -175,6 +183,7 @@ export class LayoutEngine {
         this.onExternalDragHandler = options.onExternalDrag;
         this.dragDropManager = new DragDropManager(this);
         this.setOnAllowDrop(options.onAllowDrop);
+        this.setDragGroup(options.dragGroup);
         if (this.mainEngine === this) {
             this.popoutManager = new PopoutManager(this);
             this.popoutManager.setOptions(options.popout ?? {});
@@ -197,9 +206,11 @@ export class LayoutEngine {
             | "popout"
             | "onExternalDrag"
             | "onAllowDrop"
+            | "dragGroup"
         >,
     ) {
         this.setOnAllowDrop(options.onAllowDrop);
+        this.setDragGroup(options.dragGroup);
         this.popoutManager?.setOptions(options.popout ?? {});
         this.onActionHandler = options.onAction;
         this.onModelChangeHandler = options.onModelChange;
@@ -227,6 +238,21 @@ export class LayoutEngine {
             this.previousAllowDrop = undefined;
         }
         this.onAllowDropHandler = handler;
+    }
+
+    /** Joins (or leaves) a drag group. Only the main engine joins: popouts share its model. */
+    private setDragGroup(group: DragGroup | undefined) {
+        if (this.mainEngine !== this || group === this.dragGroup) {
+            return;
+        }
+        this.leaveDragGroup?.();
+        this.dragGroup = group;
+        this.leaveDragGroup = group?.join(this);
+    }
+
+    /** The drag group this layout exchanges tabs in (the main engine's), if any. */
+    getDragGroup(): DragGroup | undefined {
+        return this.mainEngine.dragGroup;
     }
 
     /**
@@ -413,6 +439,7 @@ export class LayoutEngine {
     /** Detaches and forgets everything. The engine must not be used afterwards. */
     dispose() {
         this.setOnAllowDrop(undefined);
+        this.setDragGroup(undefined);
         this.detachRoot();
         this.dragDropManager.dispose();
         this.popoutManager?.dispose();
