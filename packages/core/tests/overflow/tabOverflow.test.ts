@@ -72,10 +72,10 @@ describe("computeTabOverflow", () => {
             visible: [2],
             hidden: [0, 1],
         });
-        // no selection: nothing fits
+        // no selection (a closed border): the first tab stays, so the strip keeps a tab stop
         expect(run(10, [100, 100], -1, 40)).toEqual({
-            visible: [],
-            hidden: [0, 1],
+            visible: [0],
+            hidden: [1],
         });
     });
 

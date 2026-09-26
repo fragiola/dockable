@@ -518,9 +518,9 @@ export class LayoutEngine {
             }
         }
         // css-driven geometry changes (e.g. a font-size or theme change) do not resize the layout
-        // root, so also watch the measured elements and re-measure when they resize; tab buttons are
-        // excluded since their overflow is handled separately
-        if (kind !== "tabbutton" && prev?.element !== element) {
+        // root, so also watch the measured elements and re-measure when they resize; tab buttons
+        // too, since a tab that grows (a web font, a badge) can make its strip overflow
+        if (prev?.element !== element) {
             if (prev) {
                 this.geometryResizeObserver?.unobserve(prev.element);
             }
@@ -653,22 +653,30 @@ export class LayoutEngine {
                 }
                 return this.naturalTabSizes.get(tab.getId()) ?? 0;
             });
-            // the space the trigger takes beside the list (it shrinks the list while it shows)
+            // the space the trigger takes while it shows: its size, its margins and the gap before
+            // it in its flex container. The list gives up that much (whatever sits between them)
             const trigger = this.overflowTriggers.get(id);
             let taken = 0;
             if (trigger) {
                 const r = this.measureElement(trigger);
-                taken = vertical
-                    ? Math.max(
-                          0,
-                          r.y + r.height - (listRect.y + listRect.height),
-                          listRect.y - r.y,
-                      )
-                    : Math.max(
-                          0,
-                          r.x + r.width - (listRect.x + listRect.width),
-                          listRect.x - r.x,
-                      );
+                const own = view?.getComputedStyle(trigger);
+                const parent = trigger.parentElement;
+                const parentStyle = parent
+                    ? view?.getComputedStyle(parent)
+                    : undefined;
+                const siblings = parent ? parent.children.length > 1 : false;
+                taken =
+                    (vertical ? r.height : r.width) +
+                    (vertical
+                        ? px(own?.marginTop) + px(own?.marginBottom)
+                        : px(own?.marginLeft) + px(own?.marginRight)) +
+                    (siblings
+                        ? px(
+                              vertical
+                                  ? parentStyle?.rowGap
+                                  : parentStyle?.columnGap,
+                          )
+                        : 0);
                 if (taken > 0) {
                     this.triggerSpace.set(id, taken);
                 }
@@ -937,10 +945,8 @@ export class LayoutEngine {
     private setGeometryResizeObserver(observer: ResizeObserver | undefined) {
         this.geometryResizeObserver = observer;
         if (observer) {
-            for (const { kind, element } of this.measurables.values()) {
-                if (kind !== "tabbutton") {
-                    observer.observe(element);
-                }
+            for (const { element } of this.measurables.values()) {
+                observer.observe(element);
             }
             for (const element of this.mainEngine.splitters.keys()) {
                 observer.observe(element);

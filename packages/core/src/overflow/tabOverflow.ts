@@ -38,7 +38,8 @@ function extent(sizes: readonly number[], indices: number[], gap: number) {
  * Splits a strip's tabs into the visible and the hidden ones. Every tab fits: all visible.
  * Otherwise the tabs fit from the start into `available - reserve`, stopping at the first that does
  * not fit; when the selected tab is not among them, tabs are taken off the end until it fits, and
- * it is shown in its place. The selected tab always shows, even alone in too small a strip.
+ * it is shown in its place. The selected tab always shows, even alone in too small a strip; with
+ * no selection, the first tab does.
  */
 export function computeTabOverflow(
     input: ITabOverflowInput,
@@ -66,6 +67,11 @@ export function computeTabOverflow(
         }
         visible.push(selectedIndex);
         visible.sort((a, b) => a - b);
+    }
+    // never an empty strip: with no selected tab (a closed border), the first tab stays, so the
+    // tab list keeps a tab stop
+    if (visible.length === 0 && sizes.length > 0) {
+        visible.push(0);
     }
     return {
         visible,

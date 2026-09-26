@@ -67,9 +67,14 @@ Object.defineProperty(HTMLElement.prototype, "clientHeight", {
 Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
     configurable: true,
     value: function getBoundingClientRect(this: HTMLElement) {
-        // a tab button is smaller than its strip, so a few tabs fit without tab overflow
+        // a tab button is smaller than its strip, so a few tabs fit without tab overflow; the
+        // overflow trigger takes no space (jsdom lays nothing out, so the list never shrinks for it)
         const tab = this.getAttribute("role") === "tab";
-        const width = tab ? 30 : 100;
+        const trigger =
+            this.getAttribute("data-layout-path")?.endsWith(
+                "/button/overflow",
+            ) ?? false;
+        const width = trigger ? 0 : tab ? 30 : 100;
         const height = tab ? 20 : 100;
         return {
             left: 0,

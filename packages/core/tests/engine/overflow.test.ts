@@ -118,6 +118,23 @@ describe("tab overflow in the engine", () => {
         expect(s.engine.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
     });
 
+    it("counts only the trigger's own space, whatever sits between it and the list", () => {
+        const s = setup();
+        s.layout(250);
+        s.engine.sync();
+        const trigger = s.el();
+        s.engine.registerOverflowTrigger(s.ts0, trigger);
+        // a 60px button between the list (shrunk by the trigger's 40px) and the trigger
+        s.layout(210);
+        s.rects.set(trigger, 290, 20, 40, 30);
+        s.engine.sync();
+        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
+        // stable: the same answer on the next pass (no show/hide loop)
+        s.layout(210);
+        s.engine.sync();
+        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
+    });
+
     it("keeps the selected tab in the strip", () => {
         const s = setup();
         s.engine.doAction(Actions.selectTab("t3"));
