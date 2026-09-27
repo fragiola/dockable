@@ -1,0 +1,80 @@
+---
+title: Dockable.Panel
+description: A tab's content panel (role="tabpanel"), positioned by the engine over its tabset's content area.
+---
+
+"A tab's content panel (`role="tabpanel"`). Renders two portals:
+- the panel element, into the panel layer of the tab's current layout; the engine positions it
+  over the tabset's content area and shows or hides it (structural style only);
+- the content (`children`), into the tab's moveable element, which the engine moves into
+  whichever panel element is current.
+
+The content's position in the React tree never changes (it always lives under
+`Dockable.Panels`), so moving a tab to another tabset or another window re-parents DOM without
+remounting the content."
+
+```tsx
+<Dockable.Panels>
+    {(tab) => (
+        <Dockable.Panel node={tab} className="bg-palette-base text-palette-contrast">
+            <TabContent tab={tab} />
+        </Dockable.Panel>
+    )}
+</Dockable.Panels>
+```
+
+## Props
+
+`PanelProps` extends the [common primitive props](/docs/api/root#common-props).
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `node` | `TabNode` | required | the tab whose content this is |
+| `children` | `ReactNode` | none | the tab's content |
+
+`style` (a value or a function) is accepted, but the keys the engine owns are **dropped** from
+it: `position`, `inset`, `left`, `top`, `right`, `bottom`, `width`, `height`, `display`.
+
+## State
+
+`PanelState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `selected` | `boolean` | the tab is its tabset's selected tab |
+| `visible` | `boolean` | the panel is shown (selected, and not hidden by another tabset being maximized) |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | the tab's panel path: `/ts0/t1` |
+| `data-selected` | the selected tab |
+| `data-visible` | shown |
+| `id` | `getTabPanelId(tab)` (`dockable-tab-<id>`) |
+| `role` | `"tabpanel"` |
+| `aria-labelledby` | its tab button's id |
+| `aria-keyshortcuts` | the `focusTabToggle` binding, when set |
+| `tabIndex` | `-1` (focusable from code: Enter on the selected tab moves focus here) |
+
+Inside it, the content sits in the moveable element: `<div data-dockable-moveable>`, sized
+`100%` by `100%`, with `overflow: auto` (or `hidden` when the tab's `enableScrollbars` is false).
+
+## Structural style
+
+`position: absolute` from the first render. The engine writes `left`, `top`, `width`, `height`
+and `display` directly.
+
+## Behaviour
+
+- A press inside makes its tabset active.
+- With `focusTabToggle` bound, that key (anywhere in the content) returns focus to the tab
+  button.
+- `enableWindowReMount: true` on the tab remounts its content when it moves between windows.
+
+## Styling notes
+
+The panel is not a child of its tabset: the tabset's `border-radius` and `overflow` do not clip
+it, and tabset state selectors do not reach it (gap 2). It paints over absolutely positioned
+siblings that come before it in the root, so give overlays (the drop indicator) a `z-index`
+(gap 12).

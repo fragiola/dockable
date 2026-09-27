@@ -1,0 +1,109 @@
+---
+title: The primitive contract
+description: render (never asChild), className and style functions, structural style, ref and forwarded props.
+---
+
+Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetContent`, `Panel`,
+`Splitter`, `DropIndicator`, `Popout`) follows the same rules. The package's tests enforce them.
+
+## `render`, never `asChild`
+
+A primitive renders a `div` by default. `render` replaces the element, Base UI style. There is no
+`asChild`.
+
+**An element**: its props are merged with the primitive's.
+
+```tsx
+<Dockable.TabSet node={tabset} render={<section />} />
+```
+
+**A function**: receives the props to spread and the primitive's state.
+
+```tsx
+<Dockable.TabSet
+    node={tabset}
+    render={(props, state) => <section {...props} aria-current={state.active ? "true" : undefined} />}
+/>
+```
+
+The function form must spread `props` (they carry the ref, the ARIA, the `data-*`, the handlers
+and the structural style). `props.ref` is typed `Ref<HTMLElement>`, so TypeScript accepts it on
+elements whose DOM type is `HTMLElement` (`section`, `article`, `nav`, `header`, …); for a
+`button` or a `div` it needs a cast (`ref={props.ref as Ref<HTMLButtonElement>}`), or use the
+element form (`render={<button type="button" />}`).
+
+## `className` and `style`: a value or a function of the state
+
+```tsx
+<Dockable.Tab
+    node={tab}
+    className={(state) => (state.selected ? "tab tab-selected" : "tab")}
+    style={(state) => ({ opacity: state.dragging ? 0.4 : 1 })}
+/>
+```
+
+Each primitive's state is documented on its [reference page](/docs/api/root). The same values
+are on the element as `data-*` attributes, so a static `className` with attribute selectors is
+usually simpler (see [State attributes](/docs/concepts/state-attributes)).
+
+## Structural style wins
+
+A primitive's only inline styles are **structural**: `position`, `inset`/`left`/`top`/`width`/
+`height`, `display` (`flex`, or `none` to hide), flex sizing (`flex-direction`, `flex-basis`,
+`flex-grow`, `min-*`/`max-*`), `overflow: hidden` on rows and tabsets, the splitter's preview
+`transform`, and `pointer-events: none` on the drop indicator. Nothing cosmetic.
+
+Your `style` is merged **under** the structural style: when both set the same key, the
+primitive's value wins. On `Panel` the engine owns `position`, `inset`, `left`, `top`, `right`,
+`bottom`, `width`, `height` and `display`, so those keys are dropped from your style entirely.
+
+| primitive | structural style |
+| --- | --- |
+| `Root` | `position: relative` |
+| `Row` | `display: flex`, `flex-direction`, `flex-basis: 0`, `flex-grow` (weight), `min-*`/`max-*`, `overflow: hidden`; the root row adds `position: absolute; inset: 0` |
+| `TabSet` | `display: flex` (or `none` while another tabset is maximized), `flex-direction: column`, `flex-basis: 0`, `flex-grow` (weight), `min-*`/`max-*`, `overflow: hidden` |
+| `TabList` | none |
+| `Tab` | none |
+| `TabSetContent` | `flex-grow: 1`, `flex-basis: 0`, `min-width: 0`, `min-height: 0` |
+| `Panel` | `position: absolute`; the engine writes `left`, `top`, `width`, `height`, `display` |
+| `Splitter` | `display: none` while a tabset is maximized; `transform` during an outline drag |
+| `DropIndicator` | `position: absolute`, `left`, `top`, `width`, `height`, `display: none` when hidden, `pointer-events: none` |
+| `Popout` (window root) | `position: absolute; inset: 0` |
+
+## `ref` is a plain prop
+
+React 19 style: `ref` is an ordinary prop, merged with the primitive's own ref (which registers
+the element with the engine). Callback refs, object refs and inline functions all work.
+
+```tsx
+const tabsetRef = useRef<HTMLElement>(null);
+<Dockable.TabSet node={tabset} ref={tabsetRef} />
+```
+
+## Props are forwarded, handlers compose
+
+Anything else you pass lands on the element: `id`, `aria-*`, `data-*`, `title`, event handlers.
+When the primitive has its own handler for the same event, **the internal one runs first, then
+yours**:
+
+```tsx
+<Dockable.Tab
+    node={tab}
+    onKeyDown={(event) => {
+        // runs after the tab's own key handling; check event.defaultPrevented
+        if (event.key === "F2" && !event.defaultPrevented) startRename(tab);
+    }}
+    onContextMenu={(event) => openMenu(event, tab)}
+/>
+```
+
+## No text
+
+A primitive renders only its children. It never adds a label, a tooltip or an icon. Accessible
+names come from you: see [Accessible names](/docs/getting-started/accessible-names).
+
+## State only through `data-*` and ARIA
+
+A primitive never adds a class name. Its state is on the element as `data-*` attributes (present
+or absent, never `"false"`) and ARIA. The next page lists them all:
+[State attributes](/docs/concepts/state-attributes).
