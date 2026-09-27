@@ -1,0 +1,52 @@
+---
+title: Dockable.Panels
+description: The panel layer - calls the child function for every tab whose content should render, in every layout.
+---
+
+"The panel layer. Place it once, directly under `Dockable.Root`. It calls the child function for
+every tab of every layout of the model whose content should render: the selected tab once its
+content area has a size, a tab rendered before (content is kept alive), and every tab with
+render-on-demand disabled. Tabs are iterated in stable id order, so the framework never reorders
+DOM the engine has re-parented. Renders no element of its own."
+
+```tsx
+<Dockable.Root model={model}>
+    <Dockable.Row>{renderNode}</Dockable.Row>
+    <Dockable.Panels>
+        {(tab) => (
+            <Dockable.Panel node={tab} className="panel">
+                {renderContent(tab)}
+            </Dockable.Panel>
+        )}
+    </Dockable.Panels>
+</Dockable.Root>
+```
+
+## Props
+
+`PanelsProps`. `Panels` renders no element, so it takes none of the common props.
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `children` | `(tab: TabNode) => ReactNode` | required | renders a tab's panel (a `Dockable.Panel`) |
+
+## Which tabs render
+
+| tab | rendered |
+| --- | --- |
+| selected, and its content area has a non-zero size | yes |
+| rendered once before (then hidden or moved) | yes: content stays mounted |
+| `enableRenderOnDemand: false` | yes, even before it is ever shown |
+| never selected | no |
+
+A tab is unmounted only when it leaves the model (closed).
+
+## Data attributes
+
+None: it renders no element. Each `Dockable.Panel` carries its own.
+
+## Notes
+
+- Place it **once**, under the root, never inside the `Row` recursion: it covers the main layout
+  and every popout window.
+- It renders nothing until the root element is attached (the first commit).

@@ -1,0 +1,60 @@
+---
+title: Dockable.PopoutTrigger
+description: A button that pops the selected tab (or the whole tabset) out into a window, and docks it back from the window.
+---
+
+"A button, inside `Dockable.TabSet`, that pops the selected tab (or the whole tabset) out into a
+window, and, in a window, docks it back into the main layout. It renders nothing when neither is
+possible (popouts unsupported, the tab disables popout, no tab)."
+
+```tsx
+<Dockable.TabSet node={tabset}>
+    <div className="flex">
+        <Dockable.TabList>{(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}</Dockable.TabList>
+        <Dockable.PopoutTrigger aria-label="Pop out" className="data-[mode=dock]:rotate-180">
+            <ExternalLinkIcon aria-hidden />
+        </Dockable.PopoutTrigger>
+    </div>
+    <Dockable.TabSetContent />
+</Dockable.TabSet>
+```
+
+The same button docks back: in a popout window its `data-mode` is `"dock"`, and a press moves the
+tab (or every tab of the tabset) into the main layout's active tabset. Emptying a window closes it.
+
+## Props
+
+`PopoutTriggerProps` extends the [common primitive props](/docs/api/root#common-props) and the
+`<button>` attributes.
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `target` | `"tab" \| "tabset"` | `"tab"` | `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset |
+| `node` | `TabNode` | the tabset's selected tab | the tab to act on; default: the enclosing tabset's selected tab |
+| `children` | `ReactNode` | none | the button's content (an icon); the primitive renders no text of its own |
+
+## State
+
+`PopoutTriggerState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `mode` | `"popout" \| "dock"` | what a press does: open a window (`"popout"`) or dock back into the main layout (`"dock"`) |
+| `target` | `"tab" \| "tabset"` | what it acts on: the selected tab (or `node`), or the whole tabset |
+
+## Data attributes and ARIA
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | `<tabset path>/button/popout`, e.g. `/ts0/button/popout` |
+| `data-mode` | `"popout"` or `"dock"` |
+| `data-target` | `"tab"` or `"tabset"` |
+| `aria-label` | from `getLabel`: `DockableLabel.Popout_Tab`, or `DockableLabel.Dock_Float_To_Layout` in a window (your own `aria-label` wins) |
+| `type` | `"button"` |
+
+## Notes
+
+- It is available when `engine.canPopout(node)` is true: popouts are supported, the node is not in
+  a window already, and it (every tab of a tabset) has `enablePopout`. Popout is opt-in per tab
+  (`tabEnablePopout` in the global attributes).
+- The engine methods it calls are public: `engine.popout(node)` and `engine.dockBack(node)`.

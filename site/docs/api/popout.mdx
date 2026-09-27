@@ -1,0 +1,74 @@
+---
+title: Dockable.Popout
+description: The popout windows - opens a native window per window layout and portals your layout into it.
+---
+
+"The popout windows. Place it once, directly under `Dockable.Root`. For every `"window"` layout
+of the model the core opens a native window; once it is ready (styles copied), the child
+function's result is portalled into it. A node-less `Dockable.Row` inside renders that layout's
+root row, and panels of tabs in that layout are positioned in the window. Pop a tab out with
+`engine.doAction(Actions.popoutTab(tabId, "window"))`."
+
+```tsx
+<Dockable.Popout
+    className="palette-surface bg-palette-base"
+    title={() => "My app"}
+    onOpen={(_layout, _window, doc) => {
+        doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
+    }}
+>
+    {() => (
+        <Dockable.Row renderSplitter={renderSplitter}>
+            {renderNode}
+        </Dockable.Row>
+    )}
+</Dockable.Popout>
+```
+
+## Props
+
+`PopoutProps` extends the [common primitive props](/docs/api/root#common-props) (without the
+`title` attribute, which is redefined). The common props apply to **each window's root
+element**.
+
+| prop | type | default | description |
+| --- | --- | --- | --- |
+| `children` | `(layout: ModelLayout) => ReactNode` | required | renders a window layout, usually `<Dockable.Row>{renderNode}</Dockable.Row>` |
+| `title` | `(layout: ModelLayout) => string \| undefined` | none | the popout document's title; with none, the host page's title is kept |
+| `onOpen` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
+| `onClose` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout window is closing |
+
+The window itself is configured on `Dockable.Root`: `popoutURL`, `supportsPopout`,
+`popoutClosePolicy`, `onPopoutOpen`, `onPopoutClose`.
+
+## State
+
+`PopoutState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `layoutId` | `string` | the id of the window layout |
+
+## Data attributes
+
+| attribute | value |
+| --- | --- |
+| `data-layout-path` | the window layout's path, e.g. `/sublayout1` |
+
+Its tabsets and tabs carry paths under it: `/sublayout1/ts0/tb0`. The element it is portalled
+into (created by the core in the popout document) carries `data-dockable-popout`.
+
+## Structural style
+
+`position: absolute; inset: 0`: it fills the window and is the containing block the window's
+panels are positioned in.
+
+## Behaviour
+
+- Renders nothing for a window until it has loaded and its styles are copied.
+- The core owns the windows: opening is idempotent per layout, and a release is deferred, so a
+  React StrictMode remount keeps one window.
+- Without popout support (`supportsPopout` false), window layouts are docked back through the
+  close policy.
+
+See the [Popouts guide](/docs/guides/popouts).

@@ -1,0 +1,93 @@
+---
+title: Geometry
+description: Rows and tabsets are CSS flex sized by weight. Panels are positioned by the engine. Content lives in a moveable element.
+---
+
+Dockable's geometry follows FlexLayout's, in three layers. Knowing them explains every styling
+rule on this site.
+
+## 1. Rows and tabsets are flex
+
+`Dockable.Row` renders `display: flex` (`flex-direction: row`, or `column` for a nested row),
+and each child (a tabset or a nested row) is a flex item sized by its **weight**:
+
+```css
+/* what Row and TabSet set, structurally */
+flex-basis: 0;
+flex-grow: calc(weight * 1000); /* at least 1 */
+min-width / min-height / max-width / max-height: from the model;
+overflow: hidden;
+```
+
+A row with children of weight 60 and 40 splits its space 60/40, minus the splitters. Splitters
+are flex items too: their measured thickness is the model's splitter size. Dragging a splitter
+dispatches `Actions.adjustWeights` for its row, and the new `flex-grow` values re-flow the row.
+
+This is plain CSS layout, so it responds to container size for free, and your borders, gaps and
+margins participate (a margin on a tabset takes space from its weight's share, as in any flex
+row).
+
+The root row fills the root: `position: absolute; inset: 0`. That is why the root needs a size
+([Sizing the root](/docs/getting-started/sizing)).
+
+## 2. Panels are positioned by the engine
+
+Tab content is **not** rendered inside the tabset. `Dockable.TabSetContent` is an empty element
+that only marks the content area. After every commit (and whenever an observed element resizes)
+the engine:
+
+1. measures every registered element (rows, tabsets, tab strips, content areas, tab buttons,
+   splitters) and writes the rects into the model;
+2. positions each `Dockable.Panel` over its tabset's content area: `position: absolute` plus
+   `left`, `top`, `width`, `height`, relative to the root;
+3. shows the selected tab's panel and hides the others with `display: none`.
+
+The panels live in a **panel layer**: they are portalled into the root, after its other
+children. That has consequences you style around:
+
+- a tabset's `border-radius` or `overflow: hidden` does **not** clip its panel (they are
+  siblings, not parent and child). Repeat the radius on the panel, or use square tabsets
+  ([Limitations](/docs/limitations), gap 2);
+- a panel paints **above** earlier absolutely positioned siblings, including the drop indicator,
+  unless you give those a `z-index` (gap 12);
+- a panel cannot be styled from its tabset's state with a descendant selector.
+
+The engine writes this geometry directly to the DOM. React never reconciles it, so a resize or a
+live splitter drag repositions panels without re-rendering anything.
+
+## 3. Content lives in a moveable element
+
+Each tab gets one **moveable element**, a `<div data-dockable-moveable>` sized `100%` by `100%`.
+`Dockable.Panel` portals your content into it, and the engine appends the moveable element into
+whichever panel is current with `appendChild`.
+
+When a tab moves (to another tabset, into a popout window, back), the engine **re-parents the
+same element**. It is never cloned, and the React tree that rendered the content never changes
+position (it always lives under `Dockable.Panels`), so:
+
+- component state, uncontrolled inputs, focus-independent DOM state, canvases, iframes' parents
+  and scroll positions survive a move;
+- `useEffect` cleanups do **not** run on a move: the content is not unmounted.
+
+When a panel goes away (its tabset is not rendered for a moment), the moveable element is parked
+in a hidden element in the root, so its DOM is never destroyed.
+
+The one thing that resets on a move is anything the browser itself resets on re-parenting: an
+`<iframe>` reloads when it is moved in the DOM. Keep iframes in tabs that do not move, or accept
+the reload.
+
+### Render on demand
+
+Tabs render their content lazily: `Dockable.Panels` renders a tab once it has been selected and
+its content area has a size, and keeps it rendered afterwards. Set `enableRenderOnDemand: false`
+on a tab to render it immediately, even while hidden.
+
+`enableWindowReMount: true` opts a tab out of state preservation across windows: its content
+remounts when it moves into or out of a popout.
+
+## Why it is built this way
+
+Rendering content inside the tabset would tie the content's position in the React tree to the
+layout's structure, and every move would unmount and remount it. Positioning panels over measured
+areas keeps the layout and the content independent: the structure re-renders freely, and the
+content never notices.

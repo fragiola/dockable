@@ -1,0 +1,271 @@
+{
+    "sections": [
+        {
+            "label": "Getting started",
+            "pages": [
+                {
+                    "label": "Introduction",
+                    "path": "getting-started/introduction"
+                },
+                {
+                    "label": "Installation",
+                    "path": "getting-started/installation"
+                },
+                {
+                    "label": "Your first layout",
+                    "path": "getting-started/first-layout"
+                },
+                {
+                    "label": "Sizing the root",
+                    "path": "getting-started/sizing"
+                },
+                {
+                    "label": "Accessible names",
+                    "path": "getting-started/accessible-names"
+                }
+            ]
+        },
+        {
+            "label": "Concepts",
+            "pages": [
+                {
+                    "label": "The model and actions",
+                    "path": "concepts/model-and-actions"
+                },
+                {
+                    "label": "Geometry",
+                    "path": "concepts/geometry"
+                },
+                {
+                    "label": "Composition",
+                    "path": "concepts/composition"
+                },
+                {
+                    "label": "The primitive contract",
+                    "path": "concepts/primitive-contract"
+                },
+                {
+                    "label": "State attributes",
+                    "path": "concepts/state-attributes"
+                },
+                {
+                    "label": "Layout paths",
+                    "path": "concepts/layout-paths"
+                }
+            ]
+        },
+        {
+            "label": "Guides",
+            "pages": [
+                {
+                    "label": "Styling with Tailwind",
+                    "path": "guides/styling-tailwind"
+                },
+                {
+                    "label": "Styling with plain CSS",
+                    "path": "guides/styling-css"
+                },
+                {
+                    "label": "Theming with Fragiola palettes",
+                    "path": "guides/theming"
+                },
+                {
+                    "label": "Splitters",
+                    "path": "guides/splitters"
+                },
+                {
+                    "label": "Borders",
+                    "path": "guides/borders"
+                },
+                {
+                    "label": "Adding and closing tabs",
+                    "path": "guides/tabs"
+                },
+                {
+                    "label": "Drag and drop",
+                    "path": "guides/drag-and-drop"
+                },
+                {
+                    "label": "Restricting drops",
+                    "path": "guides/restricting-drops"
+                },
+                {
+                    "label": "Drop zones and drop feedback",
+                    "path": "guides/drop-zones"
+                },
+                {
+                    "label": "External drag",
+                    "path": "guides/external-drag"
+                },
+                {
+                    "label": "Popouts",
+                    "path": "guides/popouts"
+                },
+                {
+                    "label": "Drag across windows and layouts",
+                    "path": "guides/cross-layout-drag"
+                },
+                {
+                    "label": "Maximize",
+                    "path": "guides/maximize"
+                },
+                {
+                    "label": "Menus",
+                    "path": "guides/menus"
+                },
+                {
+                    "label": "Undo and redo",
+                    "path": "guides/undo-redo"
+                },
+                {
+                    "label": "Saving and restoring layouts",
+                    "path": "guides/persistence"
+                },
+                {
+                    "label": "Keyboard and accessibility",
+                    "path": "guides/keyboard"
+                },
+                {
+                    "label": "Tab overflow",
+                    "path": "guides/tab-overflow"
+                },
+                {
+                    "label": "Status-aware tabs",
+                    "path": "guides/status-aware-tabs"
+                },
+                {
+                    "label": "Testing your layout",
+                    "path": "guides/testing"
+                }
+            ]
+        },
+        {
+            "label": "API: primitives (@fragiola/dockable-react)",
+            "pages": [
+                {
+                    "label": "Dockable.Root",
+                    "path": "api/root"
+                },
+                {
+                    "label": "Dockable.Row",
+                    "path": "api/row"
+                },
+                {
+                    "label": "Dockable.TabSet",
+                    "path": "api/tabset"
+                },
+                {
+                    "label": "Dockable.TabList",
+                    "path": "api/tablist"
+                },
+                {
+                    "label": "Dockable.Tab",
+                    "path": "api/tab"
+                },
+                {
+                    "label": "Dockable.TabOverflowTrigger",
+                    "path": "api/tab-overflow-trigger"
+                },
+                {
+                    "label": "Dockable.TabSetContent",
+                    "path": "api/tabset-content"
+                },
+                {
+                    "label": "Dockable.Panels",
+                    "path": "api/panels"
+                },
+                {
+                    "label": "Dockable.Panel",
+                    "path": "api/panel"
+                },
+                {
+                    "label": "Dockable.Splitter",
+                    "path": "api/splitter"
+                },
+                {
+                    "label": "Dockable.Borders",
+                    "path": "api/borders"
+                },
+                {
+                    "label": "Dockable.Border",
+                    "path": "api/border"
+                },
+                {
+                    "label": "Dockable.BorderContent",
+                    "path": "api/border-content"
+                },
+                {
+                    "label": "Dockable.EdgeIndicator",
+                    "path": "api/edge-indicator"
+                },
+                {
+                    "label": "Dockable.DragGroup",
+                    "path": "api/drag-group"
+                },
+                {
+                    "label": "Dockable.DragSource",
+                    "path": "api/drag-source"
+                },
+                {
+                    "label": "Dockable.DropIndicator",
+                    "path": "api/drop-indicator"
+                },
+                {
+                    "label": "Dockable.DropZone",
+                    "path": "api/drop-zone"
+                },
+                {
+                    "label": "Dockable.Popout",
+                    "path": "api/popout"
+                },
+                {
+                    "label": "Dockable.PopoutTrigger",
+                    "path": "api/popout-trigger"
+                },
+                {
+                    "label": "Hooks",
+                    "path": "api/hooks"
+                }
+            ]
+        },
+        {
+            "label": "API: core (@fragiola/dockable)",
+            "pages": [
+                {
+                    "label": "Model",
+                    "path": "api/model"
+                },
+                {
+                    "label": "Actions",
+                    "path": "api/actions"
+                },
+                {
+                    "label": "IJsonModel",
+                    "path": "api/json-model"
+                },
+                {
+                    "label": "LayoutEngine",
+                    "path": "api/layout-engine"
+                },
+                {
+                    "label": "DockableLabel",
+                    "path": "api/labels"
+                }
+            ]
+        },
+        {
+            "label": "More",
+            "pages": [
+                {
+                    "label": "Known limitations",
+                    "path": "limitations"
+                },
+                {
+                    "label": "Found a problem?",
+                    "href": "https://github.com/fragiola/dockable/issues",
+                    "external": true
+                }
+            ]
+        }
+    ]
+}

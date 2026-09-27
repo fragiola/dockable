@@ -1,0 +1,139 @@
+---
+title: Composition
+description: Children functions, owning the recursion, and Row inserting splitters.
+---
+
+Dockable does not render a layout for you. It gives you **primitives** and calls **your
+functions** to render each part. You write the recursion once, and you own every element in it.
+
+## The tree you render
+
+```text
+Dockable.Root                      the engine, the context, the containing block
+├─ Dockable.Row                    the root row: calls (child) => … per child
+│  ├─ Dockable.TabSet              a tabset
+│  │  ├─ Dockable.TabList          the strip: calls (tab) => … per tab
+│  │  │  └─ Dockable.Tab           a tab button
+│  │  └─ Dockable.TabSetContent    the measured content area (empty)
+│  ├─ Dockable.Splitter            inserted by Row between children
+│  └─ Dockable.Row node={row}      a nested row: the same function again
+├─ Dockable.Panels                 calls (tab) => … per rendered tab
+│  └─ Dockable.Panel               a tab's content panel
+├─ Dockable.DropIndicator          the drop outline of a drag
+└─ Dockable.Popout                 calls (layout) => … per popout window
+```
+
+Three primitives take a **children function** instead of children:
+
+| primitive | calls its child function with | for |
+| --- | --- | --- |
+| `Row` | `TabSetNode \| RowNode` | every child of the row |
+| `TabList` | `TabNode` | every tab of the tabset |
+| `Panels` | `TabNode` | every tab whose content should render (all layouts) |
+| `Popout` | `ModelLayout` | every popout window layout |
+
+## Owning the recursion
+
+A row's children are tabsets or rows, so the child function is recursive. Write it once as a
+plain function and pass it to every `Row`:
+
+```tsx
+import { type RowNode, TabSetNode } from "@fragiola/dockable";
+import { Dockable } from "@fragiola/dockable-react";
+import type { ReactNode } from "react";
+
+function renderNode(child: TabSetNode | RowNode): ReactNode {
+    if (child instanceof TabSetNode) {
+        return <MyTabSet node={child} />;
+    }
+    return <Dockable.Row node={child}>{renderNode}</Dockable.Row>;
+}
+
+// the root row has no `node`: it renders the enclosing layout's root row
+<Dockable.Row>{renderNode}</Dockable.Row>
+```
+
+Because the function is yours, anything can go in it: a header with buttons around the
+`TabList`, a different tabset component per `tabset.getConfig()`, a toolbar only on the active
+tabset, the strip **below** the content (render `TabSetContent` before the `TabList`: `TabSet`
+is a column, so markup order is visual order).
+
+```tsx
+function MyTabSet({ node }: { node: TabSetNode }) {
+    return (
+        <Dockable.TabSet node={node} className="tabset">
+            <div className="header">
+                <Dockable.TabList aria-label={node.getName() ?? "Tabs"} className="tabs">
+                    {(tab) => (
+                        <Dockable.Tab node={tab} className="tab">
+                            {tab.getName()}
+                            {tab.isEnableClose() ? <CloseButton tab={tab} /> : null}
+                        </Dockable.Tab>
+                    )}
+                </Dockable.TabList>
+                <MaximizeButton tabset={node} />
+            </div>
+            <Dockable.TabSetContent />
+        </Dockable.TabSet>
+    );
+}
+```
+
+The popout windows render the same structure: pass the same function to the `Row` inside
+`Dockable.Popout` (a `Row` with no `node` there renders the window layout's root row).
+
+```tsx
+<Dockable.Popout>{() => <Dockable.Row>{renderNode}</Dockable.Row>}</Dockable.Popout>
+```
+
+## Splitters
+
+`Row` inserts a `Dockable.Splitter` between every two children by itself. Two props change it:
+
+- `renderSplitter={(props) => …}` renders your own. `props` is `{ node, index }` (the row, and
+  the 1-based index of the child the splitter precedes); spread it on a `Dockable.Splitter`:
+
+  ```tsx
+  const renderSplitter = (props: RowSplitterProps) => (
+      <Dockable.Splitter {...props} className="splitter" />
+  );
+
+  <Dockable.Row renderSplitter={renderSplitter}>{renderNode}</Dockable.Row>
+  ```
+
+- `splitter={false}` renders none (the row cannot be resized by the user).
+
+`renderSplitter` is per row: pass it to **every** `Row`, the nested ones in your recursion and
+the one in `Popout` ([Limitations](/docs/limitations), gap 6). The [Splitters guide](/docs/guides/splitters)
+styles them.
+
+## The panel layer
+
+`Dockable.Panels` goes **once**, directly under `Dockable.Root`, not inside the recursion.
+It renders the content of every layout (the main one and the popouts), and the engine moves each
+panel where its tab is:
+
+```tsx
+<Dockable.Panels>
+    {(tab) => (
+        <Dockable.Panel node={tab} className="panel">
+            {renderContent(tab)}
+        </Dockable.Panel>
+    )}
+</Dockable.Panels>
+```
+
+Tabs are iterated in stable id order, so React never reorders DOM the engine has re-parented.
+See [Geometry](/docs/concepts/geometry) for why content lives here.
+
+## Anything else inside the root
+
+Any element can be a child of `Dockable.Root`: a toolbar overlay, a status bar, a component that
+calls `useDockable()` to react to the layout. Keep in mind that the root row covers the root
+(`inset: 0`), so an overlay needs to be positioned and stacked.
+
+## The lower layer
+
+Every primitive is built on a hook you can use directly: `useTabSet`, `useSplitter`,
+`useDragNode`, `useDockable`. They give you the state, the ref to attach and the handlers, for
+the rare case where a primitive's element does not fit. See [Hooks](/docs/api/hooks).

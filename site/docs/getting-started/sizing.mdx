@@ -1,0 +1,80 @@
+---
+title: Sizing the root
+description: Dockable.Root has no intrinsic size. An unsized root renders nothing visible.
+---
+
+`Dockable.Root` renders a `div` with one structural style, `position: relative`, so it is the
+containing block the panels are positioned in. The root row inside it is `position: absolute;
+inset: 0`: it fills the root, and contributes **nothing** to the root's own size. Tab content
+lives in absolutely positioned panels, so it does not size the root either.
+
+<Callout type="warn" title="An unsized root is 0px tall">
+    A root in normal flow with no height is 0px tall, and the whole layout is invisible. Nothing
+    fails: the engine measures zero-sized content areas and renders no panel content until they
+    have a size.
+</Callout>
+
+## Give it a size
+
+Any of these works. Pick the one that matches the page around it.
+
+**A fixed or viewport height.**
+
+```tsx
+<Dockable.Root model={model} style={{ height: "100vh" }}>
+```
+
+**A flex item in a sized column.** The most common shape for an app with a header:
+
+```tsx
+<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <header>…</header>
+    <Dockable.Root model={model} style={{ flex: 1, minHeight: 0 }}>
+        …
+    </Dockable.Root>
+</div>
+```
+
+`min-height: 0` matters: a flex item's minimum height defaults to its content, and without it
+the root cannot shrink below whatever it measured first.
+
+**A grid cell.** `grid-template-rows: auto 1fr` on the parent and `min-height: 0` on the root.
+
+With Tailwind: `className="min-h-0 flex-1"` inside a `flex h-dvh flex-col` parent.
+
+## Padding goes on a wrapper
+
+Because the root row is absolutely positioned with `inset: 0`, **padding on the root does not
+move it**. For a gutter around the layout, pad a wrapper and size the root inside it:
+
+```tsx
+<div style={{ display: "flex", flexDirection: "column", flex: 1, padding: 8 }}>
+    <Dockable.Root model={model} style={{ flex: 1, minHeight: 0 }}>
+        …
+    </Dockable.Root>
+</div>
+```
+
+The examples' kit does exactly this (its `frame` class wraps the root).
+
+## Resizing
+
+The engine observes the root with a `ResizeObserver` and listens to its window's `resize`, so a
+root that changes size (a window resize, a collapsed sidebar, a CSS transition) re-measures and
+repositions the panels without a re-render. You never need to tell it the size.
+
+If something moves the tabsets **without resizing any element** (flipping `dir` at runtime is
+the known case), call `engine.sync()` from [`useDockable`](/docs/api/hooks) to re-run the
+measure pass. See [Limitations](/docs/limitations), gap 4.
+
+## Minimum sizes
+
+Tabsets and tabs have `minWidth`/`minHeight` attributes (default `1`), and the splitters never
+shrink a child below its minimum. Set them in the JSON when a panel needs room:
+
+```json
+{ "type": "tabset", "minWidth": 200, "children": [] }
+```
+
+Or for every tabset, through the global attributes (`tabSetMinWidth`, `tabSetMinHeight`). See
+[the JSON model](/docs/api/json-model).

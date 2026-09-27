@@ -22,9 +22,11 @@
         "typecheck": "pnpm -r typecheck",
         "test": "vitest run",
         "build": "pnpm -r build",
-        "e2e": "pnpm --workspace-concurrency=1 --filter playground --filter docs e2e",
+        "e2e": "pnpm --workspace-concurrency=1 --filter playground --filter docs --filter examples-react e2e",
         "dev": "pnpm --filter playground dev",
-        "docs:dev": "pnpm --filter docs dev"
+        "docs:dev": "pnpm --filter docs dev",
+        "site:export": "node site/export.ts",
+        "site:dev": "node site/dev.ts"
     },
     "devDependencies": {
         "@biomejs/biome": "2.5.10",
