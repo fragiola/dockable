@@ -1,4 +1,4 @@
-// The site export contract, v1 (fragiola/www CONTRACT.md): its types, and the checks this repo
+// The site export contract, v1.1 (fragiola/www CONTRACT.md): its types, and the checks this repo
 // runs on what it exports. `www` runs the same checks on every build; running them here first
 // means an export that `www` would reject never leaves this repo.
 //
@@ -8,7 +8,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
+/** v1.1 is additive: `project.json` keeps `"contract": 1`. */
 export const CONTRACT = 1;
+/** The version this repo implements, for messages. */
+export const CONTRACT_VERSION = "1.1";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -20,6 +23,8 @@ export interface ProjectInfo {
     frameworks: string[];
     defaultFramework: string;
     registry?: { namespace: string };
+    /** v1.1: the header and footer links */
+    repository?: string;
 }
 
 export type SidebarEntry =
@@ -27,7 +32,15 @@ export type SidebarEntry =
     | { label: string; href: string; external: true };
 
 export interface DocsConfig {
-    sections: { label: string; framework?: string; pages: SidebarEntry[] }[];
+    sections: {
+        label: string;
+        framework?: string;
+        /** v1.1: a folder that folds */
+        collapsible?: boolean;
+        /** v1.1: open on load */
+        defaultOpen?: boolean;
+        pages: SidebarEntry[];
+    }[];
 }
 
 export interface ExamplesConfig {
@@ -73,10 +86,10 @@ export interface Site {
 
 // ─── MDX ─────────────────────────────────────────────────────────────────────
 
-/** The v1 vocabulary: each component and the props it takes (§3.4). */
+/** The v1.1 vocabulary: each component and the props it takes (§3.4). */
 const VOCABULARY: Record<string, { props: string[]; required: string[] }> = {
     Example: {
-        props: ["id", "framework", "theme", "height", "variant"],
+        props: ["id", "framework", "theme", "height", "variant", "label"],
         required: ["id"],
     },
     Callout: { props: ["type", "title"], required: ["type"] },
@@ -92,13 +105,32 @@ const VOCABULARY: Record<string, { props: string[]; required: string[] }> = {
     InstallCommand: { props: ["item"], required: ["item"] },
     Framework: { props: ["name"], required: ["name"] },
     Hero: {
-        props: ["title", "description", "actions"],
+        props: ["title", "description", "eyebrow", "background", "actions"],
         required: ["title"],
     },
+    Section: {
+        props: ["title", "eyebrow", "description"],
+        required: ["title"],
+    },
+    Features: { props: ["columns", "numbered"], required: [] },
+    Feature: { props: ["title"], required: ["title"] },
+    Pills: { props: ["items", "strike"], required: ["items"] },
 };
 
-const VARIANTS = ["inline", "bleed", "card"];
+/** The components that belong on the landing only (§3.4). */
+const LANDING_ONLY = new Set([
+    "Hero",
+    "Section",
+    "Features",
+    "Feature",
+    "Pills",
+]);
+
+const VARIANTS = ["inline", "bleed", "card", "showcase"];
 const CALLOUTS = ["info", "warn", "danger"];
+const BACKGROUNDS = ["none", "grid"];
+const ACTION_VARIANTS = ["primary", "secondary", "ghost"];
+const ACTION_ICONS = ["arrow", "external"];
 
 /** The frontmatter's `key: value` lines. */
 export function frontmatter(source: string): Record<string, string> {
@@ -187,6 +219,25 @@ function tagsOf(text: string): Tag[] {
     return tags;
 }
 
+/**
+ * A prop's expression (`{…}`) read as JSON: the landing's `actions={[…]}` and `items={[…]}`
+ * are literals, so unquoted keys and trailing commas are all that separates them from JSON.
+ * Undefined when it is not a literal.
+ */
+function literalProp(value: string | undefined): unknown {
+    const inner = /^\{([\s\S]*)\}$/.exec(value ?? "")?.[1];
+    if (inner === undefined) return undefined;
+    try {
+        return JSON.parse(
+            inner
+                .replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g, '$1"$2":')
+                .replace(/,(\s*[\]}])/g, "$1"),
+        );
+    } catch {
+        return undefined;
+    }
+}
+
 /** A prop's string value (`"x"`, `'x'` or `{"x"}`), or undefined for an expression. */
 function stringProp(value: string | undefined): string | undefined {
     if (value === undefined) return undefined;
@@ -255,6 +306,12 @@ export function validateSite(site: Site): string[] {
     if (Boolean(project.registry) !== Boolean(site.registry)) {
         problems.push("project.json: registry.namespace and r/ go together");
     }
+    if (
+        project.repository !== undefined &&
+        !/^https:\/\/\S+$/.test(project.repository)
+    ) {
+        problems.push("project.json: repository must be an https:// URL");
+    }
 
     // examples.json
     const levels = new Set(examples.levels.map((level) => level.id));
@@ -291,6 +348,16 @@ export function validateSite(site: Site): string[] {
             problems.push(
                 `config.json: section "${section.label}" names framework "${section.framework}"`,
             );
+        }
+        for (const key of ["collapsible", "defaultOpen"] as const) {
+            if (
+                section[key] !== undefined &&
+                typeof section[key] !== "boolean"
+            ) {
+                problems.push(
+                    `config.json: section "${section.label}": ${key} takes a boolean`,
+                );
+            }
         }
         for (const entry of section.pages) {
             if ("path" in entry) {
@@ -409,7 +476,7 @@ export function validateSite(site: Site): string[] {
             const spec = VOCABULARY[tag.name];
             if (!spec) {
                 problems.push(
-                    `${where}: <${tag.name}> is not in the v1 vocabulary`,
+                    `${where}: <${tag.name}> is not in the v1.1 vocabulary`,
                 );
                 continue;
             }
@@ -456,6 +523,11 @@ export function validateSite(site: Site): string[] {
                 ) {
                     problems.push(`${where}: <Example height> takes a number`);
                 }
+                if (tag.props.has("label") && variant !== "showcase") {
+                    problems.push(
+                        `${where}: <Example label> goes with variant="showcase"`,
+                    );
+                }
             }
             if (
                 tag.name === "Callout" &&
@@ -477,15 +549,68 @@ export function validateSite(site: Site): string[] {
                     `${where}: <InstallCommand item="${value("item")}"> is not in r/`,
                 );
             }
-            if (tag.name === "Hero" && path !== "index") {
-                problems.push(`${where}: <Hero> belongs on the landing only`);
+            if (LANDING_ONLY.has(tag.name) && path !== "index") {
+                problems.push(
+                    `${where}: <${tag.name}> belongs on the landing only`,
+                );
+            }
+            if (
+                tag.name === "Hero" &&
+                tag.props.has("background") &&
+                !BACKGROUNDS.includes(value("background") ?? "")
+            ) {
+                problems.push(
+                    `${where}: <Hero background="${value("background")}">`,
+                );
+            }
+            if (tag.name === "Hero" && tag.props.has("actions")) {
+                const actions = literalProp(tag.props.get("actions"));
+                const valid =
+                    Array.isArray(actions) &&
+                    actions.every((action: Record<string, unknown>) => {
+                        const { label, href, variant, icon } = action ?? {};
+                        return (
+                            typeof label === "string" &&
+                            label !== "" &&
+                            typeof href === "string" &&
+                            href !== "" &&
+                            (variant === undefined ||
+                                ACTION_VARIANTS.includes(variant as string)) &&
+                            (icon === undefined ||
+                                ACTION_ICONS.includes(icon as string))
+                        );
+                    });
+                if (!valid) {
+                    problems.push(
+                        `${where}: <Hero actions> takes a list of { label, href, variant?: "primary" | "secondary" | "ghost", icon?: "arrow" | "external" }`,
+                    );
+                }
+            }
+            if (
+                tag.name === "Features" &&
+                tag.props.has("columns") &&
+                !/^\{\s*[234]\s*\}$/.test(tag.props.get("columns") ?? "")
+            ) {
+                problems.push(`${where}: <Features columns> takes 2, 3 or 4`);
+            }
+            if (tag.name === "Pills") {
+                const items = literalProp(tag.props.get("items"));
+                if (
+                    !Array.isArray(items) ||
+                    items.length === 0 ||
+                    !items.every((item) => typeof item === "string" && item)
+                ) {
+                    problems.push(
+                        `${where}: <Pills items> takes a list of strings`,
+                    );
+                }
             }
         }
         for (const [index, line] of text.split("\n").entries()) {
             for (const [, name] of line.matchAll(/<\/([A-Za-z][\w.]*)\s*>/g)) {
                 if (name && !VOCABULARY[name]) {
                     problems.push(
-                        `${file}:${index + 1}: </${name}> is not in the v1 vocabulary`,
+                        `${file}:${index + 1}: </${name}> is not in the v1.1 vocabulary`,
                     );
                 }
             }

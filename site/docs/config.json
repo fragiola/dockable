@@ -27,6 +27,7 @@
         },
         {
             "label": "Concepts",
+            "collapsible": true,
             "pages": [
                 {
                     "label": "The model and actions",
@@ -56,6 +57,7 @@
         },
         {
             "label": "Guides",
+            "collapsible": true,
             "pages": [
                 {
                     "label": "Styling with Tailwind",
@@ -141,6 +143,7 @@
         },
         {
             "label": "API: primitives (@fragiola/dockable-react)",
+            "collapsible": true,
             "pages": [
                 {
                     "label": "Dockable.Root",
@@ -230,6 +233,7 @@
         },
         {
             "label": "API: core (@fragiola/dockable)",
+            "collapsible": true,
             "pages": [
                 {
                     "label": "Model",

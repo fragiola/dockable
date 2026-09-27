@@ -5,31 +5,46 @@ layout: landing
 ---
 
 <Hero
+    eyebrow="@fragiola/dockable · React"
     title="Dockable panels, without a single line of CSS from us."
     description="A headless layout manager: tabs, tabsets, splitters, drag and drop and popout windows. It ships the behaviour and the accessibility. Every pixel is yours."
     actions={[
-        { label: "Read the docs", href: "/docs/getting-started/introduction" },
-        { label: "Browse the examples", href: "/examples" },
-        { label: "GitHub", href: "https://github.com/fragiola/dockable" },
+        { label: "Read the docs", href: "/docs/getting-started/introduction", variant: "primary" },
+        { label: "Browse {examples} examples", href: "/examples", variant: "secondary" },
+        { label: "GitHub", href: "https://github.com/fragiola/dockable", variant: "ghost" },
     ]}
 />
 
-<Example id="ide-workbench" theme="ide" variant="bleed" />
+<Example
+    id="ide-workbench"
+    variant="showcase"
+    theme="ide"
+    height={544}
+    label="Same markup, five themes:"
+/>
 
-## What it ships
+{/* What it ships: the four cards, without a heading, as on the first landing. */}
 
-- **Behaviour.** Resize, drag and drop between tabsets and to the edges, popout windows,
-  maximize, undo/redo.
-- **Accessibility.** The APG tabs pattern, keyboard splitters with ARIA values, focus management,
-  layout paths for tests.
-- **A JSON model.** The layout is data: load it, save it, intercept every change with `onAction`.
-- **Primitives.** `Root`, `Row`, `TabSet`, `Tab`, `Panel`, `Splitter`… each renders only what you
-  give it, with `render` instead of `asChild`.
+<Features columns={4}>
+<Feature title="Behaviour">
+Resize, drag and drop between tabsets and to the edges, popout windows, maximize, undo/redo.
+</Feature>
+<Feature title="Accessibility">
+The APG tabs pattern, keyboard splitters with ARIA values, focus management, layout paths for
+tests.
+</Feature>
+<Feature title="A JSON model">
+The layout is data: load it, save it, intercept every change with onAction.
+</Feature>
+<Feature title="Primitives">
+Root, Row, TabSet, Tab, Panel, Splitter… each renders only what you give it, with render instead
+of asChild.
+</Feature>
+</Features>
 
-## What it never ships
+<Section title="What it never ships">
+<Pills strike items={["CSS", "Icons", "Text", "Rendered menus", "A design system"]} />
 
-~~CSS~~ · ~~Icons~~ · ~~Text~~ · ~~Rendered menus~~ · ~~A design system~~
-
-The state is exposed as `data-*` attributes and ARIA, so any styling solution works: Tailwind,
-plain CSS, CSS modules, CSS-in-JS. The examples use [Fragiola UI](https://fragiola.com/ui) and its
-palettes, in five themes: switch them in the [examples](/examples).
+The state is exposed as data-\* attributes and ARIA, so any styling solution works: Tailwind,
+plain CSS, CSS modules, CSS-in-JS. The examples use Fragiola UI and its palettes.
+</Section>

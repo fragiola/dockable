@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { anchorsOf, type Site, validateSite } from "../contract.ts";
 import { readSite } from "../sources.ts";
 
-// The export's sources meet the site export contract (v1), and the checks that guarantee it
+// The export's sources meet the site export contract (v1.1), and the checks that guarantee it
 // catch what `www` would reject: each case below breaks one rule on a copy of the real site.
 
 let site: Site;
@@ -52,7 +52,7 @@ describe("the contract checks", () => {
 
     it("reject a component outside the vocabulary, and raw HTML", () => {
         expect(problemsOf("<Foo />")).toEqual([
-            expect.stringContaining("<Foo> is not in the v1 vocabulary"),
+            expect.stringContaining("<Foo> is not in the v1.1 vocabulary"),
         ]);
         expect(problemsOf("<div>x</div>").join()).toContain("<div>");
     });
@@ -73,6 +73,70 @@ describe("the contract checks", () => {
         expect(problemsOf('<Hero title="x" />').join()).toContain(
             "landing only",
         );
+    });
+
+    it("accept the v1.1 landing vocabulary on the landing, and only there", () => {
+        const landing = [
+            "---\ntitle: T\ndescription: D\nlayout: landing\n---",
+            '<Hero eyebrow="e" title="t" background="grid" actions={[',
+            '    { label: "Docs", href: "/docs/guides/tabs", variant: "primary", icon: "arrow" },',
+            '    { label: "Browse {examples} examples", href: "/examples", variant: "secondary" },',
+            '    { label: "GitHub", href: "https://github.com/x", variant: "ghost", icon: "external" },',
+            "]} />",
+            '<Example id="ide-workbench" variant="showcase" theme="ide" label="Themes:" />',
+            '<Features columns={4} numbered>\n<Feature title="a">b</Feature>\n</Features>',
+            '<Section title="t" eyebrow="e" description="d">',
+            '<Pills strike items={["CSS", "Icons"]} />',
+            "</Section>",
+        ].join("\n\n");
+        expect(validateSite(withPage("index", landing))).toEqual([]);
+        expect(problemsOf('<Section title="t">x</Section>').join()).toContain(
+            "<Section> belongs on the landing only",
+        );
+        expect(problemsOf('<Pills items={["a"]} />').join()).toContain(
+            "<Pills> belongs on the landing only",
+        );
+    });
+
+    it("reject bad v1.1 values", () => {
+        const onLanding = (body: string) =>
+            validateSite(
+                withPage(
+                    "index",
+                    `---\ntitle: T\ndescription: D\nlayout: landing\n---\n\n${body}\n`,
+                ),
+            ).join();
+        expect(
+            onLanding(
+                '<Hero title="t" actions={[{ label: "x", href: "/", variant: "loud" }]} />',
+            ),
+        ).toContain("<Hero actions> takes a list");
+        expect(
+            onLanding('<Hero title="t" actions={[{ label: "x" }]} />'),
+        ).toContain("<Hero actions> takes a list");
+        expect(onLanding('<Hero title="t" background="dots" />')).toContain(
+            '<Hero background="dots">',
+        );
+        expect(
+            onLanding(
+                '<Features columns={5}><Feature title="a">b</Feature></Features>',
+            ),
+        ).toContain("<Features columns> takes 2, 3 or 4");
+        expect(onLanding("<Pills items={[]} />")).toContain(
+            "<Pills items> takes a list of strings",
+        );
+        expect(onLanding("<Feature>x</Feature>")).toContain(
+            '<Feature> needs "title"',
+        );
+        expect(onLanding('<Example id="ide-workbench" label="x" />')).toContain(
+            '<Example label> goes with variant="showcase"',
+        );
+        expect(
+            validateSite({
+                ...site,
+                project: { ...site.project, repository: "github.com/x" },
+            }).join(),
+        ).toContain("repository must be an https:// URL");
     });
 
     it("reject broken, relative and anchorless links", () => {
