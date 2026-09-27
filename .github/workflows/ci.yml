@@ -52,4 +52,42 @@ jobs:
           path: |
             apps/playground/playwright-report/
             apps/docs/playwright-report/
+            examples/react/playwright-report/
           retention-days: 14
+
+  # The site export for fragiola.com (contract v1, fragiola/www CONTRACT.md), built and
+  # validated the way www's deploy runs it. It fails on anything www would reject.
+  site-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm site:export --base /dockable --out "$RUNNER_TEMP/site-export"
+
+  # After a push to main passes, ask fragiola/www to rebuild fragiola.com with it. Skipped
+  # until the WWW_DISPATCH_TOKEN secret exists (a token allowed to dispatch on fragiola/www).
+  notify-www:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [ci, site-export]
+    runs-on: ubuntu-latest
+    env:
+      WWW_DISPATCH_TOKEN: ${{ secrets.WWW_DISPATCH_TOKEN }}
+    steps:
+      - name: Dispatch project-updated to fragiola/www
+        if: env.WWW_DISPATCH_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ env.WWW_DISPATCH_TOKEN }}
+        run: |
+          gh api repos/fragiola/www/dispatches \
+            -f event_type=project-updated \
+            -f "client_payload[slug]=dockable" \
+            -f "client_payload[sha]=$GITHUB_SHA"
