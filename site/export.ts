@@ -1,4 +1,4 @@
-// `pnpm site:export --base /<slug> --out <dir>`: the site export, contract v1 (fragiola/www
+// `pnpm site:export --base /<slug> --out <dir>`: the site export, contract v1.1 (fragiola/www
 // CONTRACT.md). Writes what fragiola.com is built from, with this repo's own install:
 //
 //   <out>/project.json               site/project.json
@@ -21,7 +21,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { validateExport } from "./contract.ts";
+import { CONTRACT_VERSION, validateExport } from "./contract.ts";
 import {
     buildExamplesConfig,
     buildManifests,
@@ -108,5 +108,5 @@ if (problems.length > 0) {
     process.exit(1);
 }
 console.log(
-    `site export (contract v${project.contract}) → ${out} (base ${base || "/"})`,
+    `site export (contract v${CONTRACT_VERSION}) → ${out} (base ${base || "/"})`,
 );
