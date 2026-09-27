@@ -14,6 +14,7 @@
         "url": "git+https://github.com/fragiola/dockable.git",
         "directory": "packages/react"
     },
+    "homepage": "https://fragiola.com/dockable",
     "sideEffects": false,
     "exports": {
         ".": {
