@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/alert-dialog.json, source registry/ui/alert-dialog.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/alert-dialog.json, source registry/ui/alert-dialog.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import { createLayerParts } from "#/components/families/layer/parts";

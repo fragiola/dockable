@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/track.json, source registry/families/track.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/track.json, source registry/families/track.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
 // Family `track` — a rail with a filled portion.
 // Origin: slider and progress are both a rail (the track) with a filled
 // range (the indicator). Slider adds a thumb and interaction; progress adds

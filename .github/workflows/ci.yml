@@ -31,12 +31,7 @@ jobs:
 
       - run: pnpm test
 
-      # the docs export is built under the Pages base path, which its e2e
-      # suite serves it under (apps/docs/playwright.config.ts)
       - run: pnpm build
-        env:
-          NEXT_PUBLIC_BASE_PATH: /dockable
-          NEXT_TELEMETRY_DISABLED: 1
 
       - name: Install Playwright Chromium
         working-directory: apps/playground
@@ -51,7 +46,6 @@ jobs:
           name: playwright-report
           path: |
             apps/playground/playwright-report/
-            apps/docs/playwright-report/
             examples/react/playwright-report/
           retention-days: 14
 

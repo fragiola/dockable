@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/text.json, source registry/atoms/text/index.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/text.json, source registry/atoms/text/index.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 import type { JSX } from "react";
 import React from "react";
 import { tv, type VariantProps } from "tailwind-variants";

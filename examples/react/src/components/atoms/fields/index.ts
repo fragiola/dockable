@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/input.json, source registry/atoms/fields/index.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/input.json, source registry/atoms/fields/index.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
 import { Input as InputControl } from "./input";
 import { Numeric } from "./numeric";
 import { Template } from "./templates";

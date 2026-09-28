@@ -2,9 +2,9 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { listExampleSlugs } from "../scripts/examples-lib.ts";
 import { THEMES, type ThemeName } from "../src/examples/_themes/themes";
 
-// Copied from apps/docs/e2e/helpers.ts. The examples run in the embed app (`index.html?id=`),
-// alone on the page: the stage is the page's own `data-testid="stage"`, and the site's Reset
-// (which reloads the iframe) is a reload.
+// The examples run in the embed app, addressed by its directory URL (`…/?id=`, §5.1 of the
+// site export contract), alone on the page: the stage is the page's own `data-testid="stage"`,
+// and the site's Reset (which reloads the iframe) is a reload.
 
 export const EXAMPLES = listExampleSlugs().map((slug) => ({ slug }));
 export { THEMES };
@@ -17,7 +17,7 @@ export async function openExample(
 ) {
     const params = new URLSearchParams({ id: slug });
     if (options.theme) params.set("theme", options.theme);
-    await page.goto(`index.html?${params}`);
+    await page.goto(`./?${params}`);
     const stage = page.getByTestId("stage");
     if (options.theme) {
         await expect(stage).toHaveAttribute(

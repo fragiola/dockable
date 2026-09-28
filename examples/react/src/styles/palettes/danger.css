@@ -1,4 +1,4 @@
-/* Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/palette-danger.json, source registry/styles/palettes/danger.css). Do not edit: re-run scripts/vendor-fragiola.ts. */
+/* Vendored from the Fragiola UI registry (https://fragiola.com/r/palette-danger.json, source registry/styles/palettes/danger.css). Do not edit: re-run scripts/vendor-fragiola.ts. */
 /* Danger — error, destructive action. Hue ~25.
    [data-invalid] applies the danger palette automatically: Base UI's Field
    emits data-invalid on Field.Root, and because palette roles are inherited

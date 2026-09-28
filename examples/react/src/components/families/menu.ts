@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/menu.json, source registry/families/menu.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/menu.json, source registry/families/menu.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
 // Family `menu` — the option list (item, selectableItem, label, separator,
 // group, shortcut, sub-trigger, item-indicator).
 // Origin: ~12 parts repeated across dropdown/context/menubar/select/combobox.

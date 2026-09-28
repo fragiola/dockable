@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/dropdown-menu.json, source registry/ui/dropdown-menu.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/dropdown-menu.json, source registry/ui/dropdown-menu.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import type * as React from "react";

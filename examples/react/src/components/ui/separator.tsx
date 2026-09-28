@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/separator.json, source registry/ui/separator.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/separator.json, source registry/ui/separator.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Separator as SeparatorPrimitive } from "@base-ui/react/separator";
 import type * as React from "react";

@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/menu.json, source registry/families/menu/parts.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/menu.json, source registry/families/menu/parts.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 // Menu parts factory — `createMenuParts(P)`.
 //
 // Takes a Base UI menu namespace (Menu or ContextMenu) and returns the styled
