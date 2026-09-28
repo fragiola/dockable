@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/tabs.json, source registry/ui/tabs.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/tabs.json, source registry/ui/tabs.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 import type * as React from "react";

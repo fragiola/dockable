@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/dialog.json, source registry/ui/dialog.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/dialog.json, source registry/ui/dialog.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { createLayerParts } from "#/components/families/layer/parts";

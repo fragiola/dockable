@@ -1,6 +1,3 @@
-// Copied from apps/docs/scripts/examples-lib.ts (the old docs site, frozen until the switch to
-// fragiola.com) and adapted to this app: `#/` is `src/`, and a meta may set `layout`/`height`.
-//
 // Shared by scripts/generate.ts, scripts/manifest.ts and the tests: finds the examples, reads
 // their meta.ts, and computes the files each one is made of by following its relative imports.
 // What the code panel shows is exactly this list.

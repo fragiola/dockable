@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/input.json, source registry/atoms/fields/templates/simple.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/input.json, source registry/atoms/fields/templates/simple.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 import type * as React from "react";
 import { field } from "#/components/families/field";
 import { Field } from "#/components/ui/field";

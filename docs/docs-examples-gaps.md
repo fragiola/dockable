@@ -1,6 +1,6 @@
 # Docs examples report
 
-Epic #10 built the documentation site (`apps/docs`) and 26 examples against the packages as
+Epic #10 built the documentation site (the first docs site, since replaced by fragiola.com/dockable) and 26 examples against the packages as
 they are. It changed **no file under `packages/`**. Everything the examples had to work around
 is listed here, as input for the next Epics, in the same spirit as
 `docs/walking-skeleton-report.md` ("gap N" below refers to its section 2). Each workaround is

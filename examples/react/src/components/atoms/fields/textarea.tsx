@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/input.json, source registry/atoms/fields/textarea.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/input.json, source registry/atoms/fields/textarea.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 import { Field as FieldPrimitive } from "@base-ui/react/field";
 import { field } from "#/components/families/field";
 import { cn } from "#/lib/cn";

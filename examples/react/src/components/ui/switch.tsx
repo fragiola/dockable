@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/switch.json, source registry/ui/switch.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/switch.json, source registry/ui/switch.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 import type * as React from "react";

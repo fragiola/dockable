@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/skeleton.json, source registry/ui/skeleton.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/skeleton.json, source registry/ui/skeleton.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 import type * as React from "react";
 import { cn } from "#/lib/cn";
 

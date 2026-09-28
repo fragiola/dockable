@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { openExample, path } from "./helpers";
 
-// Copied from apps/docs/e2e/themes.spec.ts: the example themes (src/examples/_themes) are this
-// app's, so their shape checks run here.
+// The example themes (src/examples/_themes) belong to this app, so their shape checks run here.
 //
 // The themes change shape, not only colour: checked on computed styles (verify
 // by compiling, not by reading class names).

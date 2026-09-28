@@ -4,7 +4,7 @@
 //   node e2e/serve.ts [port]
 //
 //   /dockable/embed/react/…         .e2e/dist (built by playwright.config.ts)
-//   /host.html?id=<id>&theme=<t>    one iframe on index.html?id=<id>&theme=<t>; it records the
+//   /host.html?id=<id>&theme=<t>    one iframe on ./?id=<id>&theme=<t>; it records the
 //                                   embed's messages in `window.messages` and stays transparent
 //                                   until `ready`, like the site
 
@@ -37,7 +37,7 @@ function host(query: string): string {
         <iframe
             data-testid="frame"
             title="Example"
-            src="${BASE}index.html?${query.replace(/"/g, "&quot;")}"
+            src="${BASE}?${query.replace(/"/g, "&quot;")}"
             style="display: block; width: 900px; height: 600px; border: 0; opacity: 0"
         ></iframe>
         <script>

@@ -10,8 +10,7 @@ import {
     loadExamples,
 } from "../scripts/examples-lib.ts";
 
-// Copied from apps/docs/tests/examples.test.ts, for this app (`#/` imports, §6 of the site
-// export contract). The example contract (DD6–DD8): every example has a valid meta.ts, is in
+// The example contract (DD6–DD8, and `#/` imports per §6 of the site export contract): every example has a valid meta.ts, is in
 // the manifest, imports only what a consumer can copy, and the code panel lists exactly the
 // files it is compiled from.
 

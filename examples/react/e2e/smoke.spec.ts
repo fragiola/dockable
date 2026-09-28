@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { collectErrors, EXAMPLES, openExample, reset, THEMES } from "./helpers";
 
-// Copied from apps/docs/e2e/smoke.spec.ts. Every example, in every theme: the layout mounts and
+// Every example, in every theme: the layout mounts and
 // nothing logs an error. A new example folder is covered without touching this file.
 
 for (const example of EXAMPLES) {

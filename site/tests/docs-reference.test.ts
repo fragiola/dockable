@@ -1,4 +1,3 @@
-// Copied from apps/docs/tests/docs-reference.test.ts: site/docs is where the pages live now.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";

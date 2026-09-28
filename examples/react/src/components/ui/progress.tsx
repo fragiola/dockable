@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/progress.json, source registry/ui/progress.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/progress.json, source registry/ui/progress.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import type * as React from "react";

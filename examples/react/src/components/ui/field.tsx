@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/field.json, source registry/ui/field.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/field.json, source registry/ui/field.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Field as FieldPrimitive } from "@base-ui/react/field";
 import type * as React from "react";

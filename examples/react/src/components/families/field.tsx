@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/field.json, source registry/families/field.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/field.json, source registry/families/field.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 // .tsx without JSX, on purpose: `ui/field.tsx` has the same basename, and
 // after installing, the shadcn CLI re-resolves `@/components/families/field`
 // by basename and prefers .tsx over .ts — every import of this family would

@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/layer.json, source registry/families/layer.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/layer.json, source registry/families/layer.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
 // Family `layer` — backdrop + panel (backdrop, panel, header, body, footer,
 // title, description). Named in docs/architecture.md §2 and never written
 // until this Epic. Shared by dialog, alert-dialog and drawer — three

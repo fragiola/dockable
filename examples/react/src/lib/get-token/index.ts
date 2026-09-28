@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/get-token.json, source registry/lib/get-token/index.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/get-token.json, source registry/lib/get-token/index.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
 type GetThemeTokenOptionsBase<TFallback> = {
     fallbackReturn?: TFallback;
     /** Element to read the token from. Defaults to documentElement. Palette

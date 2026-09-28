@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/clickable.json, source registry/atoms/clickable/index.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/clickable.json, source registry/atoms/clickable/index.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { useRender } from "@base-ui/react/use-render";

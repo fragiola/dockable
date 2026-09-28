@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/popup.json, source registry/families/popup.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/popup.json, source registry/families/popup.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
 // Family `popup` — the floating box family.
 // Origin: .cn-dropdown-menu-content, .cn-context-menu-content,
 // .cn-popover-content, .cn-select-content, .cn-combobox-content in shadcn's

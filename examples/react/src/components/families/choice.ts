@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/choice.json, source registry/families/choice.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/choice.json, source registry/families/choice.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
 // Family `choice` — checkable controls (root, control, indicator, label,
 // description). Shared by Checkbox, Radio and Switch.
 //

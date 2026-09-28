@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/chart.json, source registry/ui/chart.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/chart.json, source registry/ui/chart.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import type { EChartsOption } from "echarts";
 import EChartsReact from "echarts-for-react";

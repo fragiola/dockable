@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/popover.json, source registry/ui/popover.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/popover.json, source registry/ui/popover.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { XIcon } from "lucide-react";

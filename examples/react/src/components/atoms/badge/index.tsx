@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/badge.json, source registry/atoms/badge/index.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/badge.json, source registry/atoms/badge/index.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import type * as React from "react";
 import { tv, type VariantProps } from "tailwind-variants";

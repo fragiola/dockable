@@ -1,4 +1,4 @@
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/layer.json, source registry/families/layer/parts.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/layer.json, source registry/families/layer/parts.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 // Layer parts factory — `createLayerParts(P)`.
 //
 // Takes a Base UI overlay namespace (Dialog or AlertDialog) and returns the

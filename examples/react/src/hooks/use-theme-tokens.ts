@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/chart.json, source registry/hooks/use-theme-tokens.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/chart.json, source registry/hooks/use-theme-tokens.ts). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import * as React from "react";
 import { getToken } from "#/lib/get-token";

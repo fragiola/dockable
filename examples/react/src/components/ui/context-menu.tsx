@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/context-menu.json, source registry/ui/context-menu.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/context-menu.json, source registry/ui/context-menu.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
 import type * as React from "react";

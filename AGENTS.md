@@ -69,9 +69,9 @@ Do not "fix" these.
 | `pnpm check` | Biome lint + format + assist (non-mutating) |
 | `pnpm check:fix` | Biome check with auto-fix |
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit) |
-| `pnpm test` | Vitest: `core` (node), `react` (jsdom), `docs`, `examples-react`, `site` |
+| `pnpm test` | Vitest: `core` (node), `react` (jsdom), `examples-react`, `site` |
 | `pnpm build` | `pnpm -r build` (tsdown for the packages, Vite for the playground) |
-| `pnpm e2e` | Playwright (Chromium) against the playground, the docs and the examples app |
+| `pnpm e2e` | Playwright (Chromium) against the playground and the examples app |
 | `pnpm dev` | playground dev server on <http://localhost:5173> |
 | `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.1, `../www/CONTRACT.md`), self-validated |
 | `pnpm site:dev --base /dockable --port <n>` | the examples app with hot reload, under the base `www` proxies in dev |
@@ -85,8 +85,6 @@ apps/playground/    fixtures/<name>/          unstyled pages Playwright drives
                     examples/<name>/          styled examples
                     public/popout.html        popout host page
                     e2e/                      Playwright specs
-apps/docs/                                    the old docs site: frozen, removed at the switch
-                                              to fragiola.com
 examples/react/     src/examples/<slug>/      the site's examples (the embed app, Vite)
                     src/components, lib, …    Fragiola UI, vendored (scripts/vendor-fragiola.ts)
                     e2e/                      Playwright specs, also inside an iframe
@@ -102,7 +100,7 @@ The docs and examples are served by `fragiola.com`, built by the `www` repo from
 base-free links, the v1.1 MDX vocabulary), the gallery configuration (`examples.json`) and the
 examples app (`examples/react`, built for `<base>/embed/react/`). `www` owns the shell, the
 gallery chrome, the code panel and search. Examples import internal modules through `#/…`
-(never `@/…`). `apps/docs` stays online, unchanged, until the switch.
+(never `@/…`).
 
 In dev the playground resolves both packages to their sources through the
 `development` export condition; production builds use `dist`.

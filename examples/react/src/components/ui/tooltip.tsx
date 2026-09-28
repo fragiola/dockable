@@ -1,5 +1,5 @@
 "use client";
-// Vendored from the Fragiola UI registry (https://ui.fragiola.com/r/tooltip.json, source registry/ui/tooltip.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
+// Vendored from the Fragiola UI registry (https://fragiola.com/r/tooltip.json, source registry/ui/tooltip.tsx). Do not edit: re-run scripts/vendor-fragiola.ts.
 
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { popup } from "#/components/families/popup";
