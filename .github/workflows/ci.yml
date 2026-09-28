@@ -1,16 +1,32 @@
+# CI: the same three jobs in every Fragiola project repo.
+#
+#   Checks            Biome, TypeScript, the unit tests, the build and the Playwright suites.
+#   Site export       fragiola.com builds /dockable from `pnpm site:export` (contract v1.1,
+#                     fragiola/www CONTRACT.md), built and validated the way www's deploy runs
+#                     it: it fails on anything www would reject.
+#   Trigger www build after a push to main passes, asks fragiola/www to rebuild fragiola.com
+#                     (a repository_dispatch of type "project-updated"). It needs the
+#                     WWW_DISPATCH_TOKEN secret: a fine-grained token with Contents: read &
+#                     write on fragiola/www. Without the secret the step is skipped, not failed.
+
 name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ci:
+  checks:
+    name: Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,9 +65,8 @@ jobs:
             examples/react/playwright-report/
           retention-days: 14
 
-  # The site export for fragiola.com (contract v1, fragiola/www CONTRACT.md), built and
-  # validated the way www's deploy runs it. It fails on anything www would reject.
   site-export:
+    name: Site export
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,11 +82,10 @@ jobs:
 
       - run: pnpm site:export --base /dockable --out "$RUNNER_TEMP/site-export"
 
-  # After a push to main passes, ask fragiola/www to rebuild fragiola.com with it. Skipped
-  # until the WWW_DISPATCH_TOKEN secret exists (a token allowed to dispatch on fragiola/www).
-  notify-www:
+  trigger-www-build:
+    name: Trigger www build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [ci, site-export]
+    needs: [checks, site-export]
     runs-on: ubuntu-latest
     env:
       WWW_DISPATCH_TOKEN: ${{ secrets.WWW_DISPATCH_TOKEN }}
