@@ -4,5 +4,5 @@
         "customConditions": ["development"],
         "types": ["node", "vite/client"]
     },
-    "include": ["src", "fixtures", "examples", "e2e", "*.config.ts"]
+    "include": ["src", "fixtures", "e2e", "*.config.ts"]
 }

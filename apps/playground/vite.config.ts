@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 
 const root = import.meta.dirname;
 
-// Every fixture and example is its own page: `fixtures/<name>/index.html`, `examples/<name>/index.html`.
+// Every fixture is its own page: `fixtures/<name>/index.html`.
 function pages(dir: string): Record<string, string> {
     const base = resolve(root, dir);
     if (!existsSync(base)) return {};
@@ -33,7 +33,6 @@ export default defineConfig(({ command }) => ({
             input: {
                 index: resolve(root, "index.html"),
                 ...pages("fixtures"),
-                ...pages("examples"),
             },
         },
     },
