@@ -8,5 +8,5 @@
             "#/*": ["./src/*"]
         }
     },
-    "include": ["src", "scripts", "tests", "e2e", "*.config.ts"]
+    "include": ["src", "scripts", "tests", "e2e", "*.config.ts", "vite.shared.ts"]
 }
