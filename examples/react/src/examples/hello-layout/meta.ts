@@ -6,6 +6,6 @@ export default {
         "The smallest themed layout: two tabsets side by side, splitters, and panels whose content survives every move.",
     level: "basic",
     order: 1,
-    features: ["Root", "Row", "TabSet", "Panels", "Model.fromJson"],
+    features: ["Root", "Row", "TabSet", "Panels", "createModel"],
     docs: "/docs/getting-started/first-layout",
 } satisfies ExampleMeta;

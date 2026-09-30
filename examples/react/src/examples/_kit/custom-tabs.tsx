@@ -1,10 +1,15 @@
 "use client";
 
-import type { TabNode, TabSetNode } from "@fragiola/dockable";
+import type {
+    AnyTypes,
+    DockableTypes,
+    TabOf,
+    TabsetNode,
+} from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
 import { cn } from "#/lib/cn";
-import type { RenderNodeOptions, TabSetOptions } from "./layout";
+import { type RenderNodeOptions, type TabSetOptions, tabName } from "./layout";
 import * as styles from "./styles";
 
 /**
@@ -13,21 +18,23 @@ import * as styles from "./styles";
  * `KitTab`, so this is its twin with one more hook: the example returns the `Dockable.Tab` (with
  * `data-kit-tab=""`, the marker the themes' flourishes key on).
  */
-export type RenderTabElement = (tab: TabNode) => ReactNode;
+export type RenderTabElement<T extends DockableTypes = AnyTypes> = (
+    tab: TabOf<T>,
+) => ReactNode;
 
 /** The inside of a kit tab: its label (or `children`) and the active-tabset marker. */
 export function TabParts({
     tab,
     children,
 }: {
-    tab: TabNode;
+    tab: { readonly data?: unknown };
     children?: ReactNode;
 }) {
     return (
         <>
             {children ?? (
                 <span data-tab-label className={styles.tabLabel}>
-                    {tab.getName()}
+                    {tabName(tab)}
                 </span>
             )}
             <span
@@ -43,22 +50,22 @@ export function TabParts({
 export const tabsetShape = styles.tabset.replace("palette-raised ", "");
 
 /** The kit's tabset (header, tab list, actions, content area) with tabs the example renders. */
-export function CustomTabSet({
+export function CustomTabSet<T extends DockableTypes = AnyTypes>({
     node,
     options = {},
     renderTabElement,
     className,
 }: {
-    node: TabSetNode;
-    options?: TabSetOptions | undefined;
-    renderTabElement: RenderTabElement;
+    node: TabsetNode<T>;
+    options?: TabSetOptions<T> | undefined;
+    renderTabElement: RenderTabElement<T>;
     /** replaces `styles.tabset` (and `tabsetClassName`) when given */
     className?: string | undefined;
 }) {
     const header = (
         <div className={styles.tabsetHeader}>
-            <Dockable.TabList
-                aria-label={node.getName() ?? "Tabs"}
+            <Dockable.TabList<T>
+                aria-label={tabName(node) || "Tabs"}
                 data-kit-tablist=""
                 className={styles.tabList}
             >
@@ -92,9 +99,9 @@ export function CustomTabSet({
 }
 
 /** A `renderTabSet` for `DockLayout` whose tabs are rendered by `renderTabElement`. */
-export function withTabElement(
-    renderTabElement: RenderTabElement,
-): NonNullable<RenderNodeOptions["renderTabSet"]> {
+export function withTabElement<T extends DockableTypes = AnyTypes>(
+    renderTabElement: RenderTabElement<T>,
+): NonNullable<RenderNodeOptions<T>["renderTabSet"]> {
     return (tabset, options) => (
         <CustomTabSet
             node={tabset}

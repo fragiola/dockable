@@ -3,24 +3,38 @@
 // Copy this file and change it freely.
 //
 // Adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/useUndo.ts, rewritten as
-// a framework-agnostic class. Copyright (c) 2017 Caplin Systems Ltd. MIT licence.
-import { type Action, Actions, Model } from "@fragiola/dockable";
+// a framework-agnostic class over the command bus. Copyright (c) 2017 Caplin Systems Ltd. MIT
+// licence.
+import type {
+    AnyTypes,
+    CommandEvent,
+    CommandName,
+    DockableTypes,
+    LayoutJson,
+    Model,
+} from "@fragiola/dockable";
 
-/** actions that don't create an undo step by default */
-const DEFAULT_IGNORE_ACTION_TYPES = [Actions.SET_ACTIVE_TABSET];
+/** Commands that don't create an undo step by default (a window's screen rect is no step either). */
+const DEFAULT_IGNORE_COMMANDS: readonly CommandName[] = [
+    "tabset.activate",
+    "window.configure",
+];
+
+/** `meta` of the `layout.load` an undo or a redo runs, so it is not recorded as a step. */
+const UNDO_META = { undo: true } as const;
 
 /** Options for {@link UndoManager}. */
-export interface IUndoOptions {
+export interface UndoOptions {
     /** maximum number of undo steps to retain, default 100 */
     maxBufferSize?: number;
-    /** action types that should not create an undo step, default [Actions.SET_ACTIVE_TABSET] */
-    ignoreActionTypes?: string[];
+    /** commands that should not create an undo step, default `["tabset.activate", "window.configure"]` */
+    ignoreCommands?: readonly CommandName[];
 }
 
 /** The state of an {@link UndoManager}. The same object is returned until something changes. */
-export interface IUndoSnapshot {
+export interface UndoSnapshot<T extends DockableTypes = AnyTypes> {
     /** the current model */
-    readonly model: Model | null;
+    readonly model: Model<T> | null;
     /** true if there is at least one undo step available */
     readonly canUndo: boolean;
     /** true if there is at least one redo step available */
@@ -32,79 +46,52 @@ export interface IUndoSnapshot {
 }
 
 /**
- * Undo/redo for a {@link Model}. It owns the current model, records a snapshot before each model
- * mutation (collapsing an entire drag gesture into a single step), and replaces the model on
- * undo/redo via `Model.fromJson(json, current)` so mounted tab content is preserved.
+ * Undo/redo for a {@link Model}. It listens to the model's commits (`model.subscribe`) and keeps
+ * the layout as it was before each step (a whole drag gesture, its transient commands included,
+ * is one step). Undo and redo restore a layout in place with `layout.load`: the model stays the
+ * same, and so does the content of every tab that is still there.
  *
  * ```ts
- * const undo = new UndoManager(Model.fromJson(json));
+ * const undo = new UndoManager(createModel<Types>(json));
  * const unsubscribe = undo.subscribe(() => render(undo.getSnapshot()));
- * undo.getModel()?.doAction(Actions.deleteTab("t1"));
+ * undo.getModel()?.run("tab.close", { tab: "t1" });
  * undo.undo();
  * ```
  */
-export class UndoManager {
-    private model: Model | null;
+export class UndoManager<T extends DockableTypes = AnyTypes> {
+    private model: Model<T> | null;
     private readonly maxBufferSize: number;
-    private readonly ignoreActionTypes: string[];
-    private undoBuffer: string[] = [];
-    private redoBuffer: string[] = [];
-    // the pre-drag state for a gesture in progress; only the first adjusting action records it so
-    // the whole gesture collapses into a single undo step
-    private modelBeforeAdjusting: string | null = null;
+    private readonly ignoreCommands: readonly CommandName[];
+    private undoBuffer: LayoutJson<T>[] = [];
+    private redoBuffer: LayoutJson<T>[] = [];
+    /** the layout after the last recorded commit: what the next step goes back to */
+    private last: LayoutJson<T> | null = null;
+    /** a gesture (transient commands) is in progress since `last` */
+    private adjusting = false;
+    private unsubscribeModel: (() => void) | undefined;
     private readonly listeners = new Set<() => void>();
-    private snapshot: IUndoSnapshot;
+    private snapshot: UndoSnapshot<T>;
     private disposed = false;
 
-    private readonly changeListener = {
-        onBeforeAction: (action: Action) => {
-            const model = this.model;
-            if (!model) {
-                return;
-            }
-            if (action.isAdjusting()) {
-                if (this.modelBeforeAdjusting === null) {
-                    this.modelBeforeAdjusting = JSON.stringify(model.toJson());
-                }
-            } else {
-                // an ignored action (e.g. activating a tabset mid-drag) must not drop the snapshot of a
-                // gesture in progress: only the step that records it clears it
-                if (!this.ignoreActionTypes.includes(action.type)) {
-                    this.undoBuffer.push(
-                        this.modelBeforeAdjusting ??
-                            JSON.stringify(model.toJson()),
-                    );
-                    if (this.undoBuffer.length > this.maxBufferSize) {
-                        this.undoBuffer.shift();
-                    }
-                    this.redoBuffer = [];
-                    this.modelBeforeAdjusting = null;
-                    this.notify();
-                }
-            }
-        },
-    };
-
-    constructor(model: Model | null, options?: IUndoOptions) {
+    constructor(model: Model<T> | null, options?: UndoOptions) {
         this.maxBufferSize = options?.maxBufferSize ?? 100;
-        this.ignoreActionTypes =
-            options?.ignoreActionTypes ?? DEFAULT_IGNORE_ACTION_TYPES;
+        this.ignoreCommands =
+            options?.ignoreCommands ?? DEFAULT_IGNORE_COMMANDS;
         this.model = null;
         this.attach(model);
         this.snapshot = this.createSnapshot();
     }
 
     /** the current model */
-    getModel(): Model | null {
+    getModel(): Model<T> | null {
         return this.model;
     }
 
     /**
-     * Replaces the model (e.g. after loading a layout). By default the undo/redo history is
-     * cleared; pass `false` as the second argument to keep it (for example for an in-place
-     * round-trip of the same model, which should not lose the history).
+     * Replaces the model (e.g. another document). By default the undo/redo history is cleared;
+     * pass `false` as the second argument to keep it.
      */
-    setModel(model: Model, resetHistory = true) {
+    setModel(model: Model<T>, resetHistory = true) {
         this.attach(model);
         if (resetHistory) {
             this.clear();
@@ -122,7 +109,7 @@ export class UndoManager {
         this.swap(this.redoBuffer, this.undoBuffer);
     }
 
-    /** clear the undo/redo history without replacing the model */
+    /** clear the undo/redo history without touching the model */
     reset() {
         this.clear();
         this.notify();
@@ -146,7 +133,7 @@ export class UndoManager {
 
     /** The current state. Returns the same object until the state changes (bound, so it can be
      *  passed to `useSyncExternalStore` as is). */
-    getSnapshot = (): IUndoSnapshot => this.snapshot;
+    getSnapshot = (): UndoSnapshot<T> => this.snapshot;
 
     /** Calls `listener` whenever the snapshot changes. Returns the unsubscribe function (bound). */
     subscribe = (listener: () => void): (() => void) => {
@@ -159,43 +146,91 @@ export class UndoManager {
     /** Detaches from the model and drops every listener. */
     dispose() {
         this.disposed = true;
-        this.model?.removeChangeListener(this.changeListener);
+        this.unsubscribeModel?.();
+        this.unsubscribeModel = undefined;
         this.listeners.clear();
     }
 
-    private swap(from: string[], to: string[]) {
-        const current = this.model;
-        if (!current) {
+    private readonly onCommit = (event: CommandEvent<T>) => {
+        const model = this.model;
+        if (!model || event.meta?.undo === true) {
+            return; // an undo or a redo
+        }
+        if (event.before === event.after && !this.adjusting) {
+            return; // a command that changed nothing (a gesture's last one still ends its step)
+        }
+        if (this.ignored(event)) {
+            // an ignored change is part of the layout the next step goes back to, unless a gesture
+            // is in progress (its step goes back to before the gesture)
+            if (!this.adjusting) {
+                this.last = model.toJSON();
+            }
             return;
         }
-        const json = from.pop();
-        if (json === undefined) {
+        if (event.transient) {
+            this.adjusting = true; // the gesture's final, non-transient command records the step
             return;
         }
-        to.push(JSON.stringify(current.toJson()));
-        this.modelBeforeAdjusting = null;
-        this.attach(Model.fromJson(JSON.parse(json), current));
+        if (this.last) {
+            this.undoBuffer.push(this.last);
+            if (this.undoBuffer.length > this.maxBufferSize) {
+                this.undoBuffer.shift();
+            }
+        }
+        this.redoBuffer = [];
+        this.adjusting = false;
+        this.last = model.toJSON();
+        this.notify();
+    };
+
+    /** a command (or a batch of only such commands) that creates no step */
+    private ignored(event: CommandEvent<T>): boolean {
+        const commands =
+            event.command === "batch"
+                ? (event.commands ?? []).map((step) => step.command)
+                : [event.command];
+        return (
+            commands.length > 0 &&
+            commands.every((command) => this.ignoreCommands.includes(command))
+        );
+    }
+
+    private swap(from: LayoutJson<T>[], to: LayoutJson<T>[]) {
+        const model = this.model;
+        const layout = from.pop();
+        if (!model || layout === undefined) {
+            return;
+        }
+        to.push(model.toJSON());
+        // in place: the model and the content of every tab it keeps stay mounted
+        model.run("layout.load", { layout }, { meta: UNDO_META });
+        this.adjusting = false;
+        this.last = model.toJSON();
         this.notify();
     }
 
-    private attach(model: Model | null) {
+    private attach(model: Model<T> | null) {
         if (model === this.model) {
             return;
         }
-        this.model?.removeChangeListener(this.changeListener);
+        this.unsubscribeModel?.();
+        this.unsubscribeModel = undefined;
         this.model = model;
+        this.last = model ? model.toJSON() : null;
+        this.adjusting = false;
         if (model && !this.disposed) {
-            model.addChangeListener(this.changeListener);
+            this.unsubscribeModel = model.subscribe(this.onCommit);
         }
     }
 
     private clear() {
         this.undoBuffer = [];
         this.redoBuffer = [];
-        this.modelBeforeAdjusting = null;
+        this.adjusting = false;
+        this.last = this.model ? this.model.toJSON() : null;
     }
 
-    private createSnapshot(): IUndoSnapshot {
+    private createSnapshot(): UndoSnapshot<T> {
         return {
             model: this.model,
             canUndo: this.canUndo,

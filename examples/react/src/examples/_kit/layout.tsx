@@ -1,14 +1,13 @@
 "use client";
 
-import {
-    type BorderNode,
-    type Model,
-    type ModelLayout,
-    type OnAction,
-    type OnModelChange,
+import type {
+    AnyTypes,
+    BorderNode,
+    DockableTypes,
+    Model,
     RowNode,
-    type TabNode,
-    TabSetNode,
+    TabOf,
+    TabsetNode,
 } from "@fragiola/dockable";
 import {
     Dockable,
@@ -26,30 +25,51 @@ import * as styles from "./styles";
  * Tab, TabSetContent, nested Rows), styled with `styles.ts`, plus the panel layer, the drop
  * indicator and popouts. Examples override only what they are about, through the props below.
  * The whole file is plain Dockable primitives: copy it and change anything.
+ *
+ * Every part is generic over the example's registry `T` (its `Types`), so the functions an example
+ * passes get typed tabs: `renderContent={(tab) => …}` narrows `tab.data` on `tab.component`.
  */
 
-/** Renders what goes inside a `Dockable.Tab` (default: the tab's name). */
-export type RenderTab = (tab: TabNode) => ReactNode;
+/**
+ * The kit's label for a tab or tabset: its `data.name` when it has one. The examples keep each
+ * tab's name in its data; this reads it from any registry without a cast.
+ */
+export function tabName(node: { readonly data?: unknown }): string {
+    const data = node.data;
+    return typeof data === "object" &&
+        data !== null &&
+        "name" in data &&
+        typeof data.name === "string"
+        ? data.name
+        : "";
+}
 
-export interface TabSetOptions {
+/** Renders what goes inside a `Dockable.Tab` (default: the tab's name). */
+export type RenderTab<T extends DockableTypes = AnyTypes> = (
+    tab: TabOf<T>,
+) => ReactNode;
+
+export interface TabSetOptions<T extends DockableTypes = AnyTypes> {
     /** the content of each tab button */
-    renderTab?: RenderTab | undefined;
+    renderTab?: RenderTab<T> | undefined;
     /** extra class names for each tab button */
-    tabClassName?: string | ((tab: TabNode) => string) | undefined;
+    tabClassName?: string | ((tab: TabOf<T>) => string) | undefined;
     /** buttons at the end of the tabset's header (close tabset, maximize, …) */
-    renderActions?: ((tabset: TabSetNode) => ReactNode) | undefined;
+    renderActions?: ((tabset: TabsetNode<T>) => ReactNode) | undefined;
     /** replaces the whole header (strip and buttons); receives the default one */
     renderHeader?:
-        | ((tabset: TabSetNode, header: ReactNode) => ReactNode)
+        | ((tabset: TabsetNode<T>, header: ReactNode) => ReactNode)
         | undefined;
     /** extra class names for each tabset */
-    tabsetClassName?: string | ((tabset: TabSetNode) => string) | undefined;
+    tabsetClassName?: string | ((tabset: TabsetNode<T>) => string) | undefined;
     /** put the strip below the content */
     stripAtBottom?: boolean | undefined;
 }
 
 /** The kit's splitter: the themed bar with an optional grip. */
-export function KitSplitter(props: RowSplitterProps & { className?: string }) {
+export function KitSplitter<T extends DockableTypes = AnyTypes>(
+    props: RowSplitterProps<T> & { className?: string },
+) {
     const { className, ...rest } = props;
     return (
         <Dockable.Splitter {...rest} className={cn(styles.splitter, className)}>
@@ -59,12 +79,12 @@ export function KitSplitter(props: RowSplitterProps & { className?: string }) {
 }
 
 /** The kit's tab button. */
-export function KitTab({
+export function KitTab<T extends DockableTypes = AnyTypes>({
     node,
     className,
     children,
 }: {
-    node: TabNode;
+    node: TabOf<T>;
     className?: string | undefined;
     children?: ReactNode;
 }) {
@@ -76,7 +96,7 @@ export function KitTab({
         >
             {children ?? (
                 <span data-tab-label className={styles.tabLabel}>
-                    {node.getName()}
+                    {tabName(node)}
                 </span>
             )}
             <span
@@ -96,17 +116,17 @@ function resolve<T>(
 }
 
 /** The kit's tabset: a header (tab list and buttons) and the measured content area. */
-export function KitTabSet({
+export function KitTabSet<T extends DockableTypes = AnyTypes>({
     node,
     options = {},
 }: {
-    node: TabSetNode;
-    options?: TabSetOptions | undefined;
+    node: TabsetNode<T>;
+    options?: TabSetOptions<T> | undefined;
 }) {
     const header = (
         <div className={styles.tabsetHeader}>
-            <Dockable.TabList
-                aria-label={node.getName() ?? "Tabs"}
+            <Dockable.TabList<T>
+                aria-label={tabName(node) || "Tabs"}
                 data-kit-tablist=""
                 className={styles.tabList}
             >
@@ -145,12 +165,13 @@ export function KitTabSet({
     );
 }
 
-export interface RenderNodeOptions extends TabSetOptions {
+export interface RenderNodeOptions<T extends DockableTypes = AnyTypes>
+    extends TabSetOptions<T> {
     /** the splitter between two children of a row */
-    renderSplitter?: ((props: RowSplitterProps) => ReactNode) | undefined;
+    renderSplitter?: ((props: RowSplitterProps<T>) => ReactNode) | undefined;
     /** replaces the tabset renderer entirely */
     renderTabSet?:
-        | ((tabset: TabSetNode, options: TabSetOptions) => ReactNode)
+        | ((tabset: TabsetNode<T>, options: TabSetOptions<T>) => ReactNode)
         | undefined;
 }
 
@@ -158,68 +179,73 @@ export interface RenderNodeOptions extends TabSetOptions {
  * Builds the recursive child function for `Dockable.Row`: a tabset, or a nested row rendered by
  * the same function. The developer owns this recursion; the kit only writes it once.
  */
-export function createRenderNode(options: RenderNodeOptions = {}) {
+export function createRenderNode<T extends DockableTypes = AnyTypes>(
+    options: RenderNodeOptions<T> = {},
+) {
     const renderSplitter =
-        options.renderSplitter ?? ((props) => <KitSplitter {...props} />);
-    const renderNode = (child: TabSetNode | RowNode): ReactNode => {
-        if (child instanceof TabSetNode) {
+        options.renderSplitter ??
+        ((props: RowSplitterProps<T>) => <KitSplitter {...props} />);
+    const renderNode = (child: TabsetNode<T> | RowNode<T>): ReactNode => {
+        if (child.type === "tabset") {
             return options.renderTabSet ? (
                 options.renderTabSet(child, options)
             ) : (
                 <KitTabSet node={child} options={options} />
             );
         }
-        if (child instanceof RowNode) {
-            return (
-                <Dockable.Row node={child} renderSplitter={renderSplitter}>
-                    {renderNode}
-                </Dockable.Row>
-            );
-        }
-        return null;
+        return (
+            <Dockable.Row node={child} renderSplitter={renderSplitter}>
+                {renderNode}
+            </Dockable.Row>
+        );
     };
     return { renderNode, renderSplitter };
 }
 
 /** Renders what goes inside a border's `Dockable.Tab` (default: the tab's name). */
-export type RenderBorderTab = (tab: TabNode) => ReactNode;
+export type RenderBorderTab<T extends DockableTypes = AnyTypes> = (
+    tab: TabOf<T>,
+) => ReactNode;
 
 /** How a border's strip and tabs look, per example (the kit's default: vertical side labels). */
-export interface BorderOptions {
+export interface BorderOptions<T extends DockableTypes = AnyTypes> {
     /** the content of a border's tab button (default: the tab's name) */
-    renderBorderTab?: RenderBorderTab | undefined;
+    renderBorderTab?: RenderBorderTab<T> | undefined;
     /**
      * classes for a border's tab, replacing the kit's vertical side labels
      * (`styles.borderTabVertical`) when given: upright labels, icon-only tabs
      */
     borderTabClassName?:
         | string
-        | ((tab: TabNode) => string | undefined)
+        | ((tab: TabOf<T>) => string | undefined)
         | undefined;
     /** an accessible name for a border's tab, when its content has no text (an icon) */
-    borderTabLabel?: ((tab: TabNode) => string | undefined) | undefined;
+    borderTabLabel?: ((tab: TabOf<T>) => string | undefined) | undefined;
     /** extra classes for a border's strip (its width, say) */
     borderClassName?:
         | string
-        | ((border: BorderNode) => string | undefined)
+        | ((border: BorderNode<T>) => string | undefined)
         | undefined;
+    /** a left border's tab direction (`data-tab-direction` on its strip) */
+    tabDirection?: "up" | "down" | undefined;
 }
 
 /** The kit's border strip: a `Dockable.Border` with its tab list. */
-export function KitBorder({
+export function KitBorder<T extends DockableTypes = AnyTypes>({
     node,
     options = {},
 }: {
-    node: BorderNode;
-    options?: BorderOptions | undefined;
+    node: BorderNode<T>;
+    options?: BorderOptions<T> | undefined;
 }) {
-    const tabClass = (tab: TabNode) =>
+    const tabClass = (tab: TabOf<T>) =>
         typeof options.borderTabClassName === "function"
             ? options.borderTabClassName(tab)
             : options.borderTabClassName;
     return (
         <Dockable.Border
             node={node}
+            tabDirection={options.tabDirection}
             className={cn(
                 styles.border,
                 typeof options.borderClassName === "function"
@@ -227,8 +253,8 @@ export function KitBorder({
                     : options.borderClassName,
             )}
         >
-            <Dockable.TabList
-                aria-label={`${node.getLocation().getName()} panels`}
+            <Dockable.TabList<T>
+                aria-label={`${node.location} panels`}
                 className={styles.borderTabList}
             >
                 {(tab) => (
@@ -242,7 +268,7 @@ export function KitBorder({
                     >
                         {options.renderBorderTab
                             ? options.renderBorderTab(tab)
-                            : tab.getName()}
+                            : tabName(tab)}
                     </Dockable.Tab>
                 )}
             </Dockable.TabList>
@@ -251,7 +277,11 @@ export function KitBorder({
 }
 
 /** The kit's border panel area, with the kit's splitter on the layout's side of it. */
-export function KitBorderContent({ node }: { node: BorderNode }) {
+export function KitBorderContent<T extends DockableTypes = AnyTypes>({
+    node,
+}: {
+    node: BorderNode<T>;
+}) {
     return (
         <Dockable.BorderContent
             node={node}
@@ -329,14 +359,14 @@ function usePopoutTheme(root: React.RefObject<HTMLElement | null>) {
     }, [root, apply]);
 
     const onOpen = useCallback(
-        (_layout: ModelLayout, _window: Window, doc: Document) => {
+        (_layout: unknown, _window: Window, doc: Document) => {
             documents.current.add(doc);
             apply(doc);
         },
         [apply],
     );
     const onClose = useCallback(
-        (_layout: ModelLayout, _window: Window, doc: Document) => {
+        (_layout: unknown, _window: Window, doc: Document) => {
             documents.current.delete(doc);
         },
         [],
@@ -344,23 +374,27 @@ function usePopoutTheme(root: React.RefObject<HTMLElement | null>) {
     return { onOpen, onClose };
 }
 
-export interface DockLayoutProps extends RenderNodeOptions {
-    model: Model;
-    /** the content of a tab's panel */
-    renderContent: (tab: TabNode) => ReactNode;
-    /** intercepts every action: return it to apply it, `undefined` to veto */
-    onAction?: OnAction | undefined;
-    onModelChange?: OnModelChange | undefined;
+export interface DockLayoutProps<T extends DockableTypes = AnyTypes>
+    extends RenderNodeOptions<T> {
+    /**
+     * the model. Its policies are middleware (`model.use`) and its reactions listeners
+     * (`model.subscribe`): the layout itself takes neither
+     */
+    model: Model<T>;
+    /** the content of a tab's panel: `tab.data` narrows on `tab.component` */
+    renderContent: (tab: TabOf<T>) => ReactNode;
     /** extra class names for each panel */
-    panelClassName?: string | ((tab: TabNode) => string) | undefined;
+    panelClassName?: string | ((tab: TabOf<T>) => string) | undefined;
+    /** render a tab's content only once it is first shown (default true) */
+    renderOnDemand?: boolean | ((tab: TabOf<T>) => boolean) | undefined;
     /** extra class names for the root */
     className?: string | undefined;
     /** more props for `Dockable.Root` */
-    rootProps?: Partial<RootProps> | undefined;
+    rootProps?: Partial<Omit<RootProps<T>, "model">> | undefined;
     /** extra elements inside the root (overlays, effects that need `useDockable`) */
     children?: ReactNode;
     /** how the model's borders look (see `BorderOptions`) */
-    borders?: BorderOptions | undefined;
+    borders?: BorderOptions<T> | undefined;
     /** show the edge docking targets (`Dockable.EdgeIndicator`) during a drag */
     edgeIndicators?: boolean | undefined;
 }
@@ -369,13 +403,14 @@ export interface DockLayoutProps extends RenderNodeOptions {
  * A complete themed layout: `Dockable.Root` with the kit's recursion, the borders of the model
  * around it, the panel layer, the drop indicator and popout windows.
  */
-export function DockLayout(props: DockLayoutProps) {
+export function DockLayout<T extends DockableTypes = AnyTypes>(
+    props: DockLayoutProps<T>,
+) {
     const {
         model,
         renderContent,
-        onAction,
-        onModelChange,
         panelClassName,
+        renderOnDemand,
         className,
         rootProps,
         children,
@@ -392,8 +427,6 @@ export function DockLayout(props: DockLayoutProps) {
             <Dockable.Root
                 ref={rootRef}
                 model={model}
-                onAction={onAction}
-                onModelChange={onModelChange}
                 getLabel={getLabel}
                 popoutURL={popoutURL}
                 // the page's light/dark and body palette class, into each popout (kept in sync)
@@ -401,7 +434,7 @@ export function DockLayout(props: DockLayoutProps) {
                 className={cn(styles.root, className)}
                 {...rootProps}
             >
-                <Dockable.Borders
+                <Dockable.Borders<T>
                     renderBar={(border) => (
                         <KitBorder node={border} options={borders} />
                     )}
@@ -409,11 +442,11 @@ export function DockLayout(props: DockLayoutProps) {
                         <KitBorderContent node={border} />
                     )}
                 >
-                    <Dockable.Row renderSplitter={renderSplitter}>
+                    <Dockable.Row<T> renderSplitter={renderSplitter}>
                         {renderNode}
                     </Dockable.Row>
                 </Dockable.Borders>
-                <Dockable.Panels>
+                <Dockable.Panels<T> renderOnDemand={renderOnDemand}>
                     {(tab) => (
                         <Dockable.Panel
                             node={tab}
@@ -433,14 +466,14 @@ export function DockLayout(props: DockLayoutProps) {
                         transitionDuration: `${state.tabDragSpeed}s`,
                     })}
                 />
-                <Dockable.Popout
+                <Dockable.Popout<T>
                     onOpen={popoutTheme.onOpen}
                     onClose={popoutTheme.onClose}
                     className={styles.root}
                 >
                     {() => (
                         <>
-                            <Dockable.Row renderSplitter={renderSplitter}>
+                            <Dockable.Row<T> renderSplitter={renderSplitter}>
                                 {renderNode}
                             </Dockable.Row>
                             {/* a window shows its own outline during a drag into it */}
