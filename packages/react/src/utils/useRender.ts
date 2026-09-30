@@ -7,7 +7,7 @@ import { mergeProps, mergeRefs } from "./mergeProps";
  */
 export type RenderedProps<E extends Element = HTMLElement> =
     React.HTMLAttributes<E> & {
-        ref: (element: E | null) => void | (() => void);
+        ref: React.RefCallback<E>;
         [dataAttribute: `data-${string}`]: string | undefined;
     };
 
