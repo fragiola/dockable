@@ -570,6 +570,35 @@ describe("add drags (a consumer element dragged in)", () => {
         expect(s.model.state).toBe(before);
     });
 
+    it("starts from the model alone, through its attached main layout (a source outside the layout)", () => {
+        const s = setup();
+        const start = dragEvent("dragstart", 0, 0, fakeDataTransfer([]));
+        expect(DragDropManager.startAddDrag(s.model, start, { ...tab })).toBe(
+            true,
+        );
+        expect(DragDropManager.getDragState()?.mainEngine).toBe(s.engine);
+        DragDropManager.endDrag();
+        expect(DragDropManager.getDragState()).toBeUndefined();
+
+        // a model whose layout is not attached (not mounted yet): nothing starts
+        const detached = freshModel();
+        expect(
+            DragDropManager.startAddDrag(
+                detached,
+                dragEvent("dragstart", 0, 0, fakeDataTransfer([])),
+                { ...tab },
+            ),
+        ).toBe(false);
+        s.engine.detachRoot();
+        expect(
+            DragDropManager.startAddDrag(
+                s.model,
+                dragEvent("dragstart", 0, 0, fakeDataTransfer([])),
+                { ...tab },
+            ),
+        ).toBe(false);
+    });
+
     it("adds a tab in the centre of a tabset with tab.add, and reports its id", () => {
         const s = setup();
         const onDrop = vi.fn();

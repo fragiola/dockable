@@ -195,6 +195,11 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private static dragState: DragState | undefined = undefined;
     private static readonly dragListeners = new Set<() => void>();
     private static readonly dropZones = new Set<DropZone>();
+    /** the managers of the main layouts attached to the page, by model (latest last) */
+    private static readonly attachedMains = new WeakMap<
+        object,
+        DragDropManager<AnyTypes>[]
+    >();
 
     private readonly engine: LayoutEngine<T>;
     private dragEnterCount = 0;
@@ -229,6 +234,36 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         return () => {
             DragDropManager.dragListeners.delete(listener);
         };
+    }
+
+    /**
+     * Starts dragging a new tab into the layout of `model` from a consumer element anywhere on the
+     * page (a sidebar item, a palette entry): {@link startAddDrag} on the manager of the model's
+     * attached main layout. Returns false, starting nothing, when no layout of `model` is attached.
+     */
+    static startAddDrag<T extends DockableTypes>(
+        model: Model<T>,
+        event: DragEventLike,
+        tab: TabInitOf<T>,
+        onDrop?: NewTabDropped,
+        dragImage?: Element | null,
+    ): boolean {
+        const managers = DragDropManager.attachedMains.get(model);
+        const manager = managers?.[managers.length - 1] as
+            | DragDropManager<T>
+            | undefined;
+        if (!manager) {
+            return false;
+        }
+        manager.startAddDrag(event, tab, onDrop, dragImage);
+        return true;
+    }
+
+    /** Ends the page's drag, if any (a drag source's `dragend`). */
+    static endDrag() {
+        DragDropManager.dragState?.mainEngine
+            .getDragDropManager()
+            .onDragEnded();
     }
 
     private static setDragState(state: DragState | undefined) {
@@ -506,7 +541,24 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         };
         doc.addEventListener("dragend", onDocumentEnd);
         doc.addEventListener("drop", onDocumentEnd);
+        const self = this as unknown as DragDropManager<AnyTypes>;
+        const main = this.engine.main === this.engine;
+        if (main) {
+            const managers =
+                DragDropManager.attachedMains.get(this.engine.model) ?? [];
+            managers.push(self);
+            DragDropManager.attachedMains.set(this.engine.model, managers);
+        }
         return () => {
+            if (main) {
+                const managers = DragDropManager.attachedMains.get(
+                    this.engine.model,
+                );
+                const index = managers?.indexOf(self) ?? -1;
+                if (index >= 0) {
+                    managers?.splice(index, 1);
+                }
+            }
             element.removeEventListener("dragenter", onDragEnter);
             element.removeEventListener("dragleave", onDragLeave);
             element.removeEventListener("dragover", onDragOver);
