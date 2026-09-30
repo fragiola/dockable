@@ -1,4 +1,4 @@
-// The site export contract, v1.1 (fragiola/www CONTRACT.md): its types, and the checks this repo
+// The site export contract, v1.2 (fragiola/www CONTRACT.md): its types, and the checks this repo
 // runs on what it exports. `www` runs the same checks on every build; running them here first
 // means an export that `www` would reject never leaves this repo.
 //
@@ -6,12 +6,19 @@
 // - `validateSite(site)` checks the same things in memory (the tests run it on the sources).
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
-/** v1.1 is additive: `project.json` keeps `"contract": 1`. */
+/** v1.1 and v1.2 keep the file format: `project.json` keeps `"contract": 1`. */
 export const CONTRACT = 1;
 /** The version this repo implements, for messages. */
-export const CONTRACT_VERSION = "1.1";
+export const CONTRACT_VERSION = "1.2";
+
+/** v1.2 (§2, §3.2): lengths in characters (Unicode code points). */
+export const LIMITS = {
+    title: 60,
+    description: { min: 50, max: 160 },
+    keywords: { min: 1, max: 8, length: 40 },
+} as const;
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -25,6 +32,8 @@ export interface ProjectInfo {
     registry?: { namespace: string };
     /** v1.1: the header and footer links */
     repository?: string;
+    /** v1.2: 1–8 lowercase topics, for the project's structured data only (§2) */
+    keywords?: string[];
 }
 
 export type SidebarEntry =
@@ -191,6 +200,10 @@ interface Tag {
     name: string;
     props: Map<string, string>;
     line: number;
+    /** its offset in the prose, for document order */
+    index: number;
+    /** `<X />`: it has no children */
+    selfClosing: boolean;
 }
 
 const ATTRIBUTES = String.raw`(?:[^>"'{}]|"[^"]*"|'[^']*'|\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*`;
@@ -214,6 +227,8 @@ function tagsOf(text: string): Tag[] {
             name: match[1] ?? "",
             props,
             line: text.slice(0, match.index).split("\n").length,
+            index: match.index,
+            selfClosing: /\/\s*$/.test(match[2] ?? ""),
         });
     }
     return tags;
@@ -283,6 +298,278 @@ function linksOf(text: string): { href: string; line: number }[] {
     return links;
 }
 
+/** A frontmatter field's line in the file (the block opens on line 1), else 1. */
+function fieldLine(source: string, key: string): number {
+    const lines = source.split("\n");
+    if (lines[0] !== "---") return 1;
+    for (let index = 1; index < lines.length; index++) {
+        const line = lines[index] ?? "";
+        if (line === "---") break;
+        if (line.startsWith(`${key}:`)) return index + 1;
+    }
+    return 1;
+}
+
+/**
+ * The heading level `www` renders for a component (§3.4): `<Hero>` the h1, a `<Section>`'s title
+ * an h2, a `<Feature>`'s title one level below its section (h3, or h2 outside one).
+ */
+function renderedLevel(
+    name: string,
+    ancestors: readonly string[],
+): number | undefined {
+    switch (name) {
+        case "Hero":
+            return 1;
+        case "Section":
+            return 2;
+        case "Feature":
+            return ancestors.includes("Section") ? 3 : 2;
+        default:
+            return undefined;
+    }
+}
+
+/** An entry of a page's outline: a Markdown heading (its depth) or a component's heading. */
+interface OutlineEntry {
+    level: number;
+    line: number;
+    markdown: boolean;
+}
+
+/**
+ * The page's outline as `www` renders it, in document order: the Markdown (ATX) headings of the
+ * prose, and the components that render a heading, each knowing the components it is inside.
+ */
+function outlineOf(text: string): OutlineEntry[] {
+    const lineOf = (index: number) => text.slice(0, index).split("\n").length;
+    type Event =
+        | { index: number; kind: "open"; tag: Tag }
+        | { index: number; kind: "close"; name: string }
+        | { index: number; kind: "heading"; depth: number };
+    const events: Event[] = [
+        ...tagsOf(text).map(
+            (tag): Event => ({ index: tag.index, kind: "open", tag }),
+        ),
+        ...[...text.matchAll(/<\/([A-Za-z][\w.]*)\s*>/g)].map(
+            (match): Event => ({
+                index: match.index,
+                kind: "close",
+                name: match[1] ?? "",
+            }),
+        ),
+        ...[...text.matchAll(/^[ \t]*(#{1,6})(?=[ \t]|$)/gm)].map(
+            (match): Event => ({
+                index: match.index,
+                kind: "heading",
+                depth: match[1]?.length ?? 0,
+            }),
+        ),
+    ].sort((a, b) => a.index - b.index);
+    const outline: OutlineEntry[] = [];
+    const open: string[] = [];
+    for (const event of events) {
+        if (event.kind === "heading") {
+            outline.push({
+                level: event.depth,
+                line: lineOf(event.index),
+                markdown: true,
+            });
+        } else if (event.kind === "open") {
+            const level = renderedLevel(event.tag.name, open);
+            if (level !== undefined) {
+                outline.push({ level, line: event.tag.line, markdown: false });
+            }
+            if (!event.tag.selfClosing) open.push(event.tag.name);
+        } else {
+            const at = open.lastIndexOf(event.name);
+            if (at >= 0) open.length = at;
+        }
+    }
+    return outline;
+}
+
+/** The Markdown images of the prose (inline and reference), with their alt text as written. */
+function imagesOf(text: string): { alt: string; line: number }[] {
+    return [
+        ...text.matchAll(/!\[((?:[^[\]\\]|\\.|\[[^\]]*\])*)\](?=[([])/g),
+    ].map((match) => ({
+        alt: match[1] ?? "",
+        line: text.slice(0, match.index).split("\n").length,
+    }));
+}
+
+/** No `#`, no skipped level, one `<Hero>` on the landing, alt text on images (v1.2, §3.4). */
+function structureProblems(
+    file: string,
+    landing: boolean,
+    source: string,
+): string[] {
+    const problems: string[] = [];
+    const { text } = prose(source);
+    const heroes = tagsOf(text).filter((tag) => tag.name === "Hero");
+    if (landing && heroes.length === 0) {
+        problems.push(
+            `${file}:1: the landing has no <Hero>: its title is the landing's h1 (§3.4)`,
+        );
+    }
+    if (landing) {
+        for (const hero of heroes.slice(1)) {
+            problems.push(
+                `${file}:${hero.line}: a second <Hero>: the landing has exactly one, its only h1 (§3.4)`,
+            );
+        }
+    }
+    // the page starts under its h1 (the frontmatter title, or the landing's <Hero>)
+    let previous = 1;
+    for (const { level, line, markdown } of outlineOf(text)) {
+        if (markdown && level === 1) {
+            problems.push(
+                `${file}:${line}: a Markdown # heading: the page's h1 is ${landing ? "its <Hero>'s title" : "its frontmatter title"} (§3.4)`,
+            );
+        } else if (markdown && level > previous + 1) {
+            problems.push(
+                `${file}:${line}: a ${"#".repeat(level)} heading after an h${previous}: headings do not skip a level (§3.4)`,
+            );
+        }
+        previous = level;
+    }
+    const withCode = prose(source, { keepInlineCode: true }).text;
+    for (const image of imagesOf(withCode)) {
+        if (image.alt.trim() === "") {
+            problems.push(
+                `${file}:${image.line}: an image needs alt text: ![what it shows](…) (§3.4)`,
+            );
+        }
+    }
+    return problems;
+}
+
+/**
+ * The frontmatter values YAML would not read as written: an unquoted value with ": " or " #" in
+ * it is a nested mapping or a comment, not text (`www` parses the frontmatter as YAML).
+ */
+function yamlProblems(file: string, source: string): string[] {
+    const lines = source.split("\n");
+    if (lines[0] !== "---") return [];
+    const problems: string[] = [];
+    for (let index = 1; index < lines.length; index++) {
+        const line = lines[index] ?? "";
+        if (line === "---") break;
+        const match = /^([A-Za-z]\w*):[ \t]+(.*)$/.exec(line);
+        const value = match?.[2]?.trim() ?? "";
+        if (!/^["'[{]/.test(value) && /: | #|:$/.test(value)) {
+            problems.push(
+                `${file}:${index + 1}: the frontmatter is not valid YAML: ${match?.[1]}'s value has ": " or " #" in it; quote it`,
+            );
+        }
+    }
+    return problems;
+}
+
+/** The frontmatter's lengths, and the landing's title (v1.2, §3.2), at each field's line. */
+function searchFieldProblems(
+    file: string,
+    path: string,
+    source: string,
+    project: ProjectInfo,
+): string[] {
+    const problems: string[] = [];
+    const { title, description } = frontmatter(source);
+    const at = (key: string) => `${file}:${fieldLine(source, key)}`;
+    if (title && length(title) > LIMITS.title) {
+        problems.push(
+            `${at("title")}: frontmatter: title is ${length(title)} characters: at most ${LIMITS.title} (§3.2)`,
+        );
+    }
+    const wrong = description ? descriptionLength(description) : undefined;
+    if (wrong)
+        problems.push(`${at("description")}: frontmatter: ${wrong} (§3.2)`);
+    if (path !== "index" || !title || !project.title) return problems;
+    if (!title.includes(project.title)) {
+        problems.push(
+            `${at("title")}: frontmatter: the landing's title "${title}" is its <title>: it contains the project's title "${project.title}" (§3.2)`,
+        );
+    } else if (title.trim() === project.title) {
+        problems.push(
+            `${at("title")}: frontmatter: the landing's title is its <title>: say what ${project.title} is, not only its name ("${project.title} — …") (§3.2)`,
+        );
+    }
+    return problems;
+}
+
+/** A length in characters: Unicode code points, as the contract counts them (v1.2). */
+const length = (text: string) => [...text].length;
+
+/** Why a description is not 50–160 characters long, or undefined when it is (§2, §3.2). */
+function descriptionLength(text: string): string | undefined {
+    const { min, max } = LIMITS.description;
+    const n = length(text);
+    return n < min || n > max
+        ? `description is ${n} characters: ${min}–${max}`
+        : undefined;
+}
+
+/** `keywords` (v1.2, §2): 1–8 unique topics, lowercase, at most 40 characters each. */
+function keywordProblems(keywords: unknown): string[] {
+    const { min, max } = LIMITS.keywords;
+    if (
+        !Array.isArray(keywords) ||
+        keywords.length < min ||
+        keywords.length > max
+    ) {
+        return [`project.json: keywords must list ${min}–${max} topics (§2)`];
+    }
+    const problems: string[] = [];
+    const seen = new Set<string>();
+    for (const keyword of keywords as unknown[]) {
+        if (
+            typeof keyword !== "string" ||
+            keyword === "" ||
+            keyword.trim() !== keyword
+        ) {
+            problems.push(
+                `project.json: keywords: ${JSON.stringify(keyword)} is not a topic: a non-empty string, no surrounding spaces (§2)`,
+            );
+            continue;
+        }
+        const where = `project.json: keywords: "${keyword}"`;
+        if (keyword !== keyword.toLowerCase()) {
+            problems.push(`${where} is not lowercase (§2)`);
+        }
+        if (length(keyword) > LIMITS.keywords.length) {
+            problems.push(
+                `${where} is ${length(keyword)} characters: at most ${LIMITS.keywords.length} (§2)`,
+            );
+        }
+        if (seen.has(keyword)) problems.push(`${where} is listed twice (§2)`);
+        seen.add(keyword);
+    }
+    return problems;
+}
+
+/** `<meta name="robots" content="noindex">`, whatever the order and quoting of its attributes. */
+function isNoindex(tag: string): boolean {
+    return (
+        /\bname\s*=\s*(["']?)robots\1(?=[\s/>])/i.test(tag) &&
+        /\bcontent\s*=\s*(["'])[^"']*\bnoindex\b[^"']*\1/i.test(tag)
+    );
+}
+
+/**
+ * Why an HTML file of an embed app is not `noindex`, at the line of its `<head>`, or undefined
+ * when it is (v1.2, §5.1). `file` names it in the message.
+ */
+export function noindexProblem(file: string, html: string): string | undefined {
+    const tags = [...html.matchAll(/<meta\b[^>]*>/gi)];
+    if (tags.some(([tag]) => isNoindex(tag))) return undefined;
+    const head = /<head\b/i.exec(html);
+    const where = head
+        ? `${file}:${html.slice(0, head.index).split("\n").length}`
+        : file;
+    return `${where}: needs <meta name="robots" content="noindex">: an example is not a page for search engines (§5.1)`;
+}
+
 // ─── checks ──────────────────────────────────────────────────────────────────
 
 export function validateSite(site: Site): string[] {
@@ -311,6 +598,16 @@ export function validateSite(site: Site): string[] {
         !/^https:\/\/\S+$/.test(project.repository)
     ) {
         problems.push("project.json: repository must be an https:// URL");
+    }
+    const projectDescription =
+        typeof project.description === "string" && project.description
+            ? descriptionLength(project.description)
+            : undefined;
+    if (projectDescription) {
+        problems.push(`project.json: ${projectDescription} (§2)`);
+    }
+    if (project.keywords !== undefined) {
+        problems.push(...keywordProblems(project.keywords));
     }
 
     // examples.json
@@ -456,6 +753,8 @@ export function validateSite(site: Site): string[] {
         if (path === "index" && fields.layout !== "landing") {
             problems.push(`${file}: frontmatter layout must be "landing"`);
         }
+        problems.push(...yamlProblems(file, source));
+        problems.push(...searchFieldProblems(file, path, source, project));
         const { text, fences } = prose(source);
         for (const fence of fences) {
             if (!/^[\w+-]+(\s+title="[^"]*")?$/.test(fence.info)) {
@@ -619,6 +918,7 @@ export function validateSite(site: Site): string[] {
             const problem = resolve(link.href, path);
             if (problem) problems.push(`${file}:${link.line}: ${problem}`);
         }
+        problems.push(...structureProblems(file, path === "index", source));
     }
 
     // the manifests' docs links
@@ -677,6 +977,15 @@ export function validateExport(out: string, base: string): string[] {
         for (const file of ["index.html", "manifest.json"]) {
             if (!existsSync(join(dir, file)))
                 problems.push(`embed/${framework}/${file} is missing`);
+        }
+        if (existsSync(dir)) {
+            for (const path of walk(dir).filter((f) => f.endsWith(".html"))) {
+                const problem = noindexProblem(
+                    relative(out, path).split(sep).join("/"),
+                    readFileSync(path, "utf-8"),
+                );
+                if (problem) problems.push(problem);
+            }
         }
         const index = join(dir, "index.html");
         const embedBase = `${base}/embed/${framework}/`;
