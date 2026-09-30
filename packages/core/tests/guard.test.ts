@@ -24,6 +24,39 @@ function codeOnly(source: string): string {
 // ownerDocument/defaultView (or an injected host), so it also runs in a popout and in Node
 const GLOBAL_DOM =
     /(?<![.\w$])(document|window|requestAnimationFrame|cancelAnimationFrame|getComputedStyle|navigator|localStorage|sessionStorage)\b(?!\s*:)/;
+const GLOBAL_CRYPTO = /(?<![.\w$])crypto\b(?!\s*:)/;
+
+/** The folders of the new model (Engine v2). */
+const ENGINE_V2 = ["state", "commands", "schema", "geometry", "split", "drop"];
+
+/**
+ * The exported declarations of a source (comments and strings already blanked): each `export`
+ * statement up to its end (the first `;` or blank-line-terminated block at column 0).
+ */
+function exportedDeclarations(source: string): string[] {
+    const declarations: string[] = [];
+    const lines = source.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i] ?? "";
+        if (!line.startsWith("export ")) {
+            continue;
+        }
+        const block = [line];
+        // a multi-line declaration runs until a line closing it at column 0
+        if (!/;\s*$/.test(line) && !/^export \{.*\}.*;?$/.test(line)) {
+            for (let j = i + 1; j < lines.length; j++) {
+                const next = lines[j] ?? "";
+                block.push(next);
+                if (/^[}\]);]/.test(next)) {
+                    break;
+                }
+            }
+        }
+        declarations.push(block.join("\n"));
+    }
+    return declarations;
+}
+
 const FORBIDDEN =
     /\b(CLASSES|CSSClassNames|I18nLabelDefaults|I18nLabel|translate|setI18nDefaults|i18nTranslator)\b/;
 
@@ -59,6 +92,46 @@ describe("core package guard", () => {
             return match ? [`${file}: ${match[0]}`] : [];
         });
         expect(offenders).toEqual([]);
+    });
+
+    it("never reaches for the global crypto (ids come from an injectable generator)", () => {
+        // the FlexLayout port (src/model) is exempt until it is removed
+        const offenders = listFiles(src)
+            .filter((file) => !file.startsWith(join(src, "model")))
+            .flatMap((file) => {
+                const match = GLOBAL_CRYPTO.exec(
+                    codeOnly(readFileSync(file, "utf8")),
+                );
+                return match ? [`${file}: ${match[0]}`] : [];
+            });
+        expect(offenders).toEqual([]);
+        expect(GLOBAL_CRYPTO.test(codeOnly("crypto.randomUUID()"))).toBe(true);
+        expect(GLOBAL_CRYPTO.test(codeOnly("const crypto: X = y;"))).toBe(
+            false,
+        );
+    });
+
+    it("keeps the new model independent of the FlexLayout port", () => {
+        const offenders = ENGINE_V2.flatMap((dir) =>
+            listFiles(join(src, dir)),
+        ).filter((file) =>
+            /from\s+["'](?:\.\.?\/)+model\//.test(readFileSync(file, "utf8")),
+        );
+        expect(offenders).toEqual([]);
+    });
+
+    it("has no `any` in the new model's exported declarations", () => {
+        const offenders = ENGINE_V2.flatMap((dir) =>
+            listFiles(join(src, dir)),
+        ).flatMap((file) =>
+            exportedDeclarations(codeOnly(readFileSync(file, "utf8")))
+                .filter((declaration) => /\bany\b/.test(declaration))
+                .map((declaration) => `${file}: ${declaration.slice(0, 80)}`),
+        );
+        expect(offenders).toEqual([]);
+        expect(
+            exportedDeclarations("export type X = any;\nconst y: any = 1;"),
+        ).toEqual(["export type X = any;"]);
     });
 
     it("detects global DOM access in code but not in comments or strings", () => {
