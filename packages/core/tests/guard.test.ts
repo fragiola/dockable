@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -26,8 +26,35 @@ const GLOBAL_DOM =
     /(?<![.\w$])(document|window|requestAnimationFrame|cancelAnimationFrame|getComputedStyle|navigator|localStorage|sessionStorage)\b(?!\s*:)/;
 const GLOBAL_CRYPTO = /(?<![.\w$])crypto\b(?!\s*:)/;
 
-/** The folders of the new model (Engine v2). */
-const ENGINE_V2 = ["state", "commands", "schema", "geometry", "split", "drop"];
+/** The files ported from FlexLayout (design record §8.1): they keep its licence header. */
+const PORTED = [
+    "src/state/tidy.ts",
+    "src/state/selection.ts",
+    "src/commands/dock.ts",
+    "src/commands/rules.ts",
+    "src/geometry/rect.ts",
+    "src/geometry/dock.ts",
+    "src/split/split.ts",
+    "src/drop/resolve.ts",
+    "src/drop/strip.ts",
+    "src/engine/LayoutEngine.ts",
+    "src/dnd/DragDropManager.ts",
+    "src/popout/PopoutManager.ts",
+    "src/splitter/SplitterController.ts",
+    "src/keyboard/keymap.ts",
+    "src/labels/DockableLabel.ts",
+    "src/paths.ts",
+    "tests/keyboard/KeyMap.test.ts",
+];
+
+/** FlexLayout's API shapes, which the engine replaced: none may come back. */
+const FLEXLAYOUT_API =
+    /\bActions\.|\bclass Action\b|\bdoAction\b|"FlexLayout_|\bgetConfig\b|\bLayoutEngine\.of\b|\bclass (?:TabNode|TabSetNode)\b/;
+
+/** Source with comments blanked out (strings kept: "FlexLayout_" hides in one). */
+function codeOnlyKeepStrings(source: string): string {
+    return source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+}
 
 /**
  * The exported declarations of a source (comments and strings already blanked): each `export`
@@ -95,15 +122,12 @@ describe("core package guard", () => {
     });
 
     it("never reaches for the global crypto (ids come from an injectable generator)", () => {
-        // the FlexLayout port (src/model) is exempt until it is removed
-        const offenders = listFiles(src)
-            .filter((file) => !file.startsWith(join(src, "model")))
-            .flatMap((file) => {
-                const match = GLOBAL_CRYPTO.exec(
-                    codeOnly(readFileSync(file, "utf8")),
-                );
-                return match ? [`${file}: ${match[0]}`] : [];
-            });
+        const offenders = listFiles(src).flatMap((file) => {
+            const match = GLOBAL_CRYPTO.exec(
+                codeOnly(readFileSync(file, "utf8")),
+            );
+            return match ? [`${file}: ${match[0]}`] : [];
+        });
         expect(offenders).toEqual([]);
         expect(GLOBAL_CRYPTO.test(codeOnly("crypto.randomUUID()"))).toBe(true);
         expect(GLOBAL_CRYPTO.test(codeOnly("const crypto: X = y;"))).toBe(
@@ -111,19 +135,8 @@ describe("core package guard", () => {
         );
     });
 
-    it("keeps the new model independent of the FlexLayout port", () => {
-        const offenders = ENGINE_V2.flatMap((dir) =>
-            listFiles(join(src, dir)),
-        ).filter((file) =>
-            /from\s+["'](?:\.\.?\/)+model\//.test(readFileSync(file, "utf8")),
-        );
-        expect(offenders).toEqual([]);
-    });
-
-    it("has no `any` in the new model's exported declarations", () => {
-        const offenders = ENGINE_V2.flatMap((dir) =>
-            listFiles(join(src, dir)),
-        ).flatMap((file) =>
+    it("has no `any` in its exported declarations", () => {
+        const offenders = listFiles(src).flatMap((file) =>
             exportedDeclarations(codeOnly(readFileSync(file, "utf8")))
                 .filter((declaration) => /\bany\b/.test(declaration))
                 .map((declaration) => `${file}: ${declaration.slice(0, 80)}`),
@@ -161,22 +174,46 @@ describe("core package guard", () => {
     });
 
     it("every file ported from FlexLayout carries the Caplin MIT header", () => {
-        const ported = [
-            ...listFiles(join(src, "model")),
-            ...listFiles(join(root, "tests", "model")),
-        ];
-        const missing = ported.filter((file) => {
-            const head = readFileSync(file, "utf8")
-                .split("\n")
-                .slice(0, 5)
-                .join("\n");
-            return !(
-                head.includes("FlexLayout") &&
-                head.includes("Caplin Systems Ltd") &&
-                head.includes("MIT")
-            );
-        });
+        const missing = PORTED.map((file) => join(root, file)).filter(
+            (file) => {
+                if (!existsSync(file)) {
+                    return true;
+                }
+                // the leading line comments, joined into one sentence
+                const head = (
+                    /^(?:\/\/[^\n]*\n)+/.exec(
+                        readFileSync(file, "utf8"),
+                    )?.[0] ?? ""
+                ).replace(/\s*\n\/\/\s*|\s+/g, " ");
+                return !(
+                    head.includes("FlexLayout") &&
+                    head.includes("Caplin Systems Ltd") &&
+                    head.includes("MIT")
+                );
+            },
+        );
         expect(missing).toEqual([]);
+    });
+
+    it("has no FlexLayout-shaped API left", () => {
+        const offenders = listFiles(src).flatMap((file) => {
+            const match = FLEXLAYOUT_API.exec(
+                codeOnlyKeepStrings(readFileSync(file, "utf8")),
+            );
+            return match ? [`${file}: ${match[0]}`] : [];
+        });
+        expect(offenders).toEqual([]);
+        expect(existsSync(join(src, "model"))).toBe(false);
+        expect(
+            FLEXLAYOUT_API.test('model.doAction(Actions.addTab(json, "ts0"))'),
+        ).toBe(true);
+        expect(FLEXLAYOUT_API.test('const type = "FlexLayout_AddTab";')).toBe(
+            true,
+        );
+        expect(FLEXLAYOUT_API.test("tab.getConfig()")).toBe(true);
+        expect(FLEXLAYOUT_API.test('model.run("tab.add", payload)')).toBe(
+            false,
+        );
     });
 
     it("ships the root licence, including the FlexLayout notice", () => {

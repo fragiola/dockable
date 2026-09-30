@@ -17,11 +17,11 @@
     "scripts": {
         "format": "biome format --write",
         "lint": "biome lint",
-        "check": "biome check && pnpm --filter @fragiola/dockable check:interfaces",
+        "check": "biome check",
         "check:fix": "biome check --write",
         "typecheck": "pnpm -r typecheck",
         "test": "vitest run",
-        "build": "pnpm -r build",
+        "build": "pnpm -r build && node scripts/check-dts.ts",
         "e2e": "pnpm --workspace-concurrency=1 --filter playground --filter examples-react e2e",
         "dev": "pnpm --filter playground dev",
         "site:export": "node site/export.ts",
