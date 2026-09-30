@@ -2,14 +2,16 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import {
-    BorderNode,
+    type AnyTypes,
+    type BorderNode,
+    type SplitterState as CoreSplitterState,
     DockableLabel,
+    type DockableTypes,
     getSplitterPath,
-    type ISplitterState,
     type RowNode,
 } from "@fragiola/dockable";
 import type * as React from "react";
-import { useDockableContext } from "./context";
+import { useDockableContext, useLayoutContext } from "./context";
 import { useSplitter } from "./hooks";
 import {
     type DivPrimitiveProps,
@@ -17,14 +19,15 @@ import {
     useRenderElement,
 } from "./utils/useRender";
 
-export interface SplitterState extends ISplitterState {
+export interface SplitterState extends CoreSplitterState {
     /** `"vertical"` for a splitter between side by side children, as its `aria-orientation` */
     orientation: "horizontal" | "vertical";
 }
 
-export interface SplitterProps extends DivPrimitiveProps<SplitterState> {
+export interface SplitterProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<SplitterState> {
     /** the row (or border) the splitter resizes */
-    node: RowNode | BorderNode;
+    node: RowNode<T> | BorderNode<T>;
     /** in a row, the splitter sits before child `index` (1-based); a border's splitter has none */
     index?: number | undefined;
     children?: React.ReactNode;
@@ -35,14 +38,17 @@ export interface SplitterProps extends DivPrimitiveProps<SplitterState> {
  * (`role="separator"`). Drag it with the pointer, or focus it and use the arrow keys. While an outline (non-realtime) drag is in progress it carries
  * `data-dragging` and a structural `transform` previewing where it will land.
  */
-export function Splitter(props: SplitterProps) {
+export function Splitter<T extends DockableTypes = AnyTypes>(
+    props: SplitterProps<T>,
+) {
     const { node, index = 0, children, ...rest } = props;
     const { getLabel } = useDockableContext("Splitter");
+    const { engine } = useLayoutContext("Splitter");
     const { controller, state, aria, hidden, ref } = useSplitter(node, index);
     const horizontal = aria.orientation === "vertical";
 
     const structural: React.CSSProperties = {};
-    if (node instanceof BorderNode) {
+    if (node.type === "border") {
         // an overlay border's content ignores presses (pointer-events: none), except its splitter
         structural.pointerEvents = "auto";
     }
@@ -72,7 +78,7 @@ export function Splitter(props: SplitterProps) {
             "aria-label": getLabel?.(DockableLabel.Splitter),
             tabIndex: 0,
             ...dataAttributes({
-                "layout-path": getSplitterPath(node, index),
+                "layout-path": getSplitterPath(engine.path(node.id), index),
                 orientation: aria.orientation,
                 dragging: state.dragging,
             }),

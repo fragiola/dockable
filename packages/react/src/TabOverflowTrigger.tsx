@@ -1,4 +1,4 @@
-import { DockableLabel, type TabNode } from "@fragiola/dockable";
+import { type AnyTypes, DockableLabel, type TabOf } from "@fragiola/dockable";
 import * as React from "react";
 import { useDockableContext, useLayoutContext } from "./context";
 import { useTabOverflow } from "./hooks";
@@ -11,7 +11,7 @@ import {
 
 export interface TabOverflowTriggerState {
     /** the tabs that do not fit in the strip, in model order: what the menu lists */
-    hidden: TabNode[];
+    hidden: TabOf<AnyTypes>[];
     /** how many tabs are hidden */
     hiddenCount: number;
 }
@@ -33,7 +33,7 @@ export interface TabOverflowTriggerProps
  * `Dockable.Border`, next to the `Dockable.TabList`. It renders only while tabs are hidden, and the
  * engine reserves the space it takes in the strip. It renders no menu: make it your menu's trigger
  * (`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`), and select with
- * `Actions.selectTab`, which brings the tab into the strip.
+ * `tab.select`, which brings the tab into the strip.
  */
 export function TabOverflowTrigger(props: TabOverflowTriggerProps) {
     const { children, ...rest } = props;
@@ -41,11 +41,12 @@ export function TabOverflowTrigger(props: TabOverflowTriggerProps) {
     const { getLabel } = useDockableContext("TabOverflowTrigger");
     const { engine } = useLayoutContext("TabOverflowTrigger");
     const { hidden } = useTabOverflow(container);
+    const id = container.id;
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerOverflowTrigger(container, element);
+            engine.registerOverflowTrigger(id, element);
         },
-        [engine, container],
+        [engine, id],
     );
     const state: TabOverflowTriggerState = {
         hidden,
@@ -59,7 +60,7 @@ export function TabOverflowTrigger(props: TabOverflowTriggerProps) {
             "aria-label": getLabel?.(DockableLabel.Overflow_Menu_Tooltip),
             ...dataAttributes({
                 // FlexLayout's path for a tabset's overflow button
-                "layout-path": `${container.getPath()}/button/overflow`,
+                "layout-path": `${engine.path(id)}/button/overflow`,
                 count: hidden.length,
             }),
             children,

@@ -2,58 +2,121 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import {
-    Actions,
+    type AnyTypes,
     type BorderNode,
     createSplitterController,
+    type DockableTypes,
     DragDropManager,
     type DragState,
     type DropLocation,
-    type IDraggable,
-    type IDropZoneOptions,
-    type IJsonTabNode,
-    type ISplitterAria,
-    type ISplitterState,
-    LayoutEngine,
+    type DropZoneOptions,
+    type LayoutEngine,
+    type LayoutState,
     type Model,
     type NewTabDropped,
-    type Node,
     type RowNode,
+    type SplitterAria,
     type SplitterController,
-    type TabNode,
-    type TabSetNode,
+    type SplitterState,
+    type TabContainer,
+    type TabInitOf,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { type GetLabel, useDockableContext, useLayoutContext } from "./context";
+import {
+    type GetLabel,
+    ModelContext,
+    typedEngine,
+    typedModel,
+    useDockableContext,
+    useLayoutContext,
+} from "./context";
 
-export interface UseDockableResult {
+export interface UseDockableResult<T extends DockableTypes = AnyTypes> {
+    /** the model of the enclosing `Dockable.Root` */
+    model: Model<T>;
+    /** runs a command on the model (`model.run`), through its middleware */
+    run: Model<T>["run"];
     /** the engine of the layout this component renders in (the main layout or a popout's) */
-    engine: LayoutEngine;
+    engine: LayoutEngine<T>;
     /** the main layout's engine */
-    mainEngine: LayoutEngine;
-    model: Model;
+    mainEngine: LayoutEngine<T>;
     /** the id of the layout this component renders in */
     layoutId: string;
     getLabel: GetLabel | undefined;
 }
 
 /**
- * The lower layer: the engine, model and layout of the enclosing `Dockable.Root`. Dispatch
- * actions with `engine.doAction(Actions.x(...))` so they go through `onAction`.
+ * The lower layer: the model, the engine and the layout of the enclosing `Dockable.Root`. Pass the
+ * model's registry as the type argument (`useDockable<Types>()`); a child cannot infer it through
+ * context. Change the layout with `run("tab.close", { tab })`.
  */
-export function useDockable(): UseDockableResult {
+export function useDockable<
+    T extends DockableTypes = AnyTypes,
+>(): UseDockableResult<T> {
     const context = useDockableContext("useDockable");
     const layout = useLayoutContext("useDockable");
+    const model = typedModel<T>(context.model);
     return {
-        engine: layout.engine,
-        mainEngine: context.engine,
-        model: context.model,
+        model,
+        run: model.run,
+        engine: typedEngine<T>(layout.engine),
+        mainEngine: typedEngine<T>(context.engine),
         layoutId: layout.layoutId,
         getLabel: context.getLabel,
     };
 }
 
+/**
+ * A value selected from the model's state, re-rendering the component only when the selection
+ * changes (`isEqual`, `Object.is` by default). The selector runs once per state; keep it pure.
+ *
+ * ```ts
+ * const count = useModelState<Types, number>((state, model) => model.tabs().length);
+ * ```
+ */
+export function useModelState<T extends DockableTypes = AnyTypes, S = unknown>(
+    selector: (state: LayoutState<T>, model: Model<T>) => S,
+    isEqual: (a: S, b: S) => boolean = Object.is,
+): S {
+    const erased = React.useContext(ModelContext);
+    if (!erased) {
+        throw new Error("useModelState must be used inside Dockable.Root");
+    }
+    const model = typedModel<T>(erased);
+    const latest = React.useRef({ selector, isEqual });
+    latest.current = { selector, isEqual };
+    const cache = React.useRef<
+        { state: LayoutState<T>; value: S; model: Model<T> } | undefined
+    >(undefined);
+    const subscribe = React.useCallback(
+        (onChange: () => void) => model.subscribe(() => onChange()),
+        [model],
+    );
+    const getSnapshot = (): S => {
+        const state = model.state;
+        const previous = cache.current;
+        if (previous?.state === state && previous.model === model) {
+            return previous.value;
+        }
+        const value = latest.current.selector(state, model);
+        if (
+            previous !== undefined &&
+            previous.model === model &&
+            latest.current.isEqual(previous.value, value)
+        ) {
+            cache.current = { state, value: previous.value, model };
+            return previous.value;
+        }
+        cache.current = { state, value, model };
+        return value;
+    };
+    return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
 export interface TabSetState {
-    /** the tabset is the model's active tabset */
+    /** the tabset is its layout's active tabset */
     active: boolean;
     /** the tabset is maximized */
     maximized: boolean;
@@ -61,7 +124,7 @@ export interface TabSetState {
     hidden: boolean;
     /** the tabset has no tabs */
     empty: boolean;
-    /** the current drag would drop into or beside this tabset (its content, strip or a group) */
+    /** the current drag would drop into or beside this tabset (its content or its strip) */
     dropTarget: boolean;
     /** while it is the drop target: where the drag would dock relative to it */
     dropLocation: DropLocation | undefined;
@@ -90,13 +153,21 @@ const NO_DROP: TabSetDropState = {
     refused: false,
 };
 
+const DROP_LOCATIONS: readonly DropLocation[] = [
+    "center",
+    "top",
+    "bottom",
+    "left",
+    "right",
+];
+
 /**
  * Whether the current drag targets (or is refused by) `tabsetId`, from the engine's indicator
  * state. The snapshot is a string, so tabsets re-render only when their own answer changes, not
  * on every pointer move.
  */
-export function useTabSetDropState(
-    engine: LayoutEngine,
+export function useTabSetDropState<T extends DockableTypes>(
+    engine: LayoutEngine<T>,
     tabsetId: string,
 ): TabSetDropState {
     const manager = engine.getDragDropManager();
@@ -108,8 +179,7 @@ export function useTabSetDropState(
                 return "refused";
             }
             if (indicator.visible && indicator.targetTabSetId === tabsetId) {
-                // a strip drop targets the tabset itself (a drop into a tab group targets the
-                // group, and its index counts inside the group)
+                // a strip drop targets the tabset itself, at an index
                 const strip =
                     indicator.location === "center" &&
                     indicator.index >= 0 &&
@@ -125,10 +195,11 @@ export function useTabSetDropState(
     return React.useMemo(() => {
         if (key === "") return NO_DROP;
         if (key === "refused") return { ...NO_DROP, refused: true };
-        const [location, index] = key.split(":");
+        const [name, index] = key.split(":");
+        const location = DROP_LOCATIONS.find((l) => l === name);
         return {
             target: true,
-            location: location as DropLocation,
+            location,
             strip: index !== undefined,
             index: index === undefined ? -1 : Number(index),
             refused: false,
@@ -155,27 +226,32 @@ function isAuxEvent(event: React.PointerEvent | React.MouseEvent) {
 }
 
 /** The lower layer of `Dockable.TabSet`: its state, measurement ref and activation handler. */
-export function useTabSet(node: TabSetNode): UseTabSetResult {
+export function useTabSet<T extends DockableTypes>(
+    node: TabsetNode<T>,
+): UseTabSetResult {
+    const { model } = useDockableContext("useTabSet");
     const { engine, layoutId } = useLayoutContext("useTabSet");
-    const drop = useTabSetDropState(engine, node.getId());
+    const id = node.id;
+    const drop = useTabSetDropState(engine, id);
+    const active = model.activeTabset(layoutId)?.id === id;
     const state: TabSetState = {
-        active: node.isActive(),
-        maximized: node.isMaximized(),
-        hidden: node.getModel().isHiddenByMaximize(node),
-        empty: node.getChildren().length === 0,
+        active,
+        maximized: model.maximizedTabset(layoutId)?.id === id,
+        hidden: model.isHiddenByMaximize(id),
+        empty: node.children.length === 0,
         dropTarget: drop.target,
         dropLocation: drop.location,
         dropRefused: drop.refused,
     };
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(node, "tabset", element);
+            engine.registerMeasurable(id, "tabset", element);
         },
-        [engine, node],
+        [engine, id],
     );
     const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
-        if (!isAuxEvent(event) && !node.isActive()) {
-            engine.doAction(Actions.setActiveTabset(node.getId(), layoutId));
+        if (!isAuxEvent(event) && model.activeTabset(layoutId)?.id !== id) {
+            engine.run("tabset.activate", { tabset: id });
         }
     };
     return { state, ref, onPointerDown };
@@ -188,16 +264,21 @@ export interface BorderState {
     orientation: "horizontal" | "vertical";
     /** a tab is selected, so the border's panel is open */
     open: boolean;
-    /** the panel opens over the layout (`borderType: "overlay"`) instead of beside it */
+    /** the panel opens over the layout (`mode: "overlay"`) instead of beside it */
     overlay: boolean;
     /** the border has no tabs */
     empty: boolean;
-    /** a left border's tab direction (`borderLeftTabDirection`): `"up"` or `"down"` */
+    /** a left border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"` */
     tabDirection: "up" | "down" | undefined;
     /** the current drag would drop into this border (its strip or its open panel) */
     dropTarget: boolean;
     /** the current drag is over this border, but a drop rule refuses it */
     dropRefused: boolean;
+}
+
+export interface UseBorderOptions {
+    /** a left border's tab direction; default `"up"` */
+    tabDirection?: "up" | "down" | undefined;
 }
 
 export interface UseBorderResult {
@@ -207,41 +288,43 @@ export interface UseBorderResult {
 }
 
 /** The lower layer of `Dockable.Border`: its state and measurement ref. */
-export function useBorder(node: BorderNode): UseBorderResult {
+export function useBorder<T extends DockableTypes>(
+    node: BorderNode<T>,
+    options: UseBorderOptions = {},
+): UseBorderResult {
+    const { model } = useDockableContext("useBorder");
     const { engine } = useLayoutContext("useBorder");
-    const drop = useTabSetDropState(engine, node.getId());
-    const location = node.getLocation().getName() as BorderState["location"];
+    const id = node.id;
+    const drop = useTabSetDropState(engine, id);
+    const location = node.location;
+    const vertical = location === "left" || location === "right";
     const state: BorderState = {
         location,
-        orientation: node.isHorizontal() ? "vertical" : "horizontal",
-        open: node.getSelected() !== -1,
-        overlay: node.isOverlay(),
-        empty: node.getChildren().length === 0,
+        orientation: vertical ? "vertical" : "horizontal",
+        open: node.selected !== -1,
+        overlay: model.resolve(node).mode === "overlay",
+        empty: node.children.length === 0,
         tabDirection:
-            location === "left"
-                ? node.getModel().getBorderLeftTabDirection() === "down"
-                    ? "down"
-                    : "up"
-                : undefined,
+            location === "left" ? (options.tabDirection ?? "up") : undefined,
         dropTarget: drop.target,
         dropRefused: drop.refused,
     };
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(node, "borderheader", element);
+            engine.registerMeasurable(id, "borderheader", element);
         },
-        [engine, node],
+        [engine, id],
     );
     return { state, ref };
 }
 
-export interface UseTabOverflowResult {
+export interface UseTabOverflowResult<T extends DockableTypes = AnyTypes> {
     /** some of the container's tabs do not fit, so they are hidden */
     overflowing: boolean;
     /** the hidden tabs, in model order: what an overflow menu lists */
-    hidden: TabNode[];
+    hidden: TabOf<T>[];
     /** the tabs that stay in the strip, in model order */
-    visible: TabNode[];
+    visible: TabOf<T>[];
 }
 
 /**
@@ -249,40 +332,38 @@ export interface UseTabOverflowResult {
  * its `Dockable.TabList` (the engine measures the list, the tabs and the
  * `Dockable.TabOverflowTrigger`). The selected tab is never hidden.
  */
-export function useTabOverflow(
-    container: TabSetNode | BorderNode,
-): UseTabOverflowResult {
+export function useTabOverflow<T extends DockableTypes>(
+    container: TabContainer<T>,
+): UseTabOverflowResult<T> {
     const { engine } = useLayoutContext("useTabOverflow");
-    const id = container.getId();
+    const id = container.id;
     const hiddenIds = React.useSyncExternalStore(
         engine.subscribeOverflow,
         () => engine.getHiddenTabs(id),
         () => engine.getHiddenTabs(id),
     );
-    const tabs = container.getTabNodes();
     const hiddenSet = new Set(hiddenIds);
     return {
         overflowing: hiddenIds.length > 0,
-        hidden: tabs.filter((tab) => hiddenSet.has(tab.getId())),
-        visible: tabs.filter((tab) => !hiddenSet.has(tab.getId())),
+        hidden: container.children.filter((tab) => hiddenSet.has(tab.id)),
+        visible: container.children.filter((tab) => !hiddenSet.has(tab.id)),
     };
 }
 
-/** Whether tab overflow hides `tab` (a string-free snapshot, so only its own changes re-render). */
-export function useTabHidden(tab: TabNode): boolean {
+/** Whether tab overflow hides a tab of `containerId` (only its own changes re-render). */
+export function useTabHidden(containerId: string, tabId: string): boolean {
     const { engine } = useLayoutContext("useTabHidden");
-    const containerId = tab.getTabContainer().getId();
     return React.useSyncExternalStore(
         engine.subscribeOverflow,
-        () => engine.getHiddenTabs(containerId).includes(tab.getId()),
+        () => engine.getHiddenTabs(containerId).includes(tabId),
         () => false,
     );
 }
 
 export interface UseSplitterResult {
     controller: SplitterController;
-    state: ISplitterState;
-    aria: ISplitterAria;
+    state: SplitterState;
+    aria: SplitterAria;
     /** row splitters are hidden while a tabset is maximized */
     hidden: boolean;
     /** callback ref for the splitter's element */
@@ -291,16 +372,17 @@ export interface UseSplitterResult {
 
 /**
  * The lower layer of `Dockable.Splitter`: a headless controller for the splitter before child
- * `index` (1-based) of `node`, its drag state and ARIA values.
+ * `index` (1-based) of `node` (a row, or a border with no index), its drag state and ARIA values.
  */
-export function useSplitter(
-    node: RowNode | BorderNode,
+export function useSplitter<T extends DockableTypes>(
+    node: RowNode<T> | BorderNode<T>,
     index = 0,
 ): UseSplitterResult {
     const { engine } = useLayoutContext("useSplitter");
+    const id = node.id;
     const controller = React.useMemo(
-        () => createSplitterController(engine, node, index),
-        [engine, node, index],
+        () => createSplitterController(engine, id, index),
+        [engine, id, index],
     );
     React.useEffect(() => () => controller.dispose(), [controller]);
     const state = React.useSyncExternalStore(
@@ -344,29 +426,40 @@ export interface UseDragNodeResult {
 }
 
 /**
- * The lower layer of a draggable part: wires a node (a tab, tabset or group) to the core's
- * drag-and-drop machine. Spread `draggable`, `onDragStart` and `onDragEnd` on the element and
- * attach `ref` to the element the browser should snapshot as the drag image.
+ * The lower layer of a draggable part: wires a tab or a tabset to the core's drag-and-drop
+ * machine. Spread `draggable`, `onDragStart` and `onDragEnd` on the element and attach `ref` to the
+ * element the browser should snapshot as the drag image.
  */
-export function useDragNode(
-    node: Node & IDraggable & { isEnableDrag(): boolean },
+export function useDragNode<T extends DockableTypes>(
+    node: TabOf<T> | TabsetNode<T>,
 ): UseDragNodeResult {
+    const { model } = useDockableContext("useDragNode");
     const { engine } = useLayoutContext("useDragNode");
     const imageRef = React.useRef<HTMLElement | null>(null);
     const dragState = useDragState();
-    const draggable = node.isEnableDrag();
+    const id = node.id;
+    const enabled = () => {
+        const current = model.get(id);
+        if (current?.type === "tab") {
+            return model.resolve(current).enableDrag;
+        }
+        if (current?.type === "tabset") {
+            return model.resolve(current).enableDrag;
+        }
+        return false;
+    };
 
     const onDragStart = (event: React.DragEvent<HTMLElement>) => {
-        if (!node.isEnableDrag()) {
+        if (!enabled()) {
             event.preventDefault();
             return;
         }
         event.stopPropagation(); // a tab drag must not also start a tabset drag
         engine
             .getDragDropManager()
-            .setDragNode(
+            .startDrag(
                 event.nativeEvent,
-                node,
+                id,
                 imageRef.current ?? event.currentTarget,
             );
     };
@@ -378,25 +471,23 @@ export function useDragNode(
     }, []);
 
     return {
-        draggable,
+        draggable: enabled(),
         onDragStart,
         onDragEnd,
         ref,
-        dragging:
-            dragState?.dragNode !== undefined &&
-            dragState.dragNode.getId() === node.getId(),
+        dragging: dragState?.dragId === id,
     };
 }
 
-export interface UseDragSourceOptions {
+export interface UseDragSourceOptions<T extends DockableTypes = AnyTypes> {
     /** the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) */
-    model: Model;
+    model: Model<T>;
     /**
-     * the tab a drop creates. A function is called at each drag start, so every drop can get a
-     * fresh name or config.
+     * the tab a drop creates (a `tab.add` init, checked against the registry). A function is called
+     * at each drag start, so every drop can get fresh data.
      */
-    json: IJsonTabNode | (() => IJsonTabNode);
-    /** called after the drop with the created tab, or `undefined` when `onAction` vetoed it */
+    tab: TabInitOf<T> | (() => TabInitOf<T>);
+    /** called after the drop with the new tab's id, or `undefined` when the add was refused */
     onDrop?: NewTabDropped | undefined;
     /** no drag starts while true */
     disabled?: boolean | undefined;
@@ -415,33 +506,34 @@ export interface UseDragSourceResult {
 
 /**
  * The lower layer of `Dockable.DragSource`: turns any element, inside or outside the layout (a
- * sidebar item, a palette entry), into a source of new tabs. Dropping it on the layout dispatches
- * `Actions.addTab(json, …)` through the engine, so `onAction` and `onAllowDrop` apply. Spread
- * `draggable`, `onDragStart` and `onDragEnd` on the element.
+ * sidebar item, a palette entry), into a source of new tabs. Dropping it on the layout runs
+ * `tab.add` through the model's middleware. Spread `draggable`, `onDragStart` and `onDragEnd` on
+ * the element.
  */
-export function useDragSource(
-    options: UseDragSourceOptions,
+export function useDragSource<T extends DockableTypes>(
+    options: UseDragSourceOptions<T>,
 ): UseDragSourceResult {
-    const { model, json, onDrop, disabled = false } = options;
+    const { model, tab, onDrop, disabled = false } = options;
     const imageRef = React.useRef<HTMLElement | null>(null);
     const started = React.useRef<DragState | undefined>(undefined);
     const dragState = useDragState();
 
     const onDragStart = (event: React.DragEvent<HTMLElement>) => {
-        const engine = LayoutEngine.of(model);
-        if (disabled || !engine) {
+        if (
+            disabled ||
+            !DragDropManager.startAddDrag(
+                model,
+                event.nativeEvent,
+                typeof tab === "function" ? tab() : tab,
+                onDrop,
+                imageRef.current ?? event.currentTarget,
+            )
+        ) {
             // no layout to drop into (not mounted yet): no native drag either
             event.preventDefault();
             return;
         }
         event.stopPropagation(); // an enclosing draggable must not start its own drag
-        const manager = engine.getDragDropManager();
-        manager.addTabWithDragAndDrop(
-            event.nativeEvent,
-            typeof json === "function" ? json() : json,
-            onDrop,
-            imageRef.current ?? event.currentTarget,
-        );
         started.current = DragDropManager.getDragState();
     };
     const onDragEnd = () => {
@@ -449,7 +541,7 @@ export function useDragSource(
             started.current !== undefined &&
             DragDropManager.getDragState() === started.current
         ) {
-            LayoutEngine.of(model)?.getDragDropManager().onDragEnded();
+            DragDropManager.endDrag();
         }
         started.current = undefined;
     };
@@ -466,17 +558,17 @@ export function useDragSource(
     };
 }
 
-export interface UseDropZoneOptions {
+export interface UseDropZoneOptions<T extends DockableTypes = AnyTypes> {
     /** the model whose drags the zone takes */
-    model: Model;
+    model: Model<T>;
     /** whether the zone takes this drag (default: every drag of the model) */
-    accepts?: IDropZoneOptions["accepts"];
+    accepts?: DropZoneOptions<T>["accepts"];
     /**
-     * called when the drag is dropped on the zone, with the dragged node. Nothing is moved: dispatch
-     * the action you want (e.g. `Actions.deleteTab`). For a new-tab drag (a `Dockable.DragSource`
-     * or a foreign drag) the node is a temporary tab that is not in the model.
+     * called when the drag is dropped on the zone, with what is dragged: `{ kind: "tab", tab }`,
+     * `{ kind: "tabset", tabset }` or, for a new tab (a `Dockable.DragSource` or a foreign drag),
+     * `{ kind: "new", tab }`. Nothing is moved: run the command you want (`tab.close`).
      */
-    onDrop: IDropZoneOptions["onDrop"];
+    onDrop: DropZoneOptions<T>["onDrop"];
 }
 
 export interface UseDropZoneResult {
@@ -493,7 +585,9 @@ export interface UseDropZoneResult {
  * where a drag of the layout can be dropped for the consumer to handle (a trash can, an "open to
  * the right" pad). Attach `ref` to the element.
  */
-export function useDropZone(options: UseDropZoneOptions): UseDropZoneResult {
+export function useDropZone<T extends DockableTypes>(
+    options: UseDropZoneOptions<T>,
+): UseDropZoneResult {
     const { model } = options;
     const latest = React.useRef(options);
     latest.current = options;
@@ -506,8 +600,8 @@ export function useDropZone(options: UseDropZoneOptions): UseDropZoneResult {
             return;
         }
         const unregister = DragDropManager.registerDropZone(model, element, {
-            accepts: (dragNode) => latest.current.accepts?.(dragNode) ?? true,
-            onDrop: (dragNode, event) => latest.current.onDrop(dragNode, event),
+            accepts: (drag) => latest.current.accepts?.(drag) ?? true,
+            onDrop: (drag, event) => latest.current.onDrop(drag, event),
             onOverChange: setOver,
         });
         return () => {
@@ -516,10 +610,8 @@ export function useDropZone(options: UseDropZoneOptions): UseDropZoneResult {
         };
     }, [model, element]);
 
-    const dragNode = dragState?.dragNode;
+    const subject = dragState?.subjectOf(model);
     const active =
-        dragNode !== undefined &&
-        dragState?.mainEngine.getModel() === model &&
-        (options.accepts?.(dragNode) ?? true);
+        subject !== undefined && (options.accepts?.(subject) ?? true);
     return { ref: setElement, over: over && active, active };
 }

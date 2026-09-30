@@ -30,28 +30,22 @@ export interface EdgeIndicatorProps
 /**
  * Marks the band along one edge of the layout where a drop docks to that edge. It is positioned
  * (structurally) over the band the core computes (`edgeDockMargin` deep, `edgeDockLength` long,
- * centred), shown only while a drag that can dock to the edges is over the layout and the model's
- * `enableEdgeDockIndicators` is on. `pointer-events: none`, like the drop indicator. Place one per
+ * centred), shown only while a drag that can dock to the edges is over the layout. Render it only
+ * when you want edge indicators. `pointer-events: none`, like the drop indicator. Place one per
  * edge inside `Dockable.Root`; its stacking (`z-index`) is yours.
  */
 export function EdgeIndicator(props: EdgeIndicatorProps) {
     const { edge, children, ...rest } = props;
-    const { engine, layoutId } = useLayoutContext("EdgeIndicator");
+    const { engine } = useLayoutContext("EdgeIndicator");
     const manager = engine.getDragDropManager();
     const indicator = React.useSyncExternalStore(
         manager.subscribe,
         manager.getIndicatorState,
         manager.getIndicatorState,
     );
-    const model = engine.getModel();
-    const visible =
-        indicator.dragging &&
-        indicator.showEdges &&
-        model.isEnableEdgeDockIndicators();
+    const visible = indicator.dragging && indicator.showEdges;
     const rect = visible
-        ? model
-              .getEdgeDockRects(layoutId)
-              .find((band) => band.location.getName() === edge)?.rect
+        ? engine.edgeBands().find((band) => band.location === edge)?.rect
         : undefined;
     const state: EdgeIndicatorState = {
         edge,

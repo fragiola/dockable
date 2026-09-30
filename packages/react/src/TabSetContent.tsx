@@ -21,20 +21,21 @@ export type TabSetContentProps = DivPrimitiveProps<TabSetContentState>;
 export function TabSetContent(props: TabSetContentProps) {
     const tabset = useTabSetNode("TabSetContent");
     const { engine } = useLayoutContext("TabSetContent");
+    const id = tabset.id;
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(tabset, "tabsetcontent", element);
+            engine.registerMeasurable(id, "tabsetcontent", element);
         },
-        [engine, tabset],
+        [engine, id],
     );
     const state: TabSetContentState = {
-        empty: tabset.getChildren().length === 0,
+        empty: tabset.children.length === 0,
     };
     return useRenderElement("div", props, {
         state,
         ref,
         props: dataAttributes({
-            "layout-path": `${tabset.getPath()}/content`,
+            "layout-path": `${engine.path(id)}/content`,
             empty: state.empty,
         }),
         style: { flexGrow: 1, flexBasis: 0, minWidth: 0, minHeight: 0 },

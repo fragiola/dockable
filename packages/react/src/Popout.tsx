@@ -2,13 +2,15 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import type {
+    AnyTypes,
+    DockableTypes,
     LayoutEngine,
-    ModelLayout,
     PopoutCallback,
+    WindowLayout,
 } from "@fragiola/dockable";
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { LayoutContext, useDockableContext } from "./context";
+import { LayoutContext, typedModel, useDockableContext } from "./context";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -20,28 +22,31 @@ export interface PopoutState {
     layoutId: string;
 }
 
-export interface PopoutProps
+export interface PopoutProps<T extends DockableTypes = AnyTypes>
     extends Omit<DivPrimitiveProps<PopoutState>, "title"> {
     /** renders a window layout, usually `<Dockable.Row>{renderNode}</Dockable.Row>` */
-    children: (layout: ModelLayout) => React.ReactNode;
+    children: (layout: WindowLayout<T>) => React.ReactNode;
     /** the popout document's title; with none, the host page's title is kept */
-    title?: ((layout: ModelLayout) => string | undefined) | undefined;
+    title?: ((layout: WindowLayout<T>) => string | undefined) | undefined;
     /** a popout document is ready, before its content renders */
-    onOpen?: PopoutCallback | undefined;
-    /** a popout window is closing */
-    onClose?: PopoutCallback | undefined;
+    onOpen?: PopoutCallback<T> | undefined;
+    /** a popout window is closing (its tabs dock back into the main layout) */
+    onClose?: PopoutCallback<T> | undefined;
 }
 
 /**
- * The popout windows. Place it once, directly under `Dockable.Root`. For every `"window"` layout of
- * the model the core opens a native window; once it is ready (styles copied), the child function's
- * result is portalled into it. A node-less `Dockable.Row` inside renders that layout's root row, and
- * panels of tabs in that layout are positioned in the window. Pop a tab out with
- * `engine.doAction(Actions.popoutTab(tabId, "window"))`.
+ * The popout windows. Place it once, directly under `Dockable.Root`, with the model's registry as
+ * its type argument (`<Dockable.Popout<Types>>`). The core keeps a native window open for every
+ * window layout of the state; once one is ready (styles copied), the child function's result is
+ * portalled into it. A node-less `Dockable.Row` inside renders that layout's root row, and panels
+ * of tabs in that layout are positioned in the window. Pop a tab out with `tab.popout`.
  */
-export function Popout(props: PopoutProps) {
+export function Popout<T extends DockableTypes = AnyTypes>(
+    props: PopoutProps<T>,
+) {
     const { children, title, onOpen, onClose, ...rest } = props;
-    const { engine, model, popoutHooks } = useDockableContext("Popout");
+    const { engine, model: erased, popoutHooks } = useDockableContext("Popout");
+    const model = typedModel<T>(erased);
     const manager = engine.getPopoutManager();
     React.useSyncExternalStore(
         manager.subscribe,
@@ -49,24 +54,26 @@ export function Popout(props: PopoutProps) {
         manager.getSnapshot,
     );
 
-    popoutHooks.current = { title, onOpen, onClose };
+    // the root calls these by window layout id: hand the typed layout over
+    popoutHooks.current = {
+        title: (id) => {
+            const layout = model.windowLayout(id);
+            return layout && title ? title(layout) : undefined;
+        },
+        onOpen: (id, win, doc) => {
+            const layout = model.windowLayout(id);
+            if (layout) onOpen?.(layout, win, doc);
+        },
+        onClose: (id, win, doc) => {
+            const layout = model.windowLayout(id);
+            if (layout) onClose?.(layout, win, doc);
+        },
+    };
 
-    // without popout support the core docks each window layout's tabs back (open applies the
-    // close policy), so the windows are still "opened" here
-    const windows: ModelLayout[] = [];
-    for (const layout of model.getLayouts().values()) {
-        if (!layout.isMainLayout() && layout.getType() === "window") {
-            windows.push(layout);
-        }
-    }
     return (
         <>
-            {windows.map((layout) => (
-                <PopoutWindow
-                    key={layout.getLayoutId()}
-                    layout={layout}
-                    rest={rest}
-                >
+            {model.state.windows.map((layout) => (
+                <PopoutWindow key={layout.id} layout={layout} rest={rest}>
                     {children}
                 </PopoutWindow>
             ))}
@@ -74,26 +81,22 @@ export function Popout(props: PopoutProps) {
     );
 }
 
-interface PopoutWindowProps {
-    layout: ModelLayout;
+interface PopoutWindowProps<T extends DockableTypes> {
+    layout: WindowLayout<T>;
     rest: Omit<DivPrimitiveProps<PopoutState>, "title">;
-    children: (layout: ModelLayout) => React.ReactNode;
+    children: (layout: WindowLayout<T>) => React.ReactNode;
 }
 
-function PopoutWindow({ layout, rest, children }: PopoutWindowProps) {
+function PopoutWindow<T extends DockableTypes>({
+    layout,
+    rest,
+    children,
+}: PopoutWindowProps<T>) {
     const { engine } = useDockableContext("Popout");
     const manager = engine.getPopoutManager();
-    const layoutId = layout.getLayoutId();
-    const latestLayout = React.useRef(layout);
-    latestLayout.current = layout;
+    const layoutId = layout.id;
 
-    // the core owns the window: open it while the layout is rendered (idempotent; a release is
-    // deferred, so a StrictMode remount keeps the same window)
-    React.useLayoutEffect(() => {
-        manager.open(latestLayout.current);
-        return () => manager.release(layoutId);
-    }, [manager, layoutId]);
-
+    // the core owns the window (it opens one per window layout while the root is attached)
     const contentRoot = manager.getContentRoot(layoutId);
     const layoutEngine = manager.getLayoutEngine(layoutId);
     if (!contentRoot || !layoutEngine) {
@@ -108,15 +111,21 @@ function PopoutWindow({ layout, rest, children }: PopoutWindowProps) {
     );
 }
 
-interface PopoutLayoutProps extends PopoutWindowProps {
+interface PopoutLayoutProps<T extends DockableTypes>
+    extends PopoutWindowProps<T> {
     engine: LayoutEngine;
 }
 
 /** the root of a window layout, inside the popout document */
-function PopoutLayout({ layout, engine, rest, children }: PopoutLayoutProps) {
+function PopoutLayout<T extends DockableTypes>({
+    layout,
+    engine,
+    rest,
+    children,
+}: PopoutLayoutProps<T>) {
     const { setLayer } = useDockableContext("Popout");
-    const layoutId = layout.getLayoutId();
-    engine.prepare(layout.getPath());
+    const layoutId = layout.id;
+    engine.prepare();
 
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
@@ -149,7 +158,7 @@ function PopoutLayout({ layout, engine, rest, children }: PopoutLayoutProps) {
         ref,
         props: {
             ...dataAttributes({
-                "layout-path": layout.getPath() || `/${layoutId}`,
+                "layout-path": engine.path(layout.root.id) || `/${layoutId}`,
             }),
             children: (
                 <LayoutContext.Provider value={layoutContext}>

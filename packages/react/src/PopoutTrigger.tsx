@@ -1,4 +1,9 @@
-import { DockableLabel, type TabNode } from "@fragiola/dockable";
+import {
+    type AnyTypes,
+    DockableLabel,
+    type DockableTypes,
+    type TabOf,
+} from "@fragiola/dockable";
 import type * as React from "react";
 import { useDockableContext, useLayoutContext } from "./context";
 import { useTabSetNode } from "./TabSet";
@@ -20,13 +25,13 @@ type ButtonProps = Omit<
     "className" | "style" | "children"
 >;
 
-export interface PopoutTriggerProps
+export interface PopoutTriggerProps<T extends DockableTypes = AnyTypes>
     extends PrimitiveProps<PopoutTriggerState>,
         ButtonProps {
     /** `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset */
     target?: "tab" | "tabset" | undefined;
     /** the tab to act on; default: the enclosing tabset's selected tab */
-    node?: TabNode | undefined;
+    node?: TabOf<T> | undefined;
     /** the button's content (an icon); the primitive renders no text of its own */
     children?: React.ReactNode;
 }
@@ -34,19 +39,22 @@ export interface PopoutTriggerProps
 /**
  * A button, inside `Dockable.TabSet`, that pops the selected tab (or the whole tabset) out into a
  * window, and, in a window, docks it back into the main layout. It renders nothing when neither
- * is possible (popouts unsupported, the tab disables popout, no tab). Its accessible name comes
- * from `aria-label` or `getLabel` (`Popout_Tab` / `Dock_Float_To_Layout`).
+ * is possible (popouts unsupported, the model refuses it, no tab): `tab.popout` / `tabset.popout`
+ * decide, through `model.can`. Its accessible name comes from `aria-label` or `getLabel`
+ * (`Popout_Tab` / `Dock_To_Layout`).
  */
-export function PopoutTrigger(props: PopoutTriggerProps) {
+export function PopoutTrigger<T extends DockableTypes = AnyTypes>(
+    props: PopoutTriggerProps<T>,
+) {
     const { target = "tab", node, children, ...rest } = props;
     const tabset = useTabSetNode("PopoutTrigger");
-    const { getLabel } = useDockableContext("PopoutTrigger");
+    const { getLabel, model } = useDockableContext("PopoutTrigger");
     const { engine } = useLayoutContext("PopoutTrigger");
 
     const subject =
         target === "tabset"
-            ? tabset
-            : (node ?? (tabset.getSelectedNode() as TabNode | undefined));
+            ? tabset.id
+            : (node?.id ?? model.selectedTab(tabset.id)?.id);
     const mode: PopoutTriggerState["mode"] | undefined =
         subject === undefined
             ? undefined
@@ -74,12 +82,12 @@ export function PopoutTrigger(props: PopoutTriggerProps) {
             type: "button",
             "aria-label": getLabel?.(
                 mode === "dock"
-                    ? DockableLabel.Dock_Float_To_Layout
+                    ? DockableLabel.Dock_To_Layout
                     : DockableLabel.Popout_Tab,
             ),
             ...dataAttributes({
                 // FlexLayout's path for a tabset's pop out button
-                "layout-path": `${tabset.getPath()}/button/popout`,
+                "layout-path": `${engine.path(tabset.id)}/button/popout`,
                 mode: state.mode,
                 target,
             }),

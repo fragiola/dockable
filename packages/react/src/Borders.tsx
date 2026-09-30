@@ -2,10 +2,16 @@
 // src/view/BorderTab.tsx and src/view/layout/BorderContainer.tsx (which borders show, the frame's
 // nesting, the content area's size, split and overlay placement); the markup and class names are
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
-import { type BorderNode, DockLocation, Model } from "@fragiola/dockable";
+import {
+    type AnyTypes,
+    type BorderLocation,
+    type BorderNode,
+    type DockableTypes,
+    MAIN_LAYOUT,
+} from "@fragiola/dockable";
 import * as React from "react";
 import { BorderContent } from "./BorderContent";
-import { useDockableContext, useLayoutContext } from "./context";
+import { typedModel, useDockableContext, useLayoutContext } from "./context";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -17,21 +23,17 @@ export interface BordersState {
     borders: boolean;
 }
 
-export interface BordersProps extends DivPrimitiveProps<BordersState> {
+export interface BordersProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<BordersState> {
     /** the main layout: a `Dockable.Row` (its root row fills the area left by the borders) */
     children?: React.ReactNode;
     /** renders a border's strip: a `Dockable.Border` */
-    renderBar: (border: BorderNode) => React.ReactNode;
+    renderBar: (border: BorderNode<T>) => React.ReactNode;
     /** renders a border's panel area (defaults to `<Dockable.BorderContent node={border} />`) */
-    renderContent?: ((border: BorderNode) => React.ReactNode) | undefined;
+    renderContent?: ((border: BorderNode<T>) => React.ReactNode) | undefined;
 }
 
-const LOCATIONS = [
-    DockLocation.TOP,
-    DockLocation.BOTTOM,
-    DockLocation.LEFT,
-    DockLocation.RIGHT,
-];
+const LOCATIONS: readonly BorderLocation[] = ["top", "bottom", "left", "right"];
 
 /**
  * The frame that places the borders around the main layout, as FlexLayout does: the top and bottom
@@ -39,12 +41,16 @@ const LOCATIONS = [
  * area sits between its strip and the layout. Renders only structural flex. Place it directly in
  * `Dockable.Root` instead of the root `Dockable.Row`, and pass the row as its child.
  *
- * A border shows when its `show` attribute is on and, if it is `enableAutoHide`, when it has tabs
- * or a drag reveals it (near its edge of the layout).
+ * A border shows when its `show` is on and, if it `autoHide`s, when it has tabs or a drag reveals
+ * it (near its edge of the layout). Pass the model's registry as the type argument
+ * (`<Dockable.Borders<Types>>`) for typed borders in `renderBar` and `renderContent`.
  */
-export function Borders(props: BordersProps) {
+export function Borders<T extends DockableTypes = AnyTypes>(
+    props: BordersProps<T>,
+) {
     const { children, renderBar, renderContent, ...rest } = props;
-    const { model } = useDockableContext("Borders");
+    const { model: erased } = useDockableContext("Borders");
+    const model = typedModel<T>(erased);
     const { engine, layoutId } = useLayoutContext("Borders");
     const manager = engine.getDragDropManager();
     const revealed = React.useSyncExternalStore(
@@ -53,33 +59,36 @@ export function Borders(props: BordersProps) {
         () => undefined,
     );
 
-    const shown = new Map<DockLocation, BorderNode>();
-    if (layoutId === Model.MAIN_LAYOUT_ID) {
-        const map = model.getBorderSet().getBorderMap();
+    const shown = new Map<BorderLocation, BorderNode<T>>();
+    if (layoutId === MAIN_LAYOUT) {
         for (const location of LOCATIONS) {
-            const border = map.get(location);
+            const border = model.state.borders.find(
+                (b) => b.location === location,
+            );
+            const resolved = border ? model.resolve(border) : undefined;
             if (
-                border?.isShowing() &&
-                (!border.isAutoHide() ||
-                    border.getChildren().length > 0 ||
-                    revealed === location.getName())
+                border &&
+                resolved?.show &&
+                (!resolved.autoHide ||
+                    border.children.length > 0 ||
+                    revealed === location)
             ) {
                 shown.set(location, border);
             }
         }
     }
-    const strip = (location: DockLocation) => {
+    const strip = (location: BorderLocation) => {
         const border = shown.get(location);
         return border ? (
-            <React.Fragment key={`bar:${border.getId()}`}>
+            <React.Fragment key={`bar:${border.id}`}>
                 {renderBar(border)}
             </React.Fragment>
         ) : null;
     };
-    const panel = (location: DockLocation) => {
+    const panel = (location: BorderLocation) => {
         const border = shown.get(location);
         return border ? (
-            <React.Fragment key={`content:${border.getId()}`}>
+            <React.Fragment key={`content:${border.id}`}>
                 {renderContent ? (
                     renderContent(border)
                 ) : (
@@ -114,13 +123,13 @@ export function Borders(props: BordersProps) {
                 borders: state.borders,
             }),
             children: [
-                strip(DockLocation.TOP),
+                strip("top"),
                 <div
                     key="middle"
                     style={{ ...fill, flexDirection: "row" }}
                     {...dataAttributes({ "layout-path": "/borders/middle" })}
                 >
-                    {strip(DockLocation.LEFT)}
+                    {strip("left")}
                     {/* the anchor of top and bottom overlays */}
                     <div
                         style={{
@@ -132,7 +141,7 @@ export function Borders(props: BordersProps) {
                             "layout-path": "/borders/inner",
                         })}
                     >
-                        {panel(DockLocation.TOP)}
+                        {panel("top")}
                         {/* the anchor of left and right overlays */}
                         <div
                             style={{
@@ -144,15 +153,15 @@ export function Borders(props: BordersProps) {
                                 "layout-path": "/borders/center",
                             })}
                         >
-                            {panel(DockLocation.LEFT)}
+                            {panel("left")}
                             {main}
-                            {panel(DockLocation.RIGHT)}
+                            {panel("right")}
                         </div>
-                        {panel(DockLocation.BOTTOM)}
+                        {panel("bottom")}
                     </div>
-                    {strip(DockLocation.RIGHT)}
+                    {strip("right")}
                 </div>,
-                strip(DockLocation.BOTTOM),
+                strip("bottom"),
             ],
         },
         // fills the layout root, as the root row does without borders
