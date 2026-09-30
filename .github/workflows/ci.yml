@@ -1,7 +1,7 @@
 # CI: the same three jobs in every Fragiola project repo.
 #
 #   Checks            Biome, TypeScript, the unit tests, the build and the Playwright suites.
-#   Site export       fragiola.com builds /dockable from `pnpm site:export` (contract v1.1,
+#   Site export       fragiola.com builds /dockable from `pnpm site:export` (contract v1.2,
 #                     fragiola/www CONTRACT.md), built and validated the way www's deploy runs
 #                     it: it fails on anything www would reject.
 #   Trigger www build after a push to main passes, asks fragiola/www to rebuild fragiola.com

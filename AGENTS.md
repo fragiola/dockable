@@ -73,7 +73,7 @@ Do not "fix" these.
 | `pnpm build` | `pnpm -r build` (tsdown for the packages, Vite for the playground) |
 | `pnpm e2e` | Playwright (Chromium) against the playground and the examples app |
 | `pnpm dev` | the playground on <http://localhost:5173>: every example and scenario live, the Inspector, the fixtures (`PLAYGROUND_PORT` moves it) |
-| `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.1, `../www/CONTRACT.md`), self-validated |
+| `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.2, `../www/CONTRACT.md`), self-validated |
 | `pnpm site:dev --base /dockable --port <n>` | the examples app with hot reload, under the base `www` proxies in dev |
 
 ## Repository layout
@@ -97,11 +97,20 @@ docs/                                         reports
 ## The site (fragiola.com)
 
 The docs and examples are served by `fragiola.com`, built by the `www` repo from this repo's
-**site export** (`../www/CONTRACT.md`, v1.1). This repo only provides: the pages (`site/docs`,
+**site export** (`../www/CONTRACT.md`, v1.2). This repo only provides: the pages (`site/docs`,
 base-free links, the v1.1 MDX vocabulary), the gallery configuration (`examples.json`) and the
 examples app (`examples/react`, built for `<base>/embed/react/`). `www` owns the shell, the
 gallery chrome, the code panel and search. Examples import internal modules through `#/…`
 (never `@/…`).
+
+v1.2 is about search and sharing, and `site:export` checks it: a page's `title` is at most 60
+characters and never repeats "Dockable" (`www` adds it); its `description` is 50–160 characters
+and is also the page's visible lead, so it is written for a reader, not as a list of terms; a
+page body has no Markdown `#` (the title is the h1) and never skips a heading level (a page
+starts at `##`); every image has alt text. The landing's `title` is its `<title>` as is
+("Dockable — …"). `project.json` carries `keywords` (1–8 lowercase topics, structured data
+only). Every HTML file of the examples app (`index.html`, `public/popout.html`) carries
+`<meta name="robots" content="noindex">`.
 
 In dev the playground resolves both packages to their sources through the
 `development` export condition; production builds use `dist`.
