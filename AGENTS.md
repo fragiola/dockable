@@ -107,9 +107,11 @@ v1.2 is about search and sharing, and `site:export` checks it: a page's `title` 
 characters and never repeats "Dockable" (`www` adds it); its `description` is 50–160 characters
 and is also the page's visible lead, so it is written for a reader, not as a list of terms; a
 page body has no Markdown `#` (the title is the h1) and never skips a heading level (a page
-starts at `##`); every image has alt text. The landing's `title` is its `<title>` as is
-("Dockable — …"). `project.json` carries `keywords` (1–8 lowercase topics, structured data
-only). Every HTML file of the examples app (`index.html`, `public/popout.html`) carries
+starts at `##`; a `<Card>` is an h3); headings are written as `##` at the start of a line (no
+setext, none in a blockquote or list); every image has alt text. Frontmatter is one
+`key: value` per line, and a description is counted without its inline code marks. The
+landing's `title` is its `<title>` as is ("Dockable — …"). `project.json` carries `keywords`
+(1–8 lowercase topics, structured data only). Every HTML file of the examples app (`index.html`, `public/popout.html`) carries
 `<meta name="robots" content="noindex">`.
 
 In dev the playground resolves both packages to their sources through the
