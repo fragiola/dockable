@@ -1,30 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
+    computePaths,
+    createModel,
     DROP_INDICATOR_PATH,
-    getNodePath,
     getSplitterPath,
     getTabButtonId,
     getTabButtonPath,
     getTabPanelId,
-    getTabPanelPath,
     getTabStripPath,
-    Model,
-    type RowNode,
-    type TabNode,
-    type TabSetNode,
+    windowPath,
 } from "../src";
 
 // the three-tabs layout from FlexLayout's demo, with the last tabset nested in a column
-const model = Model.fromJson({
-    global: {},
-    layout: {
+const model = createModel({
+    version: 1,
+    root: {
         type: "row",
         id: "root",
         children: [
             {
                 type: "tabset",
                 id: "ts0",
-                children: [{ type: "tab", id: "one", name: "One" }],
+                children: [{ id: "one", component: "x" }],
             },
             {
                 type: "row",
@@ -33,51 +30,55 @@ const model = Model.fromJson({
                     {
                         type: "tabset",
                         id: "ts1",
-                        children: [{ type: "tab", id: "two", name: "Two" }],
+                        children: [{ id: "two", component: "x" }],
                     },
                     {
                         type: "tabset",
                         id: "ts2",
                         children: [
-                            { type: "tab", id: "three", name: "Three" },
-                            {
-                                type: "tab",
-                                id: "four with space",
-                                name: "Four",
-                            },
+                            { id: "three", component: "x" },
+                            { id: "four with space", component: "x" },
                         ],
                     },
                 ],
             },
         ],
     },
+    borders: [
+        { location: "left", children: [{ id: "files", component: "x" }] },
+    ],
 });
-model.getRootRow()?.setPaths("");
-
-const get = <T>(id: string) => model.getNodeById(id) as unknown as T;
+const paths = computePaths(model.state.root, "", model.state.borders);
+const path = (id: string) => paths.get(id) ?? "";
 
 describe("data-layout-path helpers", () => {
     it("follow FlexLayout's scheme", () => {
-        expect(getNodePath(get<TabSetNode>("ts0"))).toBe("/ts0");
-        expect(getNodePath(get<RowNode>("col"))).toBe("/r1");
-        expect(getNodePath(get<TabSetNode>("ts2"))).toBe("/r1/ts1");
-        expect(getTabPanelPath(get<TabNode>("four with space"))).toBe(
-            "/r1/ts1/t1",
-        );
-        expect(getTabButtonPath(get<TabNode>("four with space"))).toBe(
-            "/r1/ts1/tb1",
-        );
-        expect(getTabStripPath(get<TabSetNode>("ts0"))).toBe("/ts0/tabstrip");
-        expect(getSplitterPath(get<RowNode>("root"), 1)).toBe("/s0");
-        expect(getSplitterPath(get<RowNode>("col"), 1)).toBe("/r1/s0");
+        expect(path("root")).toBe("");
+        expect(path("ts0")).toBe("/ts0");
+        expect(path("col")).toBe("/r1");
+        expect(path("ts2")).toBe("/r1/ts1");
+        expect(path("four with space")).toBe("/r1/ts1/t1");
+        expect(getTabButtonPath(path("four with space"))).toBe("/r1/ts1/tb1");
+        expect(getTabStripPath(path("ts0"))).toBe("/ts0/tabstrip");
+        expect(getSplitterPath(path("root"), 1)).toBe("/s0");
+        expect(getSplitterPath(path("col"), 1)).toBe("/r1/s0");
         expect(DROP_INDICATOR_PATH).toBe("/outline");
     });
 
+    it("put borders under /border/<location>, and windows under /sublayout<n>", () => {
+        expect(path("border_left")).toBe("/border/left");
+        expect(path("files")).toBe("/border/left/t0");
+        expect(getTabButtonPath(path("files"))).toBe("/border/left/tb0");
+        expect(windowPath(1)).toBe("/sublayout1");
+        const window = computePaths(model.state.root, windowPath(2));
+        expect(window.get("ts0")).toBe("/sublayout2/ts0");
+    });
+
     it("build DOM ids without whitespace", () => {
-        expect(getTabButtonId(get<TabNode>("four with space"))).toBe(
+        expect(getTabButtonId("four with space")).toBe(
             "dockable-tabbutton-four_with_space",
         );
-        expect(getTabPanelId(get<TabNode>("four with space"))).toBe(
+        expect(getTabPanelId("four with space")).toBe(
             "dockable-tab-four_with_space",
         );
     });

@@ -22,22 +22,14 @@ export enum DockableLabel {
     Move_Tabset = "dockable.move.tabset",
     /** the drag image text shown while dragging multiple tabs ("?" is replaced with the tab count) */
     Move_Tabs = "dockable.move.tabs (?)",
-    /** the drag image text shown while dragging a group ("?" is replaced with the tab count) */
-    Move_Group = "dockable.move.group (?)",
     /** the tabset maximize button tooltip */
     Maximize = "dockable.maximize.tabset",
     /** the tabset restore button tooltip */
     Restore = "dockable.restore.tabset",
-    /** the toolbar button tooltip that pops the selected tab out into a native window */
+    /** the button that pops the selected tab (or tabset) out into a window */
     Popout_Tab = "dockable.popout.tab",
-    /** the toolbar button tooltip that pops the selected tab out into a floating panel */
-    Popout_Tab_Float = "dockable.popout.tab.float",
-    /** the floating panel header button tooltip that pops the panel out into a native window */
-    Popout_Float_To_Window = "dockable.popout.float.to.window",
-    /** the floating panel header drag handle tooltip and its drag image text */
-    Dock_Float_To_Layout = "dockable.dock.float.to.layout",
-    /** the drag image text shown while docking a floating panel ("?" is replaced with the number of tabs) */
-    Dock_Float_Tabs = "dockable.dock.float.tabs (?)",
+    /** the button that docks a popped out tab (or tabset) back into the main layout */
+    Dock_To_Layout = "dockable.dock.to.layout",
     /** the overflow button tooltip and the overflow menu's accessible name */
     Overflow_Menu_Tooltip = "dockable.overflow.menu.tooltip",
     /** the splitter's aria-label */
@@ -56,12 +48,8 @@ export enum DockableLabel {
     Menu_Unpin = "dockable.menu.unpin",
     /** the context menu item that pops a tab out into a native window */
     Menu_Popout = "dockable.menu.popout",
-    /** the context menu item that pops a tab out into a floating panel */
-    Menu_Float = "dockable.menu.float",
     /** the tabset context menu item that pops the whole tabset out into a native window */
     Menu_Popout_Tabset = "dockable.menu.popout.tabset",
-    /** the tabset context menu item that pops the whole tabset out into a floating panel */
-    Menu_Float_Tabset = "dockable.menu.float.tabset",
     /** the tabset context menu item that maximizes the tabset */
     Menu_Maximize = "dockable.menu.maximize",
     /** the tabset context menu item that restores a maximized tabset */
@@ -76,30 +64,4 @@ export enum DockableLabel {
     Menu_Close_Right = "dockable.menu.close.right",
     /** the context menu item that closes every closeable tab but the tab itself */
     Menu_Close_Others = "dockable.menu.close.others",
-    /** the context menu item that adds the tab to a new group */
-    Menu_Add_To_New_Group = "dockable.menu.add.to.new.group",
-    /** the context menu item that adds the tab to an existing group */
-    Menu_Add_To_Group = "dockable.menu.add.to.group",
-    /** the context menu item that moves a tab out of its group */
-    Menu_Remove_From_Group = "dockable.menu.remove.from.group",
-    /** the context menu item that ungroups a group, moving all its tabs back into the tabset */
-    Menu_Ungroup = "dockable.menu.ungroup",
-    /** the context menu item that expands a collapsed group */
-    Menu_Expand = "dockable.menu.expand",
-    /** the context menu item that collapses an expanded group */
-    Menu_Collapse = "dockable.menu.collapse",
-    /** the aria-label of the inline group rename textbox */
-    Rename_Group = "dockable.rename.group",
-    /** the accessible name of the group color chooser */
-    Group_Color = "dockable.group.color",
-    /** the group pill tooltip */
-    Group_Pill_Tooltip = "dockable.group.pill.tooltip",
-    /** the label text next to the group rename input */
-    Group_Name_Label = "dockable.group.name.label",
-    /** the placeholder shown in the group rename input */
-    Group_Name_Placeholder = "dockable.group.name.placeholder",
-    /** the aria-label prefix for individual color swatches ("Group color 1", etc.) */
-    Group_Color_N = "dockable.group.color.n",
-    /** the default name for a new tab group */
-    Group_Default_Name = "dockable.group.default.name",
 }

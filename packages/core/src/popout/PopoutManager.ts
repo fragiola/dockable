@@ -4,18 +4,17 @@
 // LICENSE.
 //
 // Differences from FlexLayout:
-// - the manager is framework-agnostic and owned by the main engine; an adapter only portals into
-//   the content root it provides once the window is ready;
-// - open is idempotent per layout, and a release is deferred to a microtask, so a StrictMode
-//   unmount/remount keeps a single window;
-// - closing the window applies a close policy: "dock" (the skeleton default) moves the window's
-//   tabs back into the main layout; "float" dispatches Actions.closePopout (FlexLayout parity);
+// - the manager is framework-agnostic and owned by the main engine: it keeps one native window per
+//   window layout of the state while the engine is attached (an adapter only portals into the
+//   content root once the window is ready);
+// - a detach defers the release to a microtask, so a StrictMode unmount/remount keeps the windows;
+// - closing the window from the browser runs `window.close`: its tabs dock back into the main
+//   layout (FlexLayout's "float" close policy is not kept);
+// - the window opener is injectable (`openWindow`);
 // - adoptedStyleSheets (constructable stylesheets) are mirrored too;
 // - nothing names or titles the window unless the consumer provides a title.
-import { dockTabs, LayoutEngine } from "../engine/LayoutEngine";
-import { Actions } from "../model/Actions";
-import type { ModelLayout } from "../model/ModelLayout";
-import { TabNode } from "../model/TabNode";
+import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { AnyTypes, DockableTypes, WindowLayout } from "../state/types";
 
 /** Timeout for blocked stylesheets. */
 export const STYLE_LOAD_TIMEOUT_MS = 2000;
@@ -26,49 +25,48 @@ export const POPOUT_ATTRIBUTE = "data-dockable-popout";
 /** Attribute of the style element mirroring the main document's adopted stylesheets. */
 export const ADOPTED_STYLES_ATTRIBUTE = "data-dockable-adopted-styles";
 
-/**
- * What happens when a popout window is closed by the user: `"dock"` moves its tabs into the main
- * layout's active tabset (the first tabset without one); `"float"` turns the window layout into a
- * float, as FlexLayout's `Actions.closePopout` does.
- */
-export type PopoutClosePolicy = "dock" | "float";
-
-export type PopoutCallback = (
-    layout: ModelLayout,
+export type PopoutCallback<T extends DockableTypes = AnyTypes> = (
+    layout: WindowLayout<T>,
     window: Window,
     document: Document,
 ) => void;
 
-export interface IPopoutOptions {
+/** Opens a popout's native window (the main window's `open` by default). */
+export type OpenWindow = (
+    url: string,
+    name: string,
+    features: string,
+) => Window | null;
+
+export interface PopoutOptions<T extends DockableTypes = AnyTypes> {
     /** the popout host page; default `"popout.html"` */
     popoutURL?: string | undefined;
     /** whether window layouts open as popouts at all; default: a desktop pointer is present */
     supportsPopout?: boolean | undefined;
-    /** the close policy; default `"dock"` */
-    closePolicy?: PopoutClosePolicy | undefined;
     /** the popout document's title; with none, the host page's title is kept */
-    title?: ((layout: ModelLayout) => string | undefined) | undefined;
+    title?: ((layout: WindowLayout<T>) => string | undefined) | undefined;
     /** the popout document is ready, before its content renders (e.g. to set up a css-in-js cache) */
-    onPopoutOpen?: PopoutCallback | undefined;
+    onPopoutOpen?: PopoutCallback<T> | undefined;
     /** the popout window is closing */
-    onPopoutClose?: PopoutCallback | undefined;
+    onPopoutClose?: PopoutCallback<T> | undefined;
     /**
-     * copies the main document's `<html>` and `<body>` attributes into each popout, and keeps them
-     * in sync (a theme class, `data-theme`, …): `true` copies them all (except `style` and `id`),
-     * a list copies those names only. Default: only `lang` and `dir` of `<html>`.
+     * copies the main document's `<html>` and `<body>` attributes into each popout and keeps them
+     * in sync: `true` copies them all (except `style` and `id`), a list copies those names only.
+     * Default: only `lang` and `dir` of `<html>`.
      */
     mirrorRoot?: boolean | readonly string[] | undefined;
+    /** opens the native window (default: the main window's `open`) */
+    openWindow?: OpenWindow | undefined;
 }
 
-interface PopoutEntry {
+interface PopoutEntry<T extends DockableTypes> {
     layoutId: string;
     window: Window;
-    engine: LayoutEngine;
+    engine: LayoutEngine<T>;
     /** the element the adapter renders into, once the window loaded and the styles are copied */
     contentRoot: HTMLElement | undefined;
     /** releases the current document's observer, poll timer and listeners */
     cleanup: (() => void) | undefined;
-    releasePending: boolean;
     closing: boolean;
 }
 
@@ -86,30 +84,29 @@ const isStyle = (element: Element): element is HTMLStyleElement =>
     element.tagName === "STYLE";
 
 /**
- * Opens, mirrors and closes the native windows of a model's `"window"` layouts. One per main
- * engine. The adapter asks it to {@link open} a window layout, renders the layout into
- * {@link getContentRoot} once ready (with {@link getLayoutEngine} as that layout's engine), and
- * {@link release}s it when the layout goes away.
+ * Opens, mirrors and closes the native windows of a model's window layouts. One per main engine:
+ * while the engine is attached, every window layout of the state has a window, and a window whose
+ * layout left the state closes. An adapter renders a window layout into {@link getContentRoot}
+ * once ready, with {@link getLayoutEngine} as that layout's engine.
  */
-export class PopoutManager {
-    // a named window is shared: after a model swap, a new manager's window.open(url, layoutId)
-    // returns (and reloads) the window the previous manager opened. Only the current owner may
-    // close it or react to its unload.
-    private static readonly owners = new WeakMap<Window, PopoutManager>();
-    private readonly engine: LayoutEngine;
-    // layouts asked to open before the engine was attached to a window
-    private readonly pending = new Map<string, ModelLayout>();
-    private options: IPopoutOptions = {};
-    private readonly entries = new Map<string, PopoutEntry>();
+export class PopoutManager<T extends DockableTypes = AnyTypes> {
+    // a named window is shared: a new manager's open(url, layoutId) returns (and reloads) the window
+    // a previous manager opened. Only the current owner may close it or react to its unload.
+    private static readonly owners = new WeakMap<Window, object>();
+    private readonly engine: LayoutEngine<T>;
+    private options: PopoutOptions<T> = {};
+    private readonly entries = new Map<string, PopoutEntry<T>>();
     private readonly listeners = new Set<() => void>();
     private revision = 0;
     private removeMainUnload: (() => void) | undefined;
+    private attached = false;
+    private releaseToken: object | undefined;
 
-    constructor(engine: LayoutEngine) {
+    constructor(engine: LayoutEngine<T>) {
         this.engine = engine;
     }
 
-    setOptions(options: IPopoutOptions) {
+    setOptions(options: PopoutOptions<T>) {
         this.options = options;
     }
 
@@ -150,7 +147,7 @@ export class PopoutManager {
     }
 
     /** the engine of a window layout (created when its window opens) */
-    getLayoutEngine(layoutId: string): LayoutEngine | undefined {
+    getLayoutEngine(layoutId: string): LayoutEngine<T> | undefined {
         return this.entries.get(layoutId)?.engine;
     }
 
@@ -164,88 +161,109 @@ export class PopoutManager {
         return [...this.entries.keys()];
     }
 
+    /** The main engine attached: opens the windows of the state's window layouts. */
+    attach() {
+        this.attached = true;
+        this.releaseToken = undefined; // a pending release (a StrictMode remount) is cancelled
+        this.sync();
+    }
+
     /**
-     * Opens the window of a `"window"` layout. Idempotent per layout id: a window that is open (or
-     * whose release is pending) is kept.
+     * The main engine detached: the windows close after the current task, unless the engine is
+     * attached again in the meantime (a StrictMode remount keeps them).
      */
-    open(layout: ModelLayout) {
-        const layoutId = layout.getLayoutId();
-        const existing = this.entries.get(layoutId);
-        if (existing) {
-            existing.releasePending = false;
+    detach() {
+        this.attached = false;
+        const token = {};
+        this.releaseToken = token;
+        queueMicrotask(() => {
+            if (this.releaseToken === token && !this.attached) {
+                for (const layoutId of [...this.entries.keys()]) {
+                    this.close(layoutId);
+                }
+            }
+        });
+    }
+
+    /** Opens a window for every window layout without one and closes those whose layout is gone. */
+    sync() {
+        if (!this.attached) {
+            return;
+        }
+        const layouts = this.engine.model.state.windows;
+        for (const layoutId of [...this.entries.keys()]) {
+            if (!layouts.some((layout) => layout.id === layoutId)) {
+                this.close(layoutId);
+            }
+        }
+        for (const layout of layouts) {
+            if (!this.entries.has(layout.id)) {
+                this.open(layout);
+            }
+        }
+    }
+
+    /** Opens the window of a window layout (idempotent per layout id). */
+    private open(layout: WindowLayout<T>) {
+        const layoutId = layout.id;
+        if (this.entries.has(layoutId)) {
             return;
         }
         const mainWindow = this.engine.getCurrentWindow();
         if (!mainWindow) {
-            // the adapter may ask before the engine is attached: open once it is
-            this.pending.set(layoutId, layout);
-            return;
+            return; // opened once the engine is attached to a window
         }
-        this.pending.delete(layoutId);
         if (!this.isSupportsPopout()) {
             // no native windows here: the window layout's tabs go back to the main layout
-            this.applyClosePolicy(layoutId);
+            this.dockBack(layoutId);
             return;
         }
-        const rect = layout.getRect();
+        const rect = layout.rect;
         const url = `${this.getPopoutURL()}?id=${encodeURIComponent(layoutId)}`;
-        const popout = mainWindow.open(
-            url,
-            layoutId,
-            `left=${rect.x},top=${rect.y},width=${rect.width},height=${rect.height}`,
-        );
+        const features = `left=${rect.x},top=${rect.y},width=${rect.width},height=${rect.height}`;
+        const opener: OpenWindow =
+            this.options.openWindow ??
+            ((u, name, f) => mainWindow.open(u, name, f));
+        const popout = opener(url, layoutId, features);
         if (!popout) {
             console.warn(`Unable to open window ${url}`);
-            this.applyClosePolicy(layoutId);
+            this.dockBack(layoutId);
             return;
         }
-
-        const engine = new LayoutEngine({
-            model: this.engine.getModel(),
-            layoutId,
-            mainEngine: this.engine,
-        });
-        const entry: PopoutEntry = {
+        const engine = this.engine.createPopoutEngine(layoutId);
+        const entry: PopoutEntry<T> = {
             layoutId,
             window: popout,
             engine,
             contentRoot: undefined,
             cleanup: undefined,
-            releasePending: false,
             closing: false,
         };
         this.entries.set(layoutId, entry);
         PopoutManager.owners.set(popout, this);
         this.watchMainUnload(mainWindow);
-        popout.addEventListener("load", () => this.onLoad(entry, layout));
+        popout.addEventListener("load", () => this.onLoad(entry));
         this.notify();
     }
 
-    /**
-     * Releases the window of a layout that is no longer rendered: it closes after the current task,
-     * unless the layout is opened again in the meantime (e.g. a StrictMode remount).
-     */
-    release(layoutId: string) {
-        this.pending.delete(layoutId);
-        const entry = this.entries.get(layoutId);
-        if (!entry || entry.releasePending) {
-            return;
+    /** runs `window.close` for a window layout (its tabs dock back into the main layout) */
+    private dockBack(layoutId: string) {
+        if (
+            this.engine.model.state.windows.some(
+                (layout) => layout.id === layoutId,
+            )
+        ) {
+            this.engine.run("window.close", { window: layoutId });
         }
-        entry.releasePending = true;
-        queueMicrotask(() => {
-            if (entry.releasePending && this.entries.get(layoutId) === entry) {
-                this.close(layoutId);
-            }
-        });
     }
 
-    /** Closes a layout's window now, without applying the close policy. */
+    /** Closes a layout's window now (the layout stays in the state). */
     close(layoutId: string) {
         const entry = this.entries.get(layoutId);
         if (!entry) {
             return;
         }
-        entry.closing = true; // the window's beforeunload must not apply the close policy
+        entry.closing = true; // the window's beforeunload must not dock the layout back
         this.entries.delete(layoutId);
         entry.cleanup?.();
         entry.engine.dispose();
@@ -265,18 +283,12 @@ export class PopoutManager {
 
     /** Closes every window and releases every resource. */
     dispose() {
+        this.attached = false;
         for (const layoutId of [...this.entries.keys()]) {
             this.close(layoutId);
         }
         this.removeMainUnload?.();
         this.listeners.clear();
-    }
-
-    /** Opens the layouts asked for before the engine was attached. Called by the engine on attach. */
-    openPending() {
-        for (const layout of [...this.pending.values()]) {
-            this.open(layout);
-        }
     }
 
     // the main window unloading closes every popout (pagehide, not beforeunload: another
@@ -297,8 +309,13 @@ export class PopoutManager {
         };
     }
 
-    private onLoad(entry: PopoutEntry, layout: ModelLayout) {
-        if (this.entries.get(entry.layoutId) !== entry) {
+    private layoutOf(layoutId: string): WindowLayout<T> | undefined {
+        return this.engine.model.windowLayout(layoutId);
+    }
+
+    private onLoad(entry: PopoutEntry<T>) {
+        const layout = this.layoutOf(entry.layoutId);
+        if (this.entries.get(entry.layoutId) !== entry || !layout) {
             return;
         }
         // a reload of the popout re-fires load on the same Window: release the previous document's
@@ -314,13 +331,12 @@ export class PopoutManager {
         }
         popout.focus();
 
-        const rect = layout.getRect();
-        // note: resizeto must be before moveto in chrome otherwise the window will end up at 0,0
+        const rect = layout.rect;
+        // note: resizeTo must be before moveTo in chrome otherwise the window ends up at 0,0
         popout.resizeTo(rect.width, rect.height);
         popout.moveTo(rect.x, rect.y);
         // converge on the metrics used when saving (screenLeft/Top, outerWidth/Height): browsers
-        // disagree on the reference points of resizeTo/moveTo, so correct by the reported
-        // difference - save/restore cycles then cannot drift
+        // disagree on the reference points of resizeTo/moveTo, so correct by the reported difference
         popout.resizeBy(
             rect.width - popout.outerWidth,
             rect.height - popout.outerHeight,
@@ -332,8 +348,7 @@ export class PopoutManager {
         if (title !== undefined) {
             popoutDocument.title = title;
         }
-        // carry over the language/direction so assistive technology in the popout announces
-        // content correctly, and the root attributes the consumer asked to mirror
+        // carry over the language/direction, and the root attributes the consumer asked to mirror
         const stopMirroringRoot = mirrorRootAttributes(
             mainDocument,
             popoutDocument,
@@ -353,31 +368,58 @@ export class PopoutManager {
                 entry.contentRoot = contentRoot; // render once the link styles loaded
                 this.notify();
                 // the content just mounted, so css-in-js libraries have inserted their rules for it
-                // (invisible to the MutationObserver); re-sync without waiting for the next poll
                 queueMicrotask(() => mirror.resyncStyles());
             }
         });
 
-        // listen for popout unloading (needs to be after load for safari)
+        // record where the window is, so a saved layout reopens it in place
+        const onResize = () => {
+            if (
+                this.entries.get(entry.layoutId) !== entry ||
+                popout.screenTop <= -10000
+            ) {
+                return; // chrome reports large negative values while minimized
+            }
+            this.engine.run(
+                "window.configure",
+                {
+                    window: entry.layoutId,
+                    rect: {
+                        x: popout.screenLeft,
+                        y: popout.screenTop,
+                        width: popout.outerWidth,
+                        height: popout.outerHeight,
+                    },
+                },
+                { transient: true },
+            );
+        };
+        popout.addEventListener("resize", onResize);
+
+        // listen for the popout unloading (needs to be after load for safari)
         const onPopoutBeforeUnload = () => {
             if (entry.closing || this.entries.get(entry.layoutId) !== entry) {
                 return;
             }
             if (PopoutManager.owners.get(popout) !== this) {
-                // another manager took the window over (a model swap reloads it): let go quietly
+                // another manager took the window over: let go quietly
                 this.close(entry.layoutId);
                 return;
             }
-            this.options.onPopoutClose?.(layout, popout, popoutDocument);
+            const current = this.layoutOf(entry.layoutId);
+            if (current) {
+                this.options.onPopoutClose?.(current, popout, popoutDocument);
+            }
             this.rescueContent(entry.layoutId);
-            this.applyClosePolicy(entry.layoutId);
             this.close(entry.layoutId);
+            this.dockBack(entry.layoutId);
         };
         popout.addEventListener("beforeunload", onPopoutBeforeUnload);
 
         entry.cleanup = () => {
             stopMirroringRoot();
             mirror.dispose();
+            popout.removeEventListener("resize", onResize);
             popout.removeEventListener("beforeunload", onPopoutBeforeUnload);
         };
     }
@@ -387,31 +429,9 @@ export class PopoutManager {
      * so their content (and the framework state rendered into it) outlives the window
      */
     private rescueContent(layoutId: string) {
-        const model = this.engine.getModel();
-        model.visitLayoutNodes(layoutId, (node) => {
-            if (node instanceof TabNode && node.isRendered()) {
-                this.engine.releaseMoveable(node);
-            }
-        });
-    }
-
-    /** applies the close policy to a window layout whose window closed (or never opened) */
-    private applyClosePolicy(layoutId: string) {
-        const model = this.engine.getModel();
-        if (!model.getLayouts().has(layoutId)) {
-            return;
+        for (const tab of this.engine.model.tabs(layoutId)) {
+            this.engine.releaseMoveable(tab.id);
         }
-        if ((this.options.closePolicy ?? "dock") === "float") {
-            this.engine.doAction(Actions.closePopout(layoutId));
-            return;
-        }
-        const tabIds: string[] = [];
-        model.visitLayoutNodes(layoutId, (node) => {
-            if (node instanceof TabNode) {
-                tabIds.push(node.getId());
-            }
-        });
-        dockTabs(this.engine, tabIds);
     }
 }
 

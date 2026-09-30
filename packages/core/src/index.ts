@@ -1,6 +1,4 @@
-// Engine v2 (the new model and command bus). The names that clash with the FlexLayout port
-// (Model, Node, RowNode, TabNode, BorderNode, Rect, DockLocation, Orientation) are exported once
-// the port is removed.
+// The model and the command bus
 export type {
     BatchEntry,
     BatchStep,
@@ -30,32 +28,74 @@ export type {
     TabUpdatePayload,
 } from "./commands/types";
 export { veto } from "./commands/types";
-export * from "./dnd/DragDropManager";
-export * from "./dnd/DragGroup";
-export * from "./engine/LayoutEngine";
+export {
+    DRAG_TYPE,
+    DragDropManager,
+    type DragEventLike,
+    type DragSourceKind,
+    DragState,
+    type DragSubject,
+    type DropIndicatorState,
+    type DropKind,
+    type DropLocation,
+    type DropZoneOptions,
+    type ExternalDrag,
+    type NewTabDropped,
+    type OnExternalDrag,
+} from "./dnd/DragDropManager";
+export {
+    DragGroup,
+    type Transfer,
+    type TransferEnd,
+    type TransferListener,
+    type TransferMeta,
+    type TransferRequest,
+} from "./dnd/DragGroup";
+export {
+    createLayoutEngine,
+    LayoutEngine,
+    type LayoutEngineOptions,
+    type LayoutEngineSettings,
+    type MeasurableKind,
+    type MeasureFunction,
+    MOVEABLE_ATTRIBUTE,
+    MOVEABLES_HOME_ATTRIBUTE,
+    type MoveableOptions,
+    OVERLAY_ATTRIBUTE,
+} from "./engine/LayoutEngine";
+export type {
+    BorderLocation,
+    DockLocation,
+    EdgeBand,
+    Orientation,
+} from "./geometry/dock";
+export type { Rect } from "./geometry/rect";
 export * from "./keyboard/keymap";
 export * from "./labels/DockableLabel";
-export * from "./model/Actions";
-export * from "./model/BorderNode";
-export * from "./model/BorderSet";
-export * from "./model/DockLocation";
-export * from "./model/DropInfo";
-export * from "./model/ICloseType";
-export * from "./model/IDraggable";
-export * from "./model/IDropTarget";
-export * from "./model/IJsonModel";
-export * from "./model/Model";
-export * from "./model/ModelLayout";
-export * from "./model/Node";
-export * from "./model/Orientation";
-export * from "./model/Rect";
-export * from "./model/RowNode";
-export * from "./model/TabGroupNode";
-export * from "./model/TabNode";
-export * from "./model/TabSetNode";
 export * from "./overflow/tabOverflow";
-export * from "./paths";
-export * from "./popout/PopoutManager";
+export {
+    computePaths,
+    DROP_INDICATOR_PATH,
+    getSplitterPath,
+    getTabButtonId,
+    getTabButtonPath,
+    getTabPanelId,
+    getTabStripPath,
+    windowPath,
+} from "./paths";
+export {
+    ADOPTED_STYLES_ATTRIBUTE,
+    isDesktop,
+    mirrorRootAttributes,
+    type OpenWindow,
+    POPOUT_ATTRIBUTE,
+    type PopoutCallback,
+    PopoutManager,
+    type PopoutOptions,
+    STYLE_LOAD_TIMEOUT_MS,
+    STYLE_POLL_INTERVAL_MS,
+    StyleMirror,
+} from "./popout/PopoutManager";
 export type { FromSchema } from "./schema/from-schema";
 export { layoutSchema } from "./schema/layout";
 export type {
@@ -64,7 +104,15 @@ export type {
     JsonValue,
     ValidationIssue,
 } from "./schema/types";
-export * from "./splitter/SplitterController";
+export type { SizeRange } from "./split/split";
+export {
+    createSplitterController,
+    enablePointerOnIFrames,
+    type SplitterAria,
+    SplitterController,
+    type SplitterState,
+    startDrag,
+} from "./splitter/SplitterController";
 export {
     BUILT_IN,
     type ResolvedBorder,
@@ -85,24 +133,29 @@ export type {
     WindowJson,
 } from "./state/json";
 export { LayoutValidationError, validateLayout } from "./state/load";
-export { createModel, type ModelOptions } from "./state/model";
+export { createModel, type Model, type ModelOptions } from "./state/model";
 export {
     type AnyTypes,
     type BorderDataOf,
     type BorderDefaults,
     type BorderMode,
+    type BorderNode,
     type ComponentOf,
     type DockableTypes,
     type LayoutDefaults,
     type LayoutSettings,
     type LayoutState,
     MAIN_LAYOUT,
+    type Node,
+    type NodeKind,
     type ParentNode,
     type RowDataOf,
+    type RowNode,
     type SizeLimits,
     type TabContainer,
     type TabDataOf,
     type TabDefaults,
+    type TabNode,
     type TabOf,
     type TabsetDataOf,
     type TabsetDefaults,

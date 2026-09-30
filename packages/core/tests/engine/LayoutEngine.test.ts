@@ -1,24 +1,18 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-    type Action,
-    Actions,
     createLayoutEngine,
-    DockLocation,
-    LayoutEngine,
+    type LayoutEngine,
     MOVEABLE_ATTRIBUTE,
     MOVEABLES_HOME_ATTRIBUTE,
-    Rect,
-    type RowNode,
-    type TabNode,
-    type TabSetNode,
 } from "../../src";
 import {
     freshModel,
     mountTwoTabsets,
-    node,
     RecordingResizeObserver,
     Rects,
+    recordCommands,
+    twoTabsets,
 } from "./fixture";
 
 const STRUCTURAL = new Set([
@@ -50,44 +44,65 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-function setup(
-    options: { onAction?: (action: Action) => Action | undefined } = {},
-) {
+function setup() {
     const model = freshModel();
     const rects = new Rects();
-    engine = createLayoutEngine({ model, measure: rects.measure, ...options });
+    engine = createLayoutEngine({ model, measure: rects.measure });
     const dom = mountTwoTabsets(engine, rects);
     return { model, rects, engine, ...dom };
 }
 
 describe("LayoutEngine measure pass", () => {
-    it("writes registered element rects into the model, relative to the root", () => {
+    it("measures registered elements relative to the root, into the engine (never the model)", () => {
         const { model, engine } = setup();
+        const before = model.state;
         expect(engine.syncLayoutMetrics()).toBe(true);
-
-        expect(node<RowNode>(model, "row").getRect()).toEqual(
-            new Rect(0, 0, 400, 300),
-        );
-        expect(node<TabSetNode>(model, "ts0").getRect()).toEqual(
-            new Rect(0, 0, 196, 300),
-        );
-        expect(node<TabSetNode>(model, "ts0").getContentRect()).toEqual(
-            new Rect(0, 30, 196, 270),
-        );
-        expect(node<TabSetNode>(model, "ts1").getContentRect()).toEqual(
-            new Rect(204, 30, 196, 270),
-        );
+        expect(engine.rect("row", "row")).toEqual({
+            x: 0,
+            y: 0,
+            width: 400,
+            height: 300,
+        });
+        expect(engine.rect("tabset", "ts0")).toEqual({
+            x: 0,
+            y: 0,
+            width: 196,
+            height: 300,
+        });
+        expect(engine.contentRect("ts0")).toEqual({
+            x: 0,
+            y: 30,
+            width: 196,
+            height: 270,
+        });
+        expect(engine.contentRect("ts1")).toEqual({
+            x: 204,
+            y: 30,
+            width: 196,
+            height: 270,
+        });
+        expect(model.state).toBe(before);
     });
 
-    it("uses the injected measure function (the port of Rect.getBoundingClientRect)", () => {
+    it("uses the injected measure function", () => {
         const model = freshModel();
         const measure = vi.fn(() => ({ x: 1, y: 2, width: 3, height: 4 }));
         engine = createLayoutEngine({ model, measure });
         const root = document.body.appendChild(document.createElement("div"));
         engine.attachRoot(root);
         const el = root.appendChild(document.createElement("div"));
-        expect(engine.getBoundingClientRect(el)).toEqual(new Rect(0, 0, 3, 4));
-        expect(engine.getDomRect()).toEqual(new Rect(1, 2, 3, 4));
+        expect(engine.getBoundingClientRect(el)).toEqual({
+            x: 0,
+            y: 0,
+            width: 3,
+            height: 4,
+        });
+        expect(engine.getDomRect()).toEqual({
+            x: 1,
+            y: 2,
+            width: 3,
+            height: 4,
+        });
         expect(measure).toHaveBeenCalledWith(el);
     });
 
@@ -95,19 +110,17 @@ describe("LayoutEngine measure pass", () => {
         const { rects, engine, ts0 } = setup();
         engine.syncLayoutMetrics();
         expect(engine.syncLayoutMetrics()).toBe(false);
-
         rects.set(ts0, 10.2, 20.2, 196.3, 300.1); // sub-pixel jitter
         expect(engine.syncLayoutMetrics()).toBe(false);
-
         rects.set(ts0, 10, 20, 180, 300);
         expect(engine.syncLayoutMetrics()).toBe(true);
     });
 
     it("skips elements that are not connected", () => {
-        const { model, engine, ts0 } = setup();
+        const { engine, ts0 } = setup();
         ts0.remove();
         engine.syncLayoutMetrics();
-        expect(node<TabSetNode>(model, "ts0").getRect()).toEqual(Rect.empty());
+        expect(engine.rect("tabset", "ts0")).toBeUndefined();
     });
 
     it("asks for a relayout the first time a content area gains a size, and only then", () => {
@@ -115,34 +128,41 @@ describe("LayoutEngine measure pass", () => {
         const listener = vi.fn();
         engine.subscribe(listener);
         const before = engine.getSnapshot();
-
         engine.sync();
         expect(listener).toHaveBeenCalledTimes(1);
         expect(engine.getSnapshot()).not.toBe(before);
-
         listener.mockClear();
         engine.sync();
         expect(listener).not.toHaveBeenCalled();
     });
 
-    it("feeds the registered splitter thickness to the model", () => {
-        const { model, rects, engine, splitter } = setup();
+    it("discovers the splitter thickness", () => {
+        const { rects, engine, splitter } = setup();
         engine.sync();
-        expect(model.getSplitterSize()).toBe(8);
-
+        expect(engine.splitterSize()).toBe(8);
         rects.set(splitter, 206, 20, 12, 300);
         const listener = vi.fn();
         engine.subscribe(listener);
         engine.sync();
-        expect(model.getSplitterSize()).toBe(12);
+        expect(engine.splitterSize()).toBe(12);
         expect(listener).toHaveBeenCalled();
     });
 
     it("ignores a hidden splitter", () => {
-        const { model, rects, engine, splitter } = setup();
+        const { rects, engine, splitter } = setup();
         rects.set(splitter, 0, 0, 0, 0);
         engine.sync();
-        expect(model.getSplitterSize()).toBe(8);
+        expect(engine.splitterSize()).toBe(8);
+    });
+
+    it("computes paths and size ranges per state", () => {
+        const { engine } = setup();
+        engine.sync();
+        engine.prepare();
+        expect(engine.path("ts1")).toBe("/ts1");
+        expect(engine.path("t2")).toBe("/ts1/t0");
+        // a tabset's minimum height includes its strip
+        expect(engine.minMax("ts0").minHeight).toBe(31);
     });
 });
 
@@ -150,7 +170,6 @@ describe("LayoutEngine panel positioning", () => {
     it("writes only structural style onto the panels", () => {
         const { engine, panels } = setup();
         engine.sync();
-
         for (const panel of Object.values(panels)) {
             for (const key of styleKeys(panel)) {
                 expect(STRUCTURAL.has(key), `unexpected style ${key}`).toBe(
@@ -172,132 +191,79 @@ describe("LayoutEngine panel positioning", () => {
         expect(panels.t0.style.display).toBe("");
         expect(panels.t1.style.display).toBe("none");
         expect(panels.t2.style.display).toBe("");
+        expect(engine.isPanelVisible("t0")).toBe(true);
+        expect(engine.isPanelVisible("t1")).toBe(false);
     });
 
     it("hides panels of non-maximized tabsets while one is maximized", () => {
         const { model, engine, panels } = setup();
         engine.sync();
-        model.doAction(Actions.maximizeToggle("ts1"));
+        model.run("tabset.maximize", { tabset: "ts1", value: true });
         engine.sync();
         expect(panels.t0.style.display).toBe("none");
         expect(panels.t2.style.display).toBe("");
     });
-
-    it("fires tab resize and visibility events", () => {
-        const { model, rects, engine, ts0content } = setup();
-        const t0 = node<TabNode>(model, "t0");
-        const t1 = node<TabNode>(model, "t1");
-        const resize = vi.fn();
-        const visibility = vi.fn();
-        t0.setEventListener("resize", resize);
-        t1.setEventListener("visibility", visibility);
-
-        engine.sync();
-        expect(resize).toHaveBeenCalledTimes(1);
-
-        rects.set(ts0content, 10, 50, 150, 270);
-        engine.sync();
-        expect(resize).toHaveBeenCalledTimes(2);
-
-        model.doAction(Actions.selectTab("t1"));
-        engine.sync();
-        expect(visibility).toHaveBeenLastCalledWith({ visible: true });
-    });
 });
 
-describe("LayoutEngine actions", () => {
-    it("passes actions through when there is no onAction", () => {
+describe("LayoutEngine and the model", () => {
+    it("runs commands through the model, so middleware applies", () => {
         const { model, engine } = setup();
-        engine.doAction(Actions.selectTab("t1"));
-        expect(node<TabSetNode>(model, "ts0").getSelectedNode()?.getId()).toBe(
-            "t1",
-        );
+        const commands = recordCommands(model);
+        engine.run("tab.select", { tab: "t1" });
+        expect(model.selectedTab("ts0")?.id).toBe("t1");
+        expect(commands).toEqual([
+            { command: "tab.select", payload: { tab: "t1" } },
+        ]);
     });
 
-    it("applies the action onAction returns, which may be a replacement", () => {
-        const onAction = vi.fn(() => Actions.selectTab("t1"));
-        const { model, engine } = setup({ onAction });
-        engine.doAction(Actions.deleteTab("t2"));
-        expect(onAction).toHaveBeenCalledTimes(1);
-        expect(model.getNodeById("t2")).toBeDefined();
-        expect(node<TabSetNode>(model, "ts0").getSelectedNode()?.getId()).toBe(
-            "t1",
-        );
-    });
-
-    it("vetoes the action when onAction returns undefined", () => {
-        const { model, engine } = setup({ onAction: () => undefined });
-        engine.doAction(Actions.deleteTab("t2"));
-        expect(model.getNodeById("t2")).toBeDefined();
-    });
-
-    it("re-renders after a model change and reports it to onModelChange", () => {
-        const model = freshModel();
-        const rects = new Rects();
-        const onModelChange = vi.fn();
-        engine = createLayoutEngine({
-            model,
-            measure: rects.measure,
-            onModelChange,
-        });
-        mountTwoTabsets(engine, rects);
+    it("re-renders after every commit, the engine's and the app's", () => {
+        const { model, engine } = setup();
         const listener = vi.fn();
         engine.subscribe(listener);
-
-        engine.doAction(Actions.moveNode("t2", "ts0", DockLocation.CENTER, -1));
+        model.run("tab.move", { tab: "t2", to: "ts0" });
         expect(listener).toHaveBeenCalled();
-        expect(onModelChange).toHaveBeenCalledWith(
-            model,
-            expect.objectContaining({ type: Actions.MOVE_NODE }),
-        );
     });
 
-    it("takes the adjusting fast path for weight changes: no re-render, flex-grow written directly", () => {
+    it("applies a transient row.resize without a re-render, writing flex-grow directly", () => {
         const { model, engine, ts0, ts1 } = setup();
         engine.sync();
         const listener = vi.fn();
         engine.subscribe(listener);
-
-        engine.doAction(
-            Actions.adjustWeights("row", [30, 70]).setAdjusting(true),
+        model.run(
+            "row.resize",
+            { row: "row", weights: [30, 70] },
+            { transient: true },
         );
         expect(listener).not.toHaveBeenCalled();
         expect(ts0.style.flexGrow).toBe(String(30 * 1000));
         expect(ts1.style.flexGrow).toBe(String(70 * 1000));
-        expect(node<TabSetNode>(model, "ts0").getWeight()).toBe(30);
-
-        engine.doAction(Actions.adjustWeights("row", [30, 70]));
+        expect(model.get("ts0")).toMatchObject({ weight: 30 });
+        model.run("row.resize", { row: "row", weights: [30, 70] });
         expect(listener).toHaveBeenCalled();
     });
 });
 
 describe("LayoutEngine moveable elements", () => {
-    it("creates them lazily in the layout's document, marked with data-dockable-moveable", () => {
-        const { model, engine } = setup();
-        const t0 = node<TabNode>(model, "t0");
-        const create = vi.spyOn(engine, "createMoveableElement");
-        expect(create).not.toHaveBeenCalled();
-
-        const element = engine.getMoveableElement(t0);
-        expect(create).toHaveBeenCalledTimes(1);
+    it("creates them on first use in the layout's document, marked with data-dockable-moveable", () => {
+        const { engine } = setup();
+        const element = engine.getMoveableElement("t0");
         expect(element.hasAttribute(MOVEABLE_ATTRIBUTE)).toBe(true);
         expect(element.ownerDocument).toBe(
             engine.getLayoutRef()?.ownerDocument,
         );
-        expect(engine.getMoveableElement(t0)).toBe(element);
+        expect(engine.getMoveableElement("t0")).toBe(element);
         expect(styleKeys(element).sort()).toEqual(["height", "width"]);
     });
 
     it("keeps the same element through release and attach into another panel", () => {
-        const { model, engine, panels } = setup();
-        const t0 = node<TabNode>(model, "t0");
-        engine.attachMoveable(t0, panels.t0);
-        const element = engine.getMoveableElement(t0);
+        const { engine, panels } = setup();
+        engine.attachMoveable("t0", panels.t0);
+        const element = engine.getMoveableElement("t0");
         const content = element.appendChild(document.createElement("input"));
         content.value = "typed";
         expect(element.parentElement).toBe(panels.t0);
 
-        engine.releaseMoveable(t0, panels.t0);
+        engine.releaseMoveable("t0", panels.t0);
         expect(element.isConnected).toBe(true);
         expect(
             element.parentElement?.hasAttribute(MOVEABLES_HOME_ATTRIBUTE),
@@ -306,58 +272,93 @@ describe("LayoutEngine moveable elements", () => {
         const otherPanel = document.body.appendChild(
             document.createElement("div"),
         );
-        engine.attachMoveable(t0, otherPanel);
-        expect(engine.getMoveableElement(t0)).toBe(element);
+        engine.attachMoveable("t0", otherPanel);
+        expect(engine.getMoveableElement("t0")).toBe(element);
         expect(element.parentElement).toBe(otherPanel);
         expect(element.firstChild).toBe(content);
         expect(content.value).toBe("typed");
     });
 
     it("does not park an element that already moved to another panel", () => {
-        const { model, engine, panels } = setup();
-        const t0 = node<TabNode>(model, "t0");
-        engine.attachMoveable(t0, panels.t0);
-        engine.attachMoveable(t0, panels.t1);
-        engine.releaseMoveable(t0, panels.t0);
-        expect(engine.getMoveableElement(t0).parentElement).toBe(panels.t1);
+        const { engine, panels } = setup();
+        engine.attachMoveable("t0", panels.t0);
+        engine.attachMoveable("t0", panels.t1);
+        engine.releaseMoveable("t0", panels.t0);
+        expect(engine.getMoveableElement("t0").parentElement).toBe(panels.t1);
     });
 
-    it("sets overflow from the tab's scrollbar setting", () => {
+    it("scrolls the content unless the panel is not scrollable", () => {
+        const { engine, panels } = setup();
+        engine.attachMoveable("t0", panels.t0);
+        expect(engine.getMoveableElement("t0").style.overflow).toBe("auto");
+        engine.attachMoveable("t0", panels.t0, { scrollable: false });
+        expect(engine.getMoveableElement("t0").style.overflow).toBe("hidden");
+    });
+
+    it("keeps every moveable of a tab whose id survives a layout.load", () => {
         const { model, engine, panels } = setup();
-        const t0 = node<TabNode>(model, "t0");
-        engine.attachMoveable(t0, panels.t0);
-        expect(engine.getMoveableElement(t0).style.overflow).toBe("auto");
+        engine.attachMoveable("t0", panels.t0);
+        const t0 = engine.getMoveableElement("t0");
+        const t2 = engine.getMoveableElement("t2");
+        const moved = structuredClone(twoTabsets);
+        // the same ids, rearranged: t2 joins ts0, ts1 goes
+        moved.root.children = [
+            {
+                type: "tabset",
+                id: "ts0",
+                children: [
+                    { id: "t2", component: "test" },
+                    { id: "t0", component: "test" },
+                ],
+            },
+        ];
+        const result = model.run("layout.load", { layout: moved });
+        expect(result.ok && result.value.removed.sort()).toEqual(["t1", "ts1"]);
+        expect(engine.getMoveableElement("t0")).toBe(t0);
+        expect(engine.getMoveableElement("t2")).toBe(t2);
+        expect(t0.parentElement).toBe(panels.t0);
+    });
+
+    it("releases the moveable of a tab the model no longer has", () => {
+        const { model, engine } = setup();
+        const t1 = engine.getMoveableElement("t1");
+        model.run("tab.close", { tab: "t1" });
+        expect(engine.getMoveableElement("t1")).not.toBe(t1);
+    });
+
+    it("renders a tab's content once its content area has a size, then keeps it rendered", () => {
+        const { model, engine } = setup();
+        expect(engine.shouldRender("t0")).toBe(false); // not measured yet
+        engine.sync();
+        expect(engine.shouldRender("t0")).toBe(true);
+        expect(engine.shouldRender("t1")).toBe(false); // not selected
+        expect(engine.shouldRender("t1", false)).toBe(true); // render on demand off
+        model.run("tab.select", { tab: "t0" });
+        expect(engine.shouldRender("t1")).toBe(true); // rendered before
     });
 });
 
 describe("LayoutEngine registration bookkeeping", () => {
     it("is idempotent: a StrictMode-style double register/unregister leaves no stale entries", () => {
-        const { model, engine, ts0 } = setup();
-        const tabset = node<TabSetNode>(model, "ts0");
+        const { engine, ts0 } = setup();
         const observer = RecordingResizeObserver.instances[0];
         expect(observer?.observed.has(ts0)).toBe(true);
-
-        engine.registerMeasurable(tabset, "tabset", ts0);
-        engine.registerMeasurable(tabset, "tabset", null);
+        engine.registerMeasurable("ts0", "tabset", ts0);
+        engine.registerMeasurable("ts0", "tabset", null);
         expect(observer?.observed.has(ts0)).toBe(false);
-        engine.registerMeasurable(tabset, "tabset", ts0);
-        engine.registerMeasurable(tabset, "tabset", ts0);
-        expect(engine.getRegistrations().measurables.size).toBe(5);
+        engine.registerMeasurable("ts0", "tabset", ts0);
+        engine.registerMeasurable("ts0", "tabset", ts0);
+        expect(engine.getRegistrations().measurables.size).toBe(7);
         expect(observer?.observed.has(ts0)).toBe(true);
-
-        engine.registerTabPanel(node<TabNode>(model, "t0"), null);
-        engine.registerTabPanel(node<TabNode>(model, "t0"), null);
+        engine.registerTabPanel("t0", null);
+        engine.registerTabPanel("t0", null);
         expect(engine.getRegistrations().tabPanels.size).toBe(2);
     });
 
     it("watches tab buttons: a tab that grows can make its strip overflow", () => {
-        const { model, engine, root } = setup();
+        const { engine, root } = setup();
         const button = root.appendChild(document.createElement("div"));
-        engine.registerMeasurable(
-            node<TabNode>(model, "t0"),
-            "tabbutton",
-            button,
-        );
+        engine.registerMeasurable("t0", "tabbutton", button);
         expect(RecordingResizeObserver.instances[0]?.observed.has(button)).toBe(
             true,
         );
@@ -369,7 +370,7 @@ describe("LayoutEngine registration bookkeeping", () => {
         expect(RecordingResizeObserver.instances).toHaveLength(1);
         const listener = vi.fn();
         engine.subscribe(listener);
-        model.doAction(Actions.selectTab("t1"));
+        model.run("tab.select", { tab: "t1" });
         expect(listener).toHaveBeenCalledTimes(1);
     });
 
@@ -380,28 +381,14 @@ describe("LayoutEngine registration bookkeeping", () => {
         engine.detachRoot();
         expect(RecordingResizeObserver.instances[0]?.disconnected).toBe(true);
         expect(root.querySelector(`[${MOVEABLES_HOME_ATTRIBUTE}]`)).toBeNull();
-
-        model.doAction(Actions.selectTab("t1"));
+        model.run("tab.select", { tab: "t1" });
         expect(listener).not.toHaveBeenCalled();
-
         engine.attachRoot(root);
-        model.doAction(Actions.selectTab("t0"));
+        model.run("tab.select", { tab: "t0" });
         expect(listener).toHaveBeenCalledTimes(1);
         expect(
             root.querySelectorAll(`[${MOVEABLES_HOME_ATTRIBUTE}]`),
         ).toHaveLength(1);
-    });
-
-    it("gives each window a stable id", () => {
-        const { engine } = setup();
-        const id = engine.getWindowId();
-        expect(id).toMatch(/[0-9a-f-]{36}/);
-        const other = createLayoutEngine({ model: freshModel() });
-        other.attachRoot(
-            document.body.appendChild(document.createElement("div")),
-        );
-        expect(other.getWindowId()).toBe(id);
-        other.dispose();
     });
 });
 
@@ -410,15 +397,13 @@ describe("LayoutEngine keyboard focus", () => {
         const { model, engine, root } = setup();
         const b0 = root.appendChild(document.createElement("button"));
         const b2 = root.appendChild(document.createElement("button"));
-        engine.registerMeasurable(node<TabNode>(model, "t0"), "tabbutton", b0);
-        engine.registerMeasurable(node<TabNode>(model, "t2"), "tabbutton", b2);
+        engine.registerMeasurable("t0", "tabbutton", b0);
+        engine.registerMeasurable("t2", "tabbutton", b2);
         b0.focus();
-        model.doAction(Actions.setActiveTabset("ts0"));
-
+        model.run("tabset.activate", { tabset: "ts0" });
         expect(engine.focusAdjacentTabset(1)).toBe(true);
         expect(document.activeElement).toBe(b2);
-        expect(model.getActiveTabset()?.getId()).toBe("ts1");
-
+        expect(model.activeTabset()?.id).toBe("ts1");
         expect(engine.focusAdjacentTabset(1)).toBe(true);
         expect(document.activeElement).toBe(b0);
     });
@@ -428,16 +413,5 @@ describe("LayoutEngine keyboard focus", () => {
         const input = root.appendChild(document.createElement("input"));
         input.focus();
         expect(engine.focusAdjacentTabset(1)).toBe(false);
-    });
-});
-
-describe("LayoutEngine.of", () => {
-    it("finds the engine driving a model's main layout, until it is disposed", () => {
-        const model = freshModel();
-        expect(LayoutEngine.of(model)).toBeUndefined();
-        const engine = createLayoutEngine({ model });
-        expect(LayoutEngine.of(model)).toBe(engine);
-        engine.dispose();
-        expect(LayoutEngine.of(model)).toBeUndefined();
     });
 });

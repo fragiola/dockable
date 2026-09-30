@@ -3,176 +3,86 @@
 // LICENSE.
 //
 // Differences from FlexLayout:
-// - the drop outline is not a classed div the manager creates and positions: the manager exposes
-//   a subscribable indicator state that a view renders (`Dockable.DropIndicator`);
-// - the drag image is an element the adapter provides (no React root rendered at dragstart, no
-//   generated text);
-// - "add" drags (a consumer element dragged in, `addTabWithDragAndDrop`) and external drags (a
-//   foreign drag accepted by `onExternalDrag`) drop through `Actions.addTab`, interceptable by
-//   `onAction`; the drop callback receives the new tab, or `undefined` when the action was vetoed.
-//   An external drag also ends when it leaves every layout (its source is outside the page, so no
-//   `dragend` reaches the document);
-// - the indicator state also names the targeted tabset (`targetTabSetId`, `index` for strip drops)
-//   and reports a target that a drop rule refused (`refused`, `refusedTabSetId`), hiding the
-//   outline instead of leaving the last accepted one on screen;
-// - drop zones: consumer elements registered with `registerDropZone` take a layout drag and hand
-//   the dragged node to the consumer (FlexLayout has no equivalent);
-// - the overlay border reveal during a drag is not ported (borders slice).
+// - the drop outline is not a classed div the manager creates: the manager exposes a subscribable
+//   indicator state that a view renders (`Dockable.DropIndicator`);
+// - the drag image is an element the adapter provides (no generated text);
+// - a drop is refused exactly when the model refuses the command it would run (`model.can`), so a
+//   middleware veto refuses a drop; there is no `onAllowDrop`;
+// - only drags that carry Dockable's MIME type are claimed (other libraries' drags pass through),
+//   and every `drop` and `dragend` in the document ends the page's drag state;
+// - "add" drags (a consumer element dragged in) and external drags (a foreign drag accepted by
+//   `onExternalDrag`) drop through `tab.add`;
+// - drop zones: consumer elements that take a layout drag and hand it to the consumer.
+import type { PayloadOf } from "../commands/types";
+import {
+    type DropCandidate,
+    type DropGeometry,
+    type DropSubjectKind,
+    dropCandidates,
+} from "../drop/resolve";
 import type { LayoutEngine } from "../engine/LayoutEngine";
-import { Actions } from "../model/Actions";
-import { BorderNode } from "../model/BorderNode";
-import { DockLocation } from "../model/DockLocation";
-import type { DropInfo, DropKind } from "../model/DropInfo";
-import type { IDraggable } from "../model/IDraggable";
-import type { IJsonTabNode } from "../model/IJsonModel";
-import type { Model } from "../model/Model";
-import type { ModelLayout } from "../model/ModelLayout";
-import type { Node } from "../model/Node";
-import { Orientation } from "../model/Orientation";
-import { Rect } from "../model/Rect";
-import { RowNode } from "../model/RowNode";
-import { TabGroupNode } from "../model/TabGroupNode";
-import { TabNode } from "../model/TabNode";
-import { TabSetNode } from "../model/TabSetNode";
+import type { DockLocation } from "../geometry/dock";
+import { EMPTY_RECT, type Rect, rect, rectEquals } from "../geometry/rect";
 import { enablePointerOnIFrames } from "../splitter/SplitterController";
+import { resolveBorder, resolveLayout, resolveTabset } from "../state/defaults";
+import type { TabInit, TabInitOf } from "../state/json";
+import type { Model } from "../state/model";
+import type { AnyState } from "../state/tree";
+import type {
+    AnyTypes,
+    DockableTypes,
+    TabOf,
+    TabsetNode,
+} from "../state/types";
 
-/** The `text/plain` payload that marks a drag started by a dockable layout. */
-export const DRAG_MARKER = "--dockable--";
+/** The MIME type every Dockable drag carries; drags without it are not Dockable's. */
+export const DRAG_TYPE = "application/x-dockable";
 
-/** The drop location names, as `DockLocation.getName()` returns them. */
-export type DropLocation = "center" | "top" | "bottom" | "left" | "right";
+/** The drop location names. */
+export type DropLocation = DockLocation;
+
+/** What a drop outline represents: a drop into or beside a node (`rect`), or at a layout edge. */
+export type DropKind = "rect" | "edge";
+
+/** What is being dragged. */
+export type DragSubject<T extends DockableTypes = AnyTypes> =
+    /** a tab of the layout */
+    | { readonly kind: "tab"; readonly tab: TabOf<T> }
+    /** a whole tabset of the layout */
+    | { readonly kind: "tabset"; readonly tabset: TabsetNode<T> }
+    /** a new tab (a drag source, or a foreign drag) */
+    | { readonly kind: "new"; readonly tab: TabInitOf<T> };
 
 /** What a drop indicator shows. The same object is returned until it changes. */
-export interface IDropIndicatorState {
+export interface DropIndicatorState {
     /** a drop target is under the pointer */
     readonly visible: boolean;
     /** the drop outline, relative to the layout root (1x1 at the pointer when a drag enters) */
     readonly rect: Rect;
     /** where the dragged node would dock relative to the target */
     readonly location: DropLocation;
-    /** `"edge"` for a drop at the outer edge of a row, `"rect"` otherwise */
+    /** `"edge"` for a drop at the outer edge of a layout, `"rect"` otherwise */
     readonly kind: DropKind;
     /** a drag is over this layout */
     readonly dragging: boolean;
-    /** the id of the dragged node */
+    /** the id of the dragged tab or tabset (undefined for a new tab) */
     readonly dragNodeId: string | undefined;
     /** edge docking is enabled (and no tabset is maximized): edge affordances may be shown */
     readonly showEdges: boolean;
     /** seconds a view may take to animate the outline between targets (the core never animates) */
     readonly tabDragSpeed: number;
-    /** the id of the drop target node (a tabset, a row for edge drops, a border, a tab group) */
+    /** the id of the drop target node (a tabset, a row for edge drops, a border) */
     readonly targetNodeId: string | undefined;
-    /** the id of the tabset (or border) the drop goes into or beside (also for strip and group drops) */
+    /** the id of the tabset (or border) the drop goes into or beside */
     readonly targetTabSetId: string | undefined;
     /** the insertion index in the target's tab strip, or -1 for a drop on the content area */
     readonly index: number;
-    /** the pointer is over a target that a drop rule refused (`onAllowDrop`, `enableDrop`, …) */
+    /** the pointer is over a target that refuses the drop (a rule of the layout, a middleware) */
     readonly refused: boolean;
     /** the id of the tabset (or border) that refused the drop, when it was one */
     readonly refusedTabSetId: string | undefined;
-    /**
-     * an auto-hide border with no tabs that the drag reveals, because the pointer is near its edge
-     * of the layout (so it can take the drop); main layout only
-     */
+    /** an auto-hide border with no tabs that the drag reveals (main layout only) */
     readonly revealedBorder: Exclude<DropLocation, "center"> | undefined;
-}
-
-/** Options of a drop zone: a consumer element that takes a layout drag. */
-export interface IDropZoneOptions {
-    /** whether the zone takes this drag (default: every drag of the zone's model) */
-    accepts?: ((dragNode: Node & IDraggable) => boolean) | undefined;
-    /**
-     * called when the drag is dropped on the zone, with the dragged node. The layout does not move
-     * anything: dispatch the action you want (e.g. `Actions.deleteTab`). For a new-tab drag (an add
-     * or external drag) the node is a temporary tab that is not in the model.
-     */
-    onDrop: (dragNode: Node & IDraggable, event: DragEventLike) => void;
-    /** called when the pointer enters (`true`) or leaves (`false`) the zone during a drag it takes */
-    onOverChange?: ((over: boolean) => void) | undefined;
-}
-
-interface DropZone {
-    element: Element;
-    model: Model;
-    options: IDropZoneOptions;
-    enterCount: number;
-    over: boolean;
-}
-
-/**
- * How a drag started: a node of the layout (`"internal"`), a floating panel's whole layout
- * (`"float"`), a consumer element that adds a new tab (`"add"`), or a foreign drag accepted by
- * `onExternalDrag` (`"external"`, e.g. files from the OS).
- */
-export type DragSource = "internal" | "float" | "add" | "external";
-
-/**
- * Called after an add or external drag was dropped: `node` is the tab the drop created, or
- * `undefined` when `onAction` vetoed (or replaced) the `addTab` action.
- */
-export type NewTabDropped = (
-    node: TabNode | undefined,
-    event: DragEventLike,
-) => void;
-
-/** What `onExternalDrag` returns to accept a foreign drag: the tab to create, and a callback. */
-export interface IExternalDrag {
-    /** the tab the drop creates */
-    json: IJsonTabNode;
-    /** called after the drop with the created tab (or `undefined` when vetoed) */
-    onDrop?: NewTabDropped | undefined;
-}
-
-/**
- * Decides whether a drag that did not start in a layout (files, links, text, an element of
- * another library) can be dropped into it. Return the tab to create, or `undefined` to ignore the
- * drag. It is called when the drag enters a layout (once per entry, not for every child element
- * crossed), when the data transfer exposes only its `types` (browsers hide the data itself until
- * the drop): read the payload in `onDrop`.
- */
-export type OnExternalDrag = (
-    event: DragEventLike,
-) => IExternalDrag | undefined;
-
-/** The drag in progress. There is one for the page, shared by every window of a model. */
-export class DragState {
-    readonly mainEngine: LayoutEngine;
-    readonly dragSource: DragSource;
-    readonly dragNode: (Node & IDraggable) | undefined;
-    /** true when dragging a floating panel's whole layout to dock into another layout */
-    readonly dockFloatToMain: boolean;
-    readonly floatLayoutId: string | undefined;
-    /** the floating panel window the drag came from; drops over it are rejected */
-    readonly sourceFloatElement: Element | undefined;
-    /** the tab an add or external drag creates on drop */
-    readonly dragJson: IJsonTabNode | undefined;
-    /** called after an add or external drag was dropped */
-    readonly onNewTabDropped: NewTabDropped | undefined;
-
-    constructor(
-        mainEngine: LayoutEngine,
-        dragSource: DragSource,
-        dragNode: (Node & IDraggable) | undefined,
-        dockFloatToMain = false,
-        floatLayoutId: string | undefined = undefined,
-        sourceFloatElement: Element | undefined = undefined,
-        dragJson: IJsonTabNode | undefined = undefined,
-        onNewTabDropped: NewTabDropped | undefined = undefined,
-    ) {
-        this.mainEngine = mainEngine;
-        this.dragSource = dragSource;
-        this.dragNode = dragNode;
-        this.dockFloatToMain = dockFloatToMain;
-        this.floatLayoutId = floatLayoutId;
-        this.sourceFloatElement = sourceFloatElement;
-        this.dragJson = dragJson;
-        this.onNewTabDropped = onNewTabDropped;
-    }
-
-    /** true for drags that create a new tab on drop (add and external) */
-    isNewTab(): boolean {
-        return this.dragJson !== undefined;
-    }
 }
 
 /** The subset of a native `DragEvent` the manager uses. */
@@ -181,28 +91,124 @@ export type DragEventLike = Pick<
     "clientX" | "clientY" | "dataTransfer" | "target" | "preventDefault"
 >;
 
-const HIDDEN_RECT = Rect.empty();
+/** Called after an add or external drag was dropped: the new tab's id, or undefined when refused. */
+export type NewTabDropped = (
+    tab: string | undefined,
+    event: DragEventLike,
+) => void;
+
+/** What `onExternalDrag` returns to accept a foreign drag: the tab to create, and a callback. */
+export interface ExternalDrag<T extends DockableTypes = AnyTypes> {
+    /** the tab the drop creates */
+    tab: TabInitOf<T>;
+    /** called after the drop with the created tab's id (or undefined when refused) */
+    onDrop?: NewTabDropped | undefined;
+}
+
+/**
+ * Decides whether a drag that did not start in a layout (files, links, text, another library's
+ * element) can be dropped into it: return the tab to create, or undefined to ignore the drag. It is
+ * called when the drag enters a layout, when only `event.dataTransfer.types` is readable.
+ */
+export type OnExternalDrag<T extends DockableTypes = AnyTypes> = (
+    event: DragEventLike,
+) => ExternalDrag<T> | undefined;
+
+/** Options of a drop zone: a consumer element that takes a layout drag. */
+export interface DropZoneOptions<T extends DockableTypes = AnyTypes> {
+    /** whether the zone takes this drag (default: every drag of the zone's model) */
+    accepts?: ((drag: DragSubject<T>) => boolean) | undefined;
+    /** called when the drag is dropped on the zone; nothing is moved: run the command you want */
+    onDrop: (drag: DragSubject<T>, event: DragEventLike) => void;
+    /** called when the pointer enters (`true`) or leaves (`false`) the zone during a drag it takes */
+    onOverChange?: ((over: boolean) => void) | undefined;
+}
+
+interface DropZone {
+    element: Element;
+    model: object;
+    options: DropZoneOptions<AnyTypes>;
+    enterCount: number;
+    over: boolean;
+}
+
+/** How a drag started: a node of a layout, a consumer element that adds a tab, a foreign drag. */
+export type DragSourceKind = "internal" | "add" | "external";
+
+/** The drag in progress. There is one for the page, shared by every window of a model. */
+export class DragState {
+    readonly mainEngine: LayoutEngine<AnyTypes>;
+    readonly source: DragSourceKind;
+    readonly subject: DragSubject<AnyTypes>;
+    /** called after an add or external drag was dropped */
+    readonly onNewTabDropped: NewTabDropped | undefined;
+
+    constructor(
+        mainEngine: LayoutEngine<AnyTypes>,
+        source: DragSourceKind,
+        subject: DragSubject<AnyTypes>,
+        onNewTabDropped?: NewTabDropped,
+    ) {
+        this.mainEngine = mainEngine;
+        this.source = source;
+        this.subject = subject;
+        this.onNewTabDropped = onNewTabDropped;
+    }
+
+    /** the id of the dragged tab or tabset (undefined for a new tab) */
+    get dragId(): string | undefined {
+        return this.subject.kind === "tab"
+            ? this.subject.tab.id
+            : this.subject.kind === "tabset"
+              ? this.subject.tabset.id
+              : undefined;
+    }
+
+    /** true for drags that create a new tab on drop */
+    isNewTab(): boolean {
+        return this.subject.kind === "new";
+    }
+}
+
+/** whether two models (of any registries) are the same object */
+function sameModel(a: object, b: object): boolean {
+    return a === b;
+}
+
+function hasOwnPayload(event: DragEventLike): boolean {
+    const types = event.dataTransfer?.types;
+    return !!types && Array.from(types).includes(DRAG_TYPE);
+}
+
+/** A command a drop runs, as the manager prepares it. */
+type DropCommand =
+    | { command: "tab.move"; payload: PayloadOf<AnyTypes, "tab.move"> }
+    | { command: "tabset.move"; payload: PayloadOf<AnyTypes, "tabset.move"> }
+    | { command: "tab.add"; payload: PayloadOf<AnyTypes, "tab.add"> };
 
 /**
  * The drag-and-drop state machine of one layout engine, working on native drag events. The static
  * {@link DragState} is shared across every engine and window of the page, so a drag can cross
- * layouts (popouts and floats participate in the same drag).
+ * layouts (popouts participate in the same drag).
  */
-export class DragDropManager {
+export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private static dragState: DragState | undefined = undefined;
     private static readonly dragListeners = new Set<() => void>();
     private static readonly dropZones = new Set<DropZone>();
 
-    private readonly engine: LayoutEngine;
+    private readonly engine: LayoutEngine<T>;
     private dragEnterCount = 0;
     private dragging = false;
     private active = false;
-    private dropInfo: DropInfo | undefined;
-    private indicator: IDropIndicatorState;
+    private target: DropCommand | "self" | undefined;
+    private indicator: DropIndicatorState;
     private readonly listeners = new Set<() => void>();
     private removeLostDragGuard: (() => void) | undefined;
+    /** the model's answers during the current drag, by candidate (the state does not change mid-drag) */
+    private verdicts = new Map<string, boolean>();
+    private verdictsFor: DragState | undefined;
 
-    constructor(engine: LayoutEngine) {
+    constructor(engine: LayoutEngine<T>) {
         this.engine = engine;
         this.indicator = this.idleIndicator();
     }
@@ -245,7 +251,7 @@ export class DragDropManager {
     // *********************************************************************************
 
     /** The drop indicator of this layout. The same object is returned until it changes. */
-    getIndicatorState = (): IDropIndicatorState => this.indicator;
+    getIndicatorState = (): DropIndicatorState => this.indicator;
 
     /** Calls `listener` when the indicator changes. Returns the unsubscribe function. */
     subscribe = (listener: () => void): (() => void) => {
@@ -255,10 +261,10 @@ export class DragDropManager {
         };
     };
 
-    private idleIndicator(): IDropIndicatorState {
+    private idleIndicator(): DropIndicatorState {
         return {
             visible: false,
-            rect: HIDDEN_RECT,
+            rect: EMPTY_RECT,
             location: "center",
             kind: "rect",
             dragging: false,
@@ -274,11 +280,11 @@ export class DragDropManager {
         };
     }
 
-    private setIndicator(next: IDropIndicatorState) {
+    private setIndicator(next: DropIndicatorState) {
         const prev = this.indicator;
         if (
             prev.visible === next.visible &&
-            prev.rect.equals(next.rect) &&
+            rectEquals(prev.rect, next.rect) &&
             prev.location === next.location &&
             prev.kind === next.kind &&
             prev.dragging === next.dragging &&
@@ -304,130 +310,110 @@ export class DragDropManager {
     // Starting and ending a drag
     // *********************************************************************************
 
-    // a floating panel can be docked into any layout except the floating panel it was dragged from
-    private isDockTarget() {
+    /** center drops are not offered for a tabset that can never merge (cannot close, or holds pinned tabs) */
+    private isExcludeCenter(subject: DragSubject<AnyTypes>): boolean {
+        if (subject.kind !== "tabset") {
+            return false;
+        }
+        const tabset = subject.tabset;
+        const flags = resolveTabset(this.state().defaults, tabset);
         return (
-            this.engine.getLayoutId() !==
-            DragDropManager.dragState?.floatLayoutId
+            !flags.enableClose ||
+            tabset.children.some((tab) => tab.pinned === true)
         );
     }
 
-    /**
-     * center drops are not offered when the dragged node can never merge into a tabset: a floating
-     * panel being docked, a tabset that cannot be closed, or a tabset holding pinned tabs
-     */
-    isExcludeCenter() {
-        if (DragDropManager.dragState?.dockFloatToMain) {
-            return true;
-        }
-        const dragNode = DragDropManager.dragState?.dragNode;
-        if (dragNode instanceof TabSetNode) {
-            return (
-                !dragNode.isEnableClose() || dragNode.getPinnedRunLength() > 0
+    private state(): AnyState {
+        return this.engine.model.state as unknown as AnyState;
+    }
+
+    private begin(
+        event: DragEventLike,
+        source: DragSourceKind,
+        subject: DragSubject<AnyTypes>,
+        onNewTabDropped?: NewTabDropped,
+    ) {
+        DragDropManager.setDragState(
+            new DragState(
+                this.engine.main as unknown as LayoutEngine<AnyTypes>,
+                source,
+                subject,
+                onNewTabDropped,
+            ),
+        );
+        const dataTransfer = event.dataTransfer;
+        if (dataTransfer) {
+            dataTransfer.setData(
+                DRAG_TYPE,
+                DragDropManager.dragState?.dragId ?? "",
             );
+            const copy = subject.kind === "new";
+            dataTransfer.effectAllowed = copy ? "copy" : "copyMove";
+            dataTransfer.dropEffect = copy ? "copy" : "move";
         }
-        return false;
+        this.dragEnterCount = 0;
+        this.installLostDragGuard();
     }
 
     /**
-     * Starts dragging `node` (a tab, tabset or group). Call from the source's `dragstart`.
-     * `dragImage` is the element the browser snapshots as the drag image; with none, the browser
-     * default is used. No text is generated.
+     * Starts dragging a tab or a whole tabset of this layout (by id). Call from the source's
+     * `dragstart`. `dragImage` is the element the browser snapshots; with none, the browser default.
      */
-    setDragNode = (
+    startDrag = (
         event: DragEventLike,
-        node: Node & IDraggable,
+        id: string,
         dragImage?: Element | null,
     ) => {
-        DragDropManager.setDragState(
-            new DragState(this.engine.getMainEngine(), "internal", node),
-        );
-        this.initDataTransfer(event);
-        this.dragEnterCount = 0;
-        this.engine.getModel().sortLayouts(); // must have order windows, tabs, floats
-        this.installLostDragGuard();
-
+        const node = this.engine.model.get(id);
+        if (node?.type !== "tab" && node?.type !== "tabset") {
+            return;
+        }
+        const subject: DragSubject<AnyTypes> =
+            node.type === "tab"
+                ? { kind: "tab", tab: node as unknown as TabOf<AnyTypes> }
+                : {
+                      kind: "tabset",
+                      tabset: node as unknown as TabsetNode<AnyTypes>,
+                  };
+        this.begin(event, "internal", subject);
         if (!dragImage) {
             return;
         }
         let x = 10;
         let y = 10;
-        const parent =
-            node instanceof TabNode ? node.getTabContainer() : node.getParent();
-        const isInVerticalBorder =
-            parent instanceof BorderNode &&
-            parent.getOrientation() === Orientation.HORZ;
-        if (node instanceof TabNode && !isInVerticalBorder) {
+        const parent = this.engine.model.parentOf(id);
+        const inSideBorder =
+            parent?.type === "border" &&
+            (parent.location === "left" || parent.location === "right");
+        if (node.type === "tab" && !inSideBorder) {
             // keep the grab point: the image is offset by the pointer position within the element
-            const rect = dragImage.getBoundingClientRect();
-            x = event.clientX - rect.left;
-            y = event.clientY - rect.top;
+            const r = this.engine.getBoundingClientRect(
+                dragImage as HTMLElement,
+            );
+            const root = this.engine.getDomRect();
+            x = event.clientX - root.x - r.x;
+            y = event.clientY - root.y - r.y;
         }
         event.dataTransfer?.setDragImage(dragImage, x, y);
     };
 
-    /** Starts dragging a floating panel's whole layout, which can be docked into any other layout. */
-    startDockLayoutDrag(
-        event: DragEventLike,
-        layout: ModelLayout,
-        sourceFloatElement?: Element,
-        dragImage?: Element | null,
-    ) {
-        const rowNode = layout.getRootRow() as unknown as Node & IDraggable;
-        DragDropManager.setDragState(
-            new DragState(
-                this.engine.getMainEngine(),
-                "float",
-                rowNode,
-                true,
-                layout.getLayoutId(),
-                sourceFloatElement,
-            ),
-        );
-        this.initDataTransfer(event);
-        this.dragEnterCount = 0;
-        this.engine.getModel().sortLayouts(); // must have order windows, tabs, floats
-        this.installLostDragGuard();
-        if (dragImage) {
-            event.dataTransfer?.setDragImage(dragImage, 10, 10);
-        }
-    }
-
     /**
      * Starts dragging a new tab from a consumer element (a sidebar item, a palette entry). Call
-     * from the element's `dragstart`, and call {@link onDragEnded} from its `dragend`. A drop
-     * dispatches `Actions.addTab(json, …)` through the engine, then calls `onDrop` with the new
-     * tab. `dragImage` is the element the browser snapshots; with none, the browser default (the
-     * source element) is used.
+     * from the element's `dragstart`, and {@link onDragEnded} from its `dragend`. A drop runs
+     * `tab.add`, then calls `onDrop` with the new tab's id.
      */
-    addTabWithDragAndDrop = (
+    startAddDrag = (
         event: DragEventLike,
-        json: IJsonTabNode,
+        tab: TabInitOf<T>,
         onDrop?: NewTabDropped,
         dragImage?: Element | null,
     ) => {
-        const tempNode = TabNode.fromJson(json, this.engine.getModel(), false);
-        DragDropManager.setDragState(
-            new DragState(
-                this.engine.getMainEngine(),
-                "add",
-                tempNode,
-                false,
-                undefined,
-                undefined,
-                json,
-                onDrop,
-            ),
+        this.begin(
+            event,
+            "add",
+            { kind: "new", tab: tab as TabInitOf<AnyTypes> },
+            onDrop,
         );
-        const dataTransfer = event.dataTransfer;
-        if (dataTransfer) {
-            dataTransfer.setData("text/plain", DRAG_MARKER);
-            dataTransfer.effectAllowed = "copy";
-            dataTransfer.dropEffect = "copy";
-        }
-        this.dragEnterCount = 0;
-        this.engine.getModel().sortLayouts(); // must have order windows, tabs, floats
-        this.installLostDragGuard();
         if (dragImage) {
             event.dataTransfer?.setDragImage(dragImage, 10, 10);
         }
@@ -435,39 +421,19 @@ export class DragDropManager {
 
     /** Asks the main engine's `onExternalDrag` whether a foreign drag can be dropped here. */
     private startExternalDrag(event: DragEventLike) {
-        const onExternalDrag = this.engine.getMainEngine().getOnExternalDrag();
-        const external = onExternalDrag?.(event);
+        const external = this.engine.getOnExternalDrag()?.(event);
         if (!external) {
             return;
         }
-        const tempNode = TabNode.fromJson(
-            external.json,
-            this.engine.getModel(),
-            false,
-        );
         DragDropManager.setDragState(
             new DragState(
-                this.engine.getMainEngine(),
+                this.engine.main as unknown as LayoutEngine<AnyTypes>,
                 "external",
-                tempNode,
-                false,
-                undefined,
-                undefined,
-                external.json,
+                { kind: "new", tab: external.tab as TabInitOf<AnyTypes> },
                 external.onDrop,
             ),
         );
-        this.engine.getModel().sortLayouts(); // must have order windows, tabs, floats
         this.installLostDragGuard();
-    }
-
-    private initDataTransfer(event: DragEventLike) {
-        const dataTransfer = event.dataTransfer;
-        if (dataTransfer) {
-            dataTransfer.setData("text/plain", DRAG_MARKER);
-            dataTransfer.effectAllowed = "copyMove";
-            dataTransfer.dropEffect = "move";
-        }
     }
 
     /** Ends the drag. Called on `dragend` from the drag source, or by the lost drag fallback. */
@@ -479,10 +445,8 @@ export class DragDropManager {
 
     /**
      * Lost drag fallback: `dragend` is dispatched on the drag source, so it never arrives when the
-     * source unmounts mid-drag (e.g. its tab moved to another window). A `dragend` seen anywhere in
-     * the document, a pointer move with no button held, or a new press ends a drag that is still
-     * registered. (A native drag keeps the button down; a move right after `dragstart` can still
-     * report a pointer event, so a plain pointer move is not a signal.)
+     * source unmounts mid-drag. A pointer move with no button held, or a new press, ends a drag
+     * that is still registered.
      */
     private installLostDragGuard() {
         this.removeLostDragGuard?.();
@@ -503,68 +467,84 @@ export class DragDropManager {
             }
         };
         const remove = () => {
-            doc.removeEventListener("dragend", end, true);
             doc.removeEventListener("pointerdown", end, true);
             doc.removeEventListener("pointermove", onPointerMove, true);
             if (this.removeLostDragGuard === remove) {
                 this.removeLostDragGuard = undefined;
             }
         };
-        doc.addEventListener("dragend", end, true);
         doc.addEventListener("pointerdown", end, true);
         doc.addEventListener("pointermove", onPointerMove, true);
         this.removeLostDragGuard = remove;
+    }
+
+    /**
+     * Attaches the native drag listeners to a layout root, and the document listeners that end the
+     * page's drag on every `dragend` and `drop` (a drop into an input, a drag released outside).
+     * Returns the function that detaches them.
+     */
+    attach(element: HTMLElement): () => void {
+        const doc = element.ownerDocument;
+        const onDragEnter = (event: DragEvent) => this.onDragEnterRaw(event);
+        const onDragLeave = (event: DragEvent) => this.onDragLeaveRaw(event);
+        const onDragOver = (event: DragEvent) => this.onDragOver(event);
+        const onDrop = (event: DragEvent) => this.onDrop(event);
+        element.addEventListener("dragenter", onDragEnter);
+        element.addEventListener("dragleave", onDragLeave);
+        element.addEventListener("dragover", onDragOver);
+        element.addEventListener("drop", onDrop);
+        // after the targets handled it (bubble phase on the document): whatever received the drop,
+        // the drag is over
+        const onDocumentEnd = () => {
+            this.clearDragLocal();
+            if (DragDropManager.dragState) {
+                DragDropManager.dragState.mainEngine
+                    .getDragDropManager()
+                    .onDragEnded();
+            }
+        };
+        doc.addEventListener("dragend", onDocumentEnd);
+        doc.addEventListener("drop", onDocumentEnd);
+        return () => {
+            element.removeEventListener("dragenter", onDragEnter);
+            element.removeEventListener("dragleave", onDragLeave);
+            element.removeEventListener("dragover", onDragOver);
+            element.removeEventListener("drop", onDrop);
+            doc.removeEventListener("dragend", onDocumentEnd);
+            doc.removeEventListener("drop", onDocumentEnd);
+            this.clearDragLocal();
+        };
     }
 
     // *********************************************************************************
     // Native drag events on the layout root
     // *********************************************************************************
 
-    /** decides which layout (the topmost one under the pointer) is the active drop target */
+    /** the managers of every layout of this model: the main one and the popout windows' */
+    private managers(): DragDropManager<T>[] {
+        const main = this.engine.main;
+        const managers = [main.getDragDropManager()];
+        const popouts = main.getPopoutManager();
+        for (const layoutId of popouts.getOpenLayoutIds()) {
+            const manager = popouts
+                .getLayoutEngine(layoutId)
+                ?.getDragDropManager();
+            if (manager) {
+                managers.push(manager);
+            }
+        }
+        return managers;
+    }
+
+    /** decides which layout is the active drop target: the one the pointer is in */
     updateActive(event: DragEventLike) {
-        const layouts = Array.from(
-            this.engine.getModel().getLayouts().values(),
+        const managers = this.managers();
+        // windows first: a popout is its own document, so at most one layout has the pointer
+        const found = [...managers.slice(1), managers[0]].find(
+            (manager) => manager && manager.getDragEnterCount() > 0,
         );
-        const dockToMain = DragDropManager.dragState?.dockFloatToMain === true;
-        let found: ModelLayout | undefined;
-        let foundTab: ModelLayout | undefined;
-        for (let i = layouts.length - 1; i >= 0; i--) {
-            const layout = layouts[i];
-            if (!layout) {
-                continue;
-            }
-            // the floating panel being dragged is never a drop target
-            if (
-                dockToMain &&
-                layout.getLayoutId() ===
-                    DragDropManager.dragState?.floatLayoutId
-            ) {
-                continue;
-            }
-            const manager = managerOf(layout);
-            if (manager && manager.getDragEnterCount() > 0) {
-                if (layout.getType() === "tab") {
-                    foundTab = layout;
-                } else if (!found && !foundTab) {
-                    found = layout;
-                }
-            }
-        }
-
-        if (foundTab) {
-            const parentLayout = foundTab.findParentLayout();
-            if (found === parentLayout || !found) {
-                found = foundTab;
-            }
-        }
-
-        if (found) {
-            managerOf(found)?.setActive(true, event);
-        }
-        for (const layout of layouts) {
-            if (layout !== found) {
-                managerOf(layout)?.setActive(false, event);
-            }
+        for (const manager of managers) {
+            manager.setActive(manager === found, event);
         }
     }
 
@@ -581,9 +561,18 @@ export class DragDropManager {
 
     /** `dragenter` on the layout root */
     onDragEnterRaw = (event: DragEventLike) => {
+        const state = DragDropManager.dragState;
+        if (state && state.source !== "external" && !hasOwnPayload(event)) {
+            // a drag that is not Dockable's while a stale state lingers (its dragend never came)
+            state.mainEngine.getDragDropManager().onDragEnded();
+        }
         // ask onExternalDrag once per entry into this layout: dragenter also bubbles from every
         // child the pointer crosses, which the enter count already tracks
-        if (!DragDropManager.dragState && this.dragEnterCount === 0) {
+        if (
+            !DragDropManager.dragState &&
+            this.dragEnterCount === 0 &&
+            !hasOwnPayload(event)
+        ) {
             this.startExternalDrag(event);
         }
         this.dragEnterCount++;
@@ -592,16 +581,15 @@ export class DragDropManager {
 
     /** `dragleave` on the layout root */
     onDragLeaveRaw = (event: DragEventLike) => {
-        this.dragEnterCount--;
+        this.dragEnterCount = Math.max(0, this.dragEnterCount - 1);
         this.updateActive(event);
     };
 
     clearDragMain() {
         this.setPointerOnAllWindows(true);
-        for (const [, layout] of this.engine.getModel().getLayouts()) {
-            managerOf(layout)?.clearDragLocal();
+        for (const manager of this.managers()) {
+            manager.clearDragLocal();
         }
-        // the lost-drag guard stays until the drag really ends (the pointer may come back)
     }
 
     clearDragLocal() {
@@ -612,7 +600,7 @@ export class DragDropManager {
 
     clearDragLocalVisuals() {
         this.dragging = false;
-        this.dropInfo = undefined;
+        this.target = undefined;
         this.setIndicator(this.idleIndicator());
     }
 
@@ -620,8 +608,8 @@ export class DragDropManager {
     // guard is kept: iframes must not swallow the drag events
     private setPointerOnAllWindows(enable: boolean) {
         const docs = new Set<Document>();
-        for (const [, layout] of this.engine.getModel().getLayouts()) {
-            const doc = layout.getWindow()?.document;
+        for (const manager of this.managers()) {
+            const doc = manager.engine.getCurrentDocument();
             if (doc) {
                 docs.add(doc);
             }
@@ -631,16 +619,18 @@ export class DragDropManager {
         }
     }
 
-    private belongsToDrag(): boolean {
+    /** whether the page's drag is one this layout takes */
+    private belongsToDrag(event?: DragEventLike): boolean {
         const state = DragDropManager.dragState;
         if (!state) {
             return false;
         }
-        const main = this.engine.getMainEngine();
-        if (main === state.mainEngine) {
+        if (event && state.source !== "external" && !hasOwnPayload(event)) {
+            return false; // not Dockable's drag
+        }
+        if (sameModel(state.mainEngine.model, this.engine.model)) {
             return true;
         }
-        // a tab of another model in the same drag group
         return this.isGroupTransfer(state);
     }
 
@@ -649,9 +639,9 @@ export class DragDropManager {
         const group = this.engine.getDragGroup();
         return (
             group !== undefined &&
-            state.dragSource === "internal" &&
-            state.dragNode instanceof TabNode &&
-            state.mainEngine.getModel() !== this.engine.getModel() &&
+            state.source === "internal" &&
+            state.subject.kind === "tab" &&
+            !sameModel(state.mainEngine.model, this.engine.model) &&
             group.has(state.mainEngine)
         );
     }
@@ -660,40 +650,29 @@ export class DragDropManager {
         if (!this.belongsToDrag()) {
             return;
         }
-        if (
-            DragDropManager.dragState?.dockFloatToMain &&
-            !this.isDockTarget()
-        ) {
-            return;
-        }
-        const dragState = DragDropManager.dragState;
-        if (!dragState) {
+        const state = DragDropManager.dragState;
+        if (!state) {
             return;
         }
         event.preventDefault();
-
-        this.dropInfo = undefined;
+        this.target = undefined;
         this.dragging = true;
         this.setPointerOnAllWindows(false);
 
-        const model = this.engine.getModel();
+        const layout = this.engine.layoutId;
+        const settings = resolveLayout(this.state().defaults);
         const showEdges =
-            model.getMaximizedTabset(this.engine.getLayoutId()) === undefined &&
-            model.isEnableEdgeDock();
+            this.engine.model.maximizedTabset(layout) === undefined &&
+            settings.edgeDock;
         const root = this.engine.getFreshDomRect();
         // the outline starts as a 1x1 rect at the pointer (a view may animate from it)
         this.setIndicator({
             visible: false,
-            rect: new Rect(
-                event.clientX - root.x,
-                event.clientY - root.y,
-                1,
-                1,
-            ),
+            rect: rect(event.clientX - root.x, event.clientY - root.y, 1, 1),
             location: "center",
             kind: "rect",
             dragging: true,
-            dragNodeId: dragState.dragNode?.getId(),
+            dragNodeId: state.dragId,
             showEdges,
             tabDragSpeed: this.engine.getTabDragSpeed(),
             targetNodeId: undefined,
@@ -705,93 +684,166 @@ export class DragDropManager {
         });
     };
 
-    onDragOver = (event: DragEventLike) => {
-        if (!this.belongsToDrag()) {
-            return;
-        }
-        const dragState = DragDropManager.dragState;
-        if (
-            !dragState?.dragNode ||
-            (dragState.dockFloatToMain && !this.isDockTarget())
-        ) {
-            return;
-        }
-        if (!this.active) {
-            return;
-        }
-        // the pointer over the panel being dragged is never a valid drop target
-        if (dragState.dockFloatToMain) {
-            const target = event.target as Element | null;
-            if (target && dragState.sourceFloatElement?.contains(target)) {
-                this.dropInfo = undefined;
-                return;
-            }
-        }
+    /** the rects the drop resolution reads, from this layout's engine */
+    private geometry(): DropGeometry {
+        const engine = this.engine;
+        return {
+            node: (id) => engine.rect("row", id) ?? engine.rect("tabset", id),
+            tabStrip: (id) => engine.rect("tabstrip", id),
+            content: (id) => engine.rect("tabsetcontent", id),
+            tabButton: (id) => engine.rect("tabbutton", id),
+            borderStrip: (id) => engine.rect("borderheader", id),
+            borderContent: (id) => engine.rect("bordercontent", id),
+        };
+    }
 
+    /** the command a drop at `candidate` runs for the page's drag */
+    private commandFor(
+        state: DragState,
+        candidate: DropCandidate,
+    ): DropCommand {
+        const placement = {
+            to: candidate.target,
+            location: candidate.location,
+            index: candidate.index,
+        };
+        const subject = state.subject;
+        if (subject.kind === "tabset") {
+            return {
+                command: "tabset.move",
+                payload: { tabset: subject.tabset.id, ...placement },
+            };
+        }
+        if (subject.kind === "new") {
+            return {
+                command: "tab.add",
+                payload: { ...(subject.tab as TabInit), ...placement },
+            };
+        }
+        if (!sameModel(state.mainEngine.model, this.engine.model)) {
+            // a drag group transfer: the target adds the tab (with its id when it is free)
+            const tab = subject.tab;
+            const { type: _type, ...fields } = tab;
+            const payload = this.engine.model.get(tab.id)
+                ? { ...fields, id: undefined }
+                : fields;
+            return {
+                command: "tab.add",
+                payload: { ...(payload as TabInit), ...placement },
+            };
+        }
+        return {
+            command: "tab.move",
+            payload: { tab: subject.tab.id, ...placement },
+        };
+    }
+
+    /** whether the model accepts a command (asked once per candidate during a drag) */
+    private accepts(state: DragState, command: DropCommand): boolean {
+        if (this.verdictsFor !== state) {
+            this.verdictsFor = state;
+            this.verdicts = new Map();
+        }
+        const key = JSON.stringify([command.command, command.payload]);
+        let verdict = this.verdicts.get(key);
+        if (verdict === undefined) {
+            const model = this.engine.model as unknown as Model<AnyTypes>;
+            verdict =
+                command.command === "tab.move"
+                    ? model.can("tab.move", command.payload).ok
+                    : command.command === "tabset.move"
+                      ? model.can("tabset.move", command.payload).ok
+                      : model.can("tab.add", command.payload).ok;
+            this.verdicts.set(key, verdict);
+        }
+        return verdict;
+    }
+
+    onDragOver = (event: DragEventLike) => {
+        if (!this.belongsToDrag(event) || !this.active) {
+            return;
+        }
+        const state = DragDropManager.dragState;
+        if (!state) {
+            return;
+        }
         const root = this.engine.getFreshDomRect();
         const x = event.clientX - root.x;
         const y = event.clientY - root.y;
 
-        const model = this.engine.getModel();
-        const revealedBorder = dragState.dockFloatToMain
-            ? undefined
-            : this.borderToReveal(x, y);
+        const revealedBorder = this.borderToReveal(x, y);
         if (revealedBorder !== this.indicator.revealedBorder) {
             this.setIndicator({ ...this.indicator, revealedBorder });
         }
-        model.beginDropProbe();
-        let dropInfo = model.findDropTargetNode(
-            this.engine.getLayoutId(),
-            dragState.dragNode,
+        const subject = state.subject;
+        const kind: DropSubjectKind =
+            subject.kind === "tab"
+                ? {
+                      kind: "tab",
+                      id: subject.tab.id,
+                      pinned: subject.tab.pinned === true,
+                  }
+                : subject.kind === "tabset"
+                  ? { kind: "tabset", id: subject.tabset.id }
+                  : { kind: "new", pinned: subject.tab.pinned === true };
+        const candidates = dropCandidates(
+            this.state(),
+            this.engine.layoutId,
+            this.geometry(),
+            kind,
             x,
             y,
-            this.isExcludeCenter(),
+            { excludeCenter: this.isExcludeCenter(subject) },
         );
-        // a floating panel's layout can split a tabset or dock to a layout edge (the root row),
-        // never dock to the center or into a border
-        if (
-            dropInfo &&
-            dragState.dockFloatToMain &&
-            (dropInfo.location === DockLocation.CENTER ||
-                (!(dropInfo.node instanceof TabSetNode) &&
-                    !(dropInfo.node instanceof RowNode)))
-        ) {
-            dropInfo = undefined;
+        let accepted: DropCandidate | undefined;
+        let refused: DropCandidate | undefined;
+        let command: DropCommand | "self" | undefined;
+        for (const candidate of candidates) {
+            if (candidate.self) {
+                accepted = candidate;
+                command = "self";
+                break;
+            }
+            const next = this.commandFor(state, candidate);
+            if (this.accepts(state, next)) {
+                accepted = candidate;
+                command = next;
+                break;
+            }
+            refused ??= candidate;
         }
-        if (!dropInfo) {
-            // no target here: hide the outline (rather than leave the last one on screen), and
-            // report a target that a drop rule refused
-            const refusedNode = model.getRefusedDrop();
-            if (refusedNode && event.dataTransfer) {
+        if (!accepted) {
+            // no target here: hide the outline, and report a target that refused the drop
+            if (refused && event.dataTransfer) {
                 event.dataTransfer.dropEffect = "none";
             }
-            this.dropInfo = undefined;
+            this.target = undefined;
             this.setIndicator({
                 ...this.indicator,
                 visible: false,
                 targetNodeId: undefined,
                 targetTabSetId: undefined,
                 index: -1,
-                refused: refusedNode !== undefined,
-                refusedTabSetId: tabSetOf(refusedNode)?.getId(),
+                refused: refused !== undefined,
+                refusedTabSetId: refused?.container,
             });
             return;
         }
         event.preventDefault(); // can drop so prevent default (which is cannot drop)
-        if (dragState.isNewTab() && event.dataTransfer) {
+        if (state.isNewTab() && event.dataTransfer) {
             // a new tab is a copy of what was dragged (and a file drag allows no "move")
             event.dataTransfer.dropEffect = "copy";
         }
-        this.dropInfo = dropInfo;
+        this.target = command;
         this.setIndicator({
             ...this.indicator,
             visible: true,
-            rect: dropInfo.rect.clone(),
-            location: dropInfo.location.getName() as DropLocation,
-            kind: dropInfo.kind,
-            targetNodeId: dropInfo.node.getId(),
-            targetTabSetId: tabSetOf(dropInfo.node)?.getId(),
-            index: dropInfo.index,
+            rect: accepted.rect,
+            location: accepted.location,
+            kind: accepted.kind,
+            targetNodeId: accepted.target,
+            targetTabSetId: accepted.container,
+            index: accepted.index,
             refused: false,
             refusedTabSetId: undefined,
         });
@@ -799,54 +851,58 @@ export class DragDropManager {
 
     /**
      * Ported from FlexLayout's LayoutController.checkForBorderToShow: the auto-hide border (with no
-     * tabs) whose edge of the main area the pointer is within `edgeDockMargin` of, except over the
-     * edge docking bands; `undefined` for none. Unlike FlexLayout, it resets when the drag ends.
+     * tabs) whose edge of the main area the pointer is within the edge margin of, except over the
+     * edge docking bands; undefined for none. Unlike FlexLayout, it resets when the drag ends.
      */
     private borderToReveal(
         x: number,
         y: number,
-    ): IDropIndicatorState["revealedBorder"] {
+    ): DropIndicatorState["revealedBorder"] {
         if (!this.engine.isMainLayout()) {
             return undefined;
         }
-        const model = this.engine.getModel();
-        const row = model.getRootRow(this.engine.getLayoutId());
-        const r = row?.getRect();
+        const state = this.state();
+        const r = this.engine.rect("row", state.root.id);
         if (!r || r.width === 0 || r.height === 0) {
             return undefined;
         }
-        const margin = model.getEdgeDockMargin();
-        const half = model.getEdgeDockLength() / 2;
-        const c = r.getCenter();
+        const settings = resolveLayout(state.defaults);
+        const margin = settings.edgeDockMargin;
+        const half = settings.edgeDockLength / 2;
+        const cx = r.x + r.width / 2;
+        const cy = r.y + r.height / 2;
         const overEdge =
-            model.isEnableEdgeDock() &&
+            settings.edgeDock &&
             this.indicator.revealedBorder === undefined &&
-            (Math.abs(y - c.y) < half || Math.abs(x - c.x) < half);
+            (Math.abs(y - cy) < half || Math.abs(x - cx) < half);
         if (overEdge) {
             return undefined;
         }
         const location =
             x <= r.x + margin
-                ? DockLocation.LEFT
-                : x >= r.getRight() - margin
-                  ? DockLocation.RIGHT
+                ? "left"
+                : x >= r.x + r.width - margin
+                  ? "right"
                   : y <= r.y + margin
-                    ? DockLocation.TOP
-                    : y >= r.getBottom() - margin
-                      ? DockLocation.BOTTOM
+                    ? "top"
+                    : y >= r.y + r.height - margin
+                      ? "bottom"
                       : undefined;
         const border = location
-            ? model.getBorderSet().getBorderMap().get(location)
+            ? state.borders.find((candidate) => candidate.location === location)
             : undefined;
+        if (!location || !border) {
+            return undefined;
+        }
+        const resolved = resolveBorder(state.defaults, border);
         if (
-            !location ||
-            !border?.isShowing() ||
-            !border.isAutoHide() ||
-            border.getChildren().length > 0
+            !resolved.show ||
+            !resolved.autoHide ||
+            border.children.length > 0
         ) {
             return undefined;
         }
-        return location.getName() as IDropIndicatorState["revealedBorder"];
+        return location;
     }
 
     onDragLeave = (_event: DragEventLike) => {
@@ -854,21 +910,15 @@ export class DragDropManager {
             return;
         }
         this.clearDragLocalVisuals();
-
         // an external drag's source is outside the page, so no dragend ends it: it ends when it
-        // has left every layout, whichever layout (main, popout, float) it left last
-        const external = DragDropManager.dragState?.dragSource === "external";
+        // has left every layout
+        const external = DragDropManager.dragState?.source === "external";
         if (this.engine.isMainLayout() || external) {
-            let anyDragging = false;
-            for (const [, layout] of this.engine.getModel().getLayouts()) {
-                if (managerOf(layout)?.isDragging()) {
-                    anyDragging = true;
-                    break;
-                }
-            }
+            const anyDragging = this.managers().some((manager) =>
+                manager.isDragging(),
+            );
             if (!anyDragging) {
                 this.clearDragMain();
-                // unless it moved on to a drop zone, which takes it from here
                 if (external && !DragDropManager.isOverAnyZone()) {
                     this.onDragEnded();
                 }
@@ -876,92 +926,65 @@ export class DragDropManager {
         }
     };
 
-    /**
-     * `drop` on the layout root: dispatches `Actions.moveNode` (or `dockFloatToLayout`, or `addTab`
-     * for add and external drags) through the engine
-     */
+    /** `drop` on the layout root: runs the command of the target found during the hover */
     onDrop = (event: DragEventLike) => {
-        if (!this.belongsToDrag()) {
-            return;
-        }
-        const dragState = DragDropManager.dragState;
-        if (dragState?.dockFloatToMain && !this.isDockTarget()) {
-            return;
-        }
-        if (this.active && dragState) {
+        const state = DragDropManager.dragState;
+        const target = this.target;
+        if (state && this.belongsToDrag(event) && this.active) {
             event.preventDefault();
-
-            let dropInfo = this.dropInfo;
-            // a floating panel can never be dropped back into the panel it was dragged from
-            if (dropInfo && dragState.dockFloatToMain) {
-                const target = event.target as Element | null;
-                if (target && dragState.sourceFloatElement?.contains(target)) {
-                    dropInfo = undefined;
-                }
+            if (target && target !== "self") {
+                this.runDrop(state, target, event);
             }
-            if (dropInfo && this.isGroupTransfer(dragState)) {
-                this.engine
-                    .getDragGroup()
-                    ?.transferTab(
-                        dragState.mainEngine,
-                        this.engine,
-                        dragState.dragNode as TabNode,
-                        dropInfo.node.getId(),
-                        dropInfo.location,
-                        dropInfo.index,
-                    );
-            } else if (dropInfo && dragState.dragJson !== undefined) {
-                const added = this.engine.doAction(
-                    Actions.addTab(
-                        dragState.dragJson,
-                        dropInfo.node.getId(),
-                        dropInfo.location,
-                        dropInfo.index,
-                    ),
-                );
-                dragState.onNewTabDropped?.(
-                    added instanceof TabNode ? added : undefined,
-                    event,
-                );
-            } else if (dropInfo && dragState.dragNode !== undefined) {
-                if (
-                    dragState.dockFloatToMain &&
-                    dragState.floatLayoutId !== undefined
-                ) {
-                    this.engine.doAction(
-                        Actions.dockFloatToLayout(
-                            dragState.floatLayoutId,
-                            dropInfo.node.getId(),
-                            dropInfo.location,
-                            dropInfo.index,
-                        ),
-                    );
-                } else {
-                    this.engine.doAction(
-                        Actions.moveNode(
-                            dragState.dragNode.getId(),
-                            dropInfo.node.getId(),
-                            dropInfo.location,
-                            dropInfo.index,
-                        ),
-                    );
-                }
-            }
-
             this.clearDragMain();
             this.removeLostDragGuard?.();
-            if (dragState.mainEngine !== this.engine.getMainEngine()) {
+            if (!sameModel(state.mainEngine.model, this.engine.model)) {
                 // a drag from another layout of the group: clear the source's layouts too
-                dragState.mainEngine.getDragDropManager().clearDragMain();
+                state.mainEngine.getDragDropManager().clearDragMain();
             }
             DragDropManager.setDragState(undefined);
         }
-        this.dragEnterCount = 0;
+        // whatever the drop was, this layout's hover state is over
+        this.clearDragLocal();
     };
+
+    private runDrop(
+        state: DragState,
+        target: DropCommand,
+        event: DragEventLike,
+    ) {
+        const model = this.engine.model as unknown as Model<AnyTypes>;
+        if (
+            this.isGroupTransfer(state) &&
+            state.subject.kind === "tab" &&
+            target.command === "tab.add"
+        ) {
+            const group = this.engine.getDragGroup();
+            group?.transferTab(
+                state.mainEngine,
+                this.engine as unknown as LayoutEngine<AnyTypes>,
+                state.subject.tab.id,
+                target.payload.to,
+                target.payload.location ?? "center",
+                target.payload.index ?? -1,
+            );
+            return;
+        }
+        if (target.command === "tab.add") {
+            const result = model.run("tab.add", target.payload);
+            state.onNewTabDropped?.(
+                result.ok ? result.value.tab : undefined,
+                event,
+            );
+        } else if (target.command === "tabset.move") {
+            model.run("tabset.move", target.payload);
+        } else {
+            model.run("tab.move", target.payload);
+        }
+    }
 
     /** Hides this layout's outline without ending the drag (the pointer is over a drop zone). */
     hideIndicator() {
-        this.dropInfo = undefined;
+        this.target = undefined;
         if (this.indicator.visible || this.indicator.refused) {
             this.setIndicator({
                 ...this.indicator,
@@ -980,20 +1003,19 @@ export class DragDropManager {
     // *********************************************************************************
 
     /**
-     * Makes `element` (anywhere in the document, inside or outside a layout root) a drop zone for
-     * drags of `model`'s layouts. While a drag the zone accepts is over it, the layouts show no
-     * outline, and a drop calls `onDrop` with the dragged node instead of moving anything.
-     * Returns the function that unregisters the zone.
+     * Makes `element` (anywhere in the document) a drop zone for drags of `model`'s layouts. While a
+     * drag the zone accepts is over it, the layouts show no outline, and a drop calls `onDrop`
+     * instead of moving anything. Returns the function that unregisters the zone.
      */
-    static registerDropZone(
-        model: Model,
+    static registerDropZone<T extends DockableTypes>(
+        model: Model<T>,
         element: Element,
-        options: IDropZoneOptions,
+        options: DropZoneOptions<T>,
     ): () => void {
         const zone: DropZone = {
             element,
             model,
-            options,
+            options: options as unknown as DropZoneOptions<AnyTypes>,
             enterCount: 0,
             over: false,
         };
@@ -1001,9 +1023,9 @@ export class DragDropManager {
         const accepts = () => {
             const state = DragDropManager.dragState;
             return (
-                state?.dragNode !== undefined &&
-                state.mainEngine.getModel() === model &&
-                (zone.options.accepts?.(state.dragNode) ?? true)
+                state !== undefined &&
+                sameModel(state.mainEngine.model, model) &&
+                (zone.options.accepts?.(state.subject) ?? true)
             );
         };
         const onEnter = (event: Event) => {
@@ -1039,11 +1061,11 @@ export class DragDropManager {
         };
         const onDrop = (event: Event) => {
             const state = DragDropManager.dragState;
-            if (!accepts() || !state?.dragNode) return;
+            if (!accepts() || !state) return;
             event.stopPropagation();
             event.preventDefault();
             DragDropManager.setZoneOver(zone, false);
-            zone.options.onDrop(state.dragNode, event as DragEvent);
+            zone.options.onDrop(state.subject, event as DragEvent);
             // the drag is over: the source's dragend (if any) finds nothing left to end
             state.mainEngine.getDragDropManager().clearDragMain();
             DragDropManager.setDragState(undefined);
@@ -1068,23 +1090,19 @@ export class DragDropManager {
         return false;
     }
 
-    /**
-     * An external drag has no dragend in this page: when it leaves a drop zone for a place that is
-     * neither a layout nor another zone, it is over.
-     */
-    private static endExternalDragOutside(model: Model) {
+    /** an external drag that leaves a drop zone for no layout and no zone is over */
+    private static endExternalDragOutside(model: object) {
         const state = DragDropManager.dragState;
         if (
-            state?.dragSource !== "external" ||
-            state.mainEngine.getModel() !== model ||
+            state?.source !== "external" ||
+            state.mainEngine.model !== model ||
             DragDropManager.isOverAnyZone()
         ) {
             return;
         }
-        for (const [, layout] of model.getLayouts()) {
-            if (managerOf(layout)?.isDragging()) return;
-        }
-        state.mainEngine.getDragDropManager().onDragEnded();
+        const manager = state.mainEngine.getDragDropManager();
+        if (manager.managers().some((m) => m.isDragging())) return;
+        manager.onDragEnded();
     }
 
     private static setZoneOver(zone: DropZone, over: boolean) {
@@ -1094,9 +1112,15 @@ export class DragDropManager {
         }
     }
 
-    private static hideIndicators(model: Model) {
-        for (const [, layout] of model.getLayouts()) {
-            managerOf(layout)?.hideIndicator();
+    private static hideIndicators(model: object) {
+        const state = DragDropManager.dragState;
+        if (state?.mainEngine.model !== model) {
+            return;
+        }
+        for (const manager of state.mainEngine
+            .getDragDropManager()
+            .managers()) {
+            manager.hideIndicator();
         }
     }
 
@@ -1113,26 +1137,4 @@ export class DragDropManager {
         this.removeLostDragGuard?.();
         this.listeners.clear();
     }
-}
-
-/** The tabset a drop target belongs to: itself, or the tabset holding a tab group. */
-/** the tab container (a tabset or a border) a drop target belongs to */
-function tabSetOf(node: Node | undefined): TabSetNode | BorderNode | undefined {
-    if (node instanceof TabSetNode || node instanceof BorderNode) {
-        return node;
-    }
-    if (node instanceof TabGroupNode) {
-        const parent = node.getParent();
-        return parent instanceof TabSetNode || parent instanceof BorderNode
-            ? parent
-            : undefined;
-    }
-    return undefined;
-}
-
-function managerOf(layout: ModelLayout): DragDropManager | undefined {
-    const controller = layout.getController() as
-        | { getDragDropManager?: () => DragDropManager }
-        | undefined;
-    return controller?.getDragDropManager?.();
 }
