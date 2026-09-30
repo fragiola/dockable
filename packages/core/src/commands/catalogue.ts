@@ -23,8 +23,12 @@ import {
 import type { CommandName } from "./types";
 import { windowClose, windowConfigure } from "./window";
 
-/** Every built-in command, in the order `model.commands()` lists them. */
-export const COMMANDS = [
+/**
+ * Every built-in command, in the order `model.commands()` lists them. Each definition keeps its
+ * schemas' literal types (the type tests read them); the list erases them to `CommandDefinition`
+ * once, so code that walks it does not compare 23 literal schemas with `JsonSchema` again.
+ */
+export const COMMANDS: readonly CommandDefinition[] = [
     tabAdd,
     tabSelect,
     tabClose,
@@ -48,16 +52,11 @@ export const COMMANDS = [
     layoutConfigure,
     layoutLoad,
     batch,
-] as const;
+] as readonly unknown[] as readonly CommandDefinition[];
 
 /** The command definitions by name. */
 export const COMMAND_DEFINITIONS: ReadonlyMap<string, CommandDefinition> =
-    new Map(
-        COMMANDS.map((definition) => [
-            definition.name,
-            definition as unknown as CommandDefinition,
-        ]),
-    );
+    new Map(COMMANDS.map((definition) => [definition.name, definition]));
 
 /** Whether `name` is a built-in command. */
 export function isCommandName(name: string): name is CommandName {
