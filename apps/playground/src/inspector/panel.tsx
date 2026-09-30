@@ -1,24 +1,26 @@
-import type { Action, Model } from "@fragiola/dockable";
 import { useEffect, useMemo, useState } from "react";
 import { Clickable } from "#/components/atoms/clickable";
+import type { InspectedEvent, InspectedModel } from "./context";
 
 // The Inspector: what the model does while you use the layout. Three views, all plain text:
 //
-//   Actions  every action the model applies (engine or direct `model.doAction` alike, through
-//            `model.addChangeListener`), newest first
-//   Model    `model.toJson()` after the last action
-//   State    each `[data-layout-path]` element of the stage with its `data-*` and ARIA attributes,
-//            re-read on every attribute change, so drag and drop state shows while it happens
+//   Commands  every command the model commits (engine-issued or a direct `model.run` alike,
+//             through `model.subscribe`), newest first: its name, payload and result, and whether
+//             it was transient (a step of a gesture); a batch lists the commands it ran
+//   Model     `model.toJSON()` after the last command
+//   State     each `[data-layout-path]` element of the stage with its `data-*` and ARIA
+//             attributes, re-read on every attribute change, so drag and drop state shows while
+//             it happens
 //
 // The App keys the panel by entry: switching starts from an empty log, and the listener and the
 // observer of the previous entry are gone.
 
-const MAX_ACTIONS = 200;
+const MAX_COMMANDS = 200;
 
-const VIEWS = ["actions", "model", "state"] as const;
+const VIEWS = ["commands", "model", "state"] as const;
 type ViewName = (typeof VIEWS)[number];
 const VIEW_TITLES: Record<ViewName, string> = {
-    actions: "Actions",
+    commands: "Commands",
     model: "Model",
     state: "State",
 };
@@ -26,7 +28,16 @@ const VIEW_TITLES: Record<ViewName, string> = {
 const PRESSED =
     "aria-pressed:bg-palette-soft aria-pressed:text-palette-contrast";
 
-type LoggedAction = { n: number; time: string; type: string; data: string };
+type LoggedCommand = {
+    n: number;
+    time: string;
+    name: string;
+    transient: boolean;
+    payload: string;
+    result: string;
+    /** a batch's commands, flattened */
+    steps: string[];
+};
 
 function stringify(value: unknown, indent?: number): string {
     try {
@@ -40,30 +51,35 @@ function time() {
     return new Date().toISOString().slice(11, 23);
 }
 
-/** Every action the model applies, newest first, and a counter that moves with each. */
-function useActions(model: Model) {
-    const [log, setLog] = useState<LoggedAction[]>([]);
+function entry(n: number, event: InspectedEvent): LoggedCommand {
+    return {
+        n,
+        time: time(),
+        name: event.command,
+        transient: event.transient,
+        payload: stringify(event.payload),
+        result: stringify(event.result),
+        steps: (event.commands ?? []).map(
+            (step) => `${step.command} ${stringify(step.payload)}`,
+        ),
+    };
+}
+
+/** Every command the model commits, newest first, and a counter that moves with each. */
+function useCommands(model: InspectedModel) {
+    const [log, setLog] = useState<LoggedCommand[]>([]);
     const [version, setVersion] = useState(0);
     useEffect(() => {
         // a new model (the entry remounted: Retry, a Fast Refresh that resets state) starts a new
         // log; the old entries describe a model that is gone, and their keys would repeat
         setLog([]);
         let n = 0;
-        const listener = {
-            onAfterAction: (action: Action) => {
-                n += 1;
-                const entry = {
-                    n,
-                    time: time(),
-                    type: action.type,
-                    data: stringify(action.data),
-                };
-                setLog((current) => [entry, ...current].slice(0, MAX_ACTIONS));
-                setVersion((v) => v + 1);
-            },
-        };
-        model.addChangeListener(listener);
-        return () => model.removeChangeListener(listener);
+        return model.subscribe((event) => {
+            n += 1;
+            const logged = entry(n, event);
+            setLog((current) => [logged, ...current].slice(0, MAX_COMMANDS));
+            setVersion((v) => v + 1);
+        });
     }, [model]);
     return { log, version, clear: () => setLog([]) };
 }
@@ -119,15 +135,15 @@ export function InspectorPanel({
     model,
     stage,
 }: {
-    model: Model;
+    model: InspectedModel;
     stage: HTMLElement | null;
 }) {
-    const [view, setView] = useState<ViewName>("actions");
-    const { log, version, clear } = useActions(model);
+    const [view, setView] = useState<ViewName>("commands");
+    const { log, version, clear } = useCommands(model);
     const state = useLayoutState(stage, view === "state");
-    // biome-ignore lint/correctness/useExhaustiveDependencies: `version` moves with each action, the model is mutable
+    // biome-ignore lint/correctness/useExhaustiveDependencies: `version` moves with each command (`model.state` is replaced)
     const json = useMemo(
-        () => (view === "model" ? stringify(model.toJson(), 2) : ""),
+        () => (view === "model" ? stringify(model.toJSON(), 2) : ""),
         [model, view, version],
     );
 
@@ -149,10 +165,10 @@ export function InspectorPanel({
                         {VIEW_TITLES[name]}
                     </Clickable.Button>
                 ))}
-                {view === "actions" && (
+                {view === "commands" && (
                     <>
                         <span
-                            data-testid="action-count"
+                            data-testid="command-count"
                             className="ms-auto text-xs text-palette-accent/85"
                         >
                             {`${log.length} shown`}
@@ -169,31 +185,54 @@ export function InspectorPanel({
                 )}
             </div>
             <div className="min-h-0 flex-1 overflow-auto font-mono text-xs leading-relaxed">
-                {view === "actions" &&
+                {view === "commands" &&
                     (log.length === 0 ? (
                         <p className="p-4 text-palette-accent/85">
-                            Drag, click or resize: every change is an action.
+                            Drag, click or resize: every change is a command.
                         </p>
                     ) : (
-                        <ol aria-label="Actions" className="flex flex-col">
-                            {log.map((entry) => (
+                        <ol aria-label="Commands" className="flex flex-col">
+                            {log.map((logged) => (
                                 <li
-                                    key={entry.n}
+                                    key={logged.n}
                                     className="border-b border-palette-line px-4 py-2"
                                 >
                                     <p className="flex gap-2">
                                         <span className="text-palette-accent/85">
-                                            {entry.time}
+                                            {logged.time}
                                         </span>
                                         <span
-                                            data-testid="action-type"
+                                            data-testid="command-name"
                                             className="font-semibold"
                                         >
-                                            {entry.type}
+                                            {logged.name}
                                         </span>
+                                        {logged.transient && (
+                                            <span
+                                                data-testid="command-transient"
+                                                className="text-palette-accent/85"
+                                            >
+                                                transient
+                                            </span>
+                                        )}
                                     </p>
                                     <p className="break-all text-palette-accent/85">
-                                        {entry.data}
+                                        {logged.payload}
+                                    </p>
+                                    {logged.steps.length > 0 && (
+                                        <ol className="list-inside list-decimal break-all text-palette-accent/85">
+                                            {logged.steps.map((step, index) => (
+                                                <li
+                                                    // biome-ignore lint/suspicious/noArrayIndexKey: a logged batch never changes
+                                                    key={index}
+                                                >
+                                                    {step}
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    )}
+                                    <p className="break-all">
+                                        {`→ ${logged.result}`}
                                     </p>
                                 </li>
                             ))}

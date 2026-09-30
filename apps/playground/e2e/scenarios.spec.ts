@@ -7,10 +7,11 @@ import { dragOver, findPath, Location } from "./helpers";
 const inspector = (page: Page) =>
     page.getByRole("complementary", { name: "Inspector" });
 
-const actionTypes = (page: Page) => inspector(page).getByTestId("action-type");
+const commandNames = (page: Page) =>
+    inspector(page).getByTestId("command-name");
 
-async function openActions(page: Page) {
-    await page.goto("/?scenario=api/actions&inspect=1");
+async function openCommands(page: Page) {
+    await page.goto("/?scenario=api/commands&inspect=1");
     await expect(findPath(page, "/layout").first()).toBeVisible();
     await expect(inspector(page)).toBeVisible();
 }
@@ -34,35 +35,35 @@ test("lists the scenarios by area, and opens one from the sidebar", async ({
     );
 });
 
-test("logs each action a button dispatches, and the model JSON follows", async ({
+test("logs each command a button runs, and the model JSON follows", async ({
     page,
 }) => {
-    await openActions(page);
+    await openCommands(page);
     await expect(
-        inspector(page).getByText("every change is an action"),
+        inspector(page).getByText("every change is a command"),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Add tab" }).click();
-    await expect(actionTypes(page).first()).toHaveText("FlexLayout_AddTab");
+    await expect(commandNames(page).first()).toHaveText("tab.add");
     await page.getByRole("button", { name: "Rename" }).click();
-    await expect(actionTypes(page).first()).toHaveText("FlexLayout_RenameTab");
+    await expect(commandNames(page).first()).toHaveText("tab.update");
     await page.getByRole("button", { name: "Add two (group)" }).click();
-    await expect(actionTypes(page).first()).toHaveText("FlexLayout_Group");
-    // one listener: each action is logged once, also under StrictMode
-    await expect(actionTypes(page)).toHaveCount(3);
+    await expect(commandNames(page).first()).toHaveText("batch");
+    // one listener: each command is logged once, also under StrictMode
+    await expect(commandNames(page)).toHaveCount(3);
 
     await inspector(page).getByRole("button", { name: "Model" }).click();
     await expect(inspector(page).getByTestId("model-json")).toContainText(
         '"name": "New 1*"',
     );
 
-    await inspector(page).getByRole("button", { name: "Actions" }).click();
+    await inspector(page).getByRole("button", { name: "Commands" }).click();
     await inspector(page).getByRole("button", { name: "Clear" }).click();
-    await expect(actionTypes(page)).toHaveCount(0);
+    await expect(commandNames(page)).toHaveCount(0);
 });
 
 test("shows the drag state live, and logs the drop", async ({ page }) => {
-    await openActions(page);
+    await openCommands(page);
     await inspector(page).getByRole("button", { name: "State" }).click();
     const layoutState = inspector(page).locator('[data-state-path="/layout"]');
     await expect(layoutState).toBeVisible();
@@ -81,14 +82,14 @@ test("shows the drag state live, and logs the drop", async ({ page }) => {
     await drop();
     await expect(layoutState).not.toContainText("data-dragging");
 
-    await inspector(page).getByRole("button", { name: "Actions" }).click();
-    await expect(actionTypes(page)).toContainText(["FlexLayout_MoveNode"]);
+    await inspector(page).getByRole("button", { name: "Commands" }).click();
+    await expect(commandNames(page)).toContainText(["tab.move"]);
 });
 
 test("switching away and back leaves one listener on the scenario's model", async ({
     page,
 }) => {
-    await openActions(page);
+    await openCommands(page);
     const nav = page.getByRole("navigation", { name: "Playground" });
     await nav.getByRole("link", { name: "Hello layout" }).click();
     await expect(inspector(page)).toHaveCount(0);
@@ -98,5 +99,5 @@ test("switching away and back leaves one listener on the scenario's model", asyn
     await page.goBack();
     await expect(inspector(page)).toBeVisible();
     await page.getByRole("button", { name: "Add tab" }).click();
-    await expect(actionTypes(page)).toHaveCount(1);
+    await expect(commandNames(page)).toHaveCount(1);
 });

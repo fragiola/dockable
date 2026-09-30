@@ -1,21 +1,33 @@
-import type { IJsonModel } from "@fragiola/dockable";
+import type { LayoutJson, TabsetJson } from "@fragiola/dockable";
 import testAutohideBorders from "../layouts/test_autohide_borders.json";
 import testBorderDirection from "../layouts/test_border_direction.json";
 import testOverlay from "../layouts/test_overlay.json";
 import testThreeTabs from "../layouts/test_three_tabs.json";
 import testTwoTabs from "../layouts/test_two_tabs.json";
 
+/**
+ * The fixtures' type registry: one component, whose data is the tab's name (the text every strip
+ * renders), a tabset's optional name (its tab list's accessible name), and a border's tab
+ * direction (the `Dockable.Border` prop, kept in the border's data so a command can switch it).
+ */
+export type Types = {
+    tabs: { testing: { name: string } };
+    tabset: { name?: string };
+    border: { tabDirection?: "up" | "down" };
+};
+
+export type FixtureLayout = LayoutJson<Types>;
+
 /** four tabsets per nested row, for the realtime splitter specs */
-const ts = (name: string) => ({
-    type: "tabset" as const,
+const ts = (name: string): TabsetJson<Types> => ({
+    type: "tabset",
     weight: 1,
-    children: [{ type: "tab" as const, name, component: "testing" }],
+    children: [{ component: "testing", data: { name } }],
 });
 
-const big: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const big: FixtureLayout = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
@@ -33,42 +45,41 @@ const big: IJsonModel = {
 };
 
 /** a tabset with three tabs next to a tabset with one, for keyboard navigation */
-const multi: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const multi: FixtureLayout = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { type: "tab", name: "One", component: "testing" },
-                    { type: "tab", name: "Two", component: "testing" },
-                    { type: "tab", name: "Three", component: "testing" },
+                    { component: "testing", data: { name: "One" } },
+                    { component: "testing", data: { name: "Two" } },
+                    { component: "testing", data: { name: "Three" } },
                 ],
             },
             {
                 type: "tabset",
                 weight: 50,
-                children: [{ type: "tab", name: "Four", component: "testing" }],
+                children: [{ component: "testing", data: { name: "Four" } }],
             },
         ],
     },
 };
 
-export const layouts: Record<string, IJsonModel> = {
+export const layouts: Record<string, FixtureLayout> = {
     multi,
-    test_two_tabs: testTwoTabs as IJsonModel,
-    test_three_tabs: testThreeTabs as IJsonModel,
+    test_two_tabs: testTwoTabs as FixtureLayout,
+    test_three_tabs: testThreeTabs as FixtureLayout,
     big,
-    test_overlay: testOverlay as IJsonModel,
-    test_border_direction: testBorderDirection as IJsonModel,
-    test_autohide_borders: testAutohideBorders as IJsonModel,
+    test_overlay: testOverlay as FixtureLayout,
+    test_border_direction: testBorderDirection as FixtureLayout,
+    test_autohide_borders: testAutohideBorders as FixtureLayout,
 };
 
 /** the layout named by the `layout` query parameter (default: test_two_tabs) */
-export function layoutFromQuery(fallback = "test_two_tabs"): IJsonModel {
+export function layoutFromQuery(fallback = "test_two_tabs"): FixtureLayout {
     const name =
         new URLSearchParams(window.location.search).get("layout") ?? fallback;
     const json = layouts[name];

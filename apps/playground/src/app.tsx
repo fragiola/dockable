@@ -1,7 +1,10 @@
-import type { Model } from "@fragiola/dockable";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { entries, findEntry, fixtures, sections } from "./catalog";
-import { InspectorContext, type InspectorRegistry } from "./inspector/context";
+import {
+    type InspectedModel,
+    InspectorContext,
+    type InspectorRegistry,
+} from "./inspector/context";
 import { InspectorPanel } from "./inspector/panel";
 import { Sidebar } from "./sidebar";
 import { SourcePanel } from "./source-panel";
@@ -19,7 +22,7 @@ export function App() {
 
     // The model the current entry asked the Inspector to watch (`useInspector`), if any. An entry
     // that unmounts stops watching its own, and never clears a newer one's.
-    const [inspected, setInspected] = useState<Model | null>(null);
+    const [inspected, setInspected] = useState<InspectedModel | null>(null);
     const registry = useMemo<InspectorRegistry>(
         () => ({
             register: (model) => {

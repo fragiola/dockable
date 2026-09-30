@@ -1,7 +1,6 @@
 {
-    "global": {},
-    "borders": [],
-    "layout": {
+    "version": 1,
+    "root": {
         "type": "row",
         "weight": 100,
         "children": [
@@ -10,21 +9,25 @@
                 "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "One",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "One"
+                        }
                     }
                 ]
             },
             {
                 "type": "tabset",
                 "weight": 50,
-                "name": "TheHeader",
+                "data": {
+                    "name": "TheHeader"
+                },
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "Two",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "Two"
+                        }
                     }
                 ]
             },
@@ -33,9 +36,10 @@
                 "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "Three",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "Three"
+                        }
                     }
                 ]
             }

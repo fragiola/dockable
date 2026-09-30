@@ -1,9 +1,4 @@
-import {
-    Actions,
-    type IJsonModel,
-    Model,
-    type TabSetNode,
-} from "@fragiola/dockable";
+import { createModel, type TabsetNode } from "@fragiola/dockable";
 import {
     Dockable,
     useDockable,
@@ -11,6 +6,7 @@ import {
 } from "@fragiola/dockable-react";
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { FixtureLayout, Types } from "../../src/fixture/layouts";
 import { renderPanel } from "../../src/fixture/renderNode";
 import "../../src/fixture/fixture.css";
 import "./overflow.css";
@@ -20,10 +16,9 @@ import "./overflow.css";
  * strip's (the specs resize the viewport). The trigger toggles an unstyled list of the hidden tabs;
  * picking one selects it, which brings it into the strip.
  */
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const json: FixtureLayout = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
@@ -36,26 +31,20 @@ const json: IJsonModel = {
                     "Delta",
                     "Echo",
                     "Foxtrot",
-                ].map((name) => ({
-                    type: "tab" as const,
-                    name,
-                    component: "testing",
-                })),
+                ].map((name) => ({ component: "testing", data: { name } })),
             },
             {
                 type: "tabset",
                 weight: 25,
-                children: [
-                    { type: "tab", name: "Other", component: "testing" },
-                ],
+                children: [{ component: "testing", data: { name: "Other" } }],
             },
         ],
     },
 };
 
-function OverflowMenu({ tabset }: { tabset: TabSetNode }) {
+function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
     const { hidden } = useTabOverflow(tabset);
-    const { engine } = useDockable();
+    const { run } = useDockable<Types>();
     const [open, setOpen] = useState(false);
     return (
         <>
@@ -70,21 +59,19 @@ function OverflowMenu({ tabset }: { tabset: TabSetNode }) {
                 <div
                     role="menu"
                     aria-label="Hidden tabs"
-                    data-testid={`menu-${tabset.getId()}`}
+                    data-testid={`menu-${tabset.id}`}
                 >
                     {hidden.map((tab) => (
-                        <div key={tab.getId()} role="none">
+                        <div key={tab.id} role="none">
                             <button
                                 type="button"
                                 role="menuitem"
                                 onClick={() => {
-                                    engine.doAction(
-                                        Actions.selectTab(tab.getId()),
-                                    );
+                                    run("tab.select", { tab: tab.id });
                                     setOpen(false);
                                 }}
                             >
-                                {tab.getName()}
+                                {tab.data.name}
                             </button>
                         </div>
                     ))}
@@ -95,32 +82,31 @@ function OverflowMenu({ tabset }: { tabset: TabSetNode }) {
 }
 
 function App() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <Dockable.Root model={model}>
-            <Dockable.Row>
-                {(child) => {
-                    const tabset = child as TabSetNode;
-                    return (
-                        <Dockable.TabSet node={tabset}>
+            <Dockable.Row<Types>>
+                {(child) =>
+                    child.type === "tabset" ? (
+                        <Dockable.TabSet node={child}>
                             <div className="header">
-                                <Dockable.TabList
-                                    aria-label={tabset.getName() ?? "Tabs"}
+                                <Dockable.TabList<Types>
+                                    aria-label={child.data?.name ?? "Tabs"}
                                 >
                                     {(tab) => (
                                         <Dockable.Tab node={tab}>
-                                            {tab.getName()}
+                                            {tab.data.name}
                                         </Dockable.Tab>
                                     )}
                                 </Dockable.TabList>
-                                <OverflowMenu tabset={tabset} />
+                                <OverflowMenu tabset={child} />
                             </div>
                             <Dockable.TabSetContent />
                         </Dockable.TabSet>
-                    );
-                }}
+                    ) : null
+                }
             </Dockable.Row>
-            <Dockable.Panels>{renderPanel}</Dockable.Panels>
+            <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
             <Dockable.DropIndicator />
         </Dockable.Root>
     );

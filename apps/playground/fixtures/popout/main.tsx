@@ -1,21 +1,24 @@
 import {
-    Actions,
-    DockLocation,
-    type LayoutEngine,
-    Model,
+    createModel,
+    MAIN_LAYOUT,
     type RowNode,
-    type TabNode,
-    TabSetNode,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable, useDockable, useDragNode } from "@fragiola/dockable-react";
-import { type ReactNode, StrictMode, useRef, useState } from "react";
+import {
+    Dockable,
+    useDockable,
+    useDragNode,
+    useModelState,
+} from "@fragiola/dockable-react";
+import { type ReactNode, StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { layoutFromQuery } from "../../src/fixture/layouts";
+import { layoutFromQuery, type Types } from "../../src/fixture/layouts";
 import { TabContent } from "../../src/fixture/TabContent";
 import "../../src/fixture/fixture.css";
 
 /** drags a whole tabset (the lower-layer hook: tabsets have no built-in drag handle) */
-function TabSetHandle({ tabset }: { tabset: TabSetNode }) {
+function TabSetHandle({ tabset }: { tabset: TabsetNode<Types> }) {
     const drag = useDragNode(tabset);
     return (
         <button
@@ -33,16 +36,18 @@ function TabSetHandle({ tabset }: { tabset: TabSetNode }) {
 }
 
 /** the fixture's recursion: the shared one, plus popout triggers and a tabset drag handle */
-function renderNode(child: TabSetNode | RowNode): ReactNode {
-    if (child instanceof TabSetNode) {
+function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
+    if (child.type === "tabset") {
         return (
             <Dockable.TabSet node={child}>
                 <div style={{ display: "flex" }}>
                     <TabSetHandle tabset={child} />
-                    <Dockable.TabList aria-label={child.getName() ?? "Tabs"}>
+                    <Dockable.TabList<Types>
+                        aria-label={child.data?.name ?? "Tabs"}
+                    >
                         {(tab) => (
                             <Dockable.Tab node={tab}>
-                                {tab.getName()}
+                                {tab.data.name}
                             </Dockable.Tab>
                         )}
                     </Dockable.TabList>
@@ -60,41 +65,27 @@ function renderNode(child: TabSetNode | RowNode): ReactNode {
             </Dockable.TabSet>
         );
     }
-    return <Dockable.Row node={child as RowNode}>{renderNode}</Dockable.Row>;
-}
-
-/** hands the main engine to the page's own controls, outside the layout */
-function EngineRef({
-    engineRef,
-}: {
-    engineRef: { current: LayoutEngine | null };
-}) {
-    engineRef.current = useDockable().engine;
-    return null;
+    return <Dockable.Row node={child}>{renderNode}</Dockable.Row>;
 }
 
 /** moves a popped out tab back into the main layout's first tabset */
-function DockBack({ tab }: { tab: TabNode }) {
-    const { mainEngine, model } = useDockable();
-    if (tab.getLayoutId() === Model.MAIN_LAYOUT_ID) {
+function DockBack({ tab }: { tab: TabOf<Types> }) {
+    const { model, run } = useDockable<Types>();
+    const inWindow = useModelState<Types, boolean>(
+        (_state, m) => m.layoutOf(tab.id) !== MAIN_LAYOUT,
+    );
+    if (!inWindow) {
         return null;
     }
     const onClick = () => {
-        let target: TabSetNode | undefined;
-        model.visitLayoutNodes(Model.MAIN_LAYOUT_ID, (node) => {
-            if (!target && node instanceof TabSetNode) {
-                target = node;
-            }
-        });
+        const target = model.tabsets(MAIN_LAYOUT)[0];
         if (target) {
-            mainEngine.doAction(
-                Actions.moveNode(
-                    tab.getId(),
-                    target.getId(),
-                    DockLocation.CENTER,
-                    -1,
-                ),
-            );
+            run("tab.move", {
+                tab: tab.id,
+                to: target.id,
+                location: "center",
+                index: -1,
+            });
         }
     };
     return (
@@ -106,21 +97,19 @@ function DockBack({ tab }: { tab: TabNode }) {
 
 function App() {
     const [model] = useState(() => {
-        const created = Model.fromJson(layoutFromQuery());
+        const created = createModel<Types>(layoutFromQuery());
         // every layout of this fixture can pop out (popout is opt-in per tab)
-        created.doAction(
-            Actions.updateModelAttributes({ tabEnablePopout: true }),
-        );
+        created.run("layout.configure", {
+            defaults: { tab: { enablePopout: true } },
+        });
         return created;
     });
-    const engineRef = useRef<LayoutEngine | null>(null);
 
     const popOutSelected = () => {
-        const engine = engineRef.current;
-        const tabset = model.getActiveTabset() ?? model.getFirstTabSet();
-        const tab = tabset?.getSelectedNode();
-        if (engine && tab) {
-            engine.doAction(Actions.popoutTab(tab.getId(), "window"));
+        const tabset = model.activeTabset() ?? model.tabsets()[0];
+        const tab = tabset ? model.selectedTab(tabset.id) : undefined;
+        if (tab) {
+            model.run("tab.popout", { tab: tab.id });
         }
     };
 
@@ -141,9 +130,8 @@ function App() {
                 supportsPopout
                 popoutMirrorRoot
             >
-                <EngineRef engineRef={engineRef} />
-                <Dockable.Row>{renderNode}</Dockable.Row>
-                <Dockable.Panels>
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab}>
                             <TabContent tab={tab} />
@@ -152,10 +140,10 @@ function App() {
                     )}
                 </Dockable.Panels>
                 <Dockable.DropIndicator />
-                <Dockable.Popout>
+                <Dockable.Popout<Types>>
                     {() => (
                         <>
-                            <Dockable.Row>{renderNode}</Dockable.Row>
+                            <Dockable.Row<Types>>{renderNode}</Dockable.Row>
                             <Dockable.DropIndicator />
                         </>
                     )}

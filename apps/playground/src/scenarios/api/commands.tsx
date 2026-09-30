@@ -1,9 +1,9 @@
 import {
-    Actions,
-    DockLocation,
-    type IJsonModel,
-    Model,
-    TabSetNode,
+    type CommandResult,
+    createModel,
+    type LayoutJson,
+    type Model,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import { useRef, useState } from "react";
 import { Card } from "#/examples/_kit/card";
@@ -11,22 +11,24 @@ import { DockLayout } from "#/examples/_kit/layout";
 import * as styles from "#/examples/_kit/styles";
 import { useInspector } from "../../inspector/context";
 
-// The main Actions, one button each, against the active tabset (else the first) and its selected
-// tab, with the Inspector on: each click is one entry in its log, and the model JSON follows.
-// Everything goes through `model.doAction`, as any consumer would.
+// The command catalogue, run through `model.run` as any consumer would: one button per common
+// command against the active tabset (else the first) and its selected tab, and the whole catalogue
+// (`model.commands()`, what an assistant would get as tools) listed below them. The Inspector is
+// on: each click is one entry in its log (name, payload, result), and the model JSON follows.
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+type Types = { tabs: { card: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { type: "tab", name: "One", component: "card" },
-                    { type: "tab", name: "Two", component: "card" },
+                    { component: "card", data: { name: "One" } },
+                    { component: "card", data: { name: "Two" } },
                 ],
             },
             {
@@ -36,13 +38,13 @@ const json: IJsonModel = {
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", name: "Three", component: "card" },
+                            { component: "card", data: { name: "Three" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", name: "Four", component: "card" },
+                            { component: "card", data: { name: "Four" } },
                         ],
                     },
                 ],
@@ -51,140 +53,137 @@ const json: IJsonModel = {
     },
 };
 
-function tabsets(model: Model): TabSetNode[] {
-    const found: TabSetNode[] = [];
-    model.visitNodes((node) => {
-        if (node instanceof TabSetNode) found.push(node);
-    });
-    return found;
+function activeTabset(model: Model<Types>): TabsetNode<Types> | undefined {
+    return model.activeTabset() ?? model.tabsets()[0];
 }
 
-function activeTabset(model: Model): TabSetNode | undefined {
-    return model.getActiveTabset() ?? tabsets(model)[0];
+function describe(result: CommandResult<unknown> | undefined): string {
+    if (!result) return "nothing to do";
+    return result.ok
+        ? `ok ${JSON.stringify(result.value)}`
+        : `${result.error.code}: ${result.error.message}`;
 }
 
-export default function ActionsScenario() {
-    const [model] = useState(() => Model.fromJson(json));
+export default function CommandsScenario() {
+    const [model] = useState(() => createModel<Types>(json));
     const added = useRef(0);
+    const [last, setLast] = useState("");
     useInspector(model);
 
     const newTab = () => {
         added.current += 1;
         return {
-            type: "tab" as const,
-            name: `New ${added.current}`,
-            component: "card",
+            component: "card" as const,
+            data: { name: `New ${added.current}` },
         };
     };
 
-    const buttons: [string, () => void][] = [
+    const buttons: [string, () => CommandResult<unknown> | undefined][] = [
         [
             "Add tab",
             () => {
                 const tabset = activeTabset(model);
-                if (!tabset) return;
-                model.doAction(
-                    Actions.addTab(
-                        newTab(),
-                        tabset.getId(),
-                        DockLocation.CENTER,
-                        -1,
-                        true,
-                    ),
-                );
+                if (!tabset) return undefined;
+                return model.run("tab.add", {
+                    ...newTab(),
+                    to: tabset.id,
+                    select: true,
+                });
             },
         ],
         [
             "Add two (group)",
             () => {
                 const tabset = activeTabset(model);
-                if (!tabset) return;
-                model.doAction(
-                    Actions.group([
-                        Actions.addTab(
-                            newTab(),
-                            tabset.getId(),
-                            DockLocation.CENTER,
-                            -1,
-                        ),
-                        Actions.addTab(
-                            newTab(),
-                            tabset.getId(),
-                            DockLocation.CENTER,
-                            -1,
-                        ),
-                    ]),
-                );
+                if (!tabset) return undefined;
+                return model.run("batch", {
+                    commands: [
+                        {
+                            command: "tab.add",
+                            payload: { ...newTab(), to: tabset.id },
+                        },
+                        {
+                            command: "tab.add",
+                            payload: { ...newTab(), to: tabset.id },
+                        },
+                    ],
+                });
             },
         ],
         [
             "Select next",
             () => {
                 const tabset = activeTabset(model);
-                const tabs = tabset?.getTabNodes() ?? [];
+                if (!tabset || tabset.children.length === 0) return undefined;
                 const next =
-                    tabs[((tabset?.getSelected() ?? -1) + 1) % tabs.length];
-                if (next) model.doAction(Actions.selectTab(next.getId()));
+                    tabset.children[
+                        (tabset.selected + 1) % tabset.children.length
+                    ];
+                return next
+                    ? model.run("tab.select", { tab: next.id })
+                    : undefined;
             },
         ],
         [
             "Move to next tabset",
             () => {
-                const all = tabsets(model);
+                const all = model.tabsets();
                 const tabset = activeTabset(model);
-                const tab = tabset?.getSelectedNode();
-                if (!tabset || !tab || all.length < 2) return;
-                const target = all[(all.indexOf(tabset) + 1) % all.length];
-                if (!target) return;
-                model.doAction(
-                    Actions.moveNode(
-                        tab.getId(),
-                        target.getId(),
-                        DockLocation.CENTER,
-                        -1,
-                        true,
-                    ),
-                );
+                const tab = tabset ? model.selectedTab(tabset.id) : undefined;
+                if (!tabset || !tab || all.length < 2) return undefined;
+                const index = all.findIndex((t) => t.id === tabset.id);
+                const target = all[(index + 1) % all.length];
+                if (!target) return undefined;
+                return model.run("tab.move", {
+                    tab: tab.id,
+                    to: target.id,
+                    select: true,
+                });
             },
         ],
         [
             "Rename",
             () => {
-                const tab = activeTabset(model)?.getSelectedNode();
-                if (tab) {
-                    model.doAction(
-                        Actions.renameTab(tab.getId(), `${tab.getName()}*`),
-                    );
-                }
+                const tabset = activeTabset(model);
+                const tab = tabset ? model.selectedTab(tabset.id) : undefined;
+                if (!tab) return undefined;
+                return model.run("tab.update", {
+                    tab: tab.id,
+                    component: tab.component,
+                    data: { ...tab.data, name: `${tab.data.name}*` },
+                });
             },
         ],
         [
             "Maximize",
             () => {
                 const tabset = activeTabset(model);
-                if (tabset) {
-                    model.doAction(Actions.maximizeToggle(tabset.getId()));
-                }
+                if (!tabset) return undefined;
+                return model.run("tabset.maximize", {
+                    tabset: tabset.id,
+                    value: model.maximizedTabset()?.id !== tabset.id,
+                });
             },
         ],
         [
             "Even weights",
             () => {
-                const row = model.getRootRow();
-                if (!row) return;
-                model.doAction(
-                    Actions.adjustWeights(
-                        row.getId(),
-                        row.getChildren().map(() => 50),
-                    ),
-                );
+                const row = model.root();
+                if (!row) return undefined;
+                return model.run("row.resize", {
+                    row: row.id,
+                    weights: row.children.map(() => 50),
+                });
             },
         ],
         [
             "Delete tab",
             () => {
-                const tab = activeTabset(model)?.getSelectedNode();
-                if (tab) model.doAction(Actions.deleteTab(tab.getId()));
+                const tabset = activeTabset(model);
+                const tab = tabset ? model.selectedTab(tabset.id) : undefined;
+                return tab
+                    ? model.run("tab.close", { tab: tab.id })
+                    : undefined;
             },
         ],
     ];
@@ -197,12 +196,34 @@ export default function ActionsScenario() {
                         key={name}
                         type="button"
                         className={styles.button}
-                        onClick={run}
+                        onClick={() => setLast(`${name}: ${describe(run())}`)}
                     >
                         {name}
                     </button>
                 ))}
+                <output className="truncate text-xs text-palette-accent/85">
+                    {last}
+                </output>
             </div>
+            <details className="px-3 text-xs">
+                <summary className="cursor-pointer py-1">
+                    {`The catalogue: ${model.commands().length} commands`}
+                </summary>
+                <dl className="grid max-h-48 grid-cols-[max-content_1fr] gap-x-3 gap-y-1 overflow-auto pb-2">
+                    {model.commands().map((command) => (
+                        <div key={command.name} className="contents">
+                            <dt className="font-mono font-semibold">
+                                {command.transient
+                                    ? `${command.name} (transient)`
+                                    : command.name}
+                            </dt>
+                            <dd className="text-palette-accent/85">
+                                {command.description}
+                            </dd>
+                        </div>
+                    ))}
+                </dl>
+            </details>
             <DockLayout
                 model={model}
                 renderContent={(tab) => <Card tab={tab} />}

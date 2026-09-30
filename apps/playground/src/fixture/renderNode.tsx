@@ -1,27 +1,31 @@
-import type { RowNode, TabNode, TabSetNode } from "@fragiola/dockable";
+import type { RowNode, TabOf, TabsetNode } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
+import type { Types } from "./layouts";
 import { TabContent } from "./TabContent";
 
 /** The unstyled composition shared by the fixtures: the developer owns the recursion. */
-export function renderNode(child: TabSetNode | RowNode): ReactNode {
-    if (child.getType() === "tabset") {
-        const tabset = child as TabSetNode;
+export function renderNode(
+    child: TabsetNode<Types> | RowNode<Types>,
+): ReactNode {
+    if (child.type === "tabset") {
         return (
-            <Dockable.TabSet node={tabset}>
-                <Dockable.TabList aria-label={tabset.getName() ?? "Tabs"}>
+            <Dockable.TabSet node={child}>
+                <Dockable.TabList<Types>
+                    aria-label={child.data?.name ?? "Tabs"}
+                >
                     {(tab) => (
-                        <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>
+                        <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
                     )}
                 </Dockable.TabList>
                 <Dockable.TabSetContent />
             </Dockable.TabSet>
         );
     }
-    return <Dockable.Row node={child as RowNode}>{renderNode}</Dockable.Row>;
+    return <Dockable.Row node={child}>{renderNode}</Dockable.Row>;
 }
 
-export function renderPanel(tab: TabNode): ReactNode {
+export function renderPanel(tab: TabOf<Types>): ReactNode {
     return (
         <Dockable.Panel node={tab}>
             <TabContent tab={tab} />

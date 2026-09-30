@@ -1,15 +1,13 @@
 import {
-    Actions,
-    type IExternalDrag,
-    LayoutEngine,
-    Model,
+    createModel,
+    type DragEventLike,
+    type ExternalDrag,
 } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { StrictMode, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { layoutFromQuery } from "../../src/fixture/layouts";
-import { renderNode } from "../../src/fixture/renderNode";
-import { TabContent } from "../../src/fixture/TabContent";
+import { layoutFromQuery, type Types } from "../../src/fixture/layouts";
+import { renderNode, renderPanel } from "../../src/fixture/renderNode";
 import "../../src/fixture/fixture.css";
 
 /**
@@ -18,24 +16,32 @@ import "../../src/fixture/fixture.css";
  * drop, when the data is readable). `data-testid="last-drop"` reports what the last drop did.
  */
 function App() {
-    const [model] = useState(() => Model.fromJson(layoutFromQuery()));
+    const [model] = useState(() => createModel<Types>(layoutFromQuery()));
     const [lastDrop, setLastDrop] = useState("none");
     const count = useRef(0);
 
-    const onExternalDrag = (event: {
-        dataTransfer: DataTransfer | null;
-    }): IExternalDrag | undefined => {
+    /** the name of a tab the model holds, for the report */
+    const nameOf = (id: string | undefined) => {
+        const tab = id === undefined ? undefined : model.get(id);
+        return tab?.type === "tab" ? tab.data.name : "?";
+    };
+
+    const onExternalDrag = (
+        event: DragEventLike,
+    ): ExternalDrag<Types> | undefined => {
         if (!event.dataTransfer?.types.includes("Files")) {
             return undefined;
         }
         return {
-            json: { type: "tab", name: "File", component: "testing" },
+            tab: { component: "testing", data: { name: "File" } },
             onDrop: (tab, dropEvent) => {
                 const file = dropEvent.dataTransfer?.files[0];
                 if (tab && file) {
-                    LayoutEngine.of(model)?.doAction(
-                        Actions.renameTab(tab.getId(), file.name),
-                    );
+                    model.run("tab.update", {
+                        tab,
+                        component: "testing",
+                        data: { name: file.name },
+                    });
                 }
                 setLastDrop(tab ? `file:${file?.name ?? "?"}` : "vetoed");
             },
@@ -49,13 +55,12 @@ function App() {
                     model={model}
                     render={<li />}
                     data-testid="source-chart"
-                    json={() => ({
-                        type: "tab",
-                        name: `Chart ${++count.current}`,
+                    tab={() => ({
                         component: "testing",
+                        data: { name: `Chart ${++count.current}` },
                     })}
                     onDrop={(tab) =>
-                        setLastDrop(tab ? `added:${tab.getName()}` : "vetoed")
+                        setLastDrop(tab ? `added:${nameOf(tab)}` : "vetoed")
                     }
                 >
                     Chart
@@ -64,9 +69,9 @@ function App() {
                     model={model}
                     render={<li />}
                     data-testid="source-table"
-                    json={{ type: "tab", name: "Table", component: "testing" }}
+                    tab={{ component: "testing", data: { name: "Table" } }}
                     onDrop={(tab) =>
-                        setLastDrop(tab ? `added:${tab.getName()}` : "vetoed")
+                        setLastDrop(tab ? `added:${nameOf(tab)}` : "vetoed")
                     }
                 >
                     Table
@@ -74,14 +79,8 @@ function App() {
             </ul>
             <output data-testid="last-drop">{lastDrop}</output>
             <Dockable.Root model={model} onExternalDrag={onExternalDrag}>
-                <Dockable.Row>{renderNode}</Dockable.Row>
-                <Dockable.Panels>
-                    {(tab) => (
-                        <Dockable.Panel node={tab}>
-                            <TabContent tab={tab} />
-                        </Dockable.Panel>
-                    )}
-                </Dockable.Panels>
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
                 <Dockable.DropIndicator />
             </Dockable.Root>
         </div>

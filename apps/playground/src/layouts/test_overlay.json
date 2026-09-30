@@ -1,58 +1,6 @@
 {
-    "global": {},
-    "borders": [
-        {
-            "type": "border",
-            "location": "top",
-            "children": [
-                {
-                    "type": "tab",
-                    "name": "top1",
-                    "component": "testing"
-                }
-            ]
-        },
-        {
-            "type": "border",
-            "location": "bottom",
-            "children": [
-                {
-                    "type": "tab",
-                    "name": "bottom1",
-                    "component": "testing"
-                }
-            ]
-        },
-        {
-            "type": "border",
-            "location": "left",
-            "borderType": "overlay",
-            "children": [
-                {
-                    "type": "tab",
-                    "name": "left1",
-                    "component": "testing"
-                },
-                {
-                    "type": "tab",
-                    "name": "left2",
-                    "component": "testing"
-                }
-            ]
-        },
-        {
-            "type": "border",
-            "location": "right",
-            "children": [
-                {
-                    "type": "tab",
-                    "name": "right1",
-                    "component": "testing"
-                }
-            ]
-        }
-    ],
-    "layout": {
+    "version": 1,
+    "root": {
         "type": "row",
         "weight": 100,
         "children": [
@@ -61,21 +9,23 @@
                 "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "One",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "One"
+                        }
                     }
                 ]
             },
             {
                 "type": "tabset",
-                "weight": 50,
                 "id": "#1",
+                "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "Two",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "Two"
+                        }
                     }
                 ]
             },
@@ -84,12 +34,66 @@
                 "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "Three",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "Three"
+                        }
                     }
                 ]
             }
         ]
-    }
+    },
+    "borders": [
+        {
+            "location": "top",
+            "children": [
+                {
+                    "component": "testing",
+                    "data": {
+                        "name": "top1"
+                    }
+                }
+            ]
+        },
+        {
+            "location": "bottom",
+            "children": [
+                {
+                    "component": "testing",
+                    "data": {
+                        "name": "bottom1"
+                    }
+                }
+            ]
+        },
+        {
+            "location": "left",
+            "mode": "overlay",
+            "children": [
+                {
+                    "component": "testing",
+                    "data": {
+                        "name": "left1"
+                    }
+                },
+                {
+                    "component": "testing",
+                    "data": {
+                        "name": "left2"
+                    }
+                }
+            ]
+        },
+        {
+            "location": "right",
+            "children": [
+                {
+                    "component": "testing",
+                    "data": {
+                        "name": "right1"
+                    }
+                }
+            ]
+        }
+    ]
 }
