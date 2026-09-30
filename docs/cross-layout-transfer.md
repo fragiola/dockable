@@ -1,5 +1,9 @@
 # Design note: dragging tabs between independent layouts
 
+> **Pre-v2.** This report describes the API before Engine v2 (Epic #43): `Actions`,
+> `doAction`, `onAction`, node getters and `IJsonModel` are gone. See the design record,
+> [docs/engine-v2-design.md](engine-v2-design.md), for what replaced them.
+
 Epic #20, work item 2. Two `Dockable.Root`s with **different models** on one page exchange tabs by
 drag and drop, and a moved tab keeps its content state.
 

@@ -1494,3 +1494,36 @@ Rule 7 becomes: "The model is the source of truth. Every change is a command (`m
 `model.dispatch`) through the middleware chain; nodes are immutable." Provenance becomes: "The model
 is Dockable's own. The ported algorithms keep the FlexLayout header, and FlexLayout's tests and
 `tests-playwright/` remain the behaviour reference." The popout close policy is `"dock"` only.
+
+## 12. Implementation notes
+
+Where the build refined this record (Epic #43, issues #45–#49):
+
+- **Middleware narrowing.** `CommandContext` is a union discriminated by `command`: checking
+  `ctx.command === "tab.close"` types `ctx.payload`. `CommandContextBase` holds the shared fields.
+- **Bound bus.** `run`, `dispatch`, `can`, `use` and `subscribe` are bound, so
+  `const { run } = model` works (`useDockable().run` is the model's).
+- **`toLayoutJson(state)`** turns any kept state (an event's `before`, an undo step) back into a
+  document for `layout.load`; the examples' undo keeps states and serialises only on restore.
+- **`model.resolve`** takes a tabset or border of any registry (its fields are structural), so a
+  generic adapter resolves `TabsetNode<T>` without a cast.
+- **Drag groups across registries.** `DragGroup` takes and reports models as a `ModelHandle` (its
+  identity and untyped side, which every `Model<T>` is): `transfer.to.model === b` type-checks.
+  A transfer that the source refuses at run time (after its dry run passed) is undone.
+- **Add drags from outside a layout.** `DragDropManager.startAddDrag(model, event, tab, onDrop,
+  image)` finds the model's attached main layout (what `LayoutEngine.of` did);
+  `DragDropManager.endDrag()` ends the page's drag. `DragState.subjectOf(model)` types the subject
+  by that model's registry.
+- **Foreign drags.** A drag that carries types, none of them `DRAG_TYPE`, is foreign; one that
+  carries no types at all (synthetic events, as FlexLayout's cross-window test helpers send) is
+  taken as the page's drag when there is one.
+- **DOM ids and window names** carry a page-unique `idScope` (the React root passes `useId()`),
+  since default ids (`tab-1`) repeat across models; `engine.tabButtonId(id)` /
+  `engine.tabPanelId(id)` give them.
+- **React.** `useModelState` reads a model-only context (it does not re-render with every layout
+  change) and selects again when its selector changes; `TabOverflowTrigger<T>` types its hidden
+  tabs; `data-popout-enabled` comes from `model.can`.
+- **The command reference** (`site/docs/api/commands.mdx`) is generated from the registry by
+  `packages/core/scripts/generate-command-docs.ts`; every schema field carries a description,
+  which also reaches assistants through `model.commands()`.
+

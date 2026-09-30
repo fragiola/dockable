@@ -141,6 +141,25 @@ function typeOf(schema: JsonSchema): string {
     return schema.type ?? "JSON";
 }
 
+/**
+ * Prose from a schema or a description, safe in MDX: a token with `<`, `>`, `{` or `}` (MDX reads
+ * them as JSX) goes into a code span, unless it is in one already.
+ */
+function prose(text: string): string {
+    return text
+        .split(/(`[^`]*`)/)
+        .map((part, i) =>
+            i % 2 === 1
+                ? part
+                : part.replace(/[^\s`]*[<>{}][^\s`]*/g, (token) => {
+                      const [, leading = "", core = token, trailing = ""] =
+                          /^([("']*)(.*?)([.,;:)"']*)$/.exec(token) ?? [];
+                      return `${leading}\`${core}\`${trailing}`;
+                  }),
+        )
+        .join("");
+}
+
 /** A Markdown table cell: pipes escaped, one line. */
 function cell(text: string): string {
     return text.replaceAll("|", "\\|").replace(/\s+/g, " ").trim();
@@ -154,7 +173,7 @@ function fieldTable(schema: JsonSchema): string {
     const required = new Set(schema.required ?? []);
     const rows = properties.map(
         ([name, field]) =>
-            `| \`${name}\` | \`${cell(typeOf(field))}\` | ${required.has(name) ? "yes" : "no"} | ${cell(field.description ?? "")} |`,
+            `| \`${name}\` | \`${cell(typeOf(field))}\` | ${required.has(name) ? "yes" : "no"} | ${cell(prose(field.description ?? ""))} |`,
     );
     return [
         "| field | type | required | description |",
@@ -213,7 +232,7 @@ function section(
     return [
         `### \`${info.name}\``,
         "",
-        info.description,
+        prose(info.description),
         "",
         info.transient
             ? "It may run as a step of a continuous gesture: `model.run(…, { transient: true })`."

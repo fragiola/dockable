@@ -524,7 +524,7 @@ It may run as a step of a continuous gesture: `model.run(…, { transient: true 
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `border` | `string` | yes | the border's id (border_<location> unless the layout names it) |
+| `border` | `string` | yes | the border's id (`border_<location>` unless the layout names it) |
 | `size` | `number` | yes | the panel's new size, in px (kept within its limits) |
 
 **Result** (`{ border: string; size: number }`)
@@ -553,7 +553,7 @@ Open or close a border's panel (open), switch it between docked and overlay (mod
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `border` | `string` | yes | the border's id (border_<location> unless the layout names it) |
+| `border` | `string` | yes | the border's id (`border_<location>` unless the layout names it) |
 | `open` | `boolean` | no | open (true) or close (false) the border's panel |
 | `mode` | `"docked" \| "overlay" \| null` | no | docked (beside the layout) or overlay (over it) (null removes it: the layout default applies) |
 | `show` | `boolean \| null` | no | false hides the border entirely (null removes it: the layout default applies) |
