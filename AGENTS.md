@@ -13,7 +13,7 @@ This repo is the first of a family (Angular and Vue adapters will follow), so
 |---|---|---|---|
 | `packages/core` | `@fragiola/dockable` | model, actions, JSON serialization, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | DOM only |
 | `packages/react` | `@fragiola/dockable-react` | composable primitives over the core | peer `react`, `react-dom` (^19) |
-| `apps/playground` | private | unstyled fixture pages driven by Playwright, `popout.html`, styled examples | both packages |
+| `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | both packages, `examples/react` |
 
 ## Non-negotiable rules
 
@@ -69,10 +69,10 @@ Do not "fix" these.
 | `pnpm check` | Biome lint + format + assist (non-mutating) |
 | `pnpm check:fix` | Biome check with auto-fix |
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit) |
-| `pnpm test` | Vitest: `core` (node), `react` (jsdom), `examples-react`, `site` |
+| `pnpm test` | Vitest: `core` (node), `react` (jsdom), `playground`, `examples-react`, `site` |
 | `pnpm build` | `pnpm -r build` (tsdown for the packages, Vite for the playground) |
 | `pnpm e2e` | Playwright (Chromium) against the playground and the examples app |
-| `pnpm dev` | playground dev server on <http://localhost:5173> |
+| `pnpm dev` | the playground on <http://localhost:5173>: every example and scenario live, the Inspector, the fixtures (`PLAYGROUND_PORT` moves it) |
 | `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.1, `../www/CONTRACT.md`), self-validated |
 | `pnpm site:dev --base /dockable --port <n>` | the examples app with hot reload, under the base `www` proxies in dev |
 
@@ -81,10 +81,11 @@ Do not "fix" these.
 ```
 packages/core/      @fragiola/dockable        src/, tests/
 packages/react/     @fragiola/dockable-react  src/, tests/
-apps/playground/    fixtures/<name>/          unstyled pages Playwright drives
-                    examples/<name>/          styled examples
+apps/playground/    src/                      the shell: catalog, sidebar, toolbar, stage, source
+                    src/scenarios/<area>/     dev-only scenarios; src/inspector/ the Inspector
+                    fixtures/<name>/          unstyled pages Playwright drives
                     public/popout.html        popout host page
-                    e2e/                      Playwright specs
+                    e2e/, tests/              Playwright specs, unit tests
 examples/react/     src/examples/<slug>/      the site's examples (the embed app, Vite)
                     src/components, lib, …    Fragiola UI, vendored (scripts/vendor-fragiola.ts)
                     e2e/                      Playwright specs, also inside an iframe
@@ -104,6 +105,35 @@ gallery chrome, the code panel and search. Examples import internal modules thro
 
 In dev the playground resolves both packages to their sources through the
 `development` export condition; production builds use `dist`.
+
+## Playground
+
+`pnpm dev` serves `apps/playground`: a local app to see the packages working, with hot reload on
+the core, the React primitives, the examples and the scenarios, and no `www`, sync or export. A
+sidebar, a theme switch (the five example themes), the source beside the stage and the Inspector;
+the state is in the URL (`?example=<slug>` or `?scenario=<area>/<id>`, `&theme=<name>&code=1&inspect=1`).
+It shows three things, which are not interchangeable:
+
+- **Examples** live in `examples/react/src/examples` and are public: the site embeds them,
+  `site:export` ships them, readers copy them. The playground reads them in place
+  (`import.meta.glob`, the `#/` alias and the pre-paint theme from `examples/react/vite.shared.ts`);
+  it never keeps a second list. The stage follows the embed's contract (`data-example-theme` on the
+  stage, the scheme on `<html>`, `fill`/`flow`), so an example renders as the site shows it.
+- **Scenarios** live in `apps/playground/src/scenarios/<area>/<id>.tsx` and are dev-only: new
+  primitives, edge cases, animations, API experiments; never shipped, never linked from
+  `site/docs`. A file is all it takes: `<area>` is one of `AREAS` in `src/catalog.ts` (`layout`,
+  `drag`, `borders`, `popout`, `api`), `<id>` is kebab-case, and the module has **only a default
+  export** (anything else costs Fast Refresh); `tests/scenarios.test.ts` enforces it. A scenario
+  may import `#/examples/_kit/*` and `#/components/*`. When readers should see it, it becomes an
+  example in `examples/react`.
+- **Fixtures** (`fixtures/<name>/`) are the unstyled pages Playwright drives; the sidebar links
+  them.
+
+**The Inspector** (`src/inspector/`, app code, never in a package): a scenario calls
+`useInspector(model)` and the toolbar offers a panel with the actions the model applies
+(`model.addChangeListener`, engine and direct `doAction` alike), `model.toJson()` after the last
+one, and every `[data-layout-path]` element of the stage with its `data-*`/ARIA attributes, live
+during a drag. Examples do not call it.
 
 ## Provenance: FlexLayout
 

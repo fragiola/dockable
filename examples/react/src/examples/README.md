@@ -16,9 +16,10 @@ src/examples/
 
 1. Create `src/examples/<slug>/index.tsx` and `src/examples/<slug>/meta.ts` (see
    `meta-types.ts`).
-2. `pnpm --filter examples-react dev` regenerates the loaders (`scripts/generate.ts`); open
-   `http://localhost:5180/?id=<slug>`. `pnpm site:dev --base /dockable` serves it the way the site
-   proxies it.
+2. `pnpm dev` at the root lists it in the playground (`apps/playground`), with hot reload, the five
+   themes and its source: `http://localhost:5173/?example=<slug>`. The embed alone is
+   `pnpm --filter examples-react dev` (`http://localhost:5180/?id=<slug>`, it regenerates the
+   loaders); `pnpm site:dev --base /dockable` serves it the way the site proxies it.
 3. The smoke e2e visits it in every theme, and inside an iframe. Add a spec for its main
    behaviour in `e2e/examples/<slug>.spec.ts`.
 
