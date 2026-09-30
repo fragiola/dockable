@@ -1,17 +1,37 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import type { Model } from "@fragiola/dockable";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { entries, findEntry, fixtures, sections } from "./catalog";
+import { InspectorContext, type InspectorRegistry } from "./inspector/context";
+import { InspectorPanel } from "./inspector/panel";
 import { Sidebar } from "./sidebar";
 import { SourcePanel } from "./source-panel";
 import { Stage } from "./stage";
 import { Toolbar } from "./toolbar";
 import { applyScheme, parseView, sameItem, toSearch, type View } from "./view";
 
-// The shell: sidebar, toolbar, stage and source panel, built from the Fragiola UI vendored in
-// examples/react and painted through palette roles only. It uses no Dockable layout: the stage
-// shows the example alone, as the site does.
+// The shell: sidebar, toolbar, stage, source panel and Inspector, built from the Fragiola UI
+// vendored in examples/react and painted through palette roles only. It uses no Dockable layout:
+// the stage shows the entry alone, as the site does.
 export function App() {
     const [view, setView] = useState(() => parseView(window.location.search));
     const entry = findEntry(view.item);
+    const [stage, setStage] = useState<HTMLDivElement | null>(null);
+
+    // The model the current entry asked the Inspector to watch (`useInspector`), if any. An entry
+    // that unmounts stops watching its own, and never clears a newer one's.
+    const [inspected, setInspected] = useState<Model | null>(null);
+    const registry = useMemo<InspectorRegistry>(
+        () => ({
+            register: (model) => {
+                setInspected(model);
+                return () =>
+                    setInspected((current) =>
+                        current === model ? null : current,
+                    );
+            },
+        }),
+        [],
+    );
 
     useLayoutEffect(() => applyScheme(view.theme), [view.theme]);
 
@@ -51,37 +71,52 @@ export function App() {
     const itemKey = entry ? `${entry.kind}:${entry.id}` : "none";
 
     return (
-        <div className="grid h-dvh grid-cols-[16rem_minmax(0,1fr)]">
-            <Sidebar
-                sections={sections}
-                fixtures={fixtures}
-                current={view.item}
-                hrefFor={(item) => toSearch({ ...view, item })}
-                onSelect={(item) => navigate({ ...view, item })}
-            />
-            <div className="flex min-h-0 min-w-0 flex-col">
-                <Toolbar view={view} entry={entry} onChange={setView} />
-                <div className="flex min-h-0 flex-1">
-                    <main className="min-w-0 flex-1 overflow-auto">
-                        {entry ? (
-                            <Stage
-                                key={itemKey}
-                                entry={entry}
-                                theme={view.theme}
-                            />
-                        ) : (
-                            <p className="p-8 text-sm text-palette-accent/85">
-                                {view.item
-                                    ? `No ${view.item.kind} with id “${view.item.id}”.`
-                                    : `Pick one of the ${entries.length} entries.`}
-                            </p>
+        <InspectorContext value={registry}>
+            <div className="grid h-dvh grid-cols-[16rem_minmax(0,1fr)]">
+                <Sidebar
+                    sections={sections}
+                    fixtures={fixtures}
+                    current={view.item}
+                    hrefFor={(item) => toSearch({ ...view, item })}
+                    onSelect={(item) => navigate({ ...view, item })}
+                />
+                <div className="flex min-h-0 min-w-0 flex-col">
+                    <Toolbar
+                        view={view}
+                        entry={entry}
+                        inspectable={inspected !== null}
+                        onChange={setView}
+                    />
+                    <div className="flex min-h-0 flex-1">
+                        <main className="min-w-0 flex-1 overflow-auto">
+                            {entry ? (
+                                <Stage
+                                    key={itemKey}
+                                    ref={setStage}
+                                    entry={entry}
+                                    theme={view.theme}
+                                />
+                            ) : (
+                                <p className="p-8 text-sm text-palette-accent/85">
+                                    {view.item
+                                        ? `No ${view.item.kind} with id “${view.item.id}”.`
+                                        : `Pick one of the ${entries.length} entries.`}
+                                </p>
+                            )}
+                        </main>
+                        {view.code && entry && (
+                            <SourcePanel key={itemKey} entry={entry} />
                         )}
-                    </main>
-                    {view.code && entry && (
-                        <SourcePanel key={itemKey} entry={entry} />
-                    )}
+                        {view.inspect && inspected && (
+                            <InspectorPanel
+                                key={itemKey}
+                                model={inspected}
+                                stage={stage}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+        </InspectorContext>
     );
 }

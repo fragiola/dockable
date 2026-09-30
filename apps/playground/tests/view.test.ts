@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 import { THEMES } from "../../../examples/react/src/examples/_themes/themes.ts";
 import { parseView, sameItem, toSearch, type View } from "../src/view.ts";
 
-const DEFAULTS: View = { item: null, theme: "light", code: false };
+const DEFAULTS: View = {
+    item: null,
+    theme: "light",
+    code: false,
+    inspect: false,
+};
 
 describe("the view in the URL", () => {
-    it("defaults to nothing chosen, the first light theme, no panel", () => {
+    it("defaults to nothing chosen, the first light theme, no panels", () => {
         expect(parseView("")).toEqual(DEFAULTS);
     });
 
@@ -20,6 +25,13 @@ describe("the view in the URL", () => {
                 item: { kind: "example", id: "popout" },
                 theme: "terminal",
                 code: true,
+                inspect: false,
+            },
+            {
+                item: { kind: "scenario", id: "api/actions" },
+                theme: "dark",
+                code: false,
+                inspect: true,
             },
             ...THEMES.map((t) => ({ ...DEFAULTS, theme: t.name })),
         ];
@@ -29,7 +41,9 @@ describe("the view in the URL", () => {
     });
 
     it("falls back on unknown values instead of applying them", () => {
-        expect(parseView("?theme=sepia&code=yes&nope=1")).toEqual(DEFAULTS);
+        expect(parseView("?theme=sepia&code=yes&inspect=true&nope=1")).toEqual(
+            DEFAULTS,
+        );
     });
 
     it("compares entries by kind and id", () => {

@@ -8,14 +8,16 @@ import {
 // What the playground shows, entirely in the URL: a reload restores it and a link reproduces it.
 // Defaults are left out of the query.
 //
-//   ?example=<slug>     an example from examples/react/src/examples
-//   &theme=<name>       an example theme (examples/react/src/examples/_themes/themes.ts)
-//   &code=1             the source panel
+//   ?example=<slug>        an example from examples/react/src/examples
+//   ?scenario=<area>/<id>  a scenario from src/scenarios
+//   &theme=<name>          an example theme (examples/react/src/examples/_themes/themes.ts)
+//   &code=1                the source panel
+//   &inspect=1             the Inspector (for an entry that registers a model)
 //
 // The pre-paint script (examples/react/vite.shared.ts) puts the theme's scheme on <html> before
 // the first paint; `applyScheme` owns it afterwards. The example theme itself goes on the stage.
 
-export const KINDS = ["example"] as const;
+export const KINDS = ["example", "scenario"] as const;
 export type Kind = (typeof KINDS)[number];
 
 export type ItemRef = { kind: Kind; id: string };
@@ -24,6 +26,7 @@ export type View = {
     item: ItemRef | null;
     theme: ThemeName;
     code: boolean;
+    inspect: boolean;
 };
 
 export function parseView(search: string): View {
@@ -34,6 +37,7 @@ export function parseView(search: string): View {
         item: kind ? { kind, id: params.get(kind) ?? "" } : null,
         theme: isThemeName(theme) ? theme : DEFAULT_THEME,
         code: params.get("code") === "1",
+        inspect: params.get("inspect") === "1",
     };
 }
 
@@ -42,6 +46,7 @@ export function toSearch(view: View): string {
     if (view.item) params.set(view.item.kind, view.item.id);
     if (view.theme !== DEFAULT_THEME) params.set("theme", view.theme);
     if (view.code) params.set("code", "1");
+    if (view.inspect) params.set("inspect", "1");
     const query = params.toString();
     return query ? `?${query}` : "?";
 }

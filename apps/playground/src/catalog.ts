@@ -12,6 +12,8 @@ import type { ItemRef, Kind } from "./view";
 //
 //   examples   examples/react/src/examples/<slug>/ (index.tsx + meta.ts), the site's gallery:
 //              public, contract-bound; there is no second list here
+//   scenarios  src/scenarios/<area>/<id>.tsx, found by path: dev-only, never shipped; a file is
+//              all it takes to add one
 //   fixtures   fixtures/<name>/index.html, the unstyled pages Playwright drives: links out
 
 export type SourceFile = {
@@ -115,6 +117,63 @@ const exampleEntries: Entry[] = Object.entries(exampleModules)
     .sort((a, b) => a.order - b.order || a.entry.id.localeCompare(b.entry.id))
     .map(({ entry }) => entry);
 
+// ─── Scenarios ──────────────────────────────────────────────────────────────
+
+/** The areas of the package a scenario exercises: `src/scenarios/<area>/`, in sidebar order. */
+export const AREAS = [
+    { key: "layout", title: "Layout" },
+    { key: "drag", title: "Drag and drop" },
+    { key: "borders", title: "Borders" },
+    { key: "popout", title: "Popout" },
+    { key: "api", title: "API" },
+] as const;
+
+const scenarioModules = import.meta.glob<{ default: ComponentType }>(
+    "./scenarios/*/*.tsx",
+);
+const scenarioSources = import.meta.glob<string>("./scenarios/*/*.tsx", {
+    query: "?raw",
+    import: "default",
+});
+
+/** `./scenarios/<area>/<id>.tsx` → its area and id, or nothing. */
+export function scenarioPath(
+    key: string,
+): { area: string; id: string } | undefined {
+    const match = /^\.\/scenarios\/([^/]+)\/([^/]+)\.tsx$/.exec(key);
+    if (!match?.[1] || !match[2]) return undefined;
+    return { area: match[1], id: match[2] };
+}
+
+/** `drop-indicator-motion` → `Drop indicator motion`. */
+export function scenarioTitle(id: string): string {
+    const words = id.replaceAll("-", " ");
+    return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+// A file outside an area's directory is not listed; tests/scenarios.test.ts fails on it instead.
+const scenarioEntries: Entry[] = Object.entries(scenarioModules)
+    .flatMap(([key, load]) => {
+        const path = scenarioPath(key);
+        const area = AREAS.find((a) => a.key === path?.area);
+        const source = scenarioSources[key];
+        if (!path || !area || !source) return [];
+        return [
+            {
+                kind: "scenario" as const,
+                id: `${path.area}/${path.id}`,
+                title: scenarioTitle(path.id),
+                group: area.key,
+                groupTitle: area.title,
+                features: [],
+                layout: "fill" as const,
+                load,
+                files: [{ path: repositoryPath(key), load: source }],
+            },
+        ];
+    })
+    .sort((a, b) => a.title.localeCompare(b.title));
+
 // ─── Sections ───────────────────────────────────────────────────────────────
 
 function section(
@@ -142,6 +201,7 @@ export const sections: Section[] = [
         LEVELS.map((level) => ({ key: level, title: LEVEL_TITLES[level] })),
         exampleEntries,
     ),
+    section("scenario", "Scenarios", AREAS, scenarioEntries),
 ].filter((s) => s.groups.length > 0);
 
 export const entries: Entry[] = sections.flatMap((s) =>

@@ -7,6 +7,8 @@ import type { View } from "./view";
 type ToolbarProps = {
     view: View;
     entry: Entry | undefined;
+    /** the entry registered a model with `useInspector` */
+    inspectable: boolean;
     onChange: (view: View) => void;
 };
 
@@ -14,8 +16,9 @@ const PRESSED =
     "aria-pressed:bg-palette-soft aria-pressed:text-palette-contrast";
 
 // The entry's name and what it shows, and the settings flipped while watching it: every theme in
-// view, one click to switch, and the source panel.
-export function Toolbar({ view, entry, onChange }: ToolbarProps) {
+// view, one click to switch, the source panel, and the Inspector when the entry has a model to
+// show.
+export function Toolbar({ view, entry, inspectable, onChange }: ToolbarProps) {
     return (
         <header className="flex flex-col gap-2 border-b border-palette-line px-4 py-2">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -61,6 +64,19 @@ export function Toolbar({ view, entry, onChange }: ToolbarProps) {
                 >
                     Source
                 </Clickable.Button>
+                {inspectable && (
+                    <Clickable.Button
+                        variant="outline"
+                        size="sm"
+                        aria-pressed={view.inspect}
+                        className={PRESSED}
+                        onClick={() =>
+                            onChange({ ...view, inspect: !view.inspect })
+                        }
+                    >
+                        Inspector
+                    </Clickable.Button>
+                )}
             </div>
             {entry && (entry.description || entry.features.length > 0) && (
                 <div className="flex flex-wrap items-center gap-2">

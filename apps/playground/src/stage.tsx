@@ -2,6 +2,7 @@ import {
     type ComponentType,
     type LazyExoticComponent,
     lazy,
+    type Ref,
     Suspense,
 } from "react";
 import type { ThemeName } from "#/examples/_themes/themes";
@@ -42,13 +43,23 @@ function recover(entry: Entry) {
  * The embed's stage (examples/react/index.html and src/embed/main.tsx), so an example renders as
  * the site shows it: the example theme on the stage (the kit finds it with
  * `closest("[data-example-theme]")`, popouts included), a `fill` example stretched to it, a
- * `flow` one as tall as its content. The App keys the stage by entry, so switching remounts.
+ * `flow` one as tall as its content. The App keys the stage by entry, so switching remounts; it
+ * holds the element (`ref`) for the Inspector's view of the layout's state.
  */
-export function Stage({ entry, theme }: { entry: Entry; theme: ThemeName }) {
+export function Stage({
+    entry,
+    theme,
+    ref,
+}: {
+    entry: Entry;
+    theme: ThemeName;
+    ref?: Ref<HTMLDivElement>;
+}) {
     const Example = component(entry);
     const flow = entry.layout === "flow";
     return (
         <div
+            ref={ref}
             data-testid="stage"
             data-example-theme={theme}
             className={

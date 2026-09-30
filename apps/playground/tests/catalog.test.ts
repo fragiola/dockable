@@ -57,7 +57,7 @@ describe("the catalog", () => {
     });
 
     it("shows each example's own files, entry first, without meta.ts", async () => {
-        for (const entry of entries) {
+        for (const entry of entries.filter((e) => e.kind === "example")) {
             const [first, ...rest] = entry.files;
             expect(first?.path, entry.id).toBe(
                 `examples/react/src/examples/${entry.id}/index.tsx`,
