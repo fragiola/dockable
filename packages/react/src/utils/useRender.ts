@@ -81,7 +81,7 @@ export function useRenderElement<State>(
     tag: keyof React.JSX.IntrinsicElements,
     componentProps: PrimitiveProps<State>,
     options: RenderOptions<State>,
-): React.ReactElement {
+): React.JSX.Element {
     const {
         render,
         className,
