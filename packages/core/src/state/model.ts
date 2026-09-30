@@ -66,12 +66,20 @@ export interface ModelOptions<T extends DockableTypes = AnyTypes> {
 }
 
 /**
+ * What the app adds to a dispatched command: never read from the untrusted input, so `meta` can
+ * say who asked (`{ source: "assistant" }`) for middleware to decide on.
+ */
+export interface DispatchOptions {
+    meta?: Readonly<Record<string, unknown>> | undefined;
+}
+
+/**
  * A model of any registry, where only its identity and its untyped side matter (a drag group's
  * transfers join models of different registries): every `Model<T>` is one. Compare it (`===`)
  * with your own models; `dispatch` runs a command given as JSON.
  */
 export interface ModelHandle {
-    dispatch(input: unknown): CommandResult<unknown>;
+    dispatch(input: unknown, options?: DispatchOptions): CommandResult<unknown>;
     commands(): readonly CommandInfo[];
     toJSON(): unknown;
 }
@@ -126,8 +134,11 @@ export interface Model<T extends DockableTypes = AnyTypes> {
         payload: PayloadOf<T, C>,
         options?: RunOptions,
     ): CommandResult<ResultOf<T, C>>;
-    /** runs a command given as untrusted JSON `{ command, payload, transient? }`, validated */
-    dispatch(input: unknown): CommandResult<unknown>;
+    /**
+     * runs a command given as untrusted JSON `{ command, payload, transient? }`, validated;
+     * `options.meta` (the app's, not the input's) reaches middleware and listeners
+     */
+    dispatch(input: unknown, options?: DispatchOptions): CommandResult<unknown>;
     /** what `run` would return, without committing or emitting anything */
     can<C extends CommandName>(
         command: C,
@@ -464,7 +475,10 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         ) as CommandResult<ResultOf<T, C>>;
     }
 
-    dispatch(input: unknown): CommandResult<unknown> {
+    dispatch(
+        input: unknown,
+        options: DispatchOptions = {},
+    ): CommandResult<unknown> {
         if (!isObject(input)) {
             return error(
                 "invalid_payload",
@@ -497,7 +511,10 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         return this.enqueueOrExecute(
             command,
             payload,
-            transient === undefined ? {} : { transient },
+            {
+                ...(transient === undefined ? {} : { transient }),
+                ...(options.meta === undefined ? {} : { meta: options.meta }),
+            },
             "/payload",
         );
     }

@@ -141,6 +141,7 @@ export {
 } from "./state/load";
 export {
     createModel,
+    type DispatchOptions,
     type Model,
     type ModelHandle,
     type ModelOptions,

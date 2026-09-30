@@ -823,12 +823,28 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const key = `${command.command}|${to}|${location}|${index}`;
         let verdict = this.verdicts.get(key);
         if (verdict === undefined) {
+            // a tab of another model of the drag group: asked as its transfer will run, with the
+            // same `meta.transfer` (TransferMeta), so a rule on it holds during the hover too
+            const subject = state.subject;
+            const transfer =
+                subject.kind === "tab" &&
+                !sameModel(state.mainEngine.model, this.engine.model)
+                    ? {
+                          meta: {
+                              transfer: {
+                                  tabId: subject.tab.id,
+                                  from: state.mainEngine.model,
+                                  to: this.engine.model,
+                              },
+                          },
+                      }
+                    : undefined;
             verdict =
                 command.command === "tab.move"
                     ? model.can("tab.move", command.payload).ok
                     : command.command === "tabset.move"
                       ? model.can("tabset.move", command.payload).ok
-                      : model.can("tab.add", command.payload).ok;
+                      : model.can("tab.add", command.payload, transfer).ok;
             this.verdicts.set(key, verdict);
         }
         return verdict;

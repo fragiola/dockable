@@ -69,6 +69,44 @@ describe("results", () => {
         });
     });
 
+    it("dispatch hands the app's meta (never the input's) to middleware and listeners", () => {
+        const model = model2();
+        const seen: unknown[] = [];
+        model.use((ctx, next) => {
+            seen.push(ctx.meta);
+            return ctx.meta?.source === "assistant" &&
+                ctx.command === "tab.close"
+                ? veto("assistants may not close tabs")
+                : next();
+        });
+        const events: unknown[] = [];
+        model.subscribe((event) => events.push(event.meta));
+        const tabId = model.tabs()[0]?.id ?? "";
+        const meta = { source: "assistant" };
+        expect(
+            model.dispatch(
+                { command: "tab.close", payload: { tab: tabId } },
+                { meta },
+            ),
+        ).toMatchObject({ ok: false, error: { code: "vetoed" } });
+        expect(
+            model.dispatch(
+                { command: "tab.select", payload: { tab: tabId } },
+                { meta },
+            ).ok,
+        ).toBe(true);
+        expect(seen).toEqual([meta, meta]);
+        expect(events).toEqual([meta]);
+        // the input cannot carry it
+        expect(
+            model.dispatch({
+                command: "tab.close",
+                payload: { tab: tabId },
+                meta: { source: "app" },
+            }),
+        ).toMatchObject({ ok: false, error: { path: "/meta" } });
+    });
+
     it("dispatch validates untrusted JSON and reports paths into it", () => {
         const model = model2();
         expect(model.dispatch("tab.close")).toMatchObject({

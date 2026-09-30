@@ -10,6 +10,7 @@ import {
     type Middleware,
     type Model,
     type Transfer,
+    type TransferMeta,
     veto,
 } from "../../src";
 import { dragEvent, Rects, recordCommands } from "../engine/fixture";
@@ -199,6 +200,32 @@ describe("dragging between two models", () => {
         expect(over.defaultPrevented).toBe(false); // refused during the hover
         expect(ids(b.model, "ts1")).toEqual(["b2"]);
         expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);
+    });
+
+    it("asks the hover with the transfer's meta, as the drop runs it", () => {
+        const group = new DragGroup();
+        const a = layout("a", { dragGroup: group });
+        const hovers: unknown[] = [];
+        const b = layout("b", {
+            dragGroup: group,
+            middleware: (ctx, next) => {
+                if (ctx.command === "tab.add" && ctx.dryRun) {
+                    hovers.push(ctx.meta);
+                }
+                // only transfers from model a
+                return ctx.command === "tab.add" &&
+                    (ctx.meta as Partial<TransferMeta> | undefined)?.transfer
+                        ?.from !== a.model
+                    ? veto()
+                    : next();
+            },
+        });
+        const over = dragBetween(a, "a0", b);
+        expect(over.defaultPrevented).toBe(true);
+        expect(hovers[0]).toMatchObject({
+            transfer: { tabId: "a0", from: a.model, to: b.model },
+        });
+        expect(ids(b.model, "ts1")).toEqual(["b2", "a0"]);
     });
 
     it("changes nothing when the source refuses the close", () => {
