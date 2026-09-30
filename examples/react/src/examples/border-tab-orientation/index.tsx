@@ -1,7 +1,19 @@
 "use client";
 
-import { type IJsonModel, Model, type TabNode } from "@fragiola/dockable";
-import { Bell, Bookmark, FileText, ListTree, Search } from "lucide-react";
+import {
+    type ComponentOf,
+    createModel,
+    type LayoutJson,
+    type TabOf,
+} from "@fragiola/dockable";
+import {
+    Bell,
+    Bookmark,
+    FileText,
+    ListTree,
+    type LucideIcon,
+    Search,
+} from "lucide-react";
 import { useState } from "react";
 import { Card } from "../_kit/card";
 import { type BorderOptions, DockLayout } from "../_kit/layout";
@@ -12,64 +24,74 @@ import * as styles from "../_kit/styles";
 // Dockable.Border only lays its tab list out as a column, and exposes `data-orientation` and
 // `data-tab-direction` for your CSS. The toggle below swaps class names, nothing else.
 
-const json: IJsonModel = {
-    global: { borderSize: 220 },
+// What the layout holds: each tab component and the type of its data.
+type Types = {
+    tabs: {
+        outline: { name: string };
+        search: { name: string };
+        bookmarks: { name: string };
+        notes: { name: string };
+        alerts: { name: string };
+        card: { name: string };
+    };
+};
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    defaults: { border: { size: 220 } },
     borders: [
         {
-            type: "border",
             location: "left",
             selected: 0,
             children: [
-                { type: "tab", name: "Outline", component: "outline" },
-                { type: "tab", name: "Search", component: "search" },
-                { type: "tab", name: "Bookmarks", component: "bookmarks" },
+                { component: "outline", data: { name: "Outline" } },
+                { component: "search", data: { name: "Search" } },
+                { component: "bookmarks", data: { name: "Bookmarks" } },
             ],
         },
         {
-            type: "border",
             location: "right",
             children: [
-                { type: "tab", name: "Notes", component: "notes" },
-                { type: "tab", name: "Alerts", component: "alerts" },
+                { component: "notes", data: { name: "Notes" } },
+                { component: "alerts", data: { name: "Alerts" } },
             ],
         },
     ],
-    layout: {
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
-                children: [
-                    { type: "tab", name: "Document", component: "card" },
-                ],
+                children: [{ component: "card", data: { name: "Document" } }],
             },
         ],
     },
 };
 
-const icons = {
+// the side panels' icons, by component (the document tab has none)
+const icons: { [K in ComponentOf<Types>]?: LucideIcon } = {
     outline: ListTree,
     search: Search,
     bookmarks: Bookmark,
     notes: FileText,
     alerts: Bell,
-} as const;
+};
 
-function Label({ tab }: { tab: TabNode }) {
-    const Icon = icons[tab.getComponent() as keyof typeof icons];
+function Label({ tab }: { tab: TabOf<Types> }) {
+    const Icon = icons[tab.component];
     return (
         <>
             {Icon ? (
                 <Icon aria-hidden="true" className="size-3.5 shrink-0" />
             ) : null}
-            {tab.getName()}
+            {tab.data.name}
         </>
     );
 }
 
 type Orientation = "vertical" | "horizontal";
 
-const OPTIONS: Record<Orientation, BorderOptions> = {
+const OPTIONS: Record<Orientation, BorderOptions<Types>> = {
     // the kit's default: no class given, so styles.borderTabVertical applies
     vertical: { renderBorderTab: (tab) => <Label tab={tab} /> },
     // upright labels: a class of its own replaces the rotation, and the strip grows to fit them
@@ -81,7 +103,7 @@ const OPTIONS: Record<Orientation, BorderOptions> = {
 };
 
 export default function BorderTabOrientation() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     const [orientation, setOrientation] = useState<Orientation>("vertical");
     return (
         <div className="flex min-h-0 flex-1 flex-col">

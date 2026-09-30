@@ -1,12 +1,12 @@
 "use client";
 
 import {
-    Actions,
+    createModel,
     DockableLabel,
-    type IJsonModel,
-    Model,
-    type TabNode,
-    type TabSetNode,
+    type LayoutJson,
+    type TabJson,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import {
@@ -27,7 +27,12 @@ import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
 // Pinned tabs: kept at the start of the strip by the model, shown as icons, and not closable
-// (`isCloseable()` is false for a pinned tab). The styles read `data-pinned` on the tab.
+// (`model.can("tab.close", …)` refuses a pinned tab). The styles read `data-pinned` on the tab.
+// Whether a tab offers the pin button is the app's choice: here, `enablePin` in its data.
+
+type Types = {
+    tabs: { card: { name: string; icon?: string; enablePin: boolean } };
+};
 
 const ICONS: Record<string, LucideIcon> = {
     home: House,
@@ -35,18 +40,15 @@ const ICONS: Record<string, LucideIcon> = {
     calendar: Calendar,
 };
 
-const tab = (name: string, icon?: string, pinned = false) => ({
-    type: "tab",
-    name,
+const tab = (name: string, icon?: string, pinned = false): TabJson<Types> => ({
     component: "card",
     pinned,
-    config: { icon },
+    data: { name, enablePin: true, ...(icon ? { icon } : {}) },
 });
 
-const json: IJsonModel = {
-    global: { tabEnablePin: true },
-    borders: [],
-    layout: {
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
@@ -70,37 +72,36 @@ const json: IJsonModel = {
 };
 
 /** The inside of a tab: an icon when pinned (the name is kept for screen readers). */
-function TabLabel({ tab }: { tab: TabNode }) {
-    const { engine } = useDockable();
-    const Icon =
-        ICONS[(tab.getConfig() as { icon?: string }).icon ?? ""] ?? FileText;
-    if (tab.isPinned()) {
+function TabLabel({ tab }: { tab: TabOf<Types> }) {
+    const { model, run } = useDockable<Types>();
+    const Icon = ICONS[tab.data.icon ?? ""] ?? FileText;
+    if (tab.pinned === true) {
         return (
             <>
                 <Icon aria-hidden className="size-4" />
-                <span className="sr-only">{tab.getName()}</span>
+                <span className="sr-only">{tab.data.name}</span>
             </>
         );
     }
     return (
         <>
             <span data-tab-label className={styles.tabLabel}>
-                {tab.getName()}
+                {tab.data.name}
             </span>
-            {tab.isCloseable() ? (
+            {model.can("tab.close", { tab: tab.id }).ok ? (
                 <button
                     type="button"
                     // the tab is the tab stop; the close button is reached with the mouse
                     // (the keyboard closes with Ctrl+Delete on the tab)
                     tabIndex={-1}
-                    aria-label={`${label(DockableLabel.Close_Tab)} ${tab.getName()}`}
+                    aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
                     className={cn(
                         styles.iconButton,
                         "-me-1.5 size-5 text-current",
                     )}
                     onClick={(event) => {
                         event.stopPropagation(); // not a click on the tab
-                        engine.doAction(Actions.deleteTab(tab.getId()));
+                        run("tab.close", { tab: tab.id });
                     }}
                 >
                     <X aria-hidden className="size-3" />
@@ -111,22 +112,20 @@ function TabLabel({ tab }: { tab: TabNode }) {
 }
 
 /** Pins or unpins the tabset's selected tab. */
-function PinButton({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
-    const selected = tabset.getSelectedNode() as TabNode | undefined;
-    if (!selected?.isEnablePin()) {
+function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { model, run } = useDockable<Types>();
+    const selected = model.selectedTab(tabset.id);
+    if (!selected?.data.enablePin) {
         return null;
     }
-    const pinned = selected.isPinned();
+    const pinned = selected.pinned === true;
     return (
         <button
             type="button"
-            aria-label={`${label(pinned ? DockableLabel.Menu_Unpin : DockableLabel.Menu_Pin)} ${selected.getName()}`}
+            aria-label={`${label(pinned ? DockableLabel.Menu_Unpin : DockableLabel.Menu_Pin)} ${selected.data.name}`}
             aria-pressed={pinned}
             className={styles.iconButton}
-            onClick={() =>
-                engine.doAction(Actions.setTabPinned(selected.getId(), !pinned))
-            }
+            onClick={() => run("tab.pin", { tab: selected.id, value: !pinned })}
         >
             {pinned ? (
                 <PinOff aria-hidden className="size-3.5" />
@@ -138,7 +137,7 @@ function PinButton({ tabset }: { tabset: TabSetNode }) {
 }
 
 export default function PinnedTabs() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}

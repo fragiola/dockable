@@ -1,6 +1,6 @@
 "use client";
 
-import type { IJsonTabNode, TabNode } from "@fragiola/dockable";
+import type { TabInitOf, TabOf } from "@fragiola/dockable";
 import {
     ChartLine,
     ChartNoAxesColumn,
@@ -13,9 +13,20 @@ import { Card } from "../_kit/card";
 import { ChartPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 
+/** What the layout holds: each widget component and the type of its data. */
+export type Types = {
+    tabs: {
+        revenue: { name: string };
+        channels: { name: string };
+        orders: { name: string };
+        log: { name: string };
+        notes: { name: string };
+    };
+};
+
 /** A widget the sidebar offers: what it looks like there, and the tab a drop creates. */
 export interface Widget {
-    component: string;
+    component: keyof Types["tabs"];
     title: string;
     description: string;
     icon: LucideIcon;
@@ -55,18 +66,17 @@ export const WIDGETS: Widget[] = [
 ];
 
 /** The tab a widget becomes. No id: the model gives each new tab its own, so a widget can be added twice. */
-export function widgetTab(widget: Widget): IJsonTabNode {
-    return { type: "tab", name: widget.title, component: widget.component };
+export function widgetTab(widget: Widget): TabInitOf<Types> {
+    return { component: widget.component, data: { name: widget.title } };
 }
 
-export function iconOf(tab: TabNode): LucideIcon | undefined {
-    return WIDGETS.find((widget) => widget.component === tab.getComponent())
-        ?.icon;
+export function iconOf(tab: TabOf<Types>): LucideIcon | undefined {
+    return WIDGETS.find((widget) => widget.component === tab.component)?.icon;
 }
 
 /** The content of a widget's panel. */
-export function WidgetContent({ tab }: { tab: TabNode }) {
-    switch (tab.getComponent()) {
+export function WidgetContent({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
         case "revenue":
             return <ChartPanel kind="area" seed={7} />;
         case "channels":
@@ -75,7 +85,7 @@ export function WidgetContent({ tab }: { tab: TabNode }) {
             return <TablePanel />;
         case "log":
             return <LogPanel />;
-        default:
+        case "notes":
             return <Card tab={tab} />;
     }
 }

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-    Actions,
-    type IJsonModel,
-    Model,
-    type TabNode,
-} from "@fragiola/dockable";
+import { createModel, type LayoutJson, type TabOf } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { Card } from "../_kit/card";
@@ -15,34 +10,35 @@ import { RenameField } from "../_kit/rename-field";
 import * as styles from "../_kit/styles";
 
 // Inline rename: double-click a tab (or press F2 on it) and type. Enter confirms, Escape cancels,
-// an empty name is refused. The package has no rename UI; it has `Actions.renameTab` and the
-// `enableRename` flag.
+// an empty name is refused. The package has no rename UI: the name is the app's own data, and
+// renaming is the `tab.update` command with the new data. Whether a tab may be renamed is the
+// app's too (`renamable` in its data).
 
-const json: IJsonModel = {
-    global: { tabEnableRename: true },
-    borders: [],
-    layout: {
+// What the layout holds: one component, whose data is the name and the rename permission.
+type Types = { tabs: { card: { name: string; renamable?: boolean } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 55,
                 children: [
-                    { type: "tab", name: "Untitled", component: "card" },
-                    { type: "tab", name: "Sketch", component: "card" },
+                    { component: "card", data: { name: "Untitled" } },
+                    { component: "card", data: { name: "Sketch" } },
                     {
-                        type: "tab",
-                        name: "Fixed name",
                         component: "card",
                         // this one cannot be renamed
-                        enableRename: false,
+                        data: { name: "Fixed name", renamable: false },
                     },
                 ],
             },
             {
                 type: "tabset",
                 weight: 45,
-                children: [{ type: "tab", name: "Ideas", component: "card" }],
+                children: [{ component: "card", data: { name: "Ideas" } }],
             },
         ],
     },
@@ -53,14 +49,14 @@ function RenamableTab({
     editing,
     setEditing,
 }: {
-    tab: TabNode;
+    tab: TabOf<Types>;
     editing: boolean;
     setEditing: (id: string | null) => void;
 }) {
-    const { engine } = useDockable();
+    const { run } = useDockable<Types>();
     const start = () => {
-        if (tab.isEnableRename()) {
-            setEditing(tab.getId());
+        if (tab.data.renamable !== false) {
+            setEditing(tab.id);
         }
     };
     return (
@@ -80,11 +76,14 @@ function RenamableTab({
             <TabParts tab={tab}>
                 {editing ? (
                     <RenameField
-                        name={tab.getName()}
+                        name={tab.data.name}
                         onCommit={(name) => {
-                            engine.doAction(
-                                Actions.renameTab(tab.getId(), name),
-                            );
+                            // the new data is the whole value: keep the rest of it
+                            run("tab.update", {
+                                tab: tab.id,
+                                component: tab.component,
+                                data: { ...tab.data, name },
+                            });
                             setEditing(null);
                         }}
                         onCancel={() => setEditing(null)}
@@ -96,16 +95,16 @@ function RenamableTab({
 }
 
 export default function RenameTabs() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     // one tab at most is being renamed
     const [editing, setEditing] = useState<string | null>(null);
     return (
         <DockLayout
             model={model}
-            renderTabSet={withTabElement((tab) => (
+            renderTabSet={withTabElement<Types>((tab) => (
                 <RenamableTab
                     tab={tab}
-                    editing={editing === tab.getId()}
+                    editing={editing === tab.id}
                     setEditing={setEditing}
                 />
             ))}

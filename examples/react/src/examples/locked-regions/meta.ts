@@ -3,16 +3,17 @@ import type { ExampleMeta } from "../meta-types";
 export default {
     title: "Locked regions",
     description:
-        "Stop drops into part of the layout: model.setOnAllowDrop refuses tabs that do not belong to a region, enableDrop, enableDrag and enableDivide lock a tabset, and onAction vetoes what gets through. Custom drop zones and feedback for refused drops are the Drop control Epic (#19).",
+        "Stop drops into part of the layout: a model.use middleware vetoes tab.move, tabset.move and tab.add into a region its tabs do not belong to (a drag asks it with model.can, so a refused target shows no outline), and enableDrop, enableDrag and enableDivide lock a tabset.",
     level: "intermediate",
     order: 9,
     features: [
-        "Model.setOnAllowDrop",
-        "DropInfo",
+        "model.use",
+        "veto",
+        "model.can",
+        "typed data",
         "enableDrop",
         "enableDrag",
         "enableDivide",
-        "onAction",
         "Tooltip",
     ],
     docs: "/docs/guides/restricting-drops",

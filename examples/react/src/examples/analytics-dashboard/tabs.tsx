@@ -1,17 +1,18 @@
 "use client";
 
 import {
-    Actions,
+    type ComponentOf,
     DockableLabel,
-    Model,
-    type TabNode,
-    type TabSetNode,
+    MAIN_LAYOUT,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import {
     ChartLine,
     ExternalLink,
     Gauge,
+    type LucideIcon,
     Maximize2,
     Minimize2,
     PanelTopClose,
@@ -21,28 +22,32 @@ import {
 } from "lucide-react";
 import { label } from "../_kit/labels";
 import * as styles from "../_kit/styles";
-import type { KpiConfig } from "./widgets";
+import type { Types } from "./data";
 
 // How the dashboard decorates the kit's tabsets: an icon per widget type, a red tab for a KPI
 // below target, a close button, and maximize / pop out / dock back buttons in the header.
 
-function isAlert(tab: TabNode) {
-    return (tab.getConfig() as KpiConfig | undefined)?.status === "alert";
+function isAlert(tab: TabOf<Types>) {
+    return tab.component === "kpi" && tab.data.status === "alert";
 }
 
 /** The kit's `tabClassName`: a KPI tab below target takes the danger palette. */
-export function tabClassName(tab: TabNode) {
+export function tabClassName(tab: TabOf<Types>) {
     return isAlert(tab)
         ? "palette-danger text-palette-accent data-selected:text-palette-accent"
         : "";
 }
 
-const ICONS = { chart: ChartLine, table: Sheet, kpi: Gauge };
+const ICONS: Record<ComponentOf<Types>, LucideIcon> = {
+    chart: ChartLine,
+    table: Sheet,
+    kpi: Gauge,
+};
 
 /** The kit's `renderTab`: what goes inside each tab button. */
-export function TabContent({ tab }: { tab: TabNode }) {
-    const { engine } = useDockable();
-    const Icon = ICONS[tab.getComponent() as keyof typeof ICONS] ?? ChartLine;
+export function TabContent({ tab }: { tab: TabOf<Types> }) {
+    const { run } = useDockable<Types>();
+    const Icon = ICONS[tab.component];
     const alert = isAlert(tab);
     return (
         <>
@@ -56,17 +61,17 @@ export function TabContent({ tab }: { tab: TabNode }) {
                 <Icon aria-hidden="true" className="size-3.5 shrink-0" />
             )}
             <span data-tab-label className={styles.tabLabel}>
-                {tab.getName()}
+                {tab.data.name}
             </span>
             <button
                 type="button"
                 tabIndex={-1}
                 draggable={false}
-                aria-label={`${label(DockableLabel.Close_Tab)} ${tab.getName()}`}
+                aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
-                    engine.doAction(Actions.deleteTab(tab.getId()));
+                    run("tab.close", { tab: tab.id });
                 }}
                 className={`${styles.iconButton} -me-1.5 size-5 opacity-0 group-hover/tab:opacity-100 group-data-selected/tab:opacity-100`}
             >
@@ -77,19 +82,19 @@ export function TabContent({ tab }: { tab: TabNode }) {
 }
 
 /** The kit's `renderActions`: maximize, and pop out (or dock back when already popped out). */
-export function TabSetActions({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
-    const selected = tabset.getSelectedNode() as TabNode | undefined;
-    const inPopout = tabset.getLayoutId() !== Model.MAIN_LAYOUT_ID;
-    const maximized = tabset.isMaximized();
+export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { model, run } = useDockable<Types>();
+    const selected = model.selectedTab(tabset.id);
+    const inPopout = model.layoutOf(tabset.id) !== MAIN_LAYOUT;
+    const maximized = model.maximizedTabset()?.id === tabset.id;
 
     // one trigger both ways: it pops the selected tab out, and in the window docks it back
     const popoutTrigger = selected ? (
         <Dockable.PopoutTrigger
             aria-label={
                 inPopout
-                    ? `Dock ${selected.getName()} back`
-                    : `${label(DockableLabel.Popout_Tab)} ${selected.getName()}`
+                    ? `Dock ${selected.data.name} back`
+                    : `${label(DockableLabel.Popout_Tab)} ${selected.data.name}`
             }
             data-testid={inPopout ? "dock-back" : "popout"}
             className={styles.iconButton}
@@ -116,7 +121,10 @@ export function TabSetActions({ tabset }: { tabset: TabSetNode }) {
                 aria-pressed={maximized}
                 data-testid="maximize"
                 onClick={() =>
-                    engine.doAction(Actions.maximizeToggle(tabset.getId()))
+                    run("tabset.maximize", {
+                        tabset: tabset.id,
+                        value: !maximized,
+                    })
                 }
                 className={styles.iconButton}
             >

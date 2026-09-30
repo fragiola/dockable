@@ -10,7 +10,7 @@ export default {
         "TabOverflowTrigger",
         "useTabOverflow",
         "data-overflow-hidden",
-        "Actions.selectTab",
+        "tab.select",
         "Select",
     ],
     docs: "/docs/guides/tab-overflow",

@@ -1,15 +1,18 @@
 "use client";
 
 import {
-    DockLocation,
-    type IJsonModel,
-    Model,
-    type TabNode,
-    type TabSetNode,
+    createModel,
+    type LayoutJson,
+    LayoutValidationError,
+    type Middleware,
+    type Model,
+    type TabOf,
+    type TabsetNode,
+    veto,
 } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { LayoutDashboard, RotateCcw, Save } from "lucide-react";
-import { type Ref, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "#/lib/cn";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
@@ -17,6 +20,7 @@ import { KitTabButton, KitTabStrip } from "../_kit/tab-strip";
 import {
     GROUPS,
     isKpi,
+    type Types,
     WIDGETS,
     type Widget,
     WidgetContent,
@@ -27,10 +31,11 @@ import {
 const STORAGE_KEY = "dockable-examples:dashboard-builder";
 
 /** A KPI strip on top (it only takes KPIs), and an empty canvas for everything else. */
-const EMPTY: IJsonModel = {
-    global: { tabSetEnableDeleteWhenEmpty: false },
-    borders: [],
-    layout: {
+const EMPTY: LayoutJson<Types> = {
+    version: 1,
+    // the canvas stays when its last widget leaves
+    defaults: { tabset: { deleteWhenEmpty: false } },
+    root: {
         type: "row",
         children: [
             {
@@ -39,21 +44,20 @@ const EMPTY: IJsonModel = {
                     {
                         type: "tabset",
                         id: "kpis",
-                        name: "KPI strip",
+                        data: { name: "KPI strip" },
                         weight: 30,
                         minHeight: 130,
                         children: [
                             {
-                                type: "tab",
-                                name: "Revenue",
                                 component: "kpi-revenue",
+                                data: { name: "Revenue" },
                             },
                         ],
                     },
                     {
                         type: "tabset",
                         id: "canvas",
-                        name: "Canvas",
+                        data: { name: "Canvas" },
                         weight: 70,
                         children: [],
                     },
@@ -63,38 +67,95 @@ const EMPTY: IJsonModel = {
     },
 };
 
-function load(): Model {
-    try {
-        const saved = window.localStorage.getItem(STORAGE_KEY);
-        if (saved) return Model.fromJson(JSON.parse(saved) as IJsonModel);
-    } catch {
-        // no storage, or a layout saved by an older version: start empty
-    }
-    return Model.fromJson(EMPTY);
-}
-
 /**
- * The drop rules, on the model: KPIs only into the centre of the KPI strip, and nothing else into
- * it (nor beside it). They apply to widgets dragged from the palette and to tabs moved inside the
- * layout alike: a refused target shows no drop indicator.
+ * The drop rules, as middleware: KPIs only into the centre of the KPI strip, and nothing else into
+ * it (nor beside it). They guard the commands that place a tab (`tab.add` from the palette,
+ * `tab.move` inside the layout) or a tabset (`tabset.move`), from a drag or from code alike; a
+ * drag asks them with `model.can` on every hover, so a refused target shows no drop indicator.
  */
-function withRules(model: Model): Model {
-    model.setOnAllowDrop((dragNode, dropInfo) => {
-        const intoKpis = dropInfo.node.getId() === "kpis";
-        if (isKpi(dragNode)) {
-            return intoKpis && dropInfo.location === DockLocation.CENTER;
-        }
-        return !intoKpis;
-    });
-    return model;
+const dropRules: Middleware<Types> = (ctx, next) => {
+    const payload = ctx.payload;
+    if (
+        (ctx.command !== "tab.add" &&
+            ctx.command !== "tab.move" &&
+            ctx.command !== "tabset.move") ||
+        !("to" in payload)
+    ) {
+        return next();
+    }
+    // the component placed: a new tab's, or the moved tab's (a tabset has none)
+    const moved = "tab" in payload ? ctx.get(payload.tab) : undefined;
+    const component =
+        "component" in payload
+            ? payload.component
+            : moved?.type === "tab"
+              ? moved.component
+              : undefined;
+    const intoKpis = payload.to === "kpis";
+    if (component !== undefined && isKpi(component)) {
+        return intoKpis && (payload.location ?? "center") === "center"
+            ? next()
+            : veto("KPIs go in the KPI strip");
+    }
+    return intoKpis ? veto("The KPI strip takes KPIs only") : next();
+};
+
+/** What was restored from storage, and why a saved layout could not be. */
+interface Restored {
+    model: Model<Types>;
+    error?: { message: string; issues: string[] } | undefined;
 }
 
-function PaletteItem({ model, widget }: { model: Model; widget: Widget }) {
+function describe(error: unknown): NonNullable<Restored["error"]> {
+    if (error instanceof LayoutValidationError) {
+        // every problem, with its JSON path in the saved document
+        return {
+            message: error.message,
+            issues: error.issues.map(
+                (issue) => `${issue.path || "/"}: ${issue.message}`,
+            ),
+        };
+    }
+    return {
+        message: error instanceof Error ? error.message : String(error),
+        issues: [],
+    };
+}
+
+/** The saved layout (JSON v1, from `model.toJSON()`), or the empty dashboard. */
+function restore(): Restored {
+    let saved: string | null = null;
+    try {
+        saved = window.localStorage.getItem(STORAGE_KEY);
+    } catch {
+        // no storage: start empty
+    }
+    let restored: Restored;
+    try {
+        // createModel validates the document: invalid JSON, or a layout that is not v1 (saved by
+        // an older version, edited by hand), throws, and the dashboard starts empty
+        restored = {
+            model: createModel<Types>(saved ? JSON.parse(saved) : EMPTY),
+        };
+    } catch (error) {
+        restored = { model: createModel<Types>(EMPTY), error: describe(error) };
+    }
+    restored.model.use(dropRules);
+    return restored;
+}
+
+function PaletteItem({
+    model,
+    widget,
+}: {
+    model: Model<Types>;
+    widget: Widget;
+}) {
     const Icon = widget.icon;
     return (
         <Dockable.DragSource
             model={model}
-            json={() => widgetTab(widget)}
+            tab={() => widgetTab(widget)}
             render={<li />}
             className={cn(
                 "palette-raised flex cursor-grab items-center gap-2 rounded-(--dk-radius) border border-palette-line",
@@ -110,12 +171,12 @@ function PaletteItem({ model, widget }: { model: Model; widget: Widget }) {
     );
 }
 
-function TabContent({ tab }: { tab: TabNode }) {
+function TabContent({ tab }: { tab: TabOf<Types> }) {
     return <WidgetContent tab={tab} />;
 }
 
 /** The kit's tabset, with a hint in the empty canvas. */
-function TabSet({ node }: { node: TabSetNode }) {
+function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet
             node={node}
@@ -138,7 +199,7 @@ function TabSet({ node }: { node: TabSetNode }) {
                                 />
                             ) : null}
                             <span data-tab-label className={styles.tabLabel}>
-                                {tab.getName()}
+                                {tab.data.name}
                             </span>
                         </KitTabButton>
                     );
@@ -147,7 +208,7 @@ function TabSet({ node }: { node: TabSetNode }) {
             <Dockable.TabSetContent
                 // no panel covers an empty tabset, so its content area can show a hint
                 render={(props, state) => (
-                    <div {...props} ref={props.ref as Ref<HTMLDivElement>}>
+                    <div {...props}>
                         {state.empty ? (
                             <div className="grid h-full place-content-center justify-items-center gap-2 p-4 text-center text-sm text-palette-accent/85">
                                 <LayoutDashboard
@@ -165,7 +226,10 @@ function TabSet({ node }: { node: TabSetNode }) {
 }
 
 export default function DashboardBuilder() {
-    const [model, setModel] = useState(() => withRules(load()));
+    // the model is created once; Reset loads the empty layout into it
+    const [initial] = useState(restore);
+    const model = initial.model;
+    const [restoreError, setRestoreError] = useState(initial.error);
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
@@ -178,7 +242,8 @@ export default function DashboardBuilder() {
         try {
             window.localStorage.setItem(
                 STORAGE_KEY,
-                JSON.stringify(model.toJson()),
+                // the layout document (JSON v1): what createModel and layout.load read back
+                JSON.stringify(model.toJSON()),
             );
             setSaved(true);
         } catch {
@@ -191,8 +256,9 @@ export default function DashboardBuilder() {
         } catch {
             // storage unavailable
         }
-        // a new model is a new layout: Dockable.Root creates a new engine for it
-        setModel(withRules(Model.fromJson(EMPTY)));
+        // the same model, a new state: the rules stay installed
+        model.run("layout.load", { layout: EMPTY });
+        setRestoreError(undefined);
     };
 
     return (
@@ -218,6 +284,21 @@ export default function DashboardBuilder() {
                     </button>
                 </div>
             </div>
+            {restoreError ? (
+                <div
+                    role="alert"
+                    className="palette-danger border-b border-palette-line bg-palette-base px-3 py-2 text-sm text-palette-contrast"
+                >
+                    <p>{`The saved layout could not be restored: ${restoreError.message}`}</p>
+                    {restoreError.issues.length > 0 ? (
+                        <ul className="mt-1 list-disc ps-5 font-mono text-xs">
+                            {restoreError.issues.slice(0, 5).map((issue) => (
+                                <li key={issue}>{issue}</li>
+                            ))}
+                        </ul>
+                    ) : null}
+                </div>
+            ) : null}
             <div className="flex min-h-0 flex-1">
                 <aside
                     aria-label="Widget palette"

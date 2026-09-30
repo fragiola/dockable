@@ -1,11 +1,11 @@
 "use client";
 
 import {
-    Actions,
-    type IJsonModel,
-    Model,
-    type TabNode,
-    type TabSetNode,
+    createModel,
+    type LayoutJson,
+    type TabJson,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import {
     Dockable,
@@ -15,7 +15,7 @@ import {
 import { useState } from "react";
 import { Select } from "#/components/ui/select";
 import { Card } from "../_kit/card";
-import { DockLayout, KitTab } from "../_kit/layout";
+import { DockLayout, KitTab, tabName } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { useStageTheme } from "../_kit/theme";
 
@@ -24,12 +24,18 @@ import { useStageTheme } from "../_kit/theme";
 // while tabs are hidden) is the trigger of a Fragiola Select listing just those. Picking one
 // selects it, which brings it into the strip; another tab goes to the select in its place.
 
-const file = (name: string) => ({ type: "tab", name, component: "file" });
+// What the layout holds: file tabs, named in their data. `altName` names a tab in the select when
+// it has no name of its own (an icon-only tab).
+type Types = { tabs: { file: { name: string; altName?: string } } };
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const file = (name: string): TabJson<Types> => ({
+    component: "file",
+    data: { name },
+});
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
@@ -53,17 +59,17 @@ const json: IJsonModel = {
     },
 };
 
-function OverflowStrip({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
+function OverflowStrip({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { run } = useDockable<Types>();
     const { hidden } = useTabOverflow(tabset);
     const [themeRef, theme] = useStageTheme();
     // a tab with no name (an icon-only tab) is named by its altName in the menu
-    const label = (tab: TabNode) => tab.getName() || tab.getAltName();
+    const label = (tab: TabOf<Types>) => tab.data.name || tab.data.altName;
 
     return (
         <div className={styles.tabsetHeader}>
-            <Dockable.TabList
-                aria-label={tabset.getName() ?? "Tabs"}
+            <Dockable.TabList<Types>
+                aria-label={tabName(tabset) || "Tabs"}
                 data-kit-tablist=""
                 className={styles.tabList}
             >
@@ -73,7 +79,7 @@ function OverflowStrip({ tabset }: { tabset: TabSetNode }) {
                 value={null}
                 onValueChange={(id) => {
                     if (typeof id === "string") {
-                        engine.doAction(Actions.selectTab(id));
+                        run("tab.select", { tab: id });
                     }
                 }}
             >
@@ -90,7 +96,7 @@ function OverflowStrip({ tabset }: { tabset: TabSetNode }) {
                 </Dockable.TabOverflowTrigger>
                 <Select.Content data-example-theme={theme}>
                     {hidden.map((tab) => (
-                        <Select.Item key={tab.getId()} value={tab.getId()}>
+                        <Select.Item key={tab.id} value={tab.id}>
                             {label(tab)}
                         </Select.Item>
                     ))}
@@ -101,7 +107,7 @@ function OverflowStrip({ tabset }: { tabset: TabSetNode }) {
 }
 
 export default function OverflowSelect() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}

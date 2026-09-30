@@ -8,6 +8,8 @@ export default {
     order: 17,
     features: [
         "Dockable.PopoutTrigger",
+        "tab.popout",
+        "tabset.popout",
         "cross-window drag",
         "popoutMirrorRoot",
         "Dockable.Popout",

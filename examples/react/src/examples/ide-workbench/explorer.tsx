@@ -13,7 +13,7 @@ import { cn } from "#/lib/cn";
 import { FILE_PATHS, fileName, folderOf } from "./files";
 
 // The file tree. It is the content of the left border's "Explorer" tab, and opens files through
-// the callback it is given (the example turns that into `Actions.addTab` / `Actions.selectTab`).
+// the callback it is given (the example turns that into the `tab.add` / `tab.select` commands).
 
 /** A file icon, coloured by type through a palette (so every theme recolours it). */
 export function FileIcon({

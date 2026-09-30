@@ -1,4 +1,4 @@
-import type { IJsonModel, IJsonTabNode } from "@fragiola/dockable";
+import type { LayoutJson, TabInitOf, TabOf } from "@fragiola/dockable";
 import { series } from "../_kit/charts";
 
 // The dashboard's data (deterministic, so every visit shows the same numbers), its filters,
@@ -122,47 +122,62 @@ export const ORDERS: Order[] = CUSTOMERS.map((customer, index) => ({
 
 // ── Widgets ─────────────────────────────────────────────────────────────────
 
-/** Every widget "Add widget" can create: the tab's component and config. */
-export const WIDGETS: { label: string; tab: IJsonTabNode }[] = [
-    {
-        label: "Revenue chart",
-        tab: {
-            name: "Revenue",
-            component: "chart",
-            config: { metric: "revenue" },
-        },
-    },
-    {
-        label: "Channels chart",
-        tab: {
-            name: "Channels",
-            component: "chart",
-            config: { metric: "channels" },
-        },
-    },
-    { label: "Orders table", tab: { name: "Orders", component: "table" } },
-    {
-        label: "Conversion KPI",
-        tab: {
-            name: "Conversion",
-            component: "kpi",
-            config: { metric: "conversion" },
-        },
-    },
-    {
-        label: "Average order KPI",
-        tab: {
-            name: "Avg. order",
-            component: "kpi",
-            config: { metric: "aov" },
-        },
-    },
+/** What a KPI tab keeps in its `data`; `status` is written by the widget itself. */
+export interface KpiData {
+    name: string;
+    metric: KpiMetric;
+    status?: "ok" | "alert";
+}
+
+/** What the layout holds: each widget's `component` and the type of its tab's `data`. */
+export type Types = {
+    tabs: {
+        chart: { name: string; metric: ChartMetric; kind?: "bar" };
+        table: { name: string };
+        kpi: KpiData;
+    };
+};
+
+/** A tab of the dashboard of one widget kind: `tab.data` is that widget's data. */
+export type WidgetTab<K extends TabOf<Types>["component"]> = Extract<
+    TabOf<Types>,
+    { component: K }
+>;
+
+const REVENUE = {
+    component: "chart",
+    data: { name: "Revenue", metric: "revenue" },
+} satisfies TabInitOf<Types>;
+const CHANNELS = {
+    component: "chart",
+    data: { name: "Channels", metric: "channels" },
+} satisfies TabInitOf<Types>;
+const ORDERS_TABLE = {
+    component: "table",
+    data: { name: "Orders" },
+} satisfies TabInitOf<Types>;
+const CONVERSION = {
+    component: "kpi",
+    data: { name: "Conversion", metric: "conversion" },
+} satisfies TabInitOf<Types>;
+const AVERAGE_ORDER = {
+    component: "kpi",
+    data: { name: "Avg. order", metric: "aov" },
+} satisfies TabInitOf<Types>;
+
+/** Every widget "Add widget" can create: the tab's component and data. */
+export const WIDGETS: { label: string; tab: TabInitOf<Types> }[] = [
+    { label: "Revenue chart", tab: REVENUE },
+    { label: "Channels chart", tab: CHANNELS },
+    { label: "Orders table", tab: ORDERS_TABLE },
+    { label: "Conversion KPI", tab: CONVERSION },
+    { label: "Average order KPI", tab: AVERAGE_ORDER },
 ];
 
-export const layout: IJsonModel = {
-    global: { tabEnablePopout: true, tabEnableRename: false },
-    borders: [],
-    layout: {
+export const layout: LayoutJson<Types> = {
+    version: 1,
+    defaults: { tab: { enablePopout: true } },
+    root: {
         type: "row",
         children: [
             {
@@ -173,16 +188,14 @@ export const layout: IJsonModel = {
                         type: "tabset",
                         weight: 58,
                         children: [
-                            { type: "tab", id: "revenue", ...WIDGETS[0]?.tab },
-                            { type: "tab", id: "channels", ...WIDGETS[1]?.tab },
+                            { id: "revenue", ...REVENUE },
+                            { id: "channels", ...CHANNELS },
                         ],
                     },
                     {
                         type: "tabset",
                         weight: 42,
-                        children: [
-                            { type: "tab", id: "orders", ...WIDGETS[2]?.tab },
-                        ],
+                        children: [{ id: "orders", ...ORDERS_TABLE }],
                     },
                 ],
             },
@@ -194,12 +207,8 @@ export const layout: IJsonModel = {
                         type: "tabset",
                         weight: 50,
                         children: [
-                            {
-                                type: "tab",
-                                id: "conversion",
-                                ...WIDGETS[3]?.tab,
-                            },
-                            { type: "tab", id: "aov", ...WIDGETS[4]?.tab },
+                            { id: "conversion", ...CONVERSION },
+                            { id: "aov", ...AVERAGE_ORDER },
                         ],
                     },
                     {
@@ -207,11 +216,13 @@ export const layout: IJsonModel = {
                         weight: 50,
                         children: [
                             {
-                                type: "tab",
                                 id: "mix",
-                                name: "Channel mix",
                                 component: "chart",
-                                config: { metric: "channels", kind: "bar" },
+                                data: {
+                                    name: "Channel mix",
+                                    metric: "channels",
+                                    kind: "bar",
+                                },
                             },
                         ],
                     },

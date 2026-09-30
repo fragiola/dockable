@@ -4,7 +4,12 @@
 // The hook tests, rewritten against the examples' framework-agnostic UndoManager (the kit's
 // `_kit/undo.ts`): same cases, no React.
 
-import { createModel, type LayoutJson, type Model } from "@fragiola/dockable";
+import {
+    createModel,
+    type LayoutJson,
+    type Model,
+    veto,
+} from "@fragiola/dockable";
 import { describe, expect, it, vi } from "vitest";
 import { UndoManager } from "../src/examples/_kit/undo";
 
@@ -226,6 +231,21 @@ describe("UndoManager", () => {
         expect(undo.undoCount).toBe(1);
         expect(undo.redoCount).toBe(0);
         expect(children(model(undo), "ts2")).toEqual(["t2", "t1"]);
+    });
+
+    it("keeps the step when the model refuses to load it", () => {
+        const undo = new UndoManager(fresh());
+        model(undo).run("tab.close", { tab: "t1" });
+        const remove = model(undo).use((ctx, next) =>
+            ctx.command === "layout.load" ? veto() : next(),
+        );
+        undo.undo();
+        expect(undo.undoCount).toBe(1);
+        expect(undo.redoCount).toBe(0);
+        expect(model(undo).get("t1")).toBeUndefined();
+        remove();
+        undo.undo();
+        expect(model(undo).get("t1")).not.toBeUndefined();
     });
 
     it("setModel replaces the model and resets the history by default", () => {

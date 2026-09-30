@@ -1,78 +1,82 @@
 "use client";
 
 import {
-    Actions,
     type BorderNode,
-    DockLocation,
-    type IJsonModel,
-    LayoutEngine,
-    Model,
+    createModel,
+    type LayoutJson,
+    type Model,
 } from "@fragiola/dockable";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Card } from "../_kit/card";
 import { LogPanel } from "../_kit/data";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
-// Overlay borders (`borderType: "overlay"`) open over the layout instead of beside it, and close
-// on a press elsewhere in the layout or on Escape (keyMap.closeOverlayBorder). The toolbar switches
-// a border's type with Actions.setBorderType. The right border is empty and `enableAutoHide`: it
+// Overlay borders (`mode: "overlay"`) open over the layout instead of beside it, and close on a
+// press elsewhere in the layout or on Escape (keyMap.closeOverlayBorder). The toolbar switches a
+// border's mode with the `border.configure` command. The right border is empty and `autoHide`: it
 // shows up while a tab is dragged near the layout's right edge, so it can take the drop. The kit's
 // edge indicators mark where a drop docks to an edge instead.
 
-const json: IJsonModel = {
-    global: { borderSize: 240 },
+// What the layout holds: each tab component and the type of its data.
+type Types = { tabs: { card: { name: string }; log: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    defaults: { border: { size: 240 } },
     borders: [
         {
-            type: "border",
             location: "left",
-            borderType: "overlay",
+            mode: "overlay",
             children: [
-                { type: "tab", name: "Inbox", component: "card" },
-                { type: "tab", name: "Drafts", component: "card" },
+                { component: "card", data: { name: "Inbox" } },
+                { component: "card", data: { name: "Drafts" } },
             ],
         },
         {
-            type: "border",
             location: "bottom",
-            borderType: "overlay",
+            mode: "overlay",
             size: 180,
-            children: [{ type: "tab", name: "Console", component: "log" }],
+            children: [{ component: "log", data: { name: "Console" } }],
         },
         {
-            type: "border",
             location: "right",
-            enableAutoHide: true,
+            autoHide: true,
             children: [],
         },
     ],
-    layout: {
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { type: "tab", name: "Message", component: "card" },
-                    { type: "tab", name: "Calendar", component: "card" },
+                    { component: "card", data: { name: "Message" } },
+                    { component: "card", data: { name: "Calendar" } },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
-                children: [
-                    { type: "tab", name: "Contacts", component: "card" },
-                ],
+                children: [{ component: "card", data: { name: "Contacts" } }],
             },
         ],
     },
 };
 
-const SWITCHABLE = [DockLocation.LEFT, DockLocation.BOTTOM];
+const SWITCHABLE = ["left", "bottom"] as const;
 
-function TypeSwitch({ model, border }: { model: Model; border: BorderNode }) {
-    const overlay = border.isOverlay();
-    const name = border.getLocation().getName();
+function ModeSwitch({
+    model,
+    border,
+}: {
+    model: Model<Types>;
+    border: BorderNode<Types>;
+}) {
+    // the border's mode, resolved against the layout defaults
+    const overlay = model.resolve(border).mode === "overlay";
+    const name = border.location;
     return (
         <button
             type="button"
@@ -80,13 +84,11 @@ function TypeSwitch({ model, border }: { model: Model; border: BorderNode }) {
             className={styles.button}
             aria-pressed={overlay}
             onClick={() =>
-                // through the engine, so onAction sees it; LayoutEngine.of finds the mounted one
-                LayoutEngine.of(model)?.doAction(
-                    Actions.setBorderType(
-                        border.getId(),
-                        overlay ? "split" : "overlay",
-                    ),
-                )
+                // a command on the model: it goes through the model's middleware like any change
+                model.run("border.configure", {
+                    border: border.id,
+                    mode: overlay ? "docked" : "overlay",
+                })
             }
         >
             {`${name[0]?.toUpperCase()}${name.slice(1)}: ${overlay ? "overlay" : "split"}`}
@@ -95,17 +97,24 @@ function TypeSwitch({ model, border }: { model: Model; border: BorderNode }) {
 }
 
 export default function OverlayBorders() {
-    const [model] = useState(() => Model.fromJson(json));
-    const [, setRevision] = useState(0);
-    const borders = model.getBorderSet().getBorderMap();
+    const [model] = useState(() => createModel<Types>(json));
+    // the toolbar is outside the layout: it reads the borders from the model's state, and
+    // re-renders on every change
+    const state = useSyncExternalStore(
+        model.subscribe,
+        () => model.state,
+        () => model.state,
+    );
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <div className={styles.toolbar}>
                 {SWITCHABLE.map((location) => {
-                    const border = borders.get(location);
+                    const border = state.borders.find(
+                        (candidate) => candidate.location === location,
+                    );
                     return border ? (
-                        <TypeSwitch
-                            key={location.getName()}
+                        <ModeSwitch
+                            key={location}
                             model={model}
                             border={border}
                         />
@@ -119,14 +128,8 @@ export default function OverlayBorders() {
             <DockLayout
                 model={model}
                 edgeIndicators
-                // the toolbar reads the border types from the model
-                onModelChange={() => setRevision((n) => n + 1)}
                 renderContent={(tab) =>
-                    tab.getComponent() === "log" ? (
-                        <LogPanel />
-                    ) : (
-                        <Card tab={tab} />
-                    )
+                    tab.component === "log" ? <LogPanel /> : <Card tab={tab} />
                 }
             />
         </div>

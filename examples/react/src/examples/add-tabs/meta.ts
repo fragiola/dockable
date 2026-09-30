@@ -6,6 +6,6 @@ export default {
         "A toolbar outside the layout adds chart, table and log tabs to the active tabset, or to a new tabset docked to the right or bottom.",
     level: "basic",
     order: 5,
-    features: ["Actions.addTab", "DockLocation", "getActiveTabset", "Select"],
+    features: ["tab.add", "model.run", "activeTabset", "Select"],
     docs: "/docs/guides/tabs",
 } satisfies ExampleMeta;

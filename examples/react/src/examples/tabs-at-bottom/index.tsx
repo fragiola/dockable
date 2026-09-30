@@ -1,6 +1,10 @@
 "use client";
 
-import { type IJsonModel, Model, type TabSetNode } from "@fragiola/dockable";
+import {
+    createModel,
+    type LayoutJson,
+    type TabsetNode,
+} from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { PanelBottom, PanelTop } from "lucide-react";
 import { useState } from "react";
@@ -10,27 +14,29 @@ import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { KitTabButton, KitTabStrip } from "../_kit/tab-strip";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+// What the layout holds: each tab component and the type of its data.
+type Types = { tabs: { card: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { type: "tab", name: "Sheet 1", component: "card" },
-                    { type: "tab", name: "Sheet 2", component: "card" },
-                    { type: "tab", name: "Sheet 3", component: "card" },
+                    { component: "card", data: { name: "Sheet 1" } },
+                    { component: "card", data: { name: "Sheet 2" } },
+                    { component: "card", data: { name: "Sheet 3" } },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
                 children: [
-                    { type: "tab", name: "Console", component: "card" },
-                    { type: "tab", name: "Watch", component: "card" },
+                    { component: "card", data: { name: "Console" } },
+                    { component: "card", data: { name: "Watch" } },
                 ],
             },
         ],
@@ -45,7 +51,13 @@ type Position = "top" | "bottom";
  * just by coming after it in the markup: the engine measures the content area wherever it is
  * and positions the panel over it.
  */
-function TabSet({ node, position }: { node: TabSetNode; position: Position }) {
+function TabSet({
+    node,
+    position,
+}: {
+    node: TabsetNode<Types>;
+    position: Position;
+}) {
     const bottom = position === "bottom";
     const strip = (
         <KitTabStrip
@@ -75,7 +87,7 @@ function TabSet({ node, position }: { node: TabSetNode; position: Position }) {
 }
 
 export default function TabsAtBottom() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     const [position, setPosition] = useState<Position>("bottom");
     return (
         <div className="flex min-h-0 flex-1 flex-col">

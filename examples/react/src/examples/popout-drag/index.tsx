@@ -1,6 +1,10 @@
 "use client";
 
-import { type IJsonModel, Model, type TabSetNode } from "@fragiola/dockable";
+import {
+    createModel,
+    type LayoutJson,
+    type TabsetNode,
+} from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import {
     AppWindow,
@@ -17,35 +21,34 @@ import * as styles from "../_kit/styles";
 // another; each window draws its own outline (the kit puts a DropIndicator in Dockable.Popout).
 // The content element moves with the tab, so the counter and the notes keep their values.
 
-const json: IJsonModel = {
-    global: { tabEnablePopout: true },
-    borders: [],
-    layout: {
+// What the layout holds: one tab component, named in its data.
+type Types = { tabs: { card: { name: string } } };
+
+const card = (name: string) => ({ component: "card" as const, data: { name } });
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    // every tab may go to a window (`tab.popout`, `tabset.popout`)
+    defaults: { tab: { enablePopout: true } },
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 50,
-                children: [
-                    { type: "tab", name: "Orders", component: "card" },
-                    { type: "tab", name: "Customers", component: "card" },
-                    { type: "tab", name: "Invoices", component: "card" },
-                ],
+                children: [card("Orders"), card("Customers"), card("Invoices")],
             },
             {
                 type: "tabset",
                 weight: 50,
-                children: [
-                    { type: "tab", name: "Chart", component: "card" },
-                    { type: "tab", name: "Notes", component: "card" },
-                ],
+                children: [card("Chart"), card("Notes")],
             },
         ],
     },
 };
 
 /** Two triggers: the selected tab, and the whole tabset. Each docks back from a window. */
-function WindowButtons({ tabset }: { tabset: TabSetNode }) {
+function WindowButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <>
             <Dockable.PopoutTrigger
@@ -63,7 +66,7 @@ function WindowButtons({ tabset }: { tabset: TabSetNode }) {
                 />
             </Dockable.PopoutTrigger>
             {/* one trigger per tabset is enough in a window: the tab trigger docks back */}
-            {tabset.getChildren().length > 1 ? (
+            {tabset.children.length > 1 ? (
                 <Dockable.PopoutTrigger
                     target="tabset"
                     aria-label="Pop out the whole tabset"
@@ -78,7 +81,7 @@ function WindowButtons({ tabset }: { tabset: TabSetNode }) {
 }
 
 export default function PopoutDrag() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}

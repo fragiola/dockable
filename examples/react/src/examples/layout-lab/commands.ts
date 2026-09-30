@@ -1,32 +1,28 @@
-import { type Action, Actions, type IJsonModel } from "@fragiola/dockable";
+import type { CommandName, LayoutJson } from "@fragiola/dockable";
 
-// The lab's starting layout, and the action types the veto switch can stop.
+// The lab's registry and starting layout, and the log of the commands its middleware sees.
 
-export const initialLayout: IJsonModel = {
-    global: { tabEnableRename: false },
-    borders: [],
-    layout: {
+/** What the layout holds: one tab component, named in its data. */
+export type Types = { tabs: { card: { name: string } } };
+
+export const initialLayout: LayoutJson<Types> = {
+    version: 1,
+    root: {
         // explicit ids keep the JSON readable (the model generates one for any node without)
         type: "row",
         id: "root",
         children: [
             {
                 type: "tabset",
-                id: "main",
+                id: "primary",
                 weight: 55,
                 children: [
                     {
-                        type: "tab",
                         id: "welcome",
-                        name: "Welcome",
                         component: "card",
+                        data: { name: "Welcome" },
                     },
-                    {
-                        type: "tab",
-                        id: "notes",
-                        name: "Notes",
-                        component: "card",
-                    },
+                    { id: "notes", component: "card", data: { name: "Notes" } },
                 ],
             },
             {
@@ -39,10 +35,9 @@ export const initialLayout: IJsonModel = {
                         id: "top",
                         children: [
                             {
-                                type: "tab",
                                 id: "inspector",
-                                name: "Inspector",
                                 component: "card",
+                                data: { name: "Inspector" },
                             },
                         ],
                     },
@@ -51,10 +46,9 @@ export const initialLayout: IJsonModel = {
                         id: "bottom",
                         children: [
                             {
-                                type: "tab",
                                 id: "console",
-                                name: "Console",
                                 component: "card",
+                                data: { name: "Console" },
                             },
                         ],
                     },
@@ -64,48 +58,35 @@ export const initialLayout: IJsonModel = {
     },
 };
 
-/** `FlexLayout_SelectTab` → `selectTab`: the name of the `Actions.x` factory. */
-export function actionName(type: string): string {
-    const name = type.replace(/^FlexLayout_/, "");
-    return name.charAt(0).toLowerCase() + name.slice(1);
-}
-
-/** The action types a user can trigger from this layout, named as their factories. */
-export const ACTION_TYPES = [
-    Actions.SELECT_TAB,
-    Actions.MOVE_NODE,
-    Actions.ADD_TAB,
-    Actions.DELETE_TAB,
-    Actions.ADJUST_WEIGHTS,
-    Actions.MAXIMIZE_TOGGLE,
-].map((type) => ({ value: type, label: actionName(type) }));
-
 export interface LogEntry {
     id: number;
-    type: string;
+    command: CommandName;
     payload: string;
-    vetoed: boolean;
-    /** part of a drag still in progress */
-    adjusting: boolean;
+    /** "applied", or why not: "vetoed", "refused", "not_found", … (the result's error code) */
+    outcome: string;
+    /** a step of a gesture still in progress (a splitter drag) */
+    transient: boolean;
 }
 
 let nextId = 0;
 
-/** Adds an action to the log. A drag (a stream of "adjusting" actions) is one line. */
+/** Adds a command to the log. A drag (a stream of transient commands) is one line. */
 export function appendToLog(
     log: LogEntry[],
-    action: Action,
-    vetoed: boolean,
+    command: CommandName,
+    payload: unknown,
+    outcome: string,
+    transient: boolean,
 ): LogEntry[] {
-    const entry = {
+    const entry: LogEntry = {
         id: ++nextId,
-        type: action.type,
-        payload: JSON.stringify(action.data),
-        vetoed,
-        adjusting: action.isAdjusting(),
+        command,
+        payload: JSON.stringify(payload),
+        outcome,
+        transient,
     };
     const last = log[log.length - 1];
-    if (last?.adjusting && last.type === action.type) {
+    if (last?.transient && last.command === command) {
         return [...log.slice(0, -1), entry];
     }
     return [...log, entry].slice(-100);

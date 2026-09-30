@@ -6,6 +6,12 @@ export default {
         "An UndoManager you own (the kit's `_kit/undo.ts`): undo and redo buttons, Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z, and the list of steps. A splitter drag is one step, and the content keeps its state across undo.",
     level: "intermediate",
     order: 7,
-    features: ["UndoManager", "useSyncExternalStore", "onModelChange"],
+    features: [
+        "UndoManager",
+        "model.subscribe",
+        "layout.load",
+        "useModelState",
+        "useSyncExternalStore",
+    ],
     docs: "/docs/guides/undo-redo",
 } satisfies ExampleMeta;

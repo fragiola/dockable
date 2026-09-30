@@ -1,11 +1,11 @@
 "use client";
 
 import {
-    type IJsonModel,
-    LayoutEngine,
-    Model,
-    type TabNode,
-    type TabSetNode,
+    type BatchEntry,
+    createModel,
+    type LayoutJson,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { MonitorDown, MonitorUp, Undo2 } from "lucide-react";
@@ -17,28 +17,35 @@ import * as styles from "../_kit/styles";
 
 // A control room: each tabset can go to its own window ("screen"), tabs can be dragged between
 // the windows and the main layout, and "Bring everything back" docks every window's tabs into the
-// main layout. Dockable.PopoutTrigger with target="tabset" does the sending; engine.dockBack the
-// bringing back. The kit mirrors the page's theme into each window (popoutMirrorRoot).
+// main layout. Dockable.PopoutTrigger with target="tabset" does the sending; a batch of
+// `window.close` commands the bringing back. The kit mirrors the page's theme into each window (popoutMirrorRoot).
 
-const panel = (name: string, component: string) => ({
-    type: "tab" as const,
-    name,
-    component,
-});
+// What the layout holds: five panel components (named in their data) and named tabsets.
+type Types = {
+    tabs: {
+        requests: { name: string };
+        latency: { name: string };
+        orders: { name: string };
+        refunds: { name: string };
+        events: { name: string };
+    };
+    tabset: { name: string };
+};
 
-const json: IJsonModel = {
-    global: { tabEnablePopout: true },
-    borders: [],
-    layout: {
+const json: LayoutJson<Types> = {
+    version: 1,
+    // every tab may go to a window (`tab.popout`, `tabset.popout`)
+    defaults: { tab: { enablePopout: true } },
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
-                name: "Traffic",
+                data: { name: "Traffic" },
                 weight: 40,
                 children: [
-                    panel("Requests", "requests"),
-                    panel("Latency", "latency"),
+                    { component: "requests", data: { name: "Requests" } },
+                    { component: "latency", data: { name: "Latency" } },
                 ],
             },
             {
@@ -47,16 +54,18 @@ const json: IJsonModel = {
                 children: [
                     {
                         type: "tabset",
-                        name: "Orders",
+                        data: { name: "Orders" },
                         children: [
-                            panel("Orders", "orders"),
-                            panel("Refunds", "refunds"),
+                            { component: "orders", data: { name: "Orders" } },
+                            { component: "refunds", data: { name: "Refunds" } },
                         ],
                     },
                     {
                         type: "tabset",
-                        name: "Events",
-                        children: [panel("Events", "events")],
+                        data: { name: "Events" },
+                        children: [
+                            { component: "events", data: { name: "Events" } },
+                        ],
                     },
                 ],
             },
@@ -64,8 +73,8 @@ const json: IJsonModel = {
     },
 };
 
-function Content({ tab }: { tab: TabNode }) {
-    switch (tab.getComponent()) {
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
         case "requests":
             return <ChartPanel kind="area" seed={11} />;
         case "latency":
@@ -73,14 +82,14 @@ function Content({ tab }: { tab: TabNode }) {
         case "orders":
         case "refunds":
             return <TablePanel />;
-        default:
+        case "events":
             return <LogPanel />;
     }
 }
 
 /** Sends the whole tabset to a window; in a window, brings it back. */
-function ScreenButton({ tabset }: { tabset: TabSetNode }) {
-    const name = tabset.getName() ?? "panel";
+function ScreenButton({ tabset }: { tabset: TabsetNode<Types> }) {
+    const name = tabset.data?.name ?? "panel";
     return (
         <Dockable.PopoutTrigger
             target="tabset"
@@ -107,24 +116,25 @@ function BackButton() {
 }
 
 export default function MultiMonitor() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     const [status, setStatus] = useState("");
 
-    // every tab of every window, back into the main layout
+    // every window closes, and its tabs dock back into the main layout: one batch, one step
     const bringBack = () => {
-        const engine = LayoutEngine.of(model);
-        if (!engine) return;
-        const windows: TabNode[] = [];
-        for (const [layoutId] of model.getLayouts()) {
-            if (layoutId === Model.MAIN_LAYOUT_ID) continue;
-            model.visitLayoutNodes(layoutId, (node) => {
-                if (node.getType() === "tab") windows.push(node as TabNode);
-            });
+        const windows = model.state.windows;
+        const panels = windows.flatMap((layout) => model.tabs(layout.id));
+        const commands = windows.map(
+            (layout): BatchEntry<Types> => ({
+                command: "window.close",
+                payload: { window: layout.id },
+            }),
+        );
+        if (commands.length > 0) {
+            model.run("batch", { commands });
         }
-        for (const tab of windows) engine.dockBack(tab);
         setStatus(
-            windows.length
-                ? `Brought back ${windows.length} panel(s)`
+            panels.length
+                ? `Brought back ${panels.length} panel(s)`
                 : "Nothing is on another screen",
         );
     };

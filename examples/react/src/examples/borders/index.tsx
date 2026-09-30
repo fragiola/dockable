@@ -1,6 +1,6 @@
 "use client";
 
-import { type IJsonModel, Model, type TabNode } from "@fragiola/dockable";
+import { createModel, type LayoutJson, type TabOf } from "@fragiola/dockable";
 import { FileCode2, ListTree, Search, SquareTerminal } from "lucide-react";
 import { useState } from "react";
 import { Card, PanelBody } from "../_kit/card";
@@ -12,41 +12,52 @@ import { DockLayout } from "../_kit/layout";
 // (the frame), Dockable.Border (the strip) and Dockable.BorderContent (the panel area and its
 // splitter); open one, resize it, or drag a tab between a border and the tabsets.
 
-const json: IJsonModel = {
-    global: { borderSize: 220 },
+// Every component carries its tab's name in its data.
+type Named = { name: string };
+type Types = {
+    tabs: {
+        explorer: Named;
+        search: Named;
+        terminal: Named;
+        outline: Named;
+        card: Named;
+    };
+};
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    // every border's panel size, unless the border sets its own
+    defaults: { border: { size: 220 } },
     borders: [
         {
-            type: "border",
             location: "left",
             selected: 0,
             children: [
-                { type: "tab", name: "Explorer", component: "explorer" },
-                { type: "tab", name: "Search", component: "search" },
+                { component: "explorer", data: { name: "Explorer" } },
+                { component: "search", data: { name: "Search" } },
             ],
         },
         {
-            type: "border",
             location: "bottom",
             size: 160,
             children: [
-                { type: "tab", name: "Terminal", component: "terminal" },
-                { type: "tab", name: "Output", component: "terminal" },
+                { component: "terminal", data: { name: "Terminal" } },
+                { component: "terminal", data: { name: "Output" } },
             ],
         },
         {
-            type: "border",
             location: "right",
-            children: [{ type: "tab", name: "Outline", component: "outline" }],
+            children: [{ component: "outline", data: { name: "Outline" } }],
         },
     ],
-    layout: {
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 children: [
-                    { type: "tab", name: "app.ts", component: "card" },
-                    { type: "tab", name: "store.ts", component: "card" },
+                    { component: "card", data: { name: "app.ts" } },
+                    { component: "card", data: { name: "store.ts" } },
                 ],
             },
         ],
@@ -55,25 +66,26 @@ const json: IJsonModel = {
 
 const FILES = ["src/app.ts", "src/store.ts", "src/theme.css", "README.md"];
 
-const icons = {
+// an icon per border component (the editors have none)
+const icons: Partial<Record<TabOf<Types>["component"], typeof ListTree>> = {
     explorer: ListTree,
     search: Search,
     terminal: SquareTerminal,
     outline: FileCode2,
-} as const;
+};
 
-function BorderTabLabel({ tab }: { tab: TabNode }) {
-    const Icon = icons[tab.getComponent() as keyof typeof icons];
+function BorderTabLabel({ tab }: { tab: TabOf<Types> }) {
+    const Icon = icons[tab.component];
     return (
         <>
             {Icon ? <Icon aria-hidden="true" className="size-3.5" /> : null}
-            {tab.getName()}
+            {tab.data.name}
         </>
     );
 }
 
-function Content({ tab }: { tab: TabNode }) {
-    switch (tab.getComponent()) {
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
         case "explorer":
             return (
                 <PanelBody title="Explorer">
@@ -106,13 +118,13 @@ function Content({ tab }: { tab: TabNode }) {
                     </p>
                 </PanelBody>
             );
-        default:
+        case "card":
             return <Card tab={tab} />;
     }
 }
 
 export default function Borders() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}

@@ -13,6 +13,8 @@ export default {
         "border splitter",
         "data-location",
         "data-open",
+        "defaults.border",
+        "typed data",
     ],
     docs: "/docs/guides/borders",
 } satisfies ExampleMeta;

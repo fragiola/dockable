@@ -1,50 +1,52 @@
 "use client";
 
 import {
-    type Action,
-    Actions,
+    createModel,
     DockableLabel,
-    DockLocation,
-    type LayoutEngine,
-    Model,
-    type TabNode,
+    type TabOf,
+    veto as vetoResult,
 } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "#/lib/cn";
 import { Card } from "../_kit/card";
-import { EngineBridge } from "../_kit/engine-bridge";
 import { label } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { usePopupTheme } from "../_kit/theme";
 import { UndoManager } from "../_kit/undo";
-import { appendToLog, initialLayout, type LogEntry } from "./actions";
-import { ActionLog, JsonEditor, type Veto, VetoControl } from "./panels";
+import {
+    appendToLog,
+    initialLayout,
+    type LogEntry,
+    type Types,
+} from "./commands";
+import { CommandLog, JsonEditor, type Veto, VetoControl } from "./panels";
 
-// The model is the source of truth, made visible. Left: the model's JSON, editable (Apply builds
-// a new model with Model.fromJson). Right: the layout it renders. Below: every action onAction
-// receives, and a switch that vetoes one action type (onAction returns undefined, the model does
-// not change). Undo and redo swap in the previous model.
+// The model is the source of truth, made visible. Left: the model's JSON (v1), editable (Apply
+// loads it with the `layout.load` command, validated first). Right: the layout it renders. Below:
+// every command a middleware (`model.use`) sees, and a switch that vetoes one command (the
+// middleware returns `veto(…)`, the model does not change). Undo and redo load the previous layout
+// back into the same model.
 
-/** A tab with a close button: one more action to watch in the log. */
-function LabTab({ tab }: { tab: TabNode }) {
-    const { engine } = useDockable();
+/** A tab with a close button: one more command to watch in the log. */
+function LabTab({ tab }: { tab: TabOf<Types> }) {
+    const { run } = useDockable<Types>();
     return (
         <>
             <span data-tab-label className={styles.tabLabel}>
-                {tab.getName()}
+                {tab.data.name}
             </span>
             <button
                 type="button"
                 tabIndex={-1}
                 draggable={false}
-                aria-label={`${label(DockableLabel.Close_Tab)} ${tab.getName()}`}
+                aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
-                    engine.doAction(Actions.deleteTab(tab.getId()));
+                    run("tab.close", { tab: tab.id });
                 }}
                 className={cn(styles.iconButton, "-me-1.5 size-5")}
             >
@@ -57,55 +59,82 @@ function LabTab({ tab }: { tab: TabNode }) {
 let added = 0;
 
 export default function LayoutLab() {
-    const [undo] = useState(
-        () => new UndoManager(Model.fromJson(initialLayout)),
-    );
+    // one model for the lab's lifetime: Apply, undo and redo load a layout into it
+    const [model] = useState(() => createModel<Types>(initialLayout));
+    const [undo] = useState(() => new UndoManager(model));
     const history = useSyncExternalStore(
         undo.subscribe,
         undo.getSnapshot,
         undo.getSnapshot,
     );
-    const [engine, setEngine] = useState<LayoutEngine | null>(null);
+    // the state is immutable: a new object after every commit, so it is the snapshot to follow
+    useSyncExternalStore(
+        model.subscribe,
+        () => model.state,
+        () => model.state,
+    );
     const [log, setLog] = useState<LogEntry[]>([]);
     const [veto, setVeto] = useState<Veto>({
         enabled: false,
-        type: Actions.SELECT_TAB,
+        command: "tab.select",
     });
-    const [, setRevision] = useState(0);
     const toolbar = useRef<HTMLDivElement | null>(null);
     const popupTheme = usePopupTheme(toolbar);
-    const model = history.model;
 
-    // every change passes here first: log it, and apply it unless its type is vetoed
-    const onAction = (action: Action) => {
-        const vetoed = veto.enabled && action.type === veto.type;
-        setLog((current) => appendToLog(current, action, vetoed));
-        return vetoed ? undefined : action;
-    };
+    // every command passes here first: log it, and apply it unless it is the vetoed one. The
+    // middleware is installed once and reads the current choice from a ref.
+    const vetoRef = useRef(veto);
+    vetoRef.current = veto;
+    useEffect(
+        () =>
+            model.use((ctx, next) => {
+                const current = vetoRef.current;
+                const vetoed =
+                    current.enabled && ctx.command === current.command;
+                const result = vetoed
+                    ? vetoResult(`${ctx.command} is vetoed in the lab`)
+                    : next();
+                // a dry run (`model.can`: a drag hovering a target, a button's enabled state)
+                // commits nothing, and a batch is logged once, as the batch
+                if (!ctx.dryRun && !ctx.inBatch) {
+                    setLog((log) =>
+                        appendToLog(
+                            log,
+                            ctx.command,
+                            ctx.payload,
+                            result.ok ? "applied" : result.error.code,
+                            ctx.transient,
+                        ),
+                    );
+                }
+                return result;
+            }),
+        [model],
+    );
 
     const addTab = () => {
-        const target = model?.getActiveTabset() ?? model?.getFirstTabSet();
-        if (!engine || !target) return;
+        const target = model.activeTabset() ?? model.tabsets()[0];
+        if (!target) return;
         added += 1;
-        engine.doAction(
-            Actions.addTab(
-                { type: "tab", name: `Tab ${added}`, component: "card" },
-                target.getId(),
-                DockLocation.CENTER,
-                -1,
-            ),
-        );
+        model.run("tab.add", {
+            component: "card",
+            data: { name: `Tab ${added}` },
+            to: target.id,
+        });
     };
 
-    if (!model) return null;
     return (
         <div className="flex min-h-0 flex-1 font-(family-name:--dk-font)">
             <JsonEditor
-                json={model.toJson()}
-                onApply={(next) => {
-                    // a whole new model: not an action, so it starts a new undo history
-                    undo.setModel(next);
-                }}
+                json={model.toJSON()}
+                // untrusted JSON: `dispatch` validates it (JSON v1, ids) before the layout
+                // changes; a command like any other, so it is logged, vetoable and undoable
+                onApply={(layout) =>
+                    model.dispatch({
+                        command: "layout.load",
+                        payload: { layout },
+                    })
+                }
             />
             <div className="flex min-w-0 flex-1 flex-col">
                 <div ref={toolbar} className={styles.toolbar}>
@@ -135,7 +164,6 @@ export default function LayoutLab() {
                     <button
                         type="button"
                         onClick={addTab}
-                        disabled={!engine}
                         className={styles.button}
                     >
                         <Plus aria-hidden="true" className="size-4" />
@@ -144,6 +172,7 @@ export default function LayoutLab() {
                     <div className="ms-auto">
                         <VetoControl
                             veto={veto}
+                            commands={model.commands()}
                             onChange={setVeto}
                             popupTheme={popupTheme}
                         />
@@ -151,14 +180,10 @@ export default function LayoutLab() {
                 </div>
                 <DockLayout
                     model={model}
-                    onAction={onAction}
-                    onModelChange={() => setRevision((n) => n + 1)}
                     renderTab={(tab) => <LabTab tab={tab} />}
                     renderContent={(tab) => <Card tab={tab} />}
-                >
-                    <EngineBridge onEngine={setEngine} />
-                </DockLayout>
-                <ActionLog log={log} onClear={() => setLog([])} />
+                />
+                <CommandLog log={log} onClear={() => setLog([])} />
             </div>
         </div>
     );

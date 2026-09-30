@@ -1,18 +1,12 @@
 "use client";
 
-import {
-    Actions,
-    type LayoutEngine,
-    Model,
-    type TabNode,
-} from "@fragiola/dockable";
+import { createModel, type TabOf } from "@fragiola/dockable";
 import { type KeyboardEvent, useState, useSyncExternalStore } from "react";
-import { EngineBridge } from "../_kit/engine-bridge";
 import { DockLayout } from "../_kit/layout";
 import { UndoManager } from "../_kit/undo";
-import { DEFAULT_FILTERS, type Filters, layout } from "./data";
+import { DEFAULT_FILTERS, type Filters, layout, type Types } from "./data";
 import { Header } from "./header";
-import { TabContent, TabSetActions, tabClassName } from "./tabs";
+import { TabContent, TabSetButtons, tabClassName } from "./tabs";
 import {
     ChartWidget,
     FiltersContext,
@@ -24,40 +18,39 @@ import {
 // each tab's `component` picks its widget; a KPI below target turns its tab red; any tabset
 // can be maximized, and any widget popped out to a second screen with its state intact.
 
-function renderContent(tab: TabNode) {
-    switch (tab.getComponent()) {
+function renderContent(tab: TabOf<Types>) {
+    // `tab.data` narrows on `tab.component`: each widget gets its own data type
+    switch (tab.component) {
         case "chart":
             return <ChartWidget tab={tab} />;
         case "kpi":
             return <KpiWidget tab={tab} />;
         case "table":
             return <OrdersWidget />;
-        default:
-            return null;
     }
 }
 
 export default function AnalyticsDashboard() {
-    // The UndoManager owns the model: undo and redo swap it for a model rebuilt from the saved
-    // JSON (`Model.fromJson(json, previous)`), which keeps every panel's content mounted.
-    // A KPI writing its status is not a layout change, so it records no undo step.
-    const [undo] = useState(
-        () =>
-            new UndoManager(Model.fromJson(layout), {
-                ignoreActionTypes: [
-                    Actions.SET_ACTIVE_TABSET,
-                    Actions.UPDATE_NODE_ATTRIBUTES,
-                ],
-            }),
-    );
+    // The UndoManager records a step per command (`model.subscribe`); undo and redo load the saved
+    // JSON back into the same model (`layout.load`), which keeps every panel's content mounted.
+    // A KPI writing its status (`tab.update`) is not a layout change, so it records no undo step.
+    const [{ model, undo }] = useState(() => {
+        const model = createModel<Types>(layout);
+        const undo = new UndoManager(model, {
+            ignoreCommands: [
+                "tabset.activate",
+                "window.configure",
+                "tab.update",
+            ],
+        });
+        return { model, undo };
+    });
     const history = useSyncExternalStore(
         undo.subscribe,
         undo.getSnapshot,
         undo.getSnapshot,
     );
     const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-    const [engine, setEngine] = useState<LayoutEngine | null>(null);
-    const model = history.model;
 
     // Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z while focus is in the example, except in a text field
     // (where the browser's own undo belongs)
@@ -77,7 +70,6 @@ export default function AnalyticsDashboard() {
         else undo.undo();
     };
 
-    if (!model) return null;
     return (
         <FiltersContext.Provider value={filters}>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: shortcuts for the whole example */}
@@ -88,7 +80,6 @@ export default function AnalyticsDashboard() {
                 <Header
                     filters={filters}
                     onFilters={setFilters}
-                    engine={engine}
                     model={model}
                     undo={undo}
                     history={history}
@@ -99,11 +90,9 @@ export default function AnalyticsDashboard() {
                     renderTab={(tab) => <TabContent tab={tab} />}
                     tabClassName={tabClassName}
                     renderActions={(tabset) => (
-                        <TabSetActions tabset={tabset} />
+                        <TabSetButtons tabset={tabset} />
                     )}
-                >
-                    <EngineBridge onEngine={setEngine} />
-                </DockLayout>
+                />
             </div>
         </FiltersContext.Provider>
     );

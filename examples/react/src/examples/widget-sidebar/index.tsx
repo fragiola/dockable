@@ -1,46 +1,35 @@
 "use client";
 
-import {
-    Actions,
-    DockLocation,
-    type IJsonModel,
-    LayoutEngine,
-    Model,
-    type TabNode,
-} from "@fragiola/dockable";
+import { createModel, type LayoutJson, type Model } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { DockLayout } from "../_kit/layout";
 import {
     iconOf,
+    type Types,
     WIDGETS,
     type Widget,
     WidgetContent,
     widgetTab,
 } from "./widgets";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    {
-                        type: "tab",
-                        name: "Revenue chart",
-                        component: "revenue",
-                    },
+                    { component: "revenue", data: { name: "Revenue chart" } },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
                 children: [
-                    { type: "tab", name: "Orders table", component: "orders" },
+                    { component: "orders", data: { name: "Orders table" } },
                 ],
             },
         ],
@@ -53,35 +42,29 @@ function WidgetSource({
     widget,
     onAdded,
 }: {
-    model: Model;
+    model: Model<Types>;
     widget: Widget;
-    onAdded: (tab: TabNode | undefined) => void;
+    onAdded: (tab: string | undefined) => void;
 }) {
     const Icon = widget.icon;
 
     // Native drag and drop has no keyboard path, so a click adds the widget to the active
-    // tabset. LayoutEngine.of(model) finds the engine of the mounted layout: dispatching through
-    // it (not model.doAction) keeps onAction in the loop.
+    // tabset. `tab.add` runs on the model, through its middleware, like the drop does.
     const addToActiveTabset = () => {
-        const engine = LayoutEngine.of(model);
-        const target = model.getActiveTabset() ?? model.getFirstTabSet();
-        if (!engine || !target) return;
-        const added = engine.doAction(
-            Actions.addTab(
-                widgetTab(widget),
-                target.getId(),
-                DockLocation.CENTER,
-                -1,
-                true,
-            ),
-        );
-        onAdded(added as TabNode | undefined);
+        const target = model.activeTabset() ?? model.tabsets()[0];
+        if (!target) return;
+        const added = model.run("tab.add", {
+            ...widgetTab(widget),
+            to: target.id,
+            select: true,
+        });
+        onAdded(added.ok ? added.value.tab : undefined);
     };
 
     return (
         <Dockable.DragSource
             model={model}
-            json={() => widgetTab(widget)}
+            tab={() => widgetTab(widget)}
             onDrop={(tab) => onAdded(tab)}
             render={<button type="button" onClick={addToActiveTabset} />}
             aria-description="Drag into the layout, or press to add to the active tabset"
@@ -108,10 +91,15 @@ function WidgetSource({
 }
 
 export default function WidgetSidebar() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     const [status, setStatus] = useState("");
-    const onAdded = (tab: TabNode | undefined) =>
-        setStatus(tab ? `Added ${tab.getName()}` : "Nothing added");
+    // the new tab's id, or undefined when the add was refused
+    const onAdded = (id: string | undefined) => {
+        const tab = id === undefined ? undefined : model.get(id);
+        setStatus(
+            tab?.type === "tab" ? `Added ${tab.data.name}` : "Nothing added",
+        );
+    };
 
     return (
         <div className="flex min-h-0 flex-1">
@@ -155,7 +143,7 @@ export default function WidgetSidebar() {
                                 />
                             ) : null}
                             <span data-tab-label className="truncate">
-                                {tab.getName()}
+                                {tab.data.name}
                             </span>
                         </>
                     );

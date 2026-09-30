@@ -201,9 +201,18 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
         if (!model || layout === undefined) {
             return;
         }
-        to.push(model.toJSON());
+        const current = model.toJSON();
         // in place: the model and the content of every tab it keeps stay mounted
-        model.run("layout.load", { layout }, { meta: UNDO_META });
+        const loaded = model.run(
+            "layout.load",
+            { layout },
+            { meta: UNDO_META },
+        );
+        if (!loaded.ok) {
+            from.push(layout); // refused (a middleware vetoed layout.load): the step stays
+            return;
+        }
+        to.push(current);
         this.adjusting = false;
         this.last = model.toJSON();
         this.notify();

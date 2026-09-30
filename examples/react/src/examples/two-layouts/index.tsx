@@ -1,6 +1,6 @@
 "use client";
 
-import { type IJsonModel, Model } from "@fragiola/dockable";
+import { createModel, type LayoutJson, type Model } from "@fragiola/dockable";
 import { Dockable, useDragGroup } from "@fragiola/dockable-react";
 import { ArrowRight, Redo2, Undo2 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -10,54 +10,49 @@ import * as styles from "../_kit/styles";
 import { TransferHistory } from "./history";
 
 // Two layouts with their own models, in one Dockable.DragGroup: drag a tab from one into the
-// other. Each layout's onAction sees its side (an addTab in the target, a deleteTab in the source,
-// both marked as a transfer), and either can refuse. The tab's content moves with it.
+// other. Each model's middleware sees its side (a `tab.add` in the target, a `tab.close` in the
+// source, both marked `meta.transfer`), and either can refuse. The tab's content moves with it.
 
-const workspace: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+// What both layouts hold: one tab component, named in its data. A transferred tab keeps its
+// component and data, so the two models share the registry.
+type Types = { tabs: { card: { name: string } } };
+
+const card = (name: string) => ({ component: "card" as const, data: { name } });
+
+const workspace: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
-                children: [
-                    { type: "tab", name: "Report", component: "card" },
-                    { type: "tab", name: "Chart", component: "card" },
-                    { type: "tab", name: "Data", component: "card" },
-                ],
+                children: [card("Report"), card("Chart"), card("Data")],
             },
         ],
     },
 };
 
-const scratch: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const scratch: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
-        children: [
-            {
-                type: "tabset",
-                children: [{ type: "tab", name: "Ideas", component: "card" }],
-            },
-        ],
+        children: [{ type: "tabset", children: [card("Ideas")] }],
     },
 };
+
+type Models = { workspace: Model<Types>; scratch: Model<Types> };
 
 /** Which layout a model is, for the history list. */
-function nameOf(model: Model, models: { workspace: Model; scratch: Model }) {
+function nameOf(model: Model<Types>, models: Models) {
     return model === models.workspace ? "Workspace" : "Scratch";
 }
 
 /** Undo, redo and the list of moves. Inside the DragGroup, so it can reach the group. */
-function HistoryBar({
-    models,
-}: {
-    models: { workspace: Model; scratch: Model };
-}) {
+function HistoryBar({ models }: { models: Models }) {
     const group = useDragGroup();
-    const [history] = useState(() => new TransferHistory(group));
+    const [history] = useState(
+        () => new TransferHistory(group, [models.workspace, models.scratch]),
+    );
     useEffect(() => history.connect(), [history]);
     const { undo, redo } = useSyncExternalStore(
         history.subscribe,
@@ -124,7 +119,7 @@ function HistoryBar({
     );
 }
 
-function Pane({ title, model }: { title: string; model: Model }) {
+function Pane({ title, model }: { title: string; model: Model<Types> }) {
     return (
         <section
             aria-label={title}
@@ -144,8 +139,8 @@ function Pane({ title, model }: { title: string; model: Model }) {
 
 export default function TwoLayouts() {
     const [models] = useState(() => ({
-        workspace: Model.fromJson(workspace),
-        scratch: Model.fromJson(scratch),
+        workspace: createModel<Types>(workspace),
+        scratch: createModel<Types>(scratch),
     }));
     return (
         <Dockable.DragGroup>

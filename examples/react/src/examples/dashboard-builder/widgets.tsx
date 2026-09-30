@@ -1,6 +1,6 @@
 "use client";
 
-import { type IJsonTabNode, type Node, TabNode } from "@fragiola/dockable";
+import type { TabInitOf, TabOf } from "@fragiola/dockable";
 import {
     ChartArea,
     ChartLine,
@@ -14,9 +14,25 @@ import {
 import { ChartPanel, series } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 
+/** The widget components: each is a tab component, whose data is the tab's name. */
+export type WidgetComponent =
+    | "kpi-revenue"
+    | "kpi-conversion"
+    | "chart-line"
+    | "chart-bar"
+    | "chart-area"
+    | "table"
+    | "log";
+
+/** What the layout holds: every widget tab has a name; a tabset may have one too. */
+export type Types = {
+    tabs: Record<WidgetComponent, { name: string }>;
+    tabset: { name: string };
+};
+
 /** A widget of the palette, and the tab it becomes. */
 export interface Widget {
-    component: string;
+    component: WidgetComponent;
     title: string;
     icon: LucideIcon;
     group: "KPIs" | "Charts" | "Data";
@@ -59,37 +75,31 @@ export const WIDGETS: Widget[] = [
 
 export const GROUPS = ["KPIs", "Charts", "Data"] as const;
 
-export function widgetTab(widget: Widget): IJsonTabNode {
-    return { type: "tab", name: widget.title, component: widget.component };
+/** The tab a widget becomes: a `tab.add` init (its data is checked against its component). */
+export function widgetTab(widget: Widget): TabInitOf<Types> {
+    return { component: widget.component, data: { name: widget.title } };
 }
 
-export function widgetOf(tab: TabNode): Widget | undefined {
-    return WIDGETS.find((widget) => widget.component === tab.getComponent());
+export function widgetOf(tab: TabOf<Types>): Widget | undefined {
+    return WIDGETS.find((widget) => widget.component === tab.component);
 }
 
-/** KPI widgets are tabs whose component starts with "kpi-" (a dragged tab, or one of the palette). */
-export function isKpi(node: Node): boolean {
-    return (
-        node instanceof TabNode &&
-        node.getComponent()?.startsWith("kpi-") === true
-    );
+/** KPI widgets are the components whose name starts with "kpi-". */
+export function isKpi(component: string): boolean {
+    return component.startsWith("kpi-");
 }
 
-function Kpi({ tab }: { tab: TabNode }) {
-    const values = series(
-        tab.getComponent() === "kpi-revenue" ? 3 : 9,
-        8,
-        1000,
-    );
+function Kpi({ tab }: { tab: TabOf<Types> }) {
+    const values = series(tab.component === "kpi-revenue" ? 3 : 9, 8, 1000);
     const last = values.at(-1) ?? 0;
     const previous = values.at(-2) ?? 1;
     const change = ((last - previous) / Math.max(previous, 1)) * 100;
     const up = change >= 0;
     return (
         <div className="flex h-full flex-col justify-center gap-1 p-4">
-            <p className="text-sm text-palette-accent/85">{tab.getName()}</p>
+            <p className="text-sm text-palette-accent/85">{tab.data.name}</p>
             <p className="text-3xl font-semibold tabular-nums">
-                {tab.getComponent() === "kpi-revenue"
+                {tab.component === "kpi-revenue"
                     ? `$${last}k`
                     : `${(last / 100).toFixed(1)}%`}
             </p>
@@ -103,8 +113,8 @@ function Kpi({ tab }: { tab: TabNode }) {
 }
 
 /** The content of a widget's panel. */
-export function WidgetContent({ tab }: { tab: TabNode }) {
-    switch (tab.getComponent()) {
+export function WidgetContent({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
         case "kpi-revenue":
         case "kpi-conversion":
             return <Kpi tab={tab} />;

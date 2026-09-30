@@ -31,8 +31,11 @@ src/examples/
   reserved for packages (site export contract, §6). `tests/examples.test.ts` enforces it.
 - **Theme-agnostic**: style through palette roles (`bg-palette-base`, …) and the kit tokens
   (`--dk-*`), never fixed colours, so the example works in all five themes.
-- **Through the model**: every change is `model.doAction(Actions.x)` or `engine.doAction(…)`,
-  interceptable by `onAction`. Never mutate nodes.
+- **Through the model**: every change is a command (`model.run("tab.close", { tab })`, or `run`
+  from `useDockable`), which the model's middleware (`model.use`) can veto or rewrite. Nodes are
+  immutable data: read them, never mutate them.
+- **Typed data**: each example declares its `Types` registry and reads `tab.data` narrowed by
+  `tab.component`; no casts on node data or node kinds.
 - **State as data**: style the package's state through `data-*` and ARIA only.
 - **Accessible names**: every button has `aria-label` or text; the package renders none.
 - **Workarounds are commented** in the code (users copy them) and listed in

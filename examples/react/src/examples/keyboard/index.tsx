@@ -1,15 +1,15 @@
 "use client";
 
 import {
-    type IJsonModel,
+    createModel,
     type IKeyMap,
-    Model,
+    type LayoutJson,
     resolveKeyMap,
-    type TabNode,
-    type TabSetNode,
+    type TabOf,
+    type TabsetNode,
     toAriaKeyShortcuts,
 } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { Dockable, useDockable } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { Tooltip } from "#/components/ui/tooltip";
 import { Card, PanelBody } from "../_kit/card";
@@ -17,40 +17,44 @@ import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { KitTabButton, KitTabStrip } from "../_kit/tab-strip";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+type Types = {
+    tabs: { keys: { name: string }; card: { name: string } };
+    // a tabset's name is its tab list's accessible name (the kit reads `data.name`)
+    tabset: { name: string };
+};
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
-                // a tabset's name is its tab list's accessible name
-                name: "Documents",
+                id: "documents",
+                data: { name: "Documents" },
                 weight: 55,
-                active: true,
                 children: [
-                    { type: "tab", name: "Keys", component: "keys" },
-                    { type: "tab", name: "Readme", component: "card" },
+                    { component: "keys", data: { name: "Keys" } },
+                    { component: "card", data: { name: "Readme" } },
                     {
-                        type: "tab",
-                        name: "License",
                         component: "card",
+                        data: { name: "License" },
                         enableClose: false,
                     },
                 ],
             },
             {
                 type: "tabset",
-                name: "Tools",
+                data: { name: "Tools" },
                 weight: 45,
                 children: [
-                    { type: "tab", name: "Search", component: "card" },
-                    { type: "tab", name: "History", component: "card" },
+                    { component: "card", data: { name: "Search" } },
+                    { component: "card", data: { name: "History" } },
                 ],
             },
         ],
     },
+    active: "documents",
 };
 
 /**
@@ -90,11 +94,14 @@ function Keys({ spec }: { spec: string | undefined }) {
  * keyboard focus too. It lists the tab's `aria-keyshortcuts`: the package advertises the same
  * bindings it handles, so what the tooltip reads is what the keyboard does.
  */
-function KeyboardTab({ tab }: { tab: TabNode }) {
-    // the same two bindings `Dockable.Tab` puts in its aria-keyshortcuts
+function KeyboardTab({ tab }: { tab: TabOf<Types> }) {
+    const { model } = useDockable<Types>();
+    // the same two bindings `Dockable.Tab` puts in its aria-keyshortcuts; the model says
+    // whether the tab may close (a dry run of `tab.close`)
+    const closeable = model.can("tab.close", { tab: tab.id }).ok;
     const shortcuts = [
         { name: "Enter or leave the content", spec: keys.focusTabToggle },
-        { name: "Close", spec: tab.isCloseable() ? keys.closeTab : undefined },
+        { name: "Close", spec: closeable ? keys.closeTab : undefined },
     ].filter((item) => item.spec !== undefined);
     return (
         <Tooltip.Root>
@@ -118,7 +125,7 @@ function KeyboardTab({ tab }: { tab: TabNode }) {
     );
 }
 
-function TabSet({ node }: { node: TabSetNode }) {
+function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
             <KitTabStrip tabset={node}>
@@ -191,7 +198,7 @@ function KeysPanel() {
 }
 
 export default function Keyboard() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <Tooltip.Provider>
             <DockLayout
@@ -199,7 +206,7 @@ export default function Keyboard() {
                 rootProps={{ keyMap }}
                 renderTabSet={(tabset) => <TabSet node={tabset} />}
                 renderContent={(tab) =>
-                    tab.getComponent() === "keys" ? (
+                    tab.component === "keys" ? (
                         <KeysPanel />
                     ) : (
                         <Card tab={tab} />

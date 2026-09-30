@@ -1,10 +1,10 @@
 "use client";
 
 import {
-    Actions,
-    type IJsonModel,
-    Model,
+    createModel,
+    type LayoutJson,
     type TabNode,
+    type TabOf,
 } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import { CircleCheck, CircleX, TriangleAlert } from "lucide-react";
@@ -17,19 +17,24 @@ import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
 // The tab follows its content. The content writes what the tab needs to know into the tab's
-// `config` (through an action, so it is in the model, the JSON and the undo history); the tab
-// reads `tab.getConfig()` and exposes it as its own `data-*` attributes for the styles.
+// `data` (with a command, so it is in the model, the JSON and the undo history); the tab reads
+// `tab.data`, typed by its component, and exposes it as its own `data-*` attributes for the styles.
 
 type Status = "healthy" | "degraded" | "down";
 
-interface MonitorConfig {
+interface MonitorData {
+    name: string;
     status: Status;
     incidents: number;
 }
 
-interface DocumentConfig {
+interface DocumentData {
+    name: string;
     dirty: boolean;
 }
+
+// What the layout holds: each tab component and the type of its data.
+type Types = { tabs: { monitor: MonitorData; document: DocumentData } };
 
 const STATUS = {
     healthy: { palette: "palette-green", Icon: CircleCheck, text: "Healthy" },
@@ -42,16 +47,13 @@ const STATUS = {
 } as const;
 
 const monitor = (name: string, status: Status, incidents = 0) => ({
-    type: "tab",
-    name,
-    component: "monitor",
-    config: { status, incidents } satisfies MonitorConfig,
+    component: "monitor" as const,
+    data: { name, status, incidents },
 });
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
@@ -68,16 +70,12 @@ const json: IJsonModel = {
                 weight: 45,
                 children: [
                     {
-                        type: "tab",
-                        name: "README.md",
                         component: "document",
-                        config: { dirty: false } satisfies DocumentConfig,
+                        data: { name: "README.md", dirty: false },
                     },
                     {
-                        type: "tab",
-                        name: "notes.txt",
                         component: "document",
-                        config: { dirty: false } satisfies DocumentConfig,
+                        data: { name: "notes.txt", dirty: false },
                     },
                 ],
             },
@@ -85,18 +83,30 @@ const json: IJsonModel = {
     },
 };
 
-/** The tab: it only reads the config and turns it into `data-*` and a palette. */
-function StatusTab({ tab }: { tab: TabNode }) {
-    const config = tab.getConfig() as
-        | Partial<MonitorConfig & DocumentConfig>
-        | undefined;
-    const status = config?.status ? STATUS[config.status] : undefined;
+/** What a tab shows about its content, read from its typed data. */
+function tabState(tab: TabOf<Types>) {
+    switch (tab.component) {
+        case "monitor":
+            return {
+                status: tab.data.status,
+                incidents: tab.data.incidents,
+                dirty: false,
+            };
+        case "document":
+            return { status: undefined, incidents: 0, dirty: tab.data.dirty };
+    }
+}
+
+/** The tab: it only reads the data and turns it into `data-*` and a palette. */
+function StatusTab({ tab }: { tab: TabOf<Types> }) {
+    const { status: current, incidents, dirty } = tabState(tab);
+    const status = current ? STATUS[current] : undefined;
     return (
         <Dockable.Tab
             node={tab}
             data-kit-tab=""
-            data-status={config?.status}
-            data-modified={config?.dirty ? "" : undefined}
+            data-status={current}
+            data-modified={dirty ? "" : undefined}
             className={cn(
                 styles.tab,
                 status?.palette,
@@ -108,17 +118,17 @@ function StatusTab({ tab }: { tab: TabNode }) {
                 <status.Icon aria-hidden className="size-3.5 shrink-0" />
             ) : null}
             <TabParts tab={tab} />
-            {config?.incidents ? (
+            {incidents ? (
                 <Badge
                     variant="solid"
-                    aria-label={`${config.incidents} incidents`}
+                    aria-label={`${incidents} incidents`}
                     // inverted on the selected (solid) tab
                     className="px-1.5 py-0 tabular-nums in-data-selected:bg-palette-contrast in-data-selected:text-palette-base"
                 >
-                    {config.incidents}
+                    {incidents}
                 </Badge>
             ) : null}
-            {config?.dirty ? (
+            {dirty ? (
                 // the "modified" dot; its text is for screen readers only
                 <span className="size-2 shrink-0 rounded-full bg-current">
                     <span className="sr-only">Modified</span>
@@ -129,28 +139,29 @@ function StatusTab({ tab }: { tab: TabNode }) {
 }
 
 /** Content that reports its status to its tab. */
-function Monitor({ tab }: { tab: TabNode }) {
-    const { engine } = useDockable();
-    const config = tab.getConfig() as MonitorConfig;
+function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
+    const { run } = useDockable<Types>();
+    const data = tab.data;
     const report = (status: Status) => {
-        if (status === config.status) {
+        if (status === data.status) {
             return;
         }
-        engine.doAction(
-            Actions.updateNodeAttributes(tab.getId(), {
-                config: {
-                    status,
-                    incidents:
-                        config.incidents + (status === "healthy" ? 0 : 1),
-                } satisfies MonitorConfig,
-            }),
-        );
+        // `tab.update` replaces the whole data, checked against the monitor's type
+        run("tab.update", {
+            tab: tab.id,
+            component: "monitor",
+            data: {
+                ...data,
+                status,
+                incidents: data.incidents + (status === "healthy" ? 0 : 1),
+            },
+        });
     };
     return (
-        <PanelBody title={`${tab.getName()} service`}>
+        <PanelBody title={`${data.name} service`}>
             <p className="text-palette-accent/85">
                 Set the service's health. The panel writes it into the tab's
-                config with an action; the tab reads it back.
+                data with a command; the tab reads it back.
             </p>
             <fieldset className="flex flex-wrap gap-2">
                 <legend className="sr-only">Status</legend>
@@ -158,11 +169,11 @@ function Monitor({ tab }: { tab: TabNode }) {
                     <button
                         key={status}
                         type="button"
-                        aria-pressed={config.status === status}
+                        aria-pressed={data.status === status}
                         // the current status is a solid button in its palette
                         className={cn(
                             styles.button,
-                            config.status === status && STATUS[status].palette,
+                            data.status === status && STATUS[status].palette,
                         )}
                         onClick={() => report(status)}
                     >
@@ -171,31 +182,31 @@ function Monitor({ tab }: { tab: TabNode }) {
                 ))}
             </fieldset>
             <p className="text-sm text-palette-accent/85">
-                {`Incidents so far: ${config.incidents}`}
+                {`Incidents so far: ${data.incidents}`}
             </p>
         </PanelBody>
     );
 }
 
 /** An editor that marks its tab as modified while its text differs from the saved one. */
-function Editor({ tab }: { tab: TabNode }) {
-    const { engine } = useDockable();
-    const [saved, setSaved] = useState(`# ${tab.getName()}\n`);
+function Editor({ tab }: { tab: TabNode<"document", DocumentData> }) {
+    const { run } = useDockable<Types>();
+    const [saved, setSaved] = useState(`# ${tab.data.name}\n`);
     const [text, setText] = useState(saved);
     const setDirty = (dirty: boolean) => {
-        // only dispatch when the flag changes, not on every keystroke
-        if ((tab.getConfig() as DocumentConfig).dirty !== dirty) {
-            engine.doAction(
-                Actions.updateNodeAttributes(tab.getId(), {
-                    config: { dirty } satisfies DocumentConfig,
-                }),
-            );
+        // only run the command when the flag changes, not on every keystroke
+        if (tab.data.dirty !== dirty) {
+            run("tab.update", {
+                tab: tab.id,
+                component: "document",
+                data: { ...tab.data, dirty },
+            });
         }
     };
     return (
         <div className="flex h-full flex-col gap-2 p-3">
             <textarea
-                aria-label={`${tab.getName()} text`}
+                aria-label={`${tab.data.name} text`}
                 value={text}
                 onChange={(event) => {
                     setText(event.target.value);
@@ -219,16 +230,17 @@ function Editor({ tab }: { tab: TabNode }) {
     );
 }
 
-const renderTabSet = withTabElement((tab) => <StatusTab tab={tab} />);
+const renderTabSet = withTabElement<Types>((tab) => <StatusTab tab={tab} />);
 
 export default function ContentAwareTabs() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}
             renderTabSet={renderTabSet}
+            // `tab.data` narrows on `tab.component`: each panel gets its own typed tab
             renderContent={(tab) =>
-                tab.getComponent() === "monitor" ? (
+                tab.component === "monitor" ? (
                     <Monitor tab={tab} />
                 ) : (
                     <Editor tab={tab} />

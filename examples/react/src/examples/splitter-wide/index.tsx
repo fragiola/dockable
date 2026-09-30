@@ -1,10 +1,10 @@
 "use client";
 
 import {
+    createModel,
     DockableLabel,
     getSplitterPath,
-    type IJsonModel,
-    Model,
+    type LayoutJson,
 } from "@fragiola/dockable";
 import {
     type RowSplitterProps,
@@ -15,16 +15,17 @@ import { useState } from "react";
 import { Card } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+type Types = { tabs: { card: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 35,
-                children: [{ type: "tab", name: "Library", component: "card" }],
+                children: [{ component: "card", data: { name: "Library" } }],
             },
             {
                 type: "row",
@@ -34,19 +35,15 @@ const json: IJsonModel = {
                         type: "tabset",
                         weight: 60,
                         children: [
-                            { type: "tab", name: "Draft", component: "card" },
-                            { type: "tab", name: "Outline", component: "card" },
+                            { component: "card", data: { name: "Draft" } },
+                            { component: "card", data: { name: "Outline" } },
                         ],
                     },
                     {
                         type: "tabset",
                         weight: 40,
                         children: [
-                            {
-                                type: "tab",
-                                name: "Comments",
-                                component: "card",
-                            },
+                            { component: "card", data: { name: "Comments" } },
                         ],
                     },
                 ],
@@ -62,10 +59,11 @@ const json: IJsonModel = {
  * the middle, and while you drag or focus it a bubble shows `aria-valuenow`: where the
  * splitter sits in its row, from 0 to 100.
  */
-function WideSplitter({ node, index }: RowSplitterProps) {
+function WideSplitter({ node, index }: RowSplitterProps<Types>) {
     const { controller, state, aria, hidden, ref } = useSplitter(node, index);
-    // the accessible name comes from `getLabel` on the Root, as `Dockable.Splitter` does
-    const { getLabel } = useDockable();
+    // the accessible name comes from `getLabel` on the Root, as `Dockable.Splitter` does; the
+    // path (`/r0/s0`) from the row's own, which the engine knows by id
+    const { getLabel, engine } = useDockable<Types>();
     // `aria.orientation` is the separator's: "vertical" is a bar between side-by-side panes
     const vertical = aria.orientation === "vertical";
     return (
@@ -80,7 +78,7 @@ function WideSplitter({ node, index }: RowSplitterProps) {
             aria-valuemin={aria.valueMin}
             aria-valuemax={aria.valueMax}
             aria-valuetext={aria.valueText}
-            data-layout-path={getSplitterPath(node, index)}
+            data-layout-path={getSplitterPath(engine.path(node.id), index)}
             data-orientation={aria.orientation}
             data-dragging={state.dragging ? "" : undefined}
             onPointerDown={(event) =>
@@ -131,7 +129,7 @@ function WideSplitter({ node, index }: RowSplitterProps) {
 }
 
 export default function SplitterWide() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}

@@ -1,12 +1,10 @@
 "use client";
 
 import {
-    Actions,
     DockableLabel,
-    DockLocation,
-    type LayoutEngine,
-    type TabNode,
-    type TabSetNode,
+    type Model,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import {
     Dockable,
@@ -22,42 +20,58 @@ import { label } from "../_kit/labels";
 import * as styles from "../_kit/styles";
 import { usePopupTheme } from "../_kit/theme";
 import { FileIcon } from "./explorer";
-import { editorConfig } from "./workspace";
+import { editorData, type Types } from "./workspace";
 
 // The workbench's tabset: file tabs with an icon, a dirty dot and a close button, a context
 // menu per tab, a Select listing the tabs that no longer fit (tab overflow hides them; the selected
 // one always stays), and a maximize button.
-// Everything is a consumer choice made of Dockable primitives, actions and data-*.
+// Everything is a consumer choice made of Dockable primitives, commands and data-*.
 
-function closeAll(engine: LayoutEngine, tabs: TabNode[]) {
+/** Whether a tab may be closed at all (its `enableClose`, else the layout default). */
+function closable(model: Model<Types>, tab: TabOf<Types>) {
+    return model.resolve(tab).enableClose;
+}
+
+function closeAll(model: Model<Types>, tabs: readonly TabOf<Types>[]) {
     for (const tab of tabs) {
-        if (tab.isEnableClose()) {
-            // one action per tab: onAction can still stop the dirty ones
-            engine.doAction(Actions.deleteTab(tab.getId()));
+        if (closable(model, tab)) {
+            // one command per tab: the workbench's middleware can still stop the dirty ones
+            model.run("tab.close", { tab: tab.id });
         }
     }
 }
 
-function TabIcon({ tab }: { tab: TabNode }) {
-    const config = editorConfig(tab);
-    if (config) return <FileIcon path={config.path} />;
-    const Icon = tab.getComponent() === "terminal" ? SquareTerminal : Bug;
-    return <Icon aria-hidden="true" className="size-3.5 shrink-0" />;
+function TabIcon({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "editor":
+            return <FileIcon path={tab.data.path} />;
+        case "terminal":
+            return (
+                <SquareTerminal
+                    aria-hidden="true"
+                    className="size-3.5 shrink-0"
+                />
+            );
+        default:
+            return <Bug aria-hidden="true" className="size-3.5 shrink-0" />;
+    }
 }
 
 function WorkbenchTab({
     tab,
+    tabset,
     popupTheme,
 }: {
-    tab: TabNode;
+    tab: TabOf<Types>;
+    tabset: TabsetNode<Types>;
     popupTheme: ReturnType<typeof usePopupTheme>;
 }) {
-    const { engine } = useDockable();
-    const tabset = tab.getParent() as TabSetNode;
-    const siblings = tabset.getChildren() as TabNode[];
-    const index = siblings.indexOf(tab);
-    const dirty = editorConfig(tab)?.dirty === true;
-    const close = () => engine.doAction(Actions.deleteTab(tab.getId()));
+    const { model } = useDockable<Types>();
+    const siblings = tabset.children;
+    const index = siblings.findIndex((other) => other.id === tab.id);
+    const dirty = editorData(tab)?.dirty === true;
+    const canClose = closable(model, tab);
+    const close = () => model.run("tab.close", { tab: tab.id });
 
     return (
         <ContextMenu.Root>
@@ -71,14 +85,14 @@ function WorkbenchTab({
             >
                 <TabIcon tab={tab} />
                 <span data-tab-label className={styles.tabLabel}>
-                    {tab.getName()}
+                    {tab.data.name}
                 </span>
-                {tab.isEnableClose() ? (
+                {canClose ? (
                     <button
                         type="button"
                         tabIndex={-1}
                         draggable={false}
-                        aria-label={`${label(DockableLabel.Close_Tab)} ${tab.getName()}`}
+                        aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
                         data-testid="close-tab"
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
@@ -112,18 +126,15 @@ function WorkbenchTab({
                 />
             </Dockable.Tab>
             <ContextMenu.Content {...popupTheme}>
-                <ContextMenu.Item
-                    disabled={!tab.isEnableClose()}
-                    onClick={close}
-                >
+                <ContextMenu.Item disabled={!canClose} onClick={close}>
                     Close
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     disabled={siblings.length < 2}
                     onClick={() =>
                         closeAll(
-                            engine,
-                            siblings.filter((other) => other !== tab),
+                            model,
+                            siblings.filter((other) => other.id !== tab.id),
                         )
                     }
                 >
@@ -131,16 +142,16 @@ function WorkbenchTab({
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     disabled={index === siblings.length - 1}
-                    onClick={() => closeAll(engine, siblings.slice(index + 1))}
+                    onClick={() => closeAll(model, siblings.slice(index + 1))}
                 >
                     Close to the right
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     onClick={() =>
                         closeAll(
-                            engine,
+                            model,
                             siblings.filter(
-                                (other) => editorConfig(other)?.dirty !== true,
+                                (other) => editorData(other)?.dirty !== true,
                             ),
                         )
                     }
@@ -152,14 +163,11 @@ function WorkbenchTab({
                 <ContextMenu.Item
                     disabled={siblings.length < 2}
                     onClick={() =>
-                        engine.doAction(
-                            Actions.moveNode(
-                                tab.getId(),
-                                tabset.getId(),
-                                DockLocation.RIGHT,
-                                -1,
-                            ),
-                        )
+                        model.run("tab.move", {
+                            tab: tab.id,
+                            to: tabset.id,
+                            location: "right",
+                        })
                     }
                 >
                     Split right
@@ -167,14 +175,11 @@ function WorkbenchTab({
                 <ContextMenu.Item
                     disabled={siblings.length < 2}
                     onClick={() =>
-                        engine.doAction(
-                            Actions.moveNode(
-                                tab.getId(),
-                                tabset.getId(),
-                                DockLocation.BOTTOM,
-                                -1,
-                            ),
-                        )
+                        model.run("tab.move", {
+                            tab: tab.id,
+                            to: tabset.id,
+                            location: "bottom",
+                        })
                     }
                 >
                     Split down
@@ -184,12 +189,12 @@ function WorkbenchTab({
     );
 }
 
-export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
-    const { engine } = useDockable();
+export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
+    const { model, layoutId } = useDockable<Types>();
     const list = useRef<HTMLDivElement | null>(null);
     const { hidden } = useTabOverflow(node);
     const popupTheme = usePopupTheme(list);
-    const maximized = node.isMaximized();
+    const maximized = model.maximizedTabset(layoutId)?.id === node.id;
 
     return (
         <Dockable.TabSet
@@ -198,14 +203,18 @@ export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
             className={cn(styles.tabset, "data-maximized:shadow-none")}
         >
             <div className={styles.tabsetHeader}>
-                <Dockable.TabList
+                <Dockable.TabList<Types>
                     data-kit-tablist=""
                     ref={list}
-                    aria-label={node.getId() === "panel" ? "Panel" : "Editors"}
+                    aria-label={node.id === "panel" ? "Panel" : "Editors"}
                     className={styles.tabList}
                 >
                     {(tab) => (
-                        <WorkbenchTab tab={tab} popupTheme={popupTheme} />
+                        <WorkbenchTab
+                            tab={tab}
+                            tabset={node}
+                            popupTheme={popupTheme}
+                        />
                     )}
                 </Dockable.TabList>
                 <div className={styles.tabsetActions}>
@@ -214,7 +223,7 @@ export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
                         value={null}
                         onValueChange={(id) => {
                             if (typeof id === "string") {
-                                engine.doAction(Actions.selectTab(id));
+                                model.run("tab.select", { tab: id });
                             }
                         }}
                     >
@@ -229,11 +238,8 @@ export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
                         </Dockable.TabOverflowTrigger>
                         <Select.Content {...popupTheme}>
                             {hidden.map((tab) => (
-                                <Select.Item
-                                    key={tab.getId()}
-                                    value={tab.getId()}
-                                >
-                                    {tab.getName()}
+                                <Select.Item key={tab.id} value={tab.id}>
+                                    {tab.data.name}
                                 </Select.Item>
                             ))}
                         </Select.Content>
@@ -247,9 +253,10 @@ export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
                         )}
                         aria-pressed={maximized}
                         onClick={() =>
-                            engine.doAction(
-                                Actions.maximizeToggle(node.getId()),
-                            )
+                            model.run("tabset.maximize", {
+                                tabset: node.id,
+                                value: !maximized,
+                            })
                         }
                         className={styles.iconButton}
                     >
@@ -271,7 +278,7 @@ export function WorkbenchTabSet({ node }: { node: TabSetNode }) {
             <Dockable.TabSetContent
                 render={
                     <div>
-                        {node.getChildren().length === 0 ? (
+                        {node.children.length === 0 ? (
                             <p className="grid h-full place-items-center p-4 text-center text-sm text-palette-accent/85">
                                 Open a file from the explorer.
                             </p>
