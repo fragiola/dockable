@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createModel } from "../../packages/core/src/index.ts";
 
 // The API reference is written by hand, and this test keeps it honest.
 //
@@ -27,6 +26,19 @@ const CORE_SRC = join(ROOT, "packages/core/src");
 const API = join(import.meta.dirname, "../docs/api");
 
 const read = (path: string) => readFileSync(path, "utf-8");
+
+/** What the test reads of a command in the core's registry. */
+interface CommandInfo {
+    name: string;
+    payloadSchema: { properties?: Record<string, unknown> };
+    resultSchema: { properties?: Record<string, unknown> };
+}
+
+// the core's registry, loaded at run time from its source: a computed path keeps the site's
+// typecheck from checking the core too (it has its own)
+const core = (await import(join(CORE_SRC, "index.ts"))) as {
+    createModel(): { commands(): readonly CommandInfo[] };
+};
 const page = (slug: string) => read(join(API, `${slug}.mdx`));
 
 /** The reference page of each module of the React package. */
@@ -285,8 +297,7 @@ describe("the React reference", () => {
 });
 
 describe("the core reference", () => {
-    const model = createModel();
-    const commands = model.commands();
+    const commands = core.createModel().commands();
     const commandsPage = page("commands");
 
     /** The part of the commands page about one command: from its `###` to the next heading. */
