@@ -12,6 +12,23 @@ import { must, render, tab, tabsets } from "./harness";
 const model2 = () => createModel(tabsets(["One", "Two"], ["Three"]));
 
 describe("results", () => {
+    it("uses up no generated id in a dry run", () => {
+        const model = model2();
+        const to = model.tabsets()[0]?.id ?? "";
+        const asked = model.can("tab.add", { component: "x", to });
+        const added = model.run("tab.add", { component: "x", to });
+        expect(asked.ok && added.ok && asked.value.tab).toBe(
+            added.ok ? added.value.tab : "",
+        );
+    });
+
+    it("hands out frozen schemas from commands()", () => {
+        const model = model2();
+        const info = model.commands().find((c) => c.name === "tab.select");
+        expect(Object.isFrozen(info?.payloadSchema)).toBe(true);
+        expect(Object.isFrozen(info?.payloadSchema.required)).toBe(true);
+    });
+
     it("runs through detached methods (`const { run } = model`)", () => {
         const model = model2();
         const { run, can, dispatch, subscribe, use } = model;
@@ -161,6 +178,31 @@ describe("results", () => {
             ok: true,
             value: { tab: "Two" },
         });
+    });
+
+    it("points a transient batch's refused step at its command, and dispatch at /transient", () => {
+        const model = model2();
+        expect(
+            model.run(
+                "batch",
+                {
+                    commands: [
+                        { command: "tab.select", payload: { tab: "Two" } },
+                    ],
+                },
+                { transient: true },
+            ),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/commands/0/command" },
+        });
+        expect(
+            model.dispatch({
+                command: "tab.select",
+                payload: { tab: "Two" },
+                transient: true,
+            }),
+        ).toMatchObject({ ok: false, error: { path: "/transient" } });
     });
 
     it("rejects a transient run of a command that is not transient-capable", () => {

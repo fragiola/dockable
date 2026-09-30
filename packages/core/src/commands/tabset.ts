@@ -246,7 +246,7 @@ export const tabsetPopout = defineCommand({
             rect: {
                 ...rectSchema,
                 description:
-                    "the window's screen rect (default: where the tabset is on screen)",
+                    "the window's screen rect; without one, a 600x400 window offset 50px per open window (engine.popout passes the tabset's place on screen)",
             },
         },
         ["tabset"],

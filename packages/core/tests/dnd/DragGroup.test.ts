@@ -236,7 +236,8 @@ describe("dragging between two models", () => {
                 ctx.command === "tab.close" ? veto() : next(),
         });
         const b = layout("b", { dragGroup: group });
-        dragBetween(a, "a0", b);
+        const over = dragBetween(a, "a0", b);
+        expect(over.defaultPrevented).toBe(false); // refused during the hover, as the drop would be
         expect(ids(b.model, "ts1")).toEqual(["b2"]);
         expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);
     });

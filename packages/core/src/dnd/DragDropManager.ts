@@ -844,7 +844,15 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                     ? model.can("tab.move", command.payload).ok
                     : command.command === "tabset.move"
                       ? model.can("tabset.move", command.payload).ok
-                      : model.can("tab.add", command.payload, transfer).ok;
+                      : model.can("tab.add", command.payload, transfer).ok &&
+                        // a transfer also closes the tab in its own model: that must be allowed too
+                        (transfer === undefined ||
+                            subject.kind !== "tab" ||
+                            state.mainEngine.model.can(
+                                "tab.close",
+                                { tab: subject.tab.id },
+                                transfer,
+                            ).ok);
             this.verdicts.set(key, verdict);
         }
         return verdict;

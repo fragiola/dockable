@@ -361,14 +361,14 @@ export const tabPin = defineCommand({
 export const tabPopout = defineCommand({
     name: "tab.popout",
     description:
-        "Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts or is already in a window.",
+        "Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts, is pinned or is already in a window.",
     payloadSchema: object(
         {
             tab: tabId,
             rect: {
                 ...rectSchema,
                 description:
-                    "the window's screen rect (default: where the tab is on screen)",
+                    "the window's screen rect; without one, a 600x400 window offset 50px per open window (engine.popout passes the tab's place on screen)",
             },
         },
         ["tab"],

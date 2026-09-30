@@ -52,7 +52,13 @@ export const COMMANDS: readonly CommandDefinition[] = [
     layoutConfigure,
     layoutLoad,
     batch,
-] as readonly unknown[] as readonly CommandDefinition[];
+    // each entry is checked for what the list relies on (its schemas were checked where it was
+    // defined), then the literal types are erased
+] as const satisfies readonly {
+    readonly name: CommandName;
+    readonly transient: boolean;
+    readonly reduce: (...args: never[]) => unknown;
+}[] as readonly unknown[] as readonly CommandDefinition[];
 
 /** The command definitions by name. */
 export const COMMAND_DEFINITIONS: ReadonlyMap<string, CommandDefinition> =

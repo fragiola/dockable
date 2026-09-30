@@ -24,6 +24,15 @@ export class IdSource {
         this.custom = createId;
     }
 
+    /** A copy with the same counters: a dry run draws ids from it, leaving this one as it was. */
+    clone(): IdSource {
+        const copy = new IdSource(this.custom);
+        for (const [kind, n] of this.counters) {
+            copy.counters.set(kind, n);
+        }
+        return copy;
+    }
+
     /** A fresh id for `kind`, for which `isUsed` is false. */
     next(kind: IdKind, isUsed: (id: string) => boolean): string {
         if (this.custom) {

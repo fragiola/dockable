@@ -29,7 +29,7 @@ import {
     type TabLike,
     type TabsetLike,
 } from "./defaults";
-import { Draft } from "./draft";
+import { Draft, deepFreeze } from "./draft";
 import { type CreateId, IdSource } from "./ids";
 import type { LayoutJson } from "./json";
 import {
@@ -158,8 +158,9 @@ const COMMAND_INFO: readonly CommandInfo[] = Object.freeze(
         Object.freeze({
             name: definition.name,
             description: definition.description,
-            payloadSchema: definition.payloadSchema,
-            resultSchema: definition.resultSchema,
+            // the validator's own schemas: frozen, so no caller can change what validation means
+            payloadSchema: deepFreeze(definition.payloadSchema),
+            resultSchema: deepFreeze(definition.resultSchema),
             transient: definition.transient,
         }),
     ),
@@ -184,6 +185,21 @@ function error(
         value.issues = issues;
     }
     return { ok: false, error: value };
+}
+
+/**
+ * The path of a "cannot run as a transient step" error before it is placed: the flag is not in the
+ * payload, so it is `/transient` (the option, or `dispatch`'s key), or a batch step's `/command`.
+ */
+const TRANSIENT_PATH = "\u0000transient";
+
+function placeTransientError(
+    result: CommandResult<unknown>,
+    path: string,
+): CommandResult<unknown> {
+    return result.ok || result.error.path !== TRANSIENT_PATH
+        ? result
+        : { ok: false, error: { ...result.error, path } };
 }
 
 function prefixed(
@@ -556,7 +572,9 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         dryRun: boolean,
         prefix: string,
     ): CommandResult<unknown> {
-        const draft = new Draft(this.current, this.index, this.ids);
+        // a dry run commits nothing, not even the ids it generated
+        const ids = dryRun ? this.ids.clone() : this.ids;
+        const draft = new Draft(this.current, this.index, ids);
         const execution: Execution = { steps: [], thrown: undefined };
         if (!dryRun) {
             this.inFlight++;
@@ -584,7 +602,10 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         if (execution.thrown) {
             throw execution.thrown.error;
         }
-        result = prefixed(result, prefix);
+        result =
+            !result.ok && result.error.path === TRANSIENT_PATH
+                ? placeTransientError(result, "/transient")
+                : prefixed(result, prefix);
         if (!result.ok || dryRun) {
             return result;
         }
@@ -633,7 +654,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
             return error(
                 "invalid_payload",
                 `"${command}" cannot run as a transient step`,
-                "/transient",
+                TRANSIENT_PATH,
             );
         }
 
@@ -677,7 +698,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
             loadLayout: (json, path) => {
                 const built = buildState(
                     json,
-                    this.ids,
+                    draft.ids,
                     {
                         dataSchemas: this.dataSchemas,
                         freeze: this.freeze,
@@ -714,6 +735,9 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
                     },
                 );
                 if (!sub.ok) {
+                    if (sub.error.path === TRANSIENT_PATH) {
+                        return placeTransientError(sub, `${path}/command`);
+                    }
                     return sub.error.code === "unknown_command"
                         ? error(
                               "unknown_command",

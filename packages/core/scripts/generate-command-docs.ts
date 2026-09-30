@@ -47,6 +47,19 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "../../..");
 const OUT = join(ROOT, "site/docs/api/commands.mdx");
 const COMMAND_TYPES = join(here, "../src/commands/types.ts");
+const COMMAND_SOURCES = [
+    "tab",
+    "tabset",
+    "row",
+    "border",
+    "window",
+    "layout",
+    "rules",
+    "dock",
+].map((file) => join(here, `../src/commands/${file}.ts`));
+
+/** The error codes a command's own rules return (the ones every command can return aside). */
+const RULE_CODES = ["not_found", "refused"] as const;
 
 /** The sections of the page, by command prefix. */
 const GROUPS: readonly [prefix: string, title: string][] = [
@@ -222,9 +235,64 @@ function literal(value: unknown): string {
     return JSON.stringify(value, null, 4).replace(/"(\w+)":/g, "$1:");
 }
 
+/**
+ * Each command's rule errors, read from the source: the codes its reducer returns, and those of
+ * the helper functions it calls (followed through the helpers they call in turn).
+ */
+function commandCodes(): Map<string, Set<string>> {
+    const sources = COMMAND_SOURCES.map((file) => readFileSync(file, "utf8"));
+    const codesIn = (text: string): Set<string> =>
+        new Set(RULE_CODES.filter((code) => text.includes(`"${code}"`)));
+    // the helpers: every top-level function of the command files
+    const helpers = new Map<string, string>();
+    for (const source of sources) {
+        for (const match of source.matchAll(
+            /^(?:export )?function (\w+)[^{]*\{([\s\S]*?)\n\}\n/gm,
+        )) {
+            helpers.set(match[1] ?? "", match[2] ?? "");
+        }
+    }
+    const closure = (text: string, seen = new Set<string>()): Set<string> => {
+        const codes = codesIn(text);
+        for (const call of text.matchAll(/\b(\w+)\(/g)) {
+            const name = call[1] ?? "";
+            const body = helpers.get(name);
+            if (body !== undefined && !seen.has(name)) {
+                seen.add(name);
+                for (const code of closure(body, seen)) codes.add(code);
+            }
+        }
+        return codes;
+    };
+    const result = new Map<string, Set<string>>();
+    for (const source of sources) {
+        const blocks = source
+            .split(/^export const \w+ = defineCommand\(/m)
+            .slice(1);
+        for (const block of blocks) {
+            const name = /name: "([\w.]+)"/.exec(block)?.[1];
+            if (name) result.set(name, closure(block));
+        }
+    }
+    return result;
+}
+
+function errorLine(name: string, codes: Set<string> | undefined): string {
+    if (name === "batch") {
+        return "**Errors**: those of the commands it runs (the first failure, at its path in `commands`); nothing applies unless all succeed.";
+    }
+    const own = RULE_CODES.filter((code) => codes?.has(code)).map(
+        (code) => `\`${code}\``,
+    );
+    return own.length === 0
+        ? "**Errors**: only those every command can return."
+        : `**Errors**: ${own.join(", ")}, besides those every command can return.`;
+}
+
 function section(
     info: CommandInfo,
     types: { payload: string; result: string } | undefined,
+    codes: Set<string> | undefined,
 ): string {
     const example = EXAMPLES[info.name];
     const payload = literal(example);
@@ -245,6 +313,8 @@ function section(
         `**Result**${types ? ` (\`${cell(types.result)}\`)` : ""}`,
         "",
         fieldTable(info.resultSchema),
+        "",
+        errorLine(info.name, codes),
         "",
         "```ts",
         `model.run("${info.name}", ${payload});`,
@@ -269,6 +339,7 @@ async function render(): Promise<string> {
     });
     const commands = model.commands();
     const types = commandTypes();
+    const codes = commandCodes();
 
     // every example is a valid payload (a missing node is fine: the reference invents ids)
     for (const info of commands) {
@@ -286,6 +357,11 @@ async function render(): Promise<string> {
         }
         if (!types.has(info.name)) {
             throw new Error(`${info.name} is not in CommandMap`);
+        }
+        if (info.name !== "batch" && !codes.has(info.name)) {
+            throw new Error(
+                `${info.name}: its definition was not found in the sources`,
+            );
         }
         for (const schema of [info.payloadSchema, info.resultSchema]) {
             for (const [field, property] of Object.entries(
@@ -307,7 +383,9 @@ async function render(): Promise<string> {
         );
         return [
             `## ${title}`,
-            ...members.map((info) => section(info, types.get(info.name))),
+            ...members.map((info) =>
+                section(info, types.get(info.name), codes.get(info.name)),
+            ),
         ].join("\n\n");
     });
     const listed = GROUPS.reduce(
@@ -333,7 +411,7 @@ async function render(): Promise<string> {
         "",
         `The model runs ${commands.length} commands. Each one takes a JSON payload, checked against its JSON Schema, and returns a \`CommandResult\`: \`{ ok: true, value }\`, or \`{ ok: false, error }\`. Run one with \`model.run(name, payload)\` (typed by your registry), or give it as untrusted JSON to \`model.dispatch({ command, payload })\`, which validates it first. \`model.commands()\` returns this same list with the schemas, ready to become tool definitions for an assistant.`,
         "",
-        "Every command can return `invalid_payload` (the payload does not match its schema, with the path of each problem), `vetoed` (a middleware refused it), `queued` (a middleware ran it while another command was running) and `middleware_error`; a command that names a node can return `not_found`, and one whose rules refuse the change returns `refused`. See [the command bus](/docs/api/command-bus) for the results, the middleware and the events.",
+        "Every command can return `invalid_payload` (the payload does not match its schema, with the path of each problem), `vetoed` (a middleware refused it), `queued` (a middleware ran it while another command was running) and `middleware_error`; each command lists the ones its own rules add: `not_found` (a node it names is missing) and `refused` (a rule of the layout refuses the change). See [the command bus](/docs/api/command-bus) for the results, the middleware and the events.",
         "",
         "The payload types below use `T`, your registry (see [typed data](/docs/concepts/typed-data)): a tab's `data` is checked against its `component`.",
         "",

@@ -73,7 +73,8 @@ export interface CommitResult {
 export class Draft {
     private base: AnyState;
     private index: NodeIndex;
-    private readonly ids: IdSource;
+    /** the ids it generates from (a dry run's is a copy) */
+    readonly ids: IdSource;
     /** the mutable versions of the nodes edited or created in this draft */
     private readonly nodes = new Map<string, MutableNode>();
     /** parent overrides: nodes moved, attached or detached in this draft (undefined: detached) */
