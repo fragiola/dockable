@@ -5,7 +5,11 @@
 //
 // The engine reads the model's immutable state, keeps every piece of view state (rects, moveable
 // elements, scroll, "rendered") keyed by node id, and changes the layout only through commands.
-import type { CommandEvent, CommandResult } from "../commands/types";
+import type {
+    BatchEntry,
+    CommandEvent,
+    CommandResult,
+} from "../commands/types";
 import {
     DragDropManager,
     type DropZoneOptions,
@@ -73,6 +77,12 @@ export interface LayoutEngineOptions<T extends DockableTypes = AnyTypes> {
     onExternalDrag?: OnExternalDrag<T> | undefined;
     /** layouts of other models this layout exchanges tabs with by drag and drop (main engine only) */
     dragGroup?: DragGroup | undefined;
+    /**
+     * What keeps this layout's DOM ids and window names apart from another layout's on the page
+     * (their models may share node ids). Defaults to a page-unique `d<n>-`; an adapter may pass a
+     * stable one (React's `useId`) so server and client agree. Main engine only.
+     */
+    idScope?: string | undefined;
 }
 
 /** Options of the engine an adapter may change on every render. */
@@ -116,10 +126,15 @@ class SharedView {
     readonly splitters = new Map<HTMLElement, () => boolean>();
     readonly listeners = new Set<() => void>();
     moveablesHome: HTMLElement | null = null;
+    /** each open window layout's number in its paths (`/sublayout<n>`), kept while it is open */
+    readonly windowNumbers = new Map<string, number>();
+    idScope = "";
     splitterSize = 8;
     splitterDragging = false;
     revision = 0;
 }
+
+let scopes = 0;
 
 /** the element that hosts each moveable's scroll tracking, and the tab it currently hosts */
 const scrollTracking = new WeakMap<
@@ -190,6 +205,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.layoutId = options.layoutId ?? MAIN_LAYOUT;
         this.main = options.main ?? this;
         this.shared = this.main === this ? new SharedView() : this.main.shared;
+        if (this.main === this) {
+            this.shared.idScope = options.idScope ?? `d${++scopes}-`;
+        }
         this.measureElement = options.measure ?? defaultMeasure;
         this.realtimeResize = options.realtimeResize ?? true;
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
@@ -283,6 +301,44 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.derived();
     }
 
+    /**
+     * A window layout's number in its paths: the lowest one free when it is first seen, then kept
+     * while it is open, so closing one window never renames another's elements.
+     */
+    private windowNumber(state: AnyState, layoutId: string): number {
+        const numbers = this.shared.windowNumbers;
+        for (const id of [...numbers.keys()]) {
+            if (!state.windows.some((w) => w.id === id)) {
+                numbers.delete(id);
+            }
+        }
+        let number = numbers.get(layoutId);
+        if (number === undefined) {
+            const used = new Set(numbers.values());
+            number = 1;
+            while (used.has(number)) {
+                number++;
+            }
+            numbers.set(layoutId, number);
+        }
+        return number;
+    }
+
+    /** The DOM id of a tab's button in this layout (unique on the page, see `idScope`). */
+    tabButtonId(tabId: string): string {
+        return getTabButtonId(tabId, this.shared.idScope);
+    }
+
+    /** The DOM id of a tab's panel in this layout (unique on the page, see `idScope`). */
+    tabPanelId(tabId: string): string {
+        return getTabPanelId(tabId, this.shared.idScope);
+    }
+
+    /** @internal the page-unique scope of this layout's DOM ids and window names */
+    get idScope(): string {
+        return this.shared.idScope;
+    }
+
     private derived() {
         const state = this.model.state as unknown as AnyState;
         const root = this.rootRow(state);
@@ -294,11 +350,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             const prefix =
                 this.layoutId === MAIN_LAYOUT
                     ? ""
-                    : windowPath(
-                          state.windows.findIndex(
-                              (w) => w.id === this.layoutId,
-                          ) + 1,
-                      );
+                    : windowPath(this.windowNumber(state, this.layoutId));
             this.paths = computePaths(
                 root,
                 prefix,
@@ -517,6 +569,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     // *********************************************************************************
 
     private onModelEvent(event: CommandEvent) {
+        if (event.command === "window.configure") {
+            return; // only a window's screen rect changed: nothing draws it
+        }
         this.forgetRemoved();
         if (event.transient && event.command === "row.resize") {
             if (
@@ -1218,12 +1273,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             return;
         }
         const doc = this.currentDocument;
-        const panel = doc?.getElementById(getTabPanelId(tab.id));
+        const panel = doc?.getElementById(this.tabPanelId(tab.id));
         const refocus =
             doc?.activeElement != null && panel?.contains(doc.activeElement);
         this.run("border.configure", { border: borderId, open: false });
         if (refocus) {
-            doc?.getElementById(getTabButtonId(tab.id))?.focus();
+            doc?.getElementById(this.tabButtonId(tab.id))?.focus();
         }
     }
 
@@ -1284,8 +1339,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             if (!tab) {
                 continue;
             }
-            const button = doc.getElementById(getTabButtonId(tab.id));
-            const panel = doc.getElementById(getTabPanelId(tab.id));
+            const button = doc.getElementById(this.tabButtonId(tab.id));
+            const panel = doc.getElementById(this.tabPanelId(tab.id));
             if (active === button || panel?.contains(active)) {
                 this.closeOverlayBorder(border.id);
                 button?.focus();
@@ -1496,12 +1551,29 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (!target) {
             return this.run("window.close", { window: layout });
         }
-        return this.run("batch", {
-            commands: tabs.map((tab) => ({
-                command: "tab.move" as const,
+        // a pinned tab may not leave its tabset: it is unpinned for the move and pinned again
+        const commands: BatchEntry<T>[] = [];
+        for (const tab of tabs) {
+            const node = this.model.get(tab);
+            const pinned = node?.type === "tab" && node.pinned === true;
+            if (pinned) {
+                commands.push({
+                    command: "tab.pin",
+                    payload: { tab, value: false },
+                });
+            }
+            commands.push({
+                command: "tab.move",
                 payload: { tab, to: target.id, index: -1 },
-            })),
-        });
+            });
+            if (pinned) {
+                commands.push({
+                    command: "tab.pin",
+                    payload: { tab, value: true },
+                });
+            }
+        }
+        return this.run("batch", { commands });
     }
 
     // *********************************************************************************

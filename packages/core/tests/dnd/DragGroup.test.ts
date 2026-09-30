@@ -214,6 +214,25 @@ describe("dragging between two models", () => {
         expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);
     });
 
+    it("undoes the add, content included, when the source refuses the close only when it runs", () => {
+        const group = new DragGroup();
+        const a = layout("a", {
+            dragGroup: group,
+            middleware: (ctx, next) =>
+                ctx.command === "tab.close" && !ctx.dryRun ? veto() : next(),
+        });
+        const b = layout("b", { dragGroup: group });
+        const moveable = a.engine.getMoveableElement("a0");
+        const transfers: Transfer[] = [];
+        group.onTransfer((transfer) => transfers.push(transfer));
+
+        dragBetween(a, "a0", b);
+        expect(ids(b.model, "ts1")).toEqual(["b2"]);
+        expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);
+        expect(a.engine.getMoveableElement("a0")).toBe(moveable);
+        expect(transfers).toEqual([]);
+    });
+
     it("changes nothing for a tab that cannot close in its model", () => {
         const group = new DragGroup();
         const a = layout("a", { dragGroup: group });

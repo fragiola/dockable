@@ -207,6 +207,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     /** the model's answers during the current drag, by candidate (the state does not change mid-drag) */
     private verdicts = new Map<string, boolean>();
     private verdictsFor: DragState | undefined;
+    private verdictsState: unknown;
 
     constructor(engine: LayoutEngine<T>) {
         this.engine = engine;
@@ -740,14 +741,17 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     /** whether the model accepts a command (asked once per candidate during a drag) */
     private accepts(state: DragState, command: DropCommand): boolean {
-        if (this.verdictsFor !== state) {
+        // the subject is the drag's: within one drag and one state, the placement decides
+        const model = this.engine.model as unknown as Model<AnyTypes>;
+        if (this.verdictsFor !== state || this.verdictsState !== model.state) {
             this.verdictsFor = state;
+            this.verdictsState = model.state;
             this.verdicts = new Map();
         }
-        const key = JSON.stringify([command.command, command.payload]);
+        const { to, location, index } = command.payload;
+        const key = `${command.command}|${to}|${location}|${index}`;
         let verdict = this.verdicts.get(key);
         if (verdict === undefined) {
-            const model = this.engine.model as unknown as Model<AnyTypes>;
             verdict =
                 command.command === "tab.move"
                     ? model.can("tab.move", command.payload).ok

@@ -811,6 +811,21 @@ describe("refused drops", () => {
         });
     });
 
+    it("asks again once the layout changes during the drag", () => {
+        let locked = true;
+        const s = setup({
+            middleware: (ctx, next) =>
+                locked && ctx.command === "tab.move" ? veto() : next(),
+        });
+        expect(dragOverAt(s, "t1", 312, 185).defaultPrevented).toBe(false);
+        // the app unlocks mid-drag and changes the layout: the next dragover asks again
+        locked = false;
+        s.model.run("tab.select", { tab: "t0" });
+        const over = dragEvent("dragover", 312, 185);
+        s.root.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(true);
+    });
+
     it("drops nothing on a refused target", () => {
         const s = setup({ middleware: refuseTs1 });
         dragOverAt(s, "t0", 312, 185);

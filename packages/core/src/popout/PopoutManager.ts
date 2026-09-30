@@ -20,6 +20,8 @@ import type { AnyTypes, DockableTypes, WindowLayout } from "../state/types";
 export const STYLE_LOAD_TIMEOUT_MS = 2000;
 /** Poll CSSOM rules (MutationObserver misses insertRule). */
 export const STYLE_POLL_INTERVAL_MS = 750;
+/** Poll a popout's screen position: a window that moves fires no event. */
+export const WINDOW_RECT_POLL_INTERVAL_MS = 1000;
 /** Attribute of the element the adapter renders a popout's layout into. */
 export const POPOUT_ATTRIBUTE = "data-dockable-popout";
 /** Attribute of the style element mirroring the main document's adopted stylesheets. */
@@ -224,7 +226,12 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         const opener: OpenWindow =
             this.options.openWindow ??
             ((u, name, f) => mainWindow.open(u, name, f));
-        const popout = opener(url, layoutId, features);
+        // the name is scoped: two models on one page may both have a "window-1"
+        const popout = opener(
+            url,
+            `dockable-${this.engine.idScope}${layoutId}`,
+            features,
+        );
         if (!popout) {
             console.warn(`Unable to open window ${url}`);
             this.dockBack(layoutId);
@@ -372,29 +379,42 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             }
         });
 
-        // record where the window is, so a saved layout reopens it in place
+        // record where the window is, so a saved layout reopens it in place: on resize, and by
+        // polling, since a window that only moves fires no event
         const onResize = () => {
+            const current = this.layoutOf(entry.layoutId);
             if (
                 this.entries.get(entry.layoutId) !== entry ||
+                !current ||
                 popout.screenTop <= -10000
             ) {
                 return; // chrome reports large negative values while minimized
             }
+            const rect = {
+                x: popout.screenLeft,
+                y: popout.screenTop,
+                width: popout.outerWidth,
+                height: popout.outerHeight,
+            };
+            if (
+                rect.x === current.rect.x &&
+                rect.y === current.rect.y &&
+                rect.width === current.rect.width &&
+                rect.height === current.rect.height
+            ) {
+                return;
+            }
             this.engine.run(
                 "window.configure",
-                {
-                    window: entry.layoutId,
-                    rect: {
-                        x: popout.screenLeft,
-                        y: popout.screenTop,
-                        width: popout.outerWidth,
-                        height: popout.outerHeight,
-                    },
-                },
+                { window: entry.layoutId, rect },
                 { transient: true },
             );
         };
         popout.addEventListener("resize", onResize);
+        const rectPoll = popout.setInterval(
+            onResize,
+            WINDOW_RECT_POLL_INTERVAL_MS,
+        );
 
         // listen for the popout unloading (needs to be after load for safari)
         const onPopoutBeforeUnload = () => {
@@ -420,6 +440,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             stopMirroringRoot();
             mirror.dispose();
             popout.removeEventListener("resize", onResize);
+            popout.clearInterval(rectPoll);
             popout.removeEventListener("beforeunload", onPopoutBeforeUnload);
         };
     }

@@ -10,6 +10,7 @@ import {
     POPOUT_ATTRIBUTE,
     type PopoutOptions,
     StyleMirror,
+    WINDOW_RECT_POLL_INTERVAL_MS,
 } from "../../src";
 
 const json: LayoutJson = {
@@ -105,14 +106,15 @@ function setup(
 
 describe("opening", () => {
     it("opens popout.html?id=<layout> once per window layout, with its rect", () => {
-        const { model, manager, layoutId, openSpy } = setup();
+        const { model, engine, manager, layoutId, openSpy } = setup();
         manager.sync();
         manager.sync();
         expect(openSpy).toHaveBeenCalledTimes(1);
         const rect = model.windowLayout(layoutId)?.rect;
+        // the name is scoped to the engine: two models may both have a "window-1"
         expect(openSpy).toHaveBeenCalledWith(
             `popout.html?id=${encodeURIComponent(layoutId)}`,
-            layoutId,
+            `dockable-${engine.idScope}${layoutId}`,
             `left=${rect?.x},top=${rect?.y},width=${rect?.width},height=${rect?.height}`,
         );
     });
@@ -120,10 +122,10 @@ describe("opening", () => {
     it("opens with an injected opener", () => {
         const win = fakePopout();
         const openWindow = vi.fn(() => win);
-        const { manager, layoutId, openSpy } = setup({ openWindow });
+        const { engine, manager, layoutId, openSpy } = setup({ openWindow });
         expect(openWindow).toHaveBeenCalledWith(
             `popout.html?id=${encodeURIComponent(layoutId)}`,
-            layoutId,
+            `dockable-${engine.idScope}${layoutId}`,
             expect.stringContaining("width="),
         );
         expect(openSpy).not.toHaveBeenCalled();
@@ -245,6 +247,46 @@ describe("opening", () => {
         expect(events).toMatchObject([
             { command: "window.configure", transient: true },
         ]);
+    });
+
+    it("records a move by polling (a moved window fires no event), and nothing when it stayed put", async () => {
+        const { model, layoutId, opened } = setup();
+        const win = opened[0] as Window;
+        const setInterval = vi.spyOn(win, "setInterval");
+        await load(win);
+        const poll = setInterval.mock.calls.find(
+            (call) => call[1] === WINDOW_RECT_POLL_INTERVAL_MS,
+        )?.[0];
+        if (typeof poll !== "function") throw new Error("no rect poll");
+        const rect = model.windowLayout(layoutId)?.rect;
+        const at = (name: string, value: number | undefined) =>
+            Object.defineProperty(win, name, { configurable: true, value });
+        at("screenLeft", rect?.x);
+        at("screenTop", rect?.y);
+        at("outerWidth", rect?.width);
+        at("outerHeight", rect?.height);
+        const events: string[] = [];
+        model.subscribe((event) => events.push(event.command));
+
+        poll();
+        win.dispatchEvent(new Event("resize"));
+        expect(events).toEqual([]); // unchanged: no command
+
+        at("screenLeft", 300);
+        poll();
+        expect(events).toEqual(["window.configure"]);
+        expect(model.windowLayout(layoutId)?.rect.x).toBe(300);
+    });
+
+    it("names its windows apart from another model's with the same window ids", () => {
+        const a = setup();
+        const nameA = a.openSpy.mock.calls[0]?.[1];
+        engine = undefined; // keep the first engine alive for the second setup
+        const b = setup();
+        const nameB = b.openSpy.mock.calls.at(-1)?.[1];
+        expect(a.layoutId).toBe(b.layoutId);
+        expect(nameA).not.toBe(nameB);
+        a.engine.dispose();
     });
 });
 
@@ -488,7 +530,8 @@ describe("resources", () => {
         await load(win);
         const before = clearInterval.mock.calls.length;
         await load(win); // a reload fires load again on the same window
-        expect(clearInterval).toHaveBeenCalledTimes(before + 1);
+        // the style poll and the window rect poll of the previous document
+        expect(clearInterval).toHaveBeenCalledTimes(before + 2);
 
         document.head.appendChild(document.createElement("style")).textContent =
             ".once {}";

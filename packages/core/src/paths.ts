@@ -78,12 +78,16 @@ function domId(prefix: string, nodeId: string) {
     return prefix + nodeId.replace(/\s/g, "_"); // aria id references cannot contain whitespace
 }
 
-/** The DOM id of a tab's button, referenced by its panel's `aria-labelledby`. */
-export function getTabButtonId(tabId: string): string {
-    return domId("dockable-tabbutton-", tabId);
+/**
+ * The DOM id of a tab's button, referenced by its panel's `aria-labelledby`. `scope` keeps the ids
+ * of two layouts on one page apart (their models may both have a `tab-1`):
+ * `engine.tabButtonId(id)` passes the engine's own.
+ */
+export function getTabButtonId(tabId: string, scope = ""): string {
+    return domId(`dockable-${scope}tabbutton-`, tabId);
 }
 
-/** The DOM id of a tab's panel, referenced by its button's `aria-controls`. */
-export function getTabPanelId(tabId: string): string {
-    return domId("dockable-tab-", tabId);
+/** The DOM id of a tab's panel, referenced by its button's `aria-controls` (see {@link getTabButtonId}). */
+export function getTabPanelId(tabId: string, scope = ""): string {
+    return domId(`dockable-${scope}tab-`, tabId);
 }

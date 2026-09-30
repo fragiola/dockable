@@ -3,8 +3,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
     createLayoutEngine,
     DragDropManager,
-    getTabButtonId,
-    getTabPanelId,
     type LayoutEngine,
     type LayoutJson,
     OVERLAY_ATTRIBUTE,
@@ -253,9 +251,9 @@ describe("overlay borders", () => {
     it("close with the close key from the tab button or the panel, and focus the tab button", () => {
         const s = setupOverlay();
         const button = s.root.appendChild(document.createElement("button"));
-        button.id = getTabButtonId("b0");
+        button.id = s.engine.tabButtonId("b0");
         const panel = s.root.appendChild(document.createElement("div"));
-        panel.id = getTabPanelId("b0");
+        panel.id = s.engine.tabPanelId("b0");
         const input = panel.appendChild(document.createElement("input"));
 
         input.focus();

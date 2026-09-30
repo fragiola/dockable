@@ -95,6 +95,7 @@ export {
     STYLE_LOAD_TIMEOUT_MS,
     STYLE_POLL_INTERVAL_MS,
     StyleMirror,
+    WINDOW_RECT_POLL_INTERVAL_MS,
 } from "./popout/PopoutManager";
 export type { FromSchema } from "./schema/from-schema";
 export { layoutSchema } from "./schema/layout";

@@ -168,7 +168,27 @@ export class DragGroup {
             return undefined;
         }
         targetEngine.main.adoptMoveable(added.value.tab, moveable);
-        source.run("tab.close", { tab: tabId }, { meta: { ...meta } });
+        const closed = source.run(
+            "tab.close",
+            { tab: tabId },
+            { meta: { ...meta } },
+        );
+        if (!closed.ok) {
+            // the source refused after all (its answer changed since the dry run): undo the add,
+            // and the content goes back with the tab
+            const back = targetEngine.main.takeMoveable(added.value.tab);
+            const undone = target.run(
+                "tab.close",
+                { tab: added.value.tab },
+                { meta: { ...meta } },
+            );
+            if (undone.ok) {
+                sourceEngine.main.adoptMoveable(tabId, back);
+            } else {
+                targetEngine.main.adoptMoveable(added.value.tab, back);
+            }
+            return undefined;
+        }
         const transfer: Transfer = {
             tab: added.value.tab,
             previousId: tabId,
