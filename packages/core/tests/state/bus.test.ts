@@ -12,6 +12,21 @@ import { must, render, tab, tabsets } from "./harness";
 const model2 = () => createModel(tabsets(["One", "Two"], ["Three"]));
 
 describe("results", () => {
+    it("runs through detached methods (`const { run } = model`)", () => {
+        const model = model2();
+        const { run, can, dispatch, subscribe, use } = model;
+        const events: string[] = [];
+        subscribe((event) => events.push(event.command));
+        use((_ctx, next) => next());
+        const tabId = model.tabs()[1]?.id ?? "";
+        expect(can("tab.select", { tab: tabId }).ok).toBe(true);
+        expect(run("tab.select", { tab: tabId }).ok).toBe(true);
+        expect(
+            dispatch({ command: "tab.close", payload: { tab: tabId } }).ok,
+        ).toBe(true);
+        expect(events).toEqual(["tab.select", "tab.close"]);
+    });
+
     it("never throws on bad input", () => {
         const model = model2();
         expect(model.run("tab.nope" as "tab.close", { tab: "One" })).toEqual({

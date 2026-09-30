@@ -17,6 +17,7 @@ import type {
 import type { JsonSchema } from "../schema/types";
 import { validate } from "../schema/validator";
 import {
+    type BorderLike,
     type ResolvedBorder,
     type ResolvedLayout,
     type ResolvedTab,
@@ -25,6 +26,8 @@ import {
     resolveLayout,
     resolveTab,
     resolveTabset,
+    type TabLike,
+    type TabsetLike,
 } from "./defaults";
 import { Draft } from "./draft";
 import { type CreateId, IdSource } from "./ids";
@@ -65,7 +68,8 @@ export interface ModelOptions<T extends DockableTypes = AnyTypes> {
 /**
  * The layout model: an immutable state tree changed only by commands. Queries read the current
  * state; `run` (typed) and `dispatch` (untrusted JSON) apply commands through the middleware
- * chain; `subscribe` receives one event per commit.
+ * chain; `subscribe` receives one event per commit. `run`, `dispatch`, `can`, `use` and `subscribe`
+ * are bound: they can be passed around on their own.
  */
 export interface Model<T extends DockableTypes = AnyTypes> {
     /** the current state (immutable; a new object after every change) */
@@ -95,8 +99,8 @@ export interface Model<T extends DockableTypes = AnyTypes> {
     isHiddenByMaximize(id: string): boolean;
     /** a node's behaviour fields, resolved through the defaults */
     resolve(node: TabNode<string, unknown>): ResolvedTab;
-    resolve(node: TabsetNode<AnyTypes>): ResolvedTabset;
-    resolve(node: BorderNode<AnyTypes>): ResolvedBorder;
+    resolve<U extends DockableTypes>(node: TabsetNode<U>): ResolvedTabset;
+    resolve<U extends DockableTypes>(node: BorderNode<U>): ResolvedBorder;
     /** the layout-wide settings, resolved */
     resolveLayout(): ResolvedLayout;
     /** the state as a layout document (a writable copy) */
@@ -219,6 +223,12 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         this.ids = ids;
         this.dataSchemas = options.dataSchemas as DataSchemas | undefined;
         this.freeze = options.freeze ?? true;
+        // the bus can be passed around detached: `const { run } = model`
+        this.run = this.run.bind(this);
+        this.dispatch = this.dispatch.bind(this);
+        this.can = this.can.bind(this);
+        this.use = this.use.bind(this);
+        this.subscribe = this.subscribe.bind(this);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -360,13 +370,13 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
     }
 
     resolve(node: TabNode<string, unknown>): ResolvedTab;
-    resolve(node: TabsetNode<AnyTypes>): ResolvedTabset;
-    resolve(node: BorderNode<AnyTypes>): ResolvedBorder;
+    resolve<U extends DockableTypes>(node: TabsetNode<U>): ResolvedTabset;
+    resolve<U extends DockableTypes>(node: BorderNode<U>): ResolvedBorder;
     resolve(
         node:
-            | TabNode<string, unknown>
-            | TabsetNode<AnyTypes>
-            | BorderNode<AnyTypes>,
+            | ({ readonly type: "tab" } & TabLike)
+            | ({ readonly type: "tabset" } & TabsetLike)
+            | ({ readonly type: "border" } & BorderLike),
     ): ResolvedTab | ResolvedTabset | ResolvedBorder {
         const defaults = this.current.defaults;
         switch (node.type) {

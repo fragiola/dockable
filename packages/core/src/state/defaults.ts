@@ -176,18 +176,21 @@ export function isVerticalBorder(location: string): boolean {
     return location === "left" || location === "right";
 }
 
+/** The fields of a border that take part in the defaults rule (and its selected tab's size). */
+export type BorderLike = {
+    readonly location: string;
+    readonly selected: number;
+    readonly children: readonly (TabLike & {
+        readonly borderWidth?: number;
+        readonly borderHeight?: number;
+    })[];
+    readonly show?: boolean;
+} & { readonly [K in keyof BorderFields]?: BorderFields[K] };
+
 /** A border's behaviour fields, with the selected tab's own size and limits applied. */
 export function resolveBorder(
     defaults: LayoutDefaults,
-    border: {
-        readonly location: string;
-        readonly selected: number;
-        readonly children: readonly (TabLike & {
-            readonly borderWidth?: number;
-            readonly borderHeight?: number;
-        })[];
-        readonly show?: boolean;
-    } & { readonly [K in keyof BorderFields]?: BorderFields[K] },
+    border: BorderLike,
 ): ResolvedBorder {
     const d: Partial<BorderFields> | undefined = defaults.border;
     const b: BorderFields = BUILT_IN.border;

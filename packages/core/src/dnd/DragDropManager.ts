@@ -168,6 +168,15 @@ export class DragState {
     isNewTab(): boolean {
         return this.subject.kind === "new";
     }
+
+    /** What is dragged, typed by the registry of `model`, when the drag belongs to `model`. */
+    subjectOf<T extends DockableTypes>(
+        model: Model<T>,
+    ): DragSubject<T> | undefined {
+        return sameModel(this.mainEngine.model, model)
+            ? (this.subject as unknown as DragSubject<T>)
+            : undefined;
+    }
 }
 
 /** whether two models (of any registries) are the same object */
