@@ -204,7 +204,10 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const keyShortcuts =
         [
             toAriaKeyShortcuts(keyMap.focusTabToggle),
-            closeable() ? toAriaKeyShortcuts(keyMap.closeTab) : undefined,
+            // the hint follows the tab's own rule; the key itself asks the model (`closeable`)
+            model.resolve(node).enableClose && node.pinned !== true
+                ? toAriaKeyShortcuts(keyMap.closeTab)
+                : undefined,
         ]
             .filter(Boolean)
             .join(" ") || undefined;
@@ -214,8 +217,8 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         selected,
         pinned: node.pinned === true,
         dragging: drag.dragging,
-        popoutEnabled:
-            engine.isSupportsPopout() && model.resolve(node).enablePopout,
+        // supported, and the model accepts `tab.popout` for it now
+        popoutEnabled: engine.canPopout(id),
         overflowHidden,
     };
     return useRenderElement("div", rest, {

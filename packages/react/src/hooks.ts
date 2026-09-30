@@ -87,8 +87,16 @@ export function useModelState<T extends DockableTypes = AnyTypes, S = unknown>(
     const model = typedModel<T>(erased);
     const latest = React.useRef({ selector, isEqual });
     latest.current = { selector, isEqual };
+    // the last selection, and what it was computed from: a new state, model or selector (a closure
+    // over new props) selects again
     const cache = React.useRef<
-        { state: LayoutState<T>; value: S; model: Model<T> } | undefined
+        | {
+              state: LayoutState<T>;
+              value: S;
+              model: Model<T>;
+              selector: typeof selector;
+          }
+        | undefined
     >(undefined);
     const subscribe = React.useCallback(
         (onChange: () => void) => model.subscribe(() => onChange()),
@@ -96,21 +104,24 @@ export function useModelState<T extends DockableTypes = AnyTypes, S = unknown>(
     );
     const getSnapshot = (): S => {
         const state = model.state;
+        const current = latest.current.selector;
         const previous = cache.current;
-        if (previous?.state === state && previous.model === model) {
+        if (
+            previous?.state === state &&
+            previous.model === model &&
+            previous.selector === current
+        ) {
             return previous.value;
         }
-        const value = latest.current.selector(state, model);
-        if (
+        const value = current(state, model);
+        const kept =
             previous !== undefined &&
             previous.model === model &&
             latest.current.isEqual(previous.value, value)
-        ) {
-            cache.current = { state, value: previous.value, model };
-            return previous.value;
-        }
-        cache.current = { state, value, model };
-        return value;
+                ? previous.value
+                : value;
+        cache.current = { state, value: kept, model, selector: current };
+        return kept;
     };
     return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
@@ -475,7 +486,11 @@ export function useDragNode<T extends DockableTypes>(
         onDragStart,
         onDragEnd,
         ref,
-        dragging: dragState?.dragId === id,
+        // this model's drag only: models of a drag group may share ids
+        dragging:
+            dragState !== undefined &&
+            dragState.subjectOf(model) !== undefined &&
+            dragState.dragId === id,
     };
 }
 

@@ -8,7 +8,7 @@ import type {
     TabsetNode,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { useDockableContext, useLayoutContext } from "./context";
+import { typedModel, useDockableContext, useLayoutContext } from "./context";
 import { type TabSetState, useTabSet } from "./hooks";
 import {
     type DivPrimitiveProps,
@@ -24,10 +24,13 @@ export const TabSetContext = React.createContext<string | null>(null);
 /** The id of the tab container (a tabset or a border) of the parts inside it: `TabList`, `Tab`. */
 export const TabContainerContext = React.createContext<string | null>(null);
 
-export function useTabContainer(part: string): TabContainer {
+export function useTabContainer<T extends DockableTypes = AnyTypes>(
+    part: string,
+): TabContainer<T> {
     const id = React.useContext(TabContainerContext);
     const { model } = useDockableContext(part);
-    const container = id === null ? undefined : model.get(id);
+    // the container of the registry the part's caller declares (`<Dockable.TabList<Types>>`)
+    const container = id === null ? undefined : typedModel<T>(model).get(id);
     if (container?.type !== "tabset" && container?.type !== "border") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet or Dockable.Border`,

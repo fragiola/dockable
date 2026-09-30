@@ -11,7 +11,12 @@ import {
 } from "@fragiola/dockable";
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { DockableContext, LayoutContext, useDockableContext } from "./context";
+import {
+    DockableContext,
+    LayoutContext,
+    ModelContext,
+    useDockableContext,
+} from "./context";
 import { DragGroupContext } from "./DragGroup";
 import {
     type DivPrimitiveProps,
@@ -229,17 +234,20 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const groupKey = keyOfMoveable(moveable) + windowKey;
     const dockable = React.useContext(DockableContext);
     const layout = React.useContext(LayoutContext);
+    const modelContext = React.useContext(ModelContext);
     const owner = React.useRef({}).current;
     React.useLayoutEffect(() => {
         dragGroup?.registry.set(
             groupKey,
             owner,
             moveable,
-            <DockableContext.Provider value={dockable}>
-                <LayoutContext.Provider value={layout}>
-                    {children}
-                </LayoutContext.Provider>
-            </DockableContext.Provider>,
+            <ModelContext.Provider value={modelContext}>
+                <DockableContext.Provider value={dockable}>
+                    <LayoutContext.Provider value={layout}>
+                        {children}
+                    </LayoutContext.Provider>
+                </DockableContext.Provider>
+            </ModelContext.Provider>,
         );
     });
     React.useLayoutEffect(

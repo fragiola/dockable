@@ -1,8 +1,8 @@
 import { createModel, type LayoutJson } from "@fragiola/dockable";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { useDockable, useModelState } from "../src";
-import { Layout, type Types, twoTabsets } from "./layout";
+import { Dockable, useDockable, useModelState } from "../src";
+import { Layout, renderNode, type Types, twoTabsets } from "./layout";
 
 function freshModel(json: LayoutJson<Types> = twoTabsets) {
     return createModel<Types>(structuredClone(json));
@@ -73,6 +73,60 @@ describe("useModelState", () => {
             });
         });
         expect(seen.at(-1)).toEqual(["Uno", "Two", "Three"]);
+    });
+});
+
+describe("useModelState, selectors and contexts", () => {
+    it("selects again when the selector changes, with no commit", async () => {
+        const model = freshModel();
+        function Name({ id }: { id: string }) {
+            const name = useModelState<Types, string | undefined>(
+                (_state, m) => {
+                    const tab = m.get(id);
+                    return tab?.type === "tab" ? tab.data.name : undefined;
+                },
+            );
+            return <output data-testid="name">{name}</output>;
+        }
+        const { rerender } = render(
+            <Layout model={model}>
+                <Name id="t0" />
+            </Layout>,
+        );
+        await act(async () => {});
+        expect(screen.getByTestId("name")).toHaveTextContent("One");
+        rerender(
+            <Layout model={model}>
+                <Name id="t2" />
+            </Layout>,
+        );
+        expect(screen.getByTestId("name")).toHaveTextContent("Three");
+    });
+
+    it("works in the tab content of a drag group's layout", async () => {
+        const model = freshModel();
+        function Count() {
+            const count = useModelState<Types, number>(
+                (_state, m) => m.tabs().length,
+            );
+            return <output data-testid="grouped-count">{count}</output>;
+        }
+        render(
+            <Dockable.DragGroup>
+                <Dockable.Root model={model}>
+                    <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                    <Dockable.Panels<Types>>
+                        {(tab) => (
+                            <Dockable.Panel node={tab}>
+                                {tab.id === "t0" ? <Count /> : null}
+                            </Dockable.Panel>
+                        )}
+                    </Dockable.Panels>
+                </Dockable.Root>
+            </Dockable.DragGroup>,
+        );
+        await act(async () => {});
+        expect(screen.getByTestId("grouped-count")).toHaveTextContent("3");
     });
 });
 

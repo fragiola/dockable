@@ -11,7 +11,6 @@ import {
 import * as React from "react";
 import {
     TabListContext,
-    typedModel,
     useDockableContext,
     useLayoutContext,
 } from "./context";
@@ -62,7 +61,7 @@ export interface TabListProps<T extends DockableTypes = AnyTypes>
 export function TabList<T extends DockableTypes = AnyTypes>(
     props: TabListProps<T>,
 ) {
-    const tabset = useTabContainer("TabList");
+    const tabset = useTabContainer<T>("TabList");
     const border = tabset.type === "border";
     const {
         children,
@@ -73,7 +72,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         overflow = true,
         ...rest
     } = props;
-    const { keyMap, model } = useDockableContext("TabList");
+    const { keyMap } = useDockableContext("TabList");
     const { engine } = useLayoutContext("TabList");
     const id = tabset.id;
     const vertical = orientation === "vertical";
@@ -107,13 +106,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         overflowing: tabOverflow.overflowing,
         hiddenCount: tabOverflow.hidden.length,
     };
-    // the container's tabs, typed by the registry the caller declares
-    const container = typedModel<T>(model).get(id);
-    const tabs = (
-        container?.type === "tabset" || container?.type === "border"
-            ? container.children
-            : []
-    ).map((tab) => (
+    const tabs = tabset.children.map((tab) => (
         <React.Fragment key={tab.id}>{children(tab)}</React.Fragment>
     ));
     const listContext = React.useMemo(() => ({ orientation }), [orientation]);
