@@ -86,6 +86,12 @@ export function checkDrop(
     }
 
     if (subject.kind === "tab") {
+        if (target.type === "border" && subject.fields.pinned === true) {
+            return refused(
+                "a pinned tab can only be in a tabset",
+                subject.id === undefined ? "/pinned" : "/tab",
+            );
+        }
         if (subject.id !== undefined && subject.fields.pinned === true) {
             const parent = draft.parentOf(subject.id);
             if (target.id !== parent || location !== "center") {

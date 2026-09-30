@@ -2,6 +2,7 @@ import { snap } from "../geometry/rect";
 import { layoutSchema } from "../schema/layout";
 import type { JsonSchema, ValidationIssue } from "../schema/types";
 import { joinPointer, validate } from "../schema/validator";
+import { cloneJson } from "./clone";
 import { Draft, deepFreeze } from "./draft";
 import { IdSource } from "./ids";
 import type { LayoutJson } from "./json";
@@ -141,7 +142,7 @@ function copyFields(
 ) {
     for (const field of fields) {
         if (source[field] !== undefined) {
-            target[field] = source[field];
+            target[field] = cloneJson(source[field]);
         }
     }
 }
@@ -229,7 +230,14 @@ export function buildState(
         }
         seenSides.set(border.location, i);
         for (const [j, tab] of (border.children ?? []).entries()) {
-            claim(tab.id, joinPointer(joinPointer(at, "children"), j));
+            const tabPath = joinPointer(joinPointer(at, "children"), j);
+            claim(tab.id, tabPath);
+            if (tab.pinned === true) {
+                issues.push({
+                    path: joinPointer(tabPath, "pinned"),
+                    message: "a border tab cannot be pinned (only a tabset's)",
+                });
+            }
         }
     }
     for (const [i, windowLayout] of (doc.windows ?? []).entries()) {
@@ -294,7 +302,7 @@ export function buildState(
             }),
         };
         if (row.data !== undefined) {
-            node.data = row.data;
+            node.data = cloneJson(row.data);
         }
         return node as unknown as AnyRow;
     };
@@ -336,7 +344,7 @@ export function buildState(
     });
 
     const state: AnyState = {
-        defaults: doc.defaults ?? {},
+        defaults: cloneJson(doc.defaults ?? {}),
         root,
         ...(doc.active !== undefined ? { active: doc.active } : {}),
         ...(doc.maximized !== undefined ? { maximized: doc.maximized } : {}),
@@ -392,7 +400,7 @@ export function buildState(
         return { ok: false, issues };
     }
 
-    const draft = new Draft(state, index, ids);
+    const draft = new Draft(state, index, ids, options.reserved);
     tidy(draft);
     const committed = draft.commit(options.freeze);
     return {
@@ -416,29 +424,13 @@ export function validateLayout<J = LayoutJson>(
         : { ok: false, issues: result.issues };
 }
 
-function clone<V>(value: V): V {
-    if (Array.isArray(value)) {
-        return value.map(clone) as V;
-    }
-    if (typeof value === "object" && value !== null) {
-        const out: Record<string, unknown> = {};
-        for (const [key, field] of Object.entries(value)) {
-            if (field !== undefined) {
-                out[key] = clone(field);
-            }
-        }
-        return out as V;
-    }
-    return value;
-}
-
 /** A state as a layout document (a writable copy). */
 export function stateToJson(state: AnyState): LayoutJson {
     const json: Record<string, unknown> = { version: 1 };
     if (Object.keys(state.defaults).length > 0) {
-        json.defaults = clone(state.defaults);
+        json.defaults = cloneJson(state.defaults);
     }
-    json.root = clone(state.root);
+    json.root = cloneJson(state.root);
     if (state.active !== undefined) {
         json.active = state.active;
     }
@@ -446,10 +438,10 @@ export function stateToJson(state: AnyState): LayoutJson {
         json.maximized = state.maximized;
     }
     if (state.borders.length > 0) {
-        json.borders = clone(state.borders);
+        json.borders = cloneJson(state.borders);
     }
     if (state.windows.length > 0) {
-        json.windows = clone(state.windows);
+        json.windows = cloneJson(state.windows);
     }
     return json as unknown as LayoutJson;
 }

@@ -585,7 +585,7 @@ state back with `version: 1`; `createModel(model.toJSON()).state` deep-equals `m
 validate against it, then check what a schema cannot:
 
 - duplicate ids, and the reserved `"main"`;
-- two borders on the same side;
+- two borders on the same side, and a pinned tab in a border;
 - `active` and `maximized` naming a tabset of the same layout.
 
 Every problem is reported, each with a JSON path (RFC 6901 pointer):
@@ -951,8 +951,8 @@ A move or add to `to` with `location` is refused when (FlexLayout's `Node.isDock
 
 1. `to` is a tabset and `location` is center and its `enableDrop` resolves to false;
 2. `to` is a tabset and `location` is an edge and its `enableDivide` resolves to false;
-3. `to` is a border and its `enableDrop` resolves to false, `location` is not center, or a tabset
-   is moving (a border holds tabs only);
+3. `to` is a border and its `enableDrop` resolves to false, `location` is not center, a tabset
+   is moving (a border holds tabs only), or the tab is pinned (only a tabset has a pinned run);
 4. an existing tab is pinned and the move leaves its tabset (another `to`, or an edge location);
 5. a tabset moving with location center into a tabset, when its `enableClose` resolves to false or
    it holds a pinned tab;
@@ -1086,6 +1086,9 @@ The internal validator supports exactly the subset the schemas use: `type` (`obj
 (boolean), `enum`, `const`, `items`, `oneOf`, `anyOf`, `minimum`, `exclusiveMinimum`, `minLength`,
 `minItems`, and local `$ref` with `$defs` (the layout schema is recursive). Unknown keywords are
 ignored. Errors carry a JSON pointer.
+
+The model copies the `data` and `defaults` it is given (JSON, payloads), so it never freezes or
+shares an object the caller still owns.
 
 `createModel(json, { dataSchemas: { editor: {...} } })` registers per-component data schemas;
 `tab.add`, `tab.update` and `layout.load` validate `data` with them.

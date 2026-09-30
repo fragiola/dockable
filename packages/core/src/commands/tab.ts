@@ -11,6 +11,7 @@ import {
     sizeSchema,
     tabFieldProperties,
 } from "../schema/fragments";
+import { cloneJson } from "../state/clone";
 import { resolveTab } from "../state/defaults";
 import { type Draft, newRow, newTabset } from "../state/draft";
 import type { TabInit } from "../state/json";
@@ -49,7 +50,7 @@ export function tabFromInit(draft: Draft, init: TabInit): AnyTab {
         type: "tab" as const,
         id: init.id ?? draft.newId("tab"),
         component: init.component,
-        data: init.data,
+        data: cloneJson(init.data),
         pinned: init.pinned,
         enableClose: init.enableClose,
         enableDrag: init.enableDrag,
@@ -302,7 +303,7 @@ export const tabUpdate = defineCommand({
             return { ok: false, error: invalid };
         }
         draft.set(tab.id, "component", payload.component);
-        draft.set(tab.id, "data", payload.data);
+        draft.set(tab.id, "data", cloneJson(payload.data));
         return ok({ tab: tab.id });
     },
 });
@@ -323,14 +324,19 @@ export const tabPin = defineCommand({
             return { ok: false, error: tab };
         }
         const parent = draft.parentOf(tab.id);
-        if (parent === undefined || draft.get(parent)?.type !== "tabset") {
-            return fail(
-                "refused",
-                "only a tab of a tabset can be pinned",
-                "/tab",
-            );
-        }
         if ((tab.pinned === true) === payload.value) {
+            return ok({ tab: tab.id });
+        }
+        if (parent === undefined || draft.get(parent)?.type !== "tabset") {
+            if (payload.value) {
+                return fail(
+                    "refused",
+                    "only a tab of a tabset can be pinned",
+                    "/tab",
+                );
+            }
+            // unpinning is always possible (outside a tabset there is no pinned run to leave)
+            draft.set(tab.id, "pinned", undefined);
             return ok({ tab: tab.id });
         }
         const selected = selectedTabOf(draft, parent);

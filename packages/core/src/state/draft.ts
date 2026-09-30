@@ -90,10 +90,19 @@ export class Draft {
     /** ids handed out in this draft (not in the index yet) */
     private readonly issued = new Set<string>();
 
-    constructor(base: AnyState, index: NodeIndex, ids: IdSource) {
+    /** ids a generated id must not take (the ids of a state being replaced) */
+    private readonly reserved: ((id: string) => boolean) | undefined;
+
+    constructor(
+        base: AnyState,
+        index: NodeIndex,
+        ids: IdSource,
+        reserved?: (id: string) => boolean,
+    ) {
         this.base = base;
         this.index = index;
         this.ids = ids;
+        this.reserved = reserved;
         this.borderIds = [];
         this.defaults = base.defaults;
         this.load(base);
@@ -248,7 +257,8 @@ export class Draft {
             this.index.has(id) ||
             this.nodes.has(id) ||
             this.layouts.has(id) ||
-            this.issued.has(id)
+            this.issued.has(id) ||
+            (this.reserved?.(id) ?? false)
         );
     }
 

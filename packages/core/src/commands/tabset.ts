@@ -9,6 +9,7 @@ import {
     rectSchema,
     sizeSchema,
 } from "../schema/fragments";
+import { cloneJson } from "../state/clone";
 import { resolveTab, resolveTabset } from "../state/defaults";
 import { type Draft, newRow } from "../state/draft";
 import { adjustSelectedIndex } from "../state/selection";
@@ -303,7 +304,11 @@ export const tabsetConfigure = defineCommand({
         }
         for (const [key, value] of Object.entries(payload)) {
             if (key !== "tabset" && value !== undefined) {
-                draft.set(tabset.id, key, value === null ? undefined : value);
+                draft.set(
+                    tabset.id,
+                    key,
+                    value === null ? undefined : cloneJson(value),
+                );
             }
         }
         return ok({ tabset: tabset.id });

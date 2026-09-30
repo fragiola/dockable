@@ -494,15 +494,12 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
                 `"${command}" was issued while another command was running; it runs after it`,
             );
         }
-        const result = this.execute(
-            command,
-            payload,
-            options ?? {},
-            false,
-            prefix,
-        );
-        this.drain();
-        return result;
+        try {
+            return this.execute(command, payload, options ?? {}, false, prefix);
+        } finally {
+            // a throwing listener or reducer must not strand the commands a middleware queued
+            this.drain();
+        }
     }
 
     private drain() {

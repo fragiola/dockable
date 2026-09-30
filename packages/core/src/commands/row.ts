@@ -1,4 +1,5 @@
 import { dataSchema, idSchema, object } from "../schema/fragments";
+import { cloneJson } from "../state/clone";
 import { defineCommand, fail, ok } from "./define";
 
 const rowId = { ...idSchema, description: "the row's id" } as const;
@@ -59,7 +60,7 @@ export const rowConfigure = defineCommand({
             draft.set(
                 row.id,
                 "data",
-                payload.data === null ? undefined : payload.data,
+                payload.data === null ? undefined : cloneJson(payload.data),
             );
         }
         return ok({ row: row.id });

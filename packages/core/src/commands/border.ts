@@ -7,6 +7,7 @@ import {
     object,
     sizeSchema,
 } from "../schema/fragments";
+import { cloneJson } from "../state/clone";
 import { isVerticalBorder, resolveBorder } from "../state/defaults";
 import { defineCommand, fail, ok } from "./define";
 
@@ -108,7 +109,11 @@ export const borderConfigure = defineCommand({
         }
         for (const [key, value] of Object.entries(payload)) {
             if (key !== "border" && key !== "open" && value !== undefined) {
-                draft.set(border.id, key, value === null ? undefined : value);
+                draft.set(
+                    border.id,
+                    key,
+                    value === null ? undefined : cloneJson(value),
+                );
             }
         }
         return ok({ border: border.id });

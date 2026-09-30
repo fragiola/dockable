@@ -608,3 +608,141 @@ describe("a middleware typed by the registry", () => {
         ).toBe(true);
     });
 });
+
+describe("review regressions", () => {
+    it("runs the commands a middleware queued even when a listener throws", () => {
+        const model = model2();
+        const remove = model.use((ctx, next) => {
+            if (ctx.command === "tab.select" && !ctx.dryRun) {
+                model.run("tabset.activate", { tabset: "ts1" });
+            }
+            return next();
+        });
+        const unsubscribe = model.subscribe((event) => {
+            if (event.command === "tab.select") {
+                throw new Error("listener");
+            }
+        });
+        expect(() => model.run("tab.select", { tab: "Two" })).toThrowError(
+            "listener",
+        );
+        remove();
+        unsubscribe();
+        expect(model.activeTabset()?.id).toBe("ts1");
+    });
+
+    it("copies the data and defaults it is given: never freezes or shares them", () => {
+        const data = { name: "One", nested: { count: 1 } };
+        const defaults = { tab: { enablePopout: true } };
+        const model = createModel({
+            version: 1,
+            defaults,
+            root: {
+                type: "row",
+                children: [
+                    {
+                        type: "tabset",
+                        id: "ts0",
+                        children: [{ id: "a", component: "x", data }],
+                    },
+                ],
+            },
+        });
+        expect(Object.isFrozen(data)).toBe(false);
+        expect(Object.isFrozen(defaults)).toBe(false);
+        data.nested.count = 2;
+        defaults.tab.enablePopout = false;
+        expect(model.get("a")).toMatchObject({
+            data: { nested: { count: 1 } },
+        });
+        expect(model.state.defaults.tab?.enablePopout).toBe(true);
+
+        const added = { name: "Two" };
+        must(
+            model.run("tab.add", {
+                id: "b",
+                component: "x",
+                data: added,
+                to: "ts0",
+            }),
+        );
+        expect(Object.isFrozen(added)).toBe(false);
+        const updated = { name: "Uno" };
+        must(
+            model.run("tab.update", {
+                tab: "a",
+                component: "x",
+                data: updated,
+            }),
+        );
+        updated.name = "changed";
+        expect(model.get("a")).toMatchObject({ data: { name: "Uno" } });
+
+        const unfrozen = createModel(tabsets(["One"]), { freeze: false });
+        const shared = { name: "Shared" };
+        must(
+            unfrozen.run("tab.add", {
+                id: "s",
+                component: "x",
+                data: shared,
+                to: "ts0",
+            }),
+        );
+        shared.name = "leaked";
+        expect(unfrozen.get("s")).toMatchObject({ data: { name: "Shared" } });
+    });
+
+    it("layout.load never reuses an id of the layout it replaces for a node it creates", () => {
+        const model = createModel({
+            version: 1,
+            root: {
+                type: "row",
+                children: [
+                    { type: "tabset", id: "tabset-1", children: [tab("One")] },
+                ],
+            },
+        });
+        const result = must(
+            model.run("layout.load", {
+                layout: {
+                    version: 1,
+                    root: { type: "row", id: "r", children: [] },
+                },
+            }),
+        );
+        const created = model.tabsets()[0]?.id;
+        expect(created).toBeDefined();
+        expect(created).not.toBe("tabset-1");
+        expect(result.removed).toContain("tabset-1");
+        expect(result.added).toContain(created);
+    });
+
+    it("keeps pinned tabs out of borders", () => {
+        const model = createModel({
+            ...tabsets(["One"]),
+            borders: [{ location: "left", children: [tab("B")] }],
+        });
+        expect(
+            model.run("tab.add", {
+                component: "x",
+                pinned: true,
+                to: "border_left",
+            }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "refused", path: "/pinned" },
+        });
+        expect(model.run("tab.pin", { tab: "B", value: false }).ok).toBe(true);
+        expect(() =>
+            createModel({
+                ...tabsets(["One"]),
+                borders: [
+                    {
+                        location: "left",
+                        children: [tab("B", { pinned: true })],
+                    },
+                ],
+            }),
+        ).toThrowError(/borders\/0\/children\/0\/pinned/);
+    });
+});
