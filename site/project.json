@@ -5,5 +5,15 @@
     "description": "A headless layout manager for dockable panels: tabs, tabsets, splitters, borders and popout windows.",
     "frameworks": ["react"],
     "defaultFramework": "react",
-    "repository": "https://github.com/fragiola/dockable"
+    "repository": "https://github.com/fragiola/dockable",
+    "keywords": [
+        "dockable layout",
+        "docking panels",
+        "headless ui",
+        "react",
+        "tabs",
+        "splitter",
+        "drag and drop",
+        "popout windows"
+    ]
 }
