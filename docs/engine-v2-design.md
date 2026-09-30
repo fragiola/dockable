@@ -951,14 +951,16 @@ A move or add to `to` with `location` is refused when (FlexLayout's `Node.isDock
 
 1. `to` is a tabset and `location` is center and its `enableDrop` resolves to false;
 2. `to` is a tabset and `location` is an edge and its `enableDivide` resolves to false;
-3. `to` is a border and its `enableDrop` resolves to false, or `location` is not center;
-4. `to` is a row that is not a layout's root row and `location` is not center, or a root row and
-   `location` is an edge while `defaults.layout.edgeDock` is false;
-5. the tab is pinned and the move leaves its tabset (another `to`, or an edge location);
-6. a tabset moving with location center into a tabset, when its `enableClose` resolves to false or
+3. `to` is a border and its `enableDrop` resolves to false, `location` is not center, or a tabset
+   is moving (a border holds tabs only);
+4. an existing tab is pinned and the move leaves its tabset (another `to`, or an edge location);
+5. a tabset moving with location center into a tabset, when its `enableClose` resolves to false or
    it holds a pinned tab;
-7. `to` is the moved tabset itself or inside it;
-8. `to` is in a window and a moving tab's `enablePopout` resolves to false.
+6. `to` is the moved tabset itself or inside it;
+7. `to` is in a window and a moving tab's `enablePopout` resolves to false.
+
+A row accepts any location, as `RowNode.drop` does: the edge bands (and `defaults.layout.edgeDock`)
+only decide where a drag offers an edge drop, not what a command may do.
 
 The drop indicator refuses a target exactly when `model.can` refuses the command the drop would run
 (§8.4), so middleware vetoes and these rules show the same way.
@@ -1130,7 +1132,7 @@ get(id: string): Node<T> | undefined;                    // O(1)
 parentOf(id: string): ParentNode<T> | undefined;         // O(1)
 layoutOf(id: string): string | undefined;                // MAIN_LAYOUT or a window id, O(1)
 root(layout?: string): RowNode<T> | undefined;           // default MAIN_LAYOUT
-window(id: string): WindowLayout<T> | undefined;
+windowLayout(id: string): WindowLayout<T> | undefined;
 tabs(layout?: string): TabOf<T>[];                       // every tab (of a layout when given), in tree order
 tabsets(layout?: string): TabsetNode<T>[];
 selectedTab(container: string): TabOf<T> | undefined;    // a tabset's or border's selected tab
@@ -1302,7 +1304,7 @@ These keep FlexLayout's results, so the `data-layout-path` indexes do not shift.
 | a border tab removed keeps the index, clamped | `BorderNode.ts:313-316` | "border close clamps" |
 | inserting a tab selects it when `select` is true, or when `select` is not false and the container auto-selects (a border: `autoSelectTabWhenOpen` while open, `autoSelectTabWhenClosed` while closed); otherwise the previously selected tab stays selected | `Utils.ts:182-207` | "insert selects", "insert keeps the selection" |
 | a tab leaving a border that had it selected closes the border | `Utils.ts:156-162` | "moving the open border tab closes it" |
-| a tab docked to a row (edge) leaves its source tabset selecting index 0 (a border: none) | `RowNode.ts:574-580` | "row edge dock resets the source selection" |
+| a tab docked to a row (edge) leaves its source tabset selecting index 0 (a border: none); a source left empty ends at -1, where FlexLayout keeps 0 and a later merge overflows the index | `RowNode.ts:574-580` | "row edge dock resets the source selection" |
 | merging a tabset shifts the target's selection past the inserted tabs, and selects 0 when it had none | `TabSetNode.ts:626-641` | "merge keeps the selection" |
 | a forward move within the same container inserts one index earlier | `TabSetNode.ts:575-582` | "reorder forward" |
 
