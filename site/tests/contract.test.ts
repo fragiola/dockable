@@ -289,6 +289,57 @@ describe("the v1.2 checks", () => {
         ).toEqual([]);
     });
 
+    it("reject a value that goes on past its line: an indented line, a block scalar (§3.2)", () => {
+        const fm = (fields: string) =>
+            validateSite(withPage("limitations", `---\n${fields}\n---\n`));
+        expect(
+            fm(
+                `title: Hooks\ndescription: ${DESCRIPTION}\n    and a second line that YAML reads as part of it.`,
+            ),
+        ).toEqual([
+            "docs/limitations.mdx:4: frontmatter: an indented line continues a value: write each field on one line (§3.2)",
+        ]);
+        expect(
+            fm(`title: Hooks\ndescription: >\n    ${DESCRIPTION}`).slice(0, 2),
+        ).toEqual([
+            "docs/limitations.mdx:3: frontmatter: description is a block scalar (>): write it on one line (§3.2)",
+            "docs/limitations.mdx:4: frontmatter: an indented line continues a value: write each field on one line (§3.2)",
+        ]);
+        expect(
+            fm(`title: |-\n    Hooks\ndescription: ${DESCRIPTION}`),
+        ).toContain(
+            "docs/limitations.mdx:2: frontmatter: title is a block scalar (|-): write it on one line (§3.2)",
+        );
+        expect(
+            fm(`title: Hooks\nnot a field\ndescription: ${DESCRIPTION}`),
+        ).toEqual([
+            'docs/limitations.mdx:3: the frontmatter is not valid YAML here: one "key: value" per line',
+        ]);
+        expect(
+            fm(`# a comment\ntitle: Hooks\n\ndescription: ${DESCRIPTION}`),
+        ).toEqual([]);
+    });
+
+    it("count a description on its plain text: inline code marks dropped (§2, §3.2)", () => {
+        // 52 characters as written, 48 without the four backticks
+        const description =
+            "The `useDockable` hook and the `Root`, in one place.";
+        expect([...description].length).toBe(52);
+        expect(withProject({ description })).toEqual([
+            "project.json: description is 48 characters: 50–160 (§2)",
+        ]);
+        expect(
+            validateSite(
+                withPage(
+                    "limitations",
+                    `---\ntitle: T\ndescription: ${description}\n---\n`,
+                ),
+            ),
+        ).toEqual([
+            "docs/limitations.mdx:3: frontmatter: description is 48 characters: 50–160 (§3.2)",
+        ]);
+    });
+
     it("want the landing's title to name the project and say what it is (§3.2)", () => {
         expect(landing(HERO)).toEqual([]);
         expect(landing(HERO, "Docking panels")).toEqual([
@@ -341,6 +392,65 @@ describe("the v1.2 checks", () => {
         ]);
     });
 
+    it("reject the heading forms the outline does not read: setext, quoted, in a list (§3.4)", () => {
+        const setext =
+            "a setext heading (a line of === or --- right under text): write headings as ## at the start of a line, and put a blank line before a --- rule (§3.4)";
+        const nested =
+            "a heading in a blockquote or a list item: write headings as ## at the start of a line (§3.4)";
+        expect(problemsOf("An h1\n===")).toEqual([
+            `docs/limitations.mdx:8: ${setext}`,
+        ]);
+        expect(problemsOf("An h2\n---")).toEqual([
+            `docs/limitations.mdx:8: ${setext}`,
+        ]);
+        expect(problemsOf("> # quoted")).toEqual([
+            `docs/limitations.mdx:8: ${nested}`,
+        ]);
+        expect(problemsOf("- #### in a list")).toEqual([
+            `docs/limitations.mdx:8: ${nested}`,
+        ]);
+        expect(problemsOf("1. ## in an ordered list")).toEqual([
+            `docs/limitations.mdx:8: ${nested}`,
+        ]);
+        // a rule after a blank line, a table, a list item that is not a heading, code
+        expect(
+            problemsOf(
+                [
+                    "Text.\n\n---\n\nMore text.",
+                    "| a | b |\n| --- | --- |\n| 1 | 2 |",
+                    "- C# is not a heading\n- #hashtag neither",
+                    "```md\nText\n===\n> # x\n```",
+                ].join("\n\n"),
+            ),
+        ).toEqual([]);
+    });
+
+    it("read a <Card>'s title as an h3, wherever it is (§3.4)", () => {
+        const cards =
+            '<Cards>\n<Card title="Tabs" href="/docs/guides/tabs" />\n</Cards>';
+        expect(problemsOf(`### Next\n\n${cards}`)).toEqual([]);
+        // right under the page's h1
+        expect(
+            validateSite(
+                withPage(
+                    "limitations",
+                    `---\ntitle: T\ndescription: ${DESCRIPTION}\n---\n\n${cards}\n`,
+                ),
+            ),
+        ).toEqual([
+            "docs/limitations.mdx:7: a <Card> (an h3) after an h1: headings do not skip a level (§3.4)",
+        ]);
+        // first thing after the Hero
+        expect(landing(`${HERO}\n\n${cards}`)).toEqual([
+            "docs/index.mdx:10: a <Card> (an h3) after an h1: headings do not skip a level (§3.4)",
+        ]);
+        // a Markdown heading after a Card compares against 3
+        expect(problemsOf(`${cards}\n\n#### After the cards`)).toEqual([]);
+        expect(problemsOf(`### x\n\n${cards}\n\n##### Too deep`)).toEqual([
+            "docs/limitations.mdx:14: a ##### heading after an h3: headings do not skip a level (§3.4)",
+        ]);
+    });
+
     it("accept an outline that only steps down one level, and headings in code (§3.4)", () => {
         expect(
             problemsOf(
@@ -376,6 +486,10 @@ describe("the v1.2 checks", () => {
         expect(
             problemsOf("![Two tabsets side by side](https://x.dev/a.png)"),
         ).toEqual([]);
+        // an image in inline code is code, not an image
+        expect(
+            problemsOf("Write `![](x.png)` for a decorative image."),
+        ).toEqual([]);
     });
 
     it("want noindex in every HTML file of an embed app (§5.1)", () => {
@@ -401,6 +515,19 @@ describe("the v1.2 checks", () => {
                 html("<meta content='noindex, nofollow' name=robots>"),
             ),
         ).toBeUndefined();
+        expect(
+            noindexProblem(
+                "embed/react/index.html",
+                html("<meta name=robots content=noindex>"),
+            ),
+        ).toBeUndefined();
+        // a <meta> in a comment does not count; the line is still the <head>'s
+        expect(
+            noindexProblem(
+                "embed/react/index.html",
+                `<!doctype html>\n<!--\n  <meta name="robots" content="noindex">\n-->\n<html>\n<head>\n</head>\n</html>\n`,
+            ),
+        ).toBe(`embed/react/index.html:6: ${message}`);
     });
 
     it("find noindex in the examples app's HTML: index.html and popout.html (§5.1)", () => {

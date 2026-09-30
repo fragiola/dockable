@@ -312,7 +312,8 @@ function fieldLine(source: string, key: string): number {
 
 /**
  * The heading level `www` renders for a component (§3.4): `<Hero>` the h1, a `<Section>`'s title
- * an h2, a `<Feature>`'s title one level below its section (h3, or h2 outside one).
+ * an h2, a `<Feature>`'s title one level below its section (h3, or h2 outside one), and a
+ * `<Card>`'s title an h3 wherever it is (Fumadocs' cards).
  */
 function renderedLevel(
     name: string,
@@ -325,6 +326,8 @@ function renderedLevel(
             return 2;
         case "Feature":
             return ancestors.includes("Section") ? 3 : 2;
+        case "Card":
+            return 3;
         default:
             return undefined;
     }
@@ -334,7 +337,8 @@ function renderedLevel(
 interface OutlineEntry {
     level: number;
     line: number;
-    markdown: boolean;
+    /** the component that renders it; undefined for a Markdown heading */
+    component?: string;
 }
 
 /**
@@ -373,12 +377,15 @@ function outlineOf(text: string): OutlineEntry[] {
             outline.push({
                 level: event.depth,
                 line: lineOf(event.index),
-                markdown: true,
             });
         } else if (event.kind === "open") {
             const level = renderedLevel(event.tag.name, open);
             if (level !== undefined) {
-                outline.push({ level, line: event.tag.line, markdown: false });
+                outline.push({
+                    level,
+                    line: event.tag.line,
+                    component: event.tag.name,
+                });
             }
             if (!event.tag.selfClosing) open.push(event.tag.name);
         } else {
@@ -397,6 +404,35 @@ function imagesOf(text: string): { alt: string; line: number }[] {
         alt: match[1] ?? "",
         line: text.slice(0, match.index).split("\n").length,
     }));
+}
+
+/**
+ * The headings the outline does not read, rejected outright so this check is never looser than
+ * `www`'s parse: a setext heading (text over a line of `===` or `---`: an h1 or an h2), and an
+ * ATX heading behind a blockquote or list marker (`> ## x`, `- ## x`, `1. ## x`). A `---` rule
+ * right under text is read as a setext heading too: a rule takes a blank line before it.
+ */
+function headingFormProblems(file: string, text: string): string[] {
+    const problems: string[] = [];
+    const lines = text.split("\n");
+    for (const [index, line] of lines.entries()) {
+        const above = index > 0 ? (lines[index - 1] ?? "") : "";
+        if (/^[ \t]*(?:=+|-+)[ \t]*$/.test(line) && above.trim() !== "") {
+            problems.push(
+                `${file}:${index}: a setext heading (a line of === or --- right under text): write headings as ## at the start of a line, and put a blank line before a --- rule (§3.4)`,
+            );
+        }
+        if (
+            /^[ \t]*(?:>[ \t]*|[-*+][ \t]+|\d{1,9}[.)][ \t]+)+#{1,6}(?=[ \t]|$)/.test(
+                line,
+            )
+        ) {
+            problems.push(
+                `${file}:${index + 1}: a heading in a blockquote or a list item: write headings as ## at the start of a line (§3.4)`,
+            );
+        }
+    }
+    return problems;
 }
 
 /** No `#`, no skipped level, one `<Hero>` on the landing, alt text on images (v1.2, §3.4). */
@@ -422,7 +458,8 @@ function structureProblems(
     }
     // the page starts under its h1 (the frontmatter title, or the landing's <Hero>)
     let previous = 1;
-    for (const { level, line, markdown } of outlineOf(text)) {
+    for (const { level, line, component } of outlineOf(text)) {
+        const markdown = component === undefined;
         if (markdown && level === 1) {
             problems.push(
                 `${file}:${line}: a Markdown # heading: the page's h1 is ${landing ? "its <Hero>'s title" : "its frontmatter title"} (§3.4)`,
@@ -431,11 +468,16 @@ function structureProblems(
             problems.push(
                 `${file}:${line}: a ${"#".repeat(level)} heading after an h${previous}: headings do not skip a level (§3.4)`,
             );
+        } else if (component === "Card" && level > previous + 1) {
+            problems.push(
+                `${file}:${line}: a <Card> (an h${level}) after an h${previous}: headings do not skip a level (§3.4)`,
+            );
         }
         previous = level;
     }
-    const withCode = prose(source, { keepInlineCode: true }).text;
-    for (const image of imagesOf(withCode)) {
+    problems.push(...headingFormProblems(file, text));
+    // inline code is blanked out: `![](x.png)` in backticks is not an image
+    for (const image of imagesOf(text)) {
         if (image.alt.trim() === "") {
             problems.push(
                 `${file}:${image.line}: an image needs alt text: ![what it shows](…) (§3.4)`,
@@ -446,8 +488,12 @@ function structureProblems(
 }
 
 /**
- * The frontmatter values YAML would not read as written: an unquoted value with ": " or " #" in
- * it is a nested mapping or a comment, not text (`www` parses the frontmatter as YAML).
+ * The frontmatter lines this repo does not read the way YAML (and `www`) would. The frontmatter
+ * is one `key: value` per line (frontmatter() reads nothing else), so it rejects:
+ * - an unquoted value with ": " or " #" in it: a nested mapping or a comment, not text;
+ * - a block scalar (`>`, `|`) and an indented line: a value that goes on past its first line,
+ *   whose length would be measured on that line only;
+ * - any other line that is not `key: value`, a comment or blank.
  */
 function yamlProblems(file: string, source: string): string[] {
     const lines = source.split("\n");
@@ -456,11 +502,29 @@ function yamlProblems(file: string, source: string): string[] {
     for (let index = 1; index < lines.length; index++) {
         const line = lines[index] ?? "";
         if (line === "---") break;
-        const match = /^([A-Za-z]\w*):[ \t]+(.*)$/.exec(line);
-        const value = match?.[2]?.trim() ?? "";
-        if (!/^["'[{]/.test(value) && /: | #|:$/.test(value)) {
+        const where = `${file}:${index + 1}`;
+        if (line.trim() === "" || /^#/.test(line)) continue;
+        if (/^\s/.test(line)) {
             problems.push(
-                `${file}:${index + 1}: the frontmatter is not valid YAML: ${match?.[1]}'s value has ": " or " #" in it; quote it`,
+                `${where}: frontmatter: an indented line continues a value: write each field on one line (§3.2)`,
+            );
+            continue;
+        }
+        const match = /^([A-Za-z]\w*):(?:[ \t]+(.*))?$/.exec(line);
+        if (!match) {
+            problems.push(
+                `${where}: the frontmatter is not valid YAML here: one "key: value" per line`,
+            );
+            continue;
+        }
+        const value = match[2]?.trim() ?? "";
+        if (/^[|>][-+0-9]*(?:[ \t]+#.*)?$/.test(value)) {
+            problems.push(
+                `${where}: frontmatter: ${match[1]} is a block scalar (${value}): write it on one line (§3.2)`,
+            );
+        } else if (!/^["'[{]/.test(value) && /: | #|:$/.test(value)) {
+            problems.push(
+                `${where}: the frontmatter is not valid YAML: ${match[1]}'s value has ": " or " #" in it; quote it`,
             );
         }
     }
@@ -501,10 +565,13 @@ function searchFieldProblems(
 /** A length in characters: Unicode code points, as the contract counts them (v1.2). */
 const length = (text: string) => [...text].length;
 
-/** Why a description is not 50–160 characters long, or undefined when it is (§2, §3.2). */
+/**
+ * Why a description is not 50–160 characters long, or undefined when it is (§2, §3.2). It is
+ * counted on the plain text: inline code marks are dropped first.
+ */
 function descriptionLength(text: string): string | undefined {
     const { min, max } = LIMITS.description;
-    const n = length(text);
+    const n = length(text.replace(/`([^`]*)`/g, "$1"));
     return n < min || n > max
         ? `description is ${n} characters: ${min}–${max}`
         : undefined;
@@ -552,7 +619,9 @@ function keywordProblems(keywords: unknown): string[] {
 function isNoindex(tag: string): boolean {
     return (
         /\bname\s*=\s*(["']?)robots\1(?=[\s/>])/i.test(tag) &&
-        /\bcontent\s*=\s*(["'])[^"']*\bnoindex\b[^"']*\1/i.test(tag)
+        /\bcontent\s*=\s*(?:(["'])[^"']*\bnoindex\b[^"']*\1|noindex(?=[\s/>]))/i.test(
+            tag,
+        )
     );
 }
 
@@ -560,7 +629,14 @@ function isNoindex(tag: string): boolean {
  * Why an HTML file of an embed app is not `noindex`, at the line of its `<head>`, or undefined
  * when it is (v1.2, §5.1). `file` names it in the message.
  */
-export function noindexProblem(file: string, html: string): string | undefined {
+export function noindexProblem(
+    file: string,
+    source: string,
+): string | undefined {
+    // comments out, their line breaks kept: a <meta> in a comment does not count
+    const html = source.replace(/<!--[\s\S]*?-->/g, (comment) =>
+        comment.replace(/[^\n]/g, ""),
+    );
     const tags = [...html.matchAll(/<meta\b[^>]*>/gi)];
     if (tags.some(([tag]) => isNoindex(tag))) return undefined;
     const head = /<head\b/i.exec(html);
