@@ -58,8 +58,28 @@ export const rectSchema = {
 /** `schema`, or `null` (a null removes a field so the defaults apply). */
 export function nullable<const S extends JsonSchema>(
     schema: S,
-): { readonly anyOf: readonly [S, { readonly const: null }] } {
-    return { anyOf: [schema, { const: null }] };
+): {
+    readonly anyOf: readonly [S, { readonly const: null }];
+    readonly description?: string;
+} {
+    // the description stays on the field, where readers (and assistants) look for it
+    return schema.description === undefined
+        ? { anyOf: [schema, { const: null }] }
+        : {
+              anyOf: [schema, { const: null }],
+              description: `${schema.description} (null removes it: the layout default applies)`,
+          };
+}
+
+/** A described id field: `the tab's id`. */
+export function describedId<const K extends string>(
+    kind: K,
+): {
+    readonly type: "string";
+    readonly minLength: 1;
+    readonly description: string;
+} {
+    return { ...idSchema, description: `the ${kind}'s id` };
 }
 
 type Properties = { readonly [name: string]: JsonSchema };
@@ -120,19 +140,104 @@ export const placementProperties = {
 
 /** Size limits of a tab or tabset. */
 export const sizeLimitProperties = {
-    minWidth: sizeSchema,
-    minHeight: sizeSchema,
-    maxWidth: sizeSchema,
-    maxHeight: sizeSchema,
+    minWidth: { ...sizeSchema, description: "the smallest width, in px" },
+    minHeight: { ...sizeSchema, description: "the smallest height, in px" },
+    maxWidth: { ...sizeSchema, description: "the largest width, in px" },
+    maxHeight: { ...sizeSchema, description: "the largest height, in px" },
+} as const satisfies { readonly [name: string]: JsonSchema };
+
+/** The behaviour fields of a tabset, described. */
+export const tabsetFieldProperties = {
+    enableDrop: {
+        ...booleanSchema,
+        description: "whether tabs can be dropped into it",
+    },
+    enableDrag: {
+        ...booleanSchema,
+        description: "whether the whole tabset can be dragged",
+    },
+    enableDivide: {
+        ...booleanSchema,
+        description: "whether a drop on one of its edges can split it",
+    },
+    enableMaximize: {
+        ...booleanSchema,
+        description: "whether it can be maximized",
+    },
+    enableClose: {
+        ...booleanSchema,
+        description: "whether it can be closed",
+    },
+    deleteWhenEmpty: {
+        ...booleanSchema,
+        description: "whether it is removed when its last tab leaves",
+    },
+    autoSelectTab: {
+        ...booleanSchema,
+        description: "whether a tab added to it is selected",
+    },
+    ...sizeLimitProperties,
+} as const satisfies { readonly [name: string]: JsonSchema };
+
+/** The behaviour fields of a border, described. */
+export const borderFieldProperties = {
+    mode: {
+        ...borderModeSchema,
+        description: "docked (beside the layout) or overlay (over it)",
+    },
+    show: {
+        ...booleanSchema,
+        description: "false hides the border entirely",
+    },
+    autoHide: {
+        ...booleanSchema,
+        description:
+            "hide the strip while the border has no tabs (a drag near its edge reveals it)",
+    },
+    enableDrop: {
+        ...booleanSchema,
+        description: "whether tabs can be dropped into it",
+    },
+    autoSelectTabWhenOpen: {
+        ...booleanSchema,
+        description: "whether a tab added while its panel is open is selected",
+    },
+    autoSelectTabWhenClosed: {
+        ...booleanSchema,
+        description:
+            "whether a tab added while its panel is closed is selected (which opens it)",
+    },
+    size: { ...sizeSchema, description: "its panel's size, in px" },
+    minSize: { ...sizeSchema, description: "its panel's smallest size, in px" },
+    maxSize: { ...sizeSchema, description: "its panel's largest size, in px" },
 } as const satisfies { readonly [name: string]: JsonSchema };
 
 /** The behaviour fields of a tab, as `tab.add` and JSON take them. */
 export const tabFieldProperties = {
-    pinned: booleanSchema,
-    enableClose: booleanSchema,
-    enableDrag: booleanSchema,
-    enablePopout: booleanSchema,
+    pinned: {
+        ...booleanSchema,
+        description:
+            "a pinned tab sits at the start of its strip, cannot close and cannot leave its tabset",
+    },
+    enableClose: {
+        ...booleanSchema,
+        description: "whether the tab can be closed",
+    },
+    enableDrag: {
+        ...booleanSchema,
+        description: "whether the tab can be dragged",
+    },
+    enablePopout: {
+        ...booleanSchema,
+        description: "whether the tab can be popped out into a window",
+    },
     ...sizeLimitProperties,
-    borderWidth: sizeSchema,
-    borderHeight: sizeSchema,
+    borderWidth: {
+        ...sizeSchema,
+        description: "its panel's width in a left or right border, in px",
+    },
+    borderHeight: {
+        ...sizeSchema,
+        description: "its panel's height in a top or bottom border, in px",
+    },
 } as const satisfies { readonly [name: string]: JsonSchema };

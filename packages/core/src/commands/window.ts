@@ -1,4 +1,4 @@
-import { idSchema, object, rectSchema } from "../schema/fragments";
+import { describedId, idSchema, object, rectSchema } from "../schema/fragments";
 import { type Draft, newTabset } from "../state/draft";
 import { tidy } from "../state/tidy";
 import { type AnyNode, childrenOf } from "../state/tree";
@@ -110,11 +110,14 @@ export const windowConfigure = defineCommand({
     name: "window.configure",
     description:
         "Record a popout window's screen rect (the engine does this when the window moves or resizes, so a saved layout reopens it in place).",
-    payloadSchema: object({ window: windowId, rect: rectSchema }, [
-        "window",
-        "rect",
-    ]),
-    resultSchema: object({ window: idSchema }, ["window"]),
+    payloadSchema: object(
+        {
+            window: windowId,
+            rect: { ...rectSchema, description: "the window's screen rect" },
+        },
+        ["window", "rect"],
+    ),
+    resultSchema: object({ window: describedId("window") }, ["window"]),
     transient: true,
     reduce(payload, { draft }) {
         if (

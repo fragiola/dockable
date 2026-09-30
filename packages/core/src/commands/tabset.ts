@@ -1,13 +1,14 @@
 import {
     booleanSchema,
     dataSchema,
+    describedId,
     dockLocationSchema,
     idSchema,
     indexSchema,
     nullable,
     object,
     rectSchema,
-    sizeSchema,
+    tabsetFieldProperties,
 } from "../schema/fragments";
 import { cloneJson } from "../state/clone";
 import { resolveTab, resolveTabset } from "../state/defaults";
@@ -24,7 +25,7 @@ import type { CommandError } from "./types";
 
 const tabsetId = { ...idSchema, description: "the tabset's id" } as const;
 
-const tabsetIdResult = object({ tabset: idSchema }, ["tabset"]);
+const tabsetIdResult = object({ tabset: describedId("tabset") }, ["tabset"]);
 
 /** The tabset `id` in the tree, or a not_found error. */
 function attachedTabset(
@@ -62,10 +63,16 @@ export const tabsetMaximize = defineCommand({
     name: "tabset.maximize",
     description:
         "Maximize a tabset so it fills its layout (value true), or restore it (value false). Maximizing also makes it active. Refused when the tabset does not allow it or is the only tabset of its layout.",
-    payloadSchema: object({ tabset: tabsetId, value: booleanSchema }, [
-        "tabset",
-        "value",
-    ]),
+    payloadSchema: object(
+        {
+            tabset: tabsetId,
+            value: {
+                ...booleanSchema,
+                description: "true maximizes, false restores",
+            },
+        },
+        ["tabset", "value"],
+    ),
     resultSchema: tabsetIdResult,
     transient: false,
     reduce(payload, { draft }) {
@@ -171,8 +178,15 @@ export const tabsetMove = defineCommand({
                 ...idSchema,
                 description: "a tabset, a row, or a layout id (its root row)",
             },
-            location: dockLocationSchema,
-            index: indexSchema,
+            location: {
+                ...dockLocationSchema,
+                description:
+                    "center (default) merges its tabs into the target; an edge of a tabset places it beside; an edge of a row docks it there",
+            },
+            index: {
+                ...indexSchema,
+                description: "for a merge: where its tabs go; -1 appends",
+            },
         },
         ["tabset", "to"],
     ),
@@ -226,8 +240,18 @@ export const tabsetPopout = defineCommand({
     name: "tabset.popout",
     description:
         "Open a whole tabset in a new browser window. Refused when any of its tabs does not allow popouts, when it is empty, or when it is already in a window.",
-    payloadSchema: object({ tabset: tabsetId, rect: rectSchema }, ["tabset"]),
-    resultSchema: object({ window: idSchema }, ["window"]),
+    payloadSchema: object(
+        {
+            tabset: tabsetId,
+            rect: {
+                ...rectSchema,
+                description:
+                    "the window's screen rect (default: where the tabset is on screen)",
+            },
+        },
+        ["tabset"],
+    ),
+    resultSchema: object({ window: describedId("new window") }, ["window"]),
     transient: false,
     reduce(payload, { draft }) {
         const tabset = attachedTabset(draft, payload.tabset);
@@ -280,17 +304,17 @@ export const tabsetConfigure = defineCommand({
     payloadSchema: object(
         {
             tabset: tabsetId,
-            enableDrop: nullable(booleanSchema),
-            enableDrag: nullable(booleanSchema),
-            enableDivide: nullable(booleanSchema),
-            enableMaximize: nullable(booleanSchema),
-            enableClose: nullable(booleanSchema),
-            deleteWhenEmpty: nullable(booleanSchema),
-            autoSelectTab: nullable(booleanSchema),
-            minWidth: nullable(sizeSchema),
-            minHeight: nullable(sizeSchema),
-            maxWidth: nullable(sizeSchema),
-            maxHeight: nullable(sizeSchema),
+            enableDrop: nullable(tabsetFieldProperties.enableDrop),
+            enableDrag: nullable(tabsetFieldProperties.enableDrag),
+            enableDivide: nullable(tabsetFieldProperties.enableDivide),
+            enableMaximize: nullable(tabsetFieldProperties.enableMaximize),
+            enableClose: nullable(tabsetFieldProperties.enableClose),
+            deleteWhenEmpty: nullable(tabsetFieldProperties.deleteWhenEmpty),
+            autoSelectTab: nullable(tabsetFieldProperties.autoSelectTab),
+            minWidth: nullable(tabsetFieldProperties.minWidth),
+            minHeight: nullable(tabsetFieldProperties.minHeight),
+            maxWidth: nullable(tabsetFieldProperties.maxWidth),
+            maxHeight: nullable(tabsetFieldProperties.maxHeight),
             data: dataSchema,
         },
         ["tabset"],

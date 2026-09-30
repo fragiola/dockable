@@ -31,7 +31,8 @@
     "scripts": {
         "build": "tsdown",
         "typecheck": "tsc --noEmit",
-        "test": "vitest run"
+        "test": "vitest run",
+        "generate:commands": "tsdown && node scripts/generate-command-docs.ts"
     },
     "devDependencies": {
         "jsdom": "30.0.1",

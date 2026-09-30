@@ -74,7 +74,16 @@ export const layoutConfigure = defineCommand({
     name: "layout.configure",
     description:
         "Change the layout defaults: the default behaviour of tabs, tabsets and borders, and layout settings (root orientation, edge docking). Fields are merged; a null value removes one.",
-    payloadSchema: object({ defaults: defaultsPatchSchema }, ["defaults"]),
+    payloadSchema: object(
+        {
+            defaults: {
+                ...defaultsPatchSchema,
+                description:
+                    "the defaults to change, by kind (tab, tabset, border, layout)",
+            },
+        },
+        ["defaults"],
+    ),
     resultSchema: object({}),
     transient: false,
     reduce(payload, { draft }) {
@@ -145,7 +154,15 @@ function currentIds(draft: Draft): Set<string> {
 
 /** `layout.load`'s payload schema: the layout document, with its `$defs` hoisted to the root. */
 const layoutLoadSchema: JsonSchema = {
-    ...object({ layout: { $ref: "#/$defs/layout" } }, ["layout"]),
+    ...object(
+        {
+            layout: {
+                $ref: "#/$defs/layout",
+                description: "a layout document (JSON v1)",
+            },
+        },
+        ["layout"],
+    ),
     $defs: { ...layoutDefs, layout: layoutDocumentSchema },
 };
 

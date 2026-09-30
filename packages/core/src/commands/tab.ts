@@ -3,12 +3,12 @@ import type { Rect } from "../geometry/rect";
 import {
     booleanSchema,
     dataSchema,
+    describedId,
     idSchema,
     nullable,
     object,
     placementProperties,
     rectSchema,
-    sizeSchema,
     tabFieldProperties,
 } from "../schema/fragments";
 import { cloneJson } from "../state/clone";
@@ -31,7 +31,7 @@ import type { CommandError } from "./types";
 
 const tabId = { ...idSchema, description: "the tab's id" } as const;
 
-const tabIdResult = object({ tab: idSchema }, ["tab"]);
+const tabIdResult = object({ tab: describedId("tab") }, ["tab"]);
 
 /** Removes the keys whose value is undefined (the state holds no undefined fields). */
 export function compact<O extends object>(value: O): O {
@@ -312,10 +312,13 @@ export const tabPin = defineCommand({
     name: "tab.pin",
     description:
         "Pin (value true) or unpin a tab of a tabset. Pinned tabs sit at the start of the strip, cannot be closed and cannot be dragged out of their tabset.",
-    payloadSchema: object({ tab: tabId, value: booleanSchema }, [
-        "tab",
-        "value",
-    ]),
+    payloadSchema: object(
+        {
+            tab: tabId,
+            value: { ...booleanSchema, description: "true pins, false unpins" },
+        },
+        ["tab", "value"],
+    ),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
@@ -359,8 +362,18 @@ export const tabPopout = defineCommand({
     name: "tab.popout",
     description:
         "Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts or is already in a window.",
-    payloadSchema: object({ tab: tabId, rect: rectSchema }, ["tab"]),
-    resultSchema: object({ window: idSchema }, ["window"]),
+    payloadSchema: object(
+        {
+            tab: tabId,
+            rect: {
+                ...rectSchema,
+                description:
+                    "the window's screen rect (default: where the tab is on screen)",
+            },
+        },
+        ["tab"],
+    ),
+    resultSchema: object({ window: describedId("new window") }, ["window"]),
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tab);
@@ -407,15 +420,15 @@ export const tabConfigure = defineCommand({
     payloadSchema: object(
         {
             tab: tabId,
-            enableClose: nullable(booleanSchema),
-            enableDrag: nullable(booleanSchema),
-            enablePopout: nullable(booleanSchema),
-            minWidth: nullable(sizeSchema),
-            minHeight: nullable(sizeSchema),
-            maxWidth: nullable(sizeSchema),
-            maxHeight: nullable(sizeSchema),
-            borderWidth: nullable(sizeSchema),
-            borderHeight: nullable(sizeSchema),
+            enableClose: nullable(tabFieldProperties.enableClose),
+            enableDrag: nullable(tabFieldProperties.enableDrag),
+            enablePopout: nullable(tabFieldProperties.enablePopout),
+            minWidth: nullable(tabFieldProperties.minWidth),
+            minHeight: nullable(tabFieldProperties.minHeight),
+            maxWidth: nullable(tabFieldProperties.maxWidth),
+            maxHeight: nullable(tabFieldProperties.maxHeight),
+            borderWidth: nullable(tabFieldProperties.borderWidth),
+            borderHeight: nullable(tabFieldProperties.borderHeight),
         },
         ["tab"],
     ),

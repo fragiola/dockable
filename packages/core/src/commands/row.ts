@@ -1,10 +1,10 @@
-import { dataSchema, idSchema, object } from "../schema/fragments";
+import { dataSchema, describedId, idSchema, object } from "../schema/fragments";
 import { cloneJson } from "../state/clone";
 import { defineCommand, fail, ok } from "./define";
 
 const rowId = { ...idSchema, description: "the row's id" } as const;
 
-const rowIdResult = object({ row: idSchema }, ["row"]);
+const rowIdResult = object({ row: describedId("row") }, ["row"]);
 
 export const rowResize = defineCommand({
     name: "row.resize",

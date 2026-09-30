@@ -1,7 +1,8 @@
 import {
     booleanSchema,
-    borderModeSchema,
+    borderFieldProperties,
     dataSchema,
+    describedId,
     idSchema,
     nullable,
     object,
@@ -17,20 +18,30 @@ const borderId = {
         "the border's id (border_<location> unless the layout names it)",
 } as const;
 
-const borderIdResult = object({ border: idSchema }, ["border"]);
+const borderIdResult = object({ border: describedId("border") }, ["border"]);
 
 export const borderResize = defineCommand({
     name: "border.resize",
     description:
         "Set the size in px of a border's panel (of its selected tab when that tab has its own border size). The size is clamped to the border's min and max.",
-    payloadSchema: object({ border: borderId, size: sizeSchema }, [
-        "border",
-        "size",
-    ]),
-    resultSchema: object({ border: idSchema, size: sizeSchema }, [
-        "border",
-        "size",
-    ]),
+    payloadSchema: object(
+        {
+            border: borderId,
+            size: {
+                ...sizeSchema,
+                description:
+                    "the panel's new size, in px (kept within its limits)",
+            },
+        },
+        ["border", "size"],
+    ),
+    resultSchema: object(
+        {
+            border: describedId("border"),
+            size: { ...sizeSchema, description: "the size it got, in px" },
+        },
+        ["border", "size"],
+    ),
     transient: true,
     reduce(payload, { draft }) {
         const border = draft.border(payload.border);
@@ -71,15 +82,19 @@ export const borderConfigure = defineCommand({
                 ...booleanSchema,
                 description: "open (true) or close (false) the border's panel",
             },
-            mode: nullable(borderModeSchema),
-            show: nullable(booleanSchema),
-            autoHide: nullable(booleanSchema),
-            enableDrop: nullable(booleanSchema),
-            autoSelectTabWhenOpen: nullable(booleanSchema),
-            autoSelectTabWhenClosed: nullable(booleanSchema),
-            size: nullable(sizeSchema),
-            minSize: nullable(sizeSchema),
-            maxSize: nullable(sizeSchema),
+            mode: nullable(borderFieldProperties.mode),
+            show: nullable(borderFieldProperties.show),
+            autoHide: nullable(borderFieldProperties.autoHide),
+            enableDrop: nullable(borderFieldProperties.enableDrop),
+            autoSelectTabWhenOpen: nullable(
+                borderFieldProperties.autoSelectTabWhenOpen,
+            ),
+            autoSelectTabWhenClosed: nullable(
+                borderFieldProperties.autoSelectTabWhenClosed,
+            ),
+            size: nullable(borderFieldProperties.size),
+            minSize: nullable(borderFieldProperties.minSize),
+            maxSize: nullable(borderFieldProperties.maxSize),
             data: dataSchema,
         },
         ["border"],
