@@ -15,5 +15,5 @@ export default {
         "Chart",
         "Table",
     ],
-    docs: "/docs/concepts/model-and-actions",
+    docs: "/docs/concepts/typed-data",
 } satisfies ExampleMeta;

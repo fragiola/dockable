@@ -14,22 +14,26 @@ composable primitives, and you decide what every pixel looks like.
 
 The package does the hard parts and nothing else:
 
-- a **model** of the layout (a JSON tree of rows, tabsets and tabs) that changes only through
-  **actions** you can intercept;
+- a **model** of the layout: an immutable, JSON-shaped tree of rows, tabsets and tabs, with
+  your own typed data on each tab, that changes only through **commands** your middleware can
+  veto or rewrite;
 - a **layout engine** that measures the elements you render, positions the tab panels over
   their tabsets and keeps tab content alive while it moves between tabsets and windows;
 - **drag and drop** with hit-testing, drop locations and a drop indicator *state*;
 - **splitters** with pointer and keyboard resizing;
 - **popout windows** that carry live content into a second browser window;
-- **undo/redo**, JSON serialization, and the WAI-ARIA patterns for tabs and separators.
+- JSON serialization with validation, a command catalogue that describes itself (names,
+  descriptions, JSON Schemas: ready for [automation and AI tools](/docs/guides/ai-and-automation)),
+  and the WAI-ARIA patterns for tabs and separators.
 
 It ships **no CSS, no icons, no rendered menus and no text**:
 
 | never shipped | what you do instead |
 | --- | --- |
 | CSS, class names, themes | style the primitives with `className`/`style` (a value or a function of the state), and the `data-*` attributes they expose. Tailwind, CSS modules, plain CSS: nothing assumes one. See [Styling with plain CSS](/docs/guides/styling-css). |
-| Icons | every button is yours. Close, maximize or pop out buttons are plain elements that dispatch actions. |
-| Menus | the package gives you the actions; you render the menu with your own components. See [Menus](/docs/guides/menus). |
+| Icons | every button is yours. Close, maximize or pop out buttons are plain elements that run commands. |
+| Menus | the package gives you the commands; you render the menu with your own components. See [Menus](/docs/guides/menus). |
+| App policy | no undo/redo, no persistence, no translations. The model exposes its commands and its events, and the guides show how to build [undo/redo](/docs/guides/undo-redo) and [persistence](/docs/guides/persistence) on them. |
 | Text | a primitive renders only its children. Accessible names come from you (`aria-label`, children) or from [`getLabel`](/docs/getting-started/accessible-names). With neither, no text is rendered. |
 
 The only inline styles a primitive applies are **structural**: position, geometry, `display`
@@ -40,7 +44,7 @@ spells out the rule.
 
 | package | contains | depends on |
 | --- | --- | --- |
-| `@fragiola/dockable` | the framework-agnostic core: model, actions, JSON serialization, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle, undo/redo | nothing (DOM only) |
+| `@fragiola/dockable` | the framework-agnostic core: the model and its commands, JSON serialization and validation, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | nothing (DOM only) |
 | `@fragiola/dockable-react` | composable React primitives over the core (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, …) and the hooks under them | `react` and `react-dom` ^19 (peers) |
 
 Every piece of logic that is not rendering lives in the core, so adapters for other frameworks
@@ -50,16 +54,18 @@ can follow without duplicating behaviour.
 
 Dockable is derived from [FlexLayout](https://github.com/caplin/FlexLayout)
 (`flexlayout-react` 0.11.0) by **Caplin Systems Ltd**, released under the **MIT licence**
-(© 2017 Caplin Systems Ltd). The model (`Model`, `Actions`, the node classes and the
-`IJsonModel` format), the drop hit-testing, the splitter math and the `data-layout-path` scheme
-are ported from it, and every ported file names FlexLayout, Caplin Systems Ltd and the licence
-in its header. The view is rewritten as headless primitives; FlexLayout's own markup, class
-names and default strings are not copied. Thank you to the FlexLayout authors: this project
-stands on their work.
+(© 2017 Caplin Systems Ltd). The model is Dockable's own (a plain state tree, a command bus and
+typed data), but its algorithms come from FlexLayout: docking, tidying and selection, the drop
+hit-testing, the splitter math and the `data-layout-path` scheme are ported from it, and every
+ported file names FlexLayout, Caplin Systems Ltd and the licence in its header. FlexLayout's tests
+remain the behaviour reference. The view is rewritten as headless primitives; FlexLayout's own
+markup, class names and default strings are not copied. Thank you to the FlexLayout authors: this
+project stands on their work.
 
-If you know FlexLayout, the JSON model and the action names will be familiar. What changes is
-the view: instead of one `<Layout factory={…} />` component with a theme, you compose
-primitives and own the markup.
+If you know FlexLayout, the behaviour will be familiar: the same drops, splits and selection
+rules. What changes is the surface: plain, typed JSON and named commands instead of a tree of
+node classes, and, instead of one `<Layout factory={…} />` component with a theme, primitives you
+compose and markup you own.
 
 ## Next steps
 
@@ -72,12 +78,12 @@ primitives and own the markup.
     <Card
         title="Your first layout"
         href="/docs/getting-started/first-layout"
-        description="From a JSON model to a resizable, draggable layout, step by step."
+        description="From a JSON layout to a resizable, draggable layout, step by step."
     />
     <Card
         title="Concepts"
-        href="/docs/concepts/model-and-actions"
-        description="The model, the geometry and the primitive contract."
+        href="/docs/concepts/model-and-commands"
+        description="The model and its commands, typed data, the geometry and the primitive contract."
     />
     <Card
         title="Examples"

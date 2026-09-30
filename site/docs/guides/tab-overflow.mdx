@@ -1,10 +1,10 @@
 ---
 title: Tab overflow
-description: When a strip has more tabs than fit - the tabs that do not fit go to your menu, the selected one stays; or wrap and scroll.
+description: When a strip has more tabs than fit, the ones that do not fit go to a menu of yours and the selected tab stays in view. Or wrap and scroll.
 ---
 
 When a strip has more tabs than it can show, Dockable hides the ones that do not fit, one by one
-as the strip narrows, and always keeps the selected tab in view (the VS Code behaviour). You list
+as the strip narrows, and always keeps the selected tab in view (the VS Code behavior). You list
 the hidden tabs in a menu of your own, opened by `Dockable.TabOverflowTrigger`.
 
 <Example id="overflow-select" />
@@ -16,8 +16,8 @@ overflow. In a header row, let it shrink:
 
 ```tsx
 <div className="flex">
-    <Dockable.TabList className="flex min-w-0 flex-1 overflow-hidden gap-1 ps-1">
-        {(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}
+    <Dockable.TabList<Types> className="flex min-w-0 flex-1 overflow-hidden gap-1 ps-1">
+        {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
     </Dockable.TabList>
     {/* the trigger, step 2 */}
 </div>
@@ -36,15 +36,22 @@ brings it into the strip.
 
 `Dockable.TabOverflowTrigger` renders only while tabs are hidden, next to the tab list. The engine
 reserves the space it takes, so tabs and trigger never overlap. It is a button with no text and
-no menu: make it the trigger of yours, and list the hidden tabs from `useTabOverflow`:
+no menu: make it the trigger of yours, and list the hidden tabs from `useTabOverflow`. It takes
+the tabset (or border) node and returns its tabs typed by the same registry, so `data` narrows on
+`component` in the menu too:
 
 ```tsx
-import { Actions, type TabSetNode } from "@fragiola/dockable";
+import type { TabOf, TabsetNode } from "@fragiola/dockable";
 import { Dockable, useDockable, useTabOverflow } from "@fragiola/dockable-react";
 
-function OverflowMenu({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
-    const { hidden } = useTabOverflow(tabset);
+// an icon-only tab has no name: `altName` names it in the menu
+type Types = { tabs: { file: { name: string; altName?: string } } };
+
+const label = (tab: TabOf<Types>) => tab.data.name || tab.data.altName;
+
+function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { run } = useDockable<Types>();
+    const { hidden } = useTabOverflow(tabset); // TabOf<Types>[]
     return (
         <Menu.Root>
             <Dockable.TabOverflowTrigger aria-label="More tabs" render={<Menu.Trigger />}>
@@ -52,8 +59,8 @@ function OverflowMenu({ tabset }: { tabset: TabSetNode }) {
             </Dockable.TabOverflowTrigger>
             <Menu.Content>
                 {hidden.map((tab) => (
-                    <Menu.Item key={tab.getId()} onClick={() => engine.doAction(Actions.selectTab(tab.getId()))}>
-                        {tab.getName() || tab.getAltName()}
+                    <Menu.Item key={tab.id} onClick={() => run("tab.select", { tab: tab.id })}>
+                        {label(tab)}
                     </Menu.Item>
                 ))}
             </Menu.Content>
@@ -62,9 +69,10 @@ function OverflowMenu({ tabset }: { tabset: TabSetNode }) {
 }
 ```
 
-Selecting a hidden tab (`Actions.selectTab`, through `onAction`) brings it into the strip; another
-tab goes to the menu in its place. `altName` is "the name used in the overflow menu when the tab
-has no name (e.g. an icon-only tab)". The label key `DockableLabel.Overflow_Menu_Tooltip` names the
+Selecting a hidden tab (`tab.select`, through the model's middleware) brings it into the strip;
+another tab goes to the menu in its place. The result also has `visible` (the tabs in the strip)
+and `overflowing`. What a tab is called in the menu is your data: `altName` above is a field of
+the registry, not of the package. The label key `DockableLabel.Overflow_Menu_Tooltip` names the
 trigger when you pass `getLabel` to the root.
 
 The [`overflow-select`](/examples/overflow-select) example uses Fragiola UI's `Select`, with
@@ -79,21 +87,27 @@ The [`overflow-select`](/examples/overflow-select) example uses Fragiola UI's `S
 
 ## Wrap or scroll instead
 
-A strip that wraps (`flex-wrap: wrap`, several rows of tabs; the tabset's `enableTabWrap`
-attribute is a natural switch) or scrolls (`overflow-x: auto`) keeps every tab: turn tab overflow
-off with `overflow={false}` on the tab list. For a scrolling strip, scroll the selected tab into
-view when the selection changes:
+A strip that wraps (`flex-wrap: wrap`, several rows of tabs) or scrolls (`overflow-x: auto`)
+keeps every tab: turn tab overflow off with `overflow={false}` on the tab list. A per-tabset
+switch is your data (a `wrap` field in the registry's `tabset` type, read as `tabset.data?.wrap`).
+For a scrolling strip, scroll the selected tab into view when the selection changes.
+`useModelState` re-renders the tab only when its answer changes:
 
 ```tsx
-function ScrollingTab({ tab }: { tab: TabNode }) {
+import { useModelState } from "@fragiola/dockable-react";
+
+function ScrollingTab({ tab }: { tab: TabOf<Types> }) {
     const ref = useRef<HTMLElement>(null);
-    const selected = tab.isSelected();
+    const selected = useModelState<Types, boolean>((_, model) => {
+        const parent = model.parentOf(tab.id);
+        return parent !== undefined && model.selectedTab(parent.id)?.id === tab.id;
+    });
     useEffect(() => {
         if (selected) ref.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }, [selected]);
     return (
         <Dockable.Tab node={tab} ref={ref}>
-            {tab.getName()}
+            {tab.data.name}
         </Dockable.Tab>
     );
 }

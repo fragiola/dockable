@@ -1,12 +1,12 @@
 ---
 title: Dockable.EdgeIndicator
-description: Marks the band along one edge of the layout where a drop docks to that edge.
+description: Marks the band along one edge of the layout where a drop docks to that edge, shown while a drag is over the layout.
 ---
 
 "Marks the band along one edge of the layout where a drop docks to that edge. It is positioned
 (structurally) over the band the core computes (`edgeDockMargin` deep, `edgeDockLength` long,
-centred), shown only while a drag that can dock to the edges is over the layout and the model's
-`enableEdgeDockIndicators` is on. `pointer-events: none`, like the drop indicator. Place one per
+centred), shown only while a drag that can dock to the edges is over the layout. Render it only
+when you want edge indicators. `pointer-events: none`, like the drop indicator. Place one per
 edge inside `Dockable.Root`; its stacking (`z-index`) is yours."
 
 ```tsx
@@ -57,12 +57,13 @@ edge inside `Dockable.Root`; its stacking (`z-index`) is yours."
 
 ## The bands
 
-The core's `model.getEdgeDockRects()` returns the four bands of the main layout's root row: each
-`edgeDockMargin` px deep (default 10) and, while `enableEdgeDockIndicators` is on,
-`edgeDockLength` px long (default 100) centred on its edge. With indicators off the band spans the
-whole edge. The same bands decide where a drop docks to an edge, so the indicator is exactly the
-drop target.
+`engine.edgeBands()` returns the four bands (`EdgeBand`: `{ location, rect }`) of the main
+layout's root row: each `defaults.layout.edgeDockMargin` px deep (default 10) and
+`defaults.layout.edgeDockLength` px long (default 100), centred on its edge (a length larger than
+the edge gives the whole edge). With `defaults.layout.edgeDock` off there are none, and the
+indicators stay hidden while a tabset is maximized (the drop indicator state's `showEdges`). The same bands decide where a drop docks to an edge, so the indicator
+is exactly the drop target. Showing indicators or not is only whether you render this part.
 
 A tab strip at the top of the layout is inside the top band's depth: a drop aimed at the strip's
-middle docks to the top edge instead (gap 11). Lower `edgeDockMargin` (e.g. to 4), or show the
-indicators so users see where the edge target is.
+middle docks to the top edge instead (gap 11). Lower `defaults.layout.edgeDockMargin` (e.g. to 4,
+with `layout.configure`), or show the indicators so users see where the edge target is.

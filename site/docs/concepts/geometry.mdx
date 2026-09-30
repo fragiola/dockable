@@ -15,13 +15,13 @@ and each child (a tabset or a nested row) is a flex item sized by its **weight**
 /* what Row and TabSet set, structurally */
 flex-basis: 0;
 flex-grow: calc(weight * 1000); /* at least 1 */
-min-width / min-height / max-width / max-height: from the model;
+min-width / min-height / max-width / max-height: the node's size limits;
 overflow: hidden;
 ```
 
 A row with children of weight 60 and 40 splits its space 60/40, minus the splitters. Splitters
-are flex items too: their measured thickness is the model's splitter size. Dragging a splitter
-dispatches `Actions.adjustWeights` for its row, and the new `flex-grow` values re-flow the row.
+are flex items too: their measured thickness is the engine's splitter size. Dragging a splitter
+runs the `row.resize` command for its row, and the new `flex-grow` values re-flow the row.
 
 This is plain CSS layout, so it responds to container size for free, and your borders, gaps and
 margins participate (a margin on a tabset takes space from its weight's share, as in any flex
@@ -37,7 +37,8 @@ that only marks the content area. After every commit (and whenever an observed e
 the engine:
 
 1. measures every registered element (rows, tabsets, tab strips, content areas, tab buttons,
-   splitters) and writes the rects into the model;
+   splitters) and keeps the rects, keyed by node id (view state lives in the engine, never in the
+   model);
 2. positions each `Dockable.Panel` over its tabset's content area: `position: absolute` plus
    `left`, `top`, `width`, `height`, relative to the root;
 3. shows the selected tab's panel and hides the others with `display: none`.
@@ -79,11 +80,12 @@ the reload.
 ### Render on demand
 
 Tabs render their content lazily: `Dockable.Panels` renders a tab once it has been selected and
-its content area has a size, and keeps it rendered afterwards. Set `enableRenderOnDemand: false`
-on a tab to render it immediately, even while hidden.
+its content area has a size, and keeps it rendered afterwards. Pass `renderOnDemand={false}` to
+`Dockable.Panels` to render every tab immediately, even while hidden, or a function of the tab to
+decide per tab.
 
-`enableWindowReMount: true` opts a tab out of state preservation across windows: its content
-remounts when it moves into or out of a popout.
+`remountInWindow` on a `Dockable.Panel` opts its tab out of state preservation across windows: its
+content remounts when it moves into or out of a popout.
 
 ## Why it is built this way
 

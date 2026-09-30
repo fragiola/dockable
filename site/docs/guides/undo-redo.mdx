@@ -1,41 +1,47 @@
 ---
 title: Undo and redo
-description: The package ships no undo/redo. It gives you the events and the model to build yours; the examples' UndoManager is a starting point to copy.
+description: The package ships no undo/redo. It gives you the change events and layout.load to build yours; the examples' UndoManager is a starting point to copy.
 ---
 
 Dockable ships **no** undo/redo: what counts as a step, what to ignore, and how steps across
 several layouts combine are your app's decisions. The package gives you what you need to build it:
 
-- **every change as an event**: `model.addChangeListener(listener)` (or `onModelChange` on
-  `Dockable.Root`) sees each action after the model applied it, and `action.isAdjusting()` tells
-  the steps of a gesture (a splitter drag) from its end;
-- **the state as JSON**: `model.toJson()`;
-- **a swap that keeps content**: `Model.fromJson(json, previousModel)` builds a model whose tabs
-  adopt the previous model's mounted content, by id.
+- **every change as an event**: `model.subscribe(listener)` receives one `CommandEvent` per
+  committed command, with the `command`, its `payload`, the state `before` and `after`, whether it
+  was `transient` (a step of a gesture, such as a splitter drag), the caller's `meta`, and for a
+  `batch` the `commands` it ran;
+- **immutable states**: `event.before` is a snapshot that never changes, so keeping one costs
+  nothing, and `toLayoutJson(state)` turns it back into a document;
+- **a restore that keeps content**: `layout.load` replaces the layout of the **same** model, and
+  every tab whose id survives keeps its mounted content.
 
 The examples' `UndoManager` (`examples/_kit/undo.ts`, in the code panel of the example below)
-puts these together: it owns the current model, records a JSON snapshot before each change, and on
-undo or redo **replaces** the model with `Model.fromJson(snapshot, current)`. Copy it, and change
-it to fit your app.
+puts these together: it records the state before each step, and on undo or redo loads it back
+with `layout.load`. Copy it, and change it to fit your app.
 
 <Example id="undo-redo" />
 
 ## Wiring it to React
 
 The manager is a small external store: `subscribe` and `getSnapshot` are bound, so they go
-straight into `useSyncExternalStore`. Render `Dockable.Root` with the snapshot's model; a new
-model identity makes the root create a new engine.
+straight into `useSyncExternalStore`. The model never changes: undo and redo change its state, so
+`Dockable.Root` keeps its engine and nothing remounts.
 
 ```tsx
-import { type IJsonModel, Model } from "@fragiola/dockable";
-import { UndoManager } from "./undo"; // the examples' _kit/undo.ts, copied into your app
+import { type CommandName, createModel, type LayoutJson } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { UndoManager } from "./undo"; // the examples' _kit/undo.ts, copied into your app
 
-export function UndoableLayout({ json }: { json: IJsonModel }) {
-    const [undo] = useState(() => new UndoManager(Model.fromJson(json)));
-    useEffect(() => () => undo.dispose(), [undo]);
-    const { model, canUndo, canRedo } = useSyncExternalStore(undo.subscribe, undo.getSnapshot);
+type Types = { tabs: { card: { name: string } } };
+
+// selecting is navigation, not an edit
+const IGNORED: readonly CommandName[] = ["tabset.activate", "tab.select", "window.configure"];
+
+export function UndoableLayout({ json }: { json: LayoutJson<Types> }) {
+    const [model] = useState(() => createModel<Types>(json));
+    const [undo] = useState(() => new UndoManager(model, { ignoreCommands: IGNORED }));
+    const { canUndo, canRedo } = useSyncExternalStore(undo.subscribe, undo.getSnapshot, undo.getSnapshot);
 
     return (
         <>
@@ -47,11 +53,9 @@ export function UndoableLayout({ json }: { json: IJsonModel }) {
                     Redo
                 </button>
             </div>
-            {model ? (
-                <Dockable.Root model={model} style={{ flex: 1, minHeight: 0 }}>
-                    {/* Row, Panels, DropIndicator as usual */}
-                </Dockable.Root>
-            ) : null}
+            <Dockable.Root model={model} style={{ flex: 1, minHeight: 0 }}>
+                {/* Row, Panels, DropIndicator as usual */}
+            </Dockable.Root>
         </>
     );
 }
@@ -63,47 +67,70 @@ inputs keep their own undo.
 
 ## What is recorded
 
-The example manager listens to the model (`addChangeListener`), so it records **every** action,
-whether it came through `engine.doAction` or `model.doAction`. These are its choices; yours can
-differ:
+The example manager listens to the model (`model.subscribe`), so it records **every** committed
+command, whether it came from a primitive, a drag or your own `model.run`. These are its choices;
+yours can differ:
 
-- **A gesture is one step.** A live splitter drag dispatches many *adjusting* `adjustWeights`
-  actions and one final one; only the state before the first is recorded.
-- **Some actions are not steps.** `ignoreActionTypes` defaults to `[Actions.SET_ACTIVE_TABSET]`:
-  clicking into another tabset is not an undo step.
-- **`Actions.group([...])`** is one step.
-- **Vetoed actions** (your `onAction` returned `undefined`) never reach the model, so they are
-  not recorded.
+- **A gesture is one step.** A live splitter drag runs many `transient` `row.resize` commands and
+  one final one; only the state before the first is recorded.
+- **Some commands are not steps.** `ignoreCommands` defaults to
+  `["tabset.activate", "window.configure"]`: clicking into another tabset, or moving a popout
+  window, is not an undo step. A batch of only ignored commands is ignored too.
+- **A `batch` is one step.**
+- **A command that changed nothing** (its `before` is its `after`) is not a step.
+- **Vetoed or refused commands** never commit, so they are not recorded.
 
 ```ts
 new UndoManager(model, {
     maxBufferSize: 50, // default 100
-    ignoreActionTypes: [Actions.SET_ACTIVE_TABSET, Actions.SELECT_TAB],
+    ignoreCommands: ["tabset.activate", "tab.select", "window.configure"],
 });
 ```
 
+## Naming the steps
+
+The snapshot lists the steps (`undoSteps`, oldest first, and `redoSteps`, the next one last). Each
+step says what made it: `command` (the gesture's last one, or `batch`), and `commands`, a batch's
+commands flattened. That is enough for a history list or a label such as "Undo close":
+
+```ts
+function describe(command: CommandName): string {
+    switch (command) {
+        case "tab.close":
+            return "Close tab";
+        case "tab.move":
+        case "tabset.move":
+            return "Move";
+        case "row.resize":
+            return "Resize";
+        default:
+            return command;
+    }
+}
+
+const next = snapshot.undoSteps.at(-1);
+const label = next ? `Undo ${describe(next.command)}` : "Undo";
+```
+
+## Undo and your middleware
+
+An undo or a redo is a `layout.load` run with `meta: { undo: true }`: the manager skips its own
+event by that mark. Your middleware sees it like any other command: a rule on `tab.move` or
+`tab.close` does not apply to it (it is a whole layout, not a move), and a middleware that vetoes
+`layout.load` makes the undo a no-op (the step stays in the history). Since the model is the same,
+middleware and listeners stay installed across undo and redo.
+
 ## Loading another layout
 
-`undo.setModel(model)` replaces the model (after loading a saved layout, say) and clears the
-history. `setModel(model, false)` keeps it. `undo.reset()` clears the history without replacing
-the model.
-
-## Things that belong to the model instance
-
-Undo and redo create **new** `Model` instances. Anything you set on a model object (not in its
-JSON) must be set again on the new one, for example `model.setOnAllowDrop(...)`:
-
-```tsx
-const { model } = useSyncExternalStore(undo.subscribe, undo.getSnapshot);
-useEffect(() => {
-    model?.setOnAllowDrop(allowDrop);
-}, [model]);
-```
+`undo.setModel(model)` switches the manager to another model and clears the history;
+`setModel(model, false)` keeps it. `undo.reset()` clears the history without touching the model.
+Loading a saved layout into the same model (`layout.load`) is itself a step, which an undo takes
+back; call `reset()` after it when it should not be.
 
 ## Content state across undo
 
-Tabs that exist before and after an undo keep their mounted content: the new model's tabs adopt
-the old model's view state (their moveable element) by id. A tab that an undo **removes** is
+Tabs that exist before and after an undo keep their mounted content: `layout.load` keeps the view
+state (the moveable element) of every tab whose id survives. A tab that an undo **removes** is
 unmounted; if a redo brings it back, it mounts fresh.
 
 ## Layouts that exchange tabs

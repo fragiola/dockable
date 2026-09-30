@@ -1,18 +1,19 @@
 ---
 title: Dockable.DragSource
-description: An element anywhere on the page that can be dragged into a layout to create a new tab.
+description: An element anywhere on the page that can be dragged into a layout to create a new tab, through the model's middleware.
 ---
 
 "An element, anywhere on the page, that can be dragged into a layout to create a new tab: a
-sidebar of widgets, a file list, a palette. The drop dispatches `Actions.addTab` through the
-layout's engine (interceptable by `onAction`, filtered by `onAllowDrop`). It is itself the drag
-image."
+sidebar of widgets, a file list, a palette. The drop runs `tab.add` through the model's
+middleware, which can veto or rewrite it. It is itself the drag image. It renders a `div` with
+`draggable`; give it a role and a name that fit your UI, and offer a keyboard path to the same
+command (a click, a menu): native drag and drop has none."
 
 ```tsx
 <Dockable.DragSource
     model={model}
-    json={() => ({ type: "tab", name: "Revenue", component: "chart" })}
-    onDrop={(tab) => tab && console.log("added", tab.getId())}
+    tab={() => ({ component: "chart", data: { name: "Revenue", series: [] } })}
+    onDrop={(tabId) => tabId && console.log("added", tabId)}
     render={<li />}
     className="cursor-grab data-dragging:opacity-50"
 >
@@ -21,20 +22,25 @@ image."
 ```
 
 It does not have to live inside `Dockable.Root`: it finds the layout through its `model` (the
-root rendering that model must be mounted; before that, a drag does not start).
+root rendering that model must be mounted; before that, a drag does not start). `T` is inferred
+from `model: Model<T>`, so the `tab` init is checked against the registry: `data` must be the
+data type of its `component`.
 
 ## Props
 
-`DragSourceProps` extends the [common primitive props](/docs/api/root#common-props) (its `onDrop`
+`DragSourceProps<T>` extends the [common primitive props](/docs/api/root#common-props) (its `onDrop`
 replaces the element's native drop handler: a drag source is never a drop target).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `model` | `Model` | required | the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) |
-| `json` | `IJsonTabNode \| (() => IJsonTabNode)` | required | the tab a drop creates; a function is called at each drag start |
-| `onDrop` | `(node: TabNode \| undefined, event: DragEvent) => void` | none | called after the drop with the created tab, or `undefined` when `onAction` vetoed it |
+| `model` | `Model<T>` | required | the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) |
+| `tab` | `TabInitOf<T> \| (() => TabInitOf<T>)` | required | the tab a drop creates (a `tab.add` init: `data` is checked against `component`); a function is called at each drag start, so every drop can get fresh data |
+| `onDrop` | `NewTabDropped`: `(tabId: string \| undefined, event: DragEventLike) => void` | none | called after the drop with the new tab's id, or `undefined` when the add was refused (a drop rule, a middleware veto) |
 | `disabled` | `boolean` | `false` | no drag starts while true |
 | `children` | `ReactNode` | none | the source's content; the primitive renders no text of its own |
+
+The init is what `tab.add` takes without its placement (`to`, `location`, `index`): the drop
+supplies those. Read the new tab back with `model.get(tabId)`.
 
 ## State
 
@@ -60,9 +66,20 @@ While its drag is over a layout, that layout's `Dockable.Root` has `data-draggin
 ## Accessibility
 
 Native drag and drop has no keyboard path. Give the source a role and a name that fit your UI
-(`render={<button />}` makes it focusable), and offer the same action without a drag: a click that
-adds the tab to the active tabset through `LayoutEngine.of(model)?.doAction(Actions.addTab(…))`.
-The [widget sidebar](/examples/widget-sidebar) example does both.
+(`render={<button />}` makes it focusable), and offer the same command without a drag: a click that
+adds the tab to the active tabset.
+
+```tsx
+const addToActiveTabset = () => {
+    const target = model.activeTabset() ?? model.tabsets()[0];
+    if (!target) return;
+    const added = model.run("tab.add", { ...widgetTab(widget), to: target.id, select: true });
+    onAdded(added.ok ? added.value.tab : undefined);
+};
+```
+
+`model.run` works anywhere, with or without a mounted root, and goes through the same middleware
+as the drop. The [widget sidebar](/examples/widget-sidebar) example does both.
 
 ## Notes
 

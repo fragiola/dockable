@@ -1019,8 +1019,10 @@ For `run(command, payload, options?)`:
    observe it after `next()`.
 6. **Subscribe.** One event is delivered to every listener (§6.6).
 
-`dispatch(input: unknown)` first validates the envelope `{ command: string, payload: object,
-transient?: boolean }` (`invalid_payload` with paths such as `/command`), then runs as above.
+`dispatch(input: unknown, options?: { meta })` first validates the envelope `{ command: string,
+payload: object, transient?: boolean }` (`invalid_payload` with paths such as `/command`; any other
+key, `meta` included, is refused), then runs as above. `options.meta` is the app's (who asked, for a
+middleware to decide on), never the input's.
 
 ### 6.3 Middleware
 
@@ -1038,7 +1040,8 @@ export interface CommandContext<T> {
     readonly meta: Readonly<Record<string, unknown>> | undefined;
     /** the state the command applies to */
     readonly state: LayoutState<T>;
-    readonly model: Model<T>;
+    get(id: string): Node<T> | undefined; // as the command sees it (inside a batch: so far)
+    parentOf(id: string): ParentNode<T> | undefined;
 }
 model.use(middleware): () => void; // returns the function that removes it
 ```
@@ -1203,7 +1206,7 @@ class LayoutEngine<T extends DockableTypes = AnyTypes> {
     readonly main: LayoutEngine<T>;
     /** model.run, for the adapters */
     run: Model<T>["run"];
-    setOptions(options: Partial<LayoutEngineOptions<T>>): void;
+    setOptions(options: LayoutEngineSettings<T>): void; // the options an adapter may change
     // render cycle
     subscribe(listener): () => void; getSnapshot(): number;
     prepare(): void; attachRoot(element): void; detachRoot(): void; sync(): void; dispose(): void;
@@ -1215,7 +1218,7 @@ class LayoutEngine<T extends DockableTypes = AnyTypes> {
     registerSplitter(element: HTMLElement, isHorizontal: () => boolean, register?: boolean): void;
     registerDropZone(element: Element, options: DropZoneOptions<T>): () => void;
     // derived view data
-    path(id: string): string; minMax(id: string): SizeLimits; splitterSize(): number;
+    path(id: string): string; minMax(id: string): SizeRange; splitterSize(): number;
     tabButtonId(tabId: string): string; tabPanelId(tabId: string): string; // DOM ids, page-unique
     edgeBands(): readonly { location: BorderLocation; rect: Rect }[];
     getHiddenTabs(containerId): readonly string[]; subscribeOverflow(listener): () => void;
@@ -1230,7 +1233,7 @@ class LayoutEngine<T extends DockableTypes = AnyTypes> {
     handleOverlayPointerDown(event): boolean; handleOverlayKeyDown(event, key): boolean;
     closeOverlayBorder(borderId): void; focusAdjacentTabset(delta): boolean;
     isRealtimeResize(): boolean; isSplitterDragging(): boolean; getTabDragSpeed(): number;
-    getBoundingClientRect(element): Rect; getDomRect(): Rect; getCurrentDocument(): Document | undefined; getWindowId(): string | undefined;
+    getBoundingClientRect(element): Rect; getDomRect(): Rect; getCurrentDocument(): Document | undefined; getCurrentWindow(): Window | undefined;
 }
 ```
 
@@ -1351,7 +1354,7 @@ These keep FlexLayout's results, so the `data-layout-path` indexes do not shift.
 | `onAllowDrop` | removed: a middleware veto on `tab.move` / `tab.add` / `tabset.move` |
 | `popoutClosePolicy` | removed: always `"dock"` (`window.close`) |
 | `openWindow` | added: the injectable window opener |
-| `getLabel`, `keyMap`, `realtimeResize`, `tabDragSpeed`, `popoutURL`, `supportsPopout`, `popoutMirrorRoot`, `onPopoutOpen`, `onPopoutClose`, `onExternalDrag` | kept (`onPopoutOpen`/`onPopoutClose` receive a `WindowLayout`; `onExternalDrag` returns `{ tab: TabAddInit<T>, onDrop? }`) |
+| `getLabel`, `keyMap`, `realtimeResize`, `tabDragSpeed`, `popoutURL`, `supportsPopout`, `popoutMirrorRoot`, `onPopoutOpen`, `onPopoutClose`, `onExternalDrag` | kept (`onPopoutOpen`/`onPopoutClose` receive a `WindowLayout`; `onExternalDrag` returns `{ tab: TabInitOf<T>, onDrop? }`) |
 
 ### 10.2 Parts
 
@@ -1364,8 +1367,8 @@ These keep FlexLayout's results, so the `data-layout-path` indexes do not shift.
 | `Borders` | `renderBar` / `renderContent` receive `BorderNode<T>` |
 | `Border` | new `tabDirection?: "up" \| "down"` (left border) |
 | `Popout` | children `(layout: WindowLayout<T>)` |
-| `DragSource` | `tab: TabAddInit<T> \| (() => TabAddInit<T>)` replaces `json`; `onDrop(tabId \| undefined)` |
-| `DropZone` | `accepts(drag)` / `onDrop(drag)` receive `DragSubject<T>`: `{ kind: "tab", tab }`, `{ kind: "tabset", tabset }` or `{ kind: "new", tab: TabAddInit<T> }` |
+| `DragSource` | `tab: TabInitOf<T> \| (() => TabInitOf<T>)` replaces `json`; `onDrop(tabId \| undefined)` |
+| `DropZone` | `accepts(drag)` / `onDrop(drag)` receive `DragSubject<T>`: `{ kind: "tab", tab }`, `{ kind: "tabset", tabset }` or `{ kind: "new", tab: TabInitOf<T> }` |
 | `PopoutTrigger` | runs `tab.popout` / `tabset.popout` / `tab.move` (dock back); enabled from `model.can` |
 | `RenderedProps<E extends Element = HTMLElement>` | `ref` is a callback ref, assignable to any element's ref: `render={(props) => <div {...props} />}` needs no cast |
 
@@ -1480,7 +1483,7 @@ The PR description reuses this table.
 | `FLOAT_ATTRIBUTE`, `startDockLayoutDrag`, `DragSource: "float"` | removed (floats) |
 | `DragDropManager.setDragNode(event, node, image)` | `startDrag(event, subject, image)` with a `DragSubject` |
 | `addTabWithDragAndDrop(event, json, onDrop, image)` | `startAddDrag(event, tab, onDrop, image)` |
-| `IExternalDrag { json, onDrop }` | `{ tab: TabAddInit<T>, onDrop? }` |
+| `IExternalDrag { json, onDrop }` | `{ tab: TabInitOf<T>, onDrop? }` |
 | `IDropZoneOptions` with `Node` | `DropZoneOptions<T>` with `DragSubject<T>` |
 | `DRAG_MARKER` (`text/plain`) | `DRAG_TYPE` (`application/x-dockable`) |
 | `DragGroup.transfer(tabId, from, to, toNodeId, location, index)` | `DragGroup.transfer({ tab, from, to, target, location, index })`; `ITransfer.tab` is the new tab's id |

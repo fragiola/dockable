@@ -27,10 +27,16 @@ Three primitives take a **children function** instead of children:
 
 | primitive | calls its child function with | for |
 | --- | --- | --- |
-| `Row` | `TabSetNode \| RowNode` | every child of the row |
-| `TabList` | `TabNode` | every tab of the tabset |
-| `Panels` | `TabNode` | every tab whose content should render (all layouts) |
-| `Popout` | `ModelLayout` | every popout window layout |
+| `Row` | `TabsetNode<T> \| RowNode<T>` | every child of the row |
+| `TabList` | `TabOf<T>` | every tab of the tabset (or border) |
+| `Panels` | `TabOf<T>` | every tab whose content should render (all layouts) |
+| `Popout` | `WindowLayout<T>` | every popout window layout |
+
+The nodes are plain, immutable objects of the model's state
+([The model and commands](/docs/concepts/model-and-commands)), typed by your registry `T`. A child
+cannot infer the root's registry through context, so pass it as a type argument
+(`<Dockable.Row<Types>>`, `<Dockable.Panels<Types>>`); without it, `tab.data` is `unknown`. See
+[Typed data](/docs/concepts/typed-data).
 
 ## Owning the recursion
 
@@ -38,36 +44,39 @@ A row's children are tabsets or rows, so the child function is recursive. Write 
 plain function and pass it to every `Row`:
 
 ```tsx
-import { type RowNode, TabSetNode } from "@fragiola/dockable";
+import type { RowNode, TabsetNode } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
 
-function renderNode(child: TabSetNode | RowNode): ReactNode {
-    if (child instanceof TabSetNode) {
+function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
+    if (child.type === "tabset") {
         return <MyTabSet node={child} />;
     }
     return <Dockable.Row node={child}>{renderNode}</Dockable.Row>;
 }
 
 // the root row has no `node`: it renders the enclosing layout's root row
-<Dockable.Row>{renderNode}</Dockable.Row>
+<Dockable.Row<Types>>{renderNode}</Dockable.Row>
 ```
 
+A node is told apart by its `type` field (`"tabset"` or `"row"` here), which also narrows it.
+
 Because the function is yours, anything can go in it: a header with buttons around the
-`TabList`, a different tabset component per `tabset.getConfig()`, a toolbar only on the active
+`TabList`, a different tabset component per `tabset.data`, a toolbar only on the active
 tabset, the strip **below** the content (render `TabSetContent` before the `TabList`: `TabSet`
 is a column, so markup order is visual order).
 
 ```tsx
-function MyTabSet({ node }: { node: TabSetNode }) {
+function MyTabSet({ node }: { node: TabsetNode<Types> }) {
+    const { model } = useDockable<Types>();
     return (
         <Dockable.TabSet node={node} className="tabset">
             <div className="header">
-                <Dockable.TabList aria-label={node.getName() ?? "Tabs"} className="tabs">
+                <Dockable.TabList<Types> aria-label={node.data?.name ?? "Tabs"} className="tabs">
                     {(tab) => (
                         <Dockable.Tab node={tab} className="tab">
-                            {tab.getName()}
-                            {tab.isEnableClose() ? <CloseButton tab={tab} /> : null}
+                            {tab.data.name}
+                            {model.can("tab.close", { tab: tab.id }).ok ? <CloseButton tab={tab} /> : null}
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>
@@ -83,7 +92,7 @@ The popout windows render the same structure: pass the same function to the `Row
 `Dockable.Popout` (a `Row` with no `node` there renders the window layout's root row).
 
 ```tsx
-<Dockable.Popout>{() => <Dockable.Row>{renderNode}</Dockable.Row>}</Dockable.Popout>
+<Dockable.Popout<Types>>{() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}</Dockable.Popout>
 ```
 
 ## Splitters
@@ -94,11 +103,11 @@ The popout windows render the same structure: pass the same function to the `Row
   the 1-based index of the child the splitter precedes); spread it on a `Dockable.Splitter`:
 
   ```tsx
-  const renderSplitter = (props: RowSplitterProps) => (
+  const renderSplitter = (props: RowSplitterProps<Types>) => (
       <Dockable.Splitter {...props} className="splitter" />
   );
 
-  <Dockable.Row renderSplitter={renderSplitter}>{renderNode}</Dockable.Row>
+  <Dockable.Row<Types> renderSplitter={renderSplitter}>{renderNode}</Dockable.Row>
   ```
 
 - `splitter={false}` renders none (the row cannot be resized by the user).
@@ -114,7 +123,7 @@ It renders the content of every layout (the main one and the popouts), and the e
 panel where its tab is:
 
 ```tsx
-<Dockable.Panels>
+<Dockable.Panels<Types>>
     {(tab) => (
         <Dockable.Panel node={tab} className="panel">
             {renderContent(tab)}
@@ -123,17 +132,20 @@ panel where its tab is:
 </Dockable.Panels>
 ```
 
+`renderContent` switches on `tab.component`, which narrows `tab.data` to that component's data
+([Typed data](/docs/concepts/typed-data)).
+
 Tabs are iterated in stable id order, so React never reorders DOM the engine has re-parented.
 See [Geometry](/docs/concepts/geometry) for why content lives here.
 
 ## Anything else inside the root
 
 Any element can be a child of `Dockable.Root`: a toolbar overlay, a status bar, a component that
-calls `useDockable()` to react to the layout. Keep in mind that the root row covers the root
+calls `useDockable()` to run commands or `useModelState()` to follow the layout. Keep in mind that the root row covers the root
 (`inset: 0`), so an overlay needs to be positioned and stacked.
 
 ## The lower layer
 
 Every primitive is built on a hook you can use directly: `useTabSet`, `useSplitter`,
-`useDragNode`, `useDockable`. They give you the state, the ref to attach and the handlers, for
+`useDragNode`, `useDockable`, `useModelState`. They give you the state, the ref to attach and the handlers, for
 the rare case where a primitive's element does not fit. See [Hooks](/docs/api/hooks).

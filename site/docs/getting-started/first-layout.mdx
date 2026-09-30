@@ -1,6 +1,6 @@
 ---
 title: Your first layout
-description: From a JSON model to a resizable, draggable layout, step by step.
+description: From a typed JSON layout to a resizable, draggable layout with live content, step by step.
 ---
 
 This page builds the smallest complete layout: two tabsets side by side, a splitter between
@@ -11,6 +11,28 @@ them, tabs you can drag, and panels whose content survives every move. It ends w
 
 <Step>
 
+## Declare what your tabs hold
+
+Each tab names a **component** (what it shows) and carries **data** (its state). Declare the data
+type of each component once, in a registry. Everything below is typed by it:
+
+```tsx title="types.ts"
+export type Types = {
+    tabs: {
+        welcome: { name: string };
+        notes: { name: string; text: string };
+        inspector: { name: string };
+    };
+};
+```
+
+The tab's `name` is in its data: the model holds no text, so the strip renders what you put there
+([Typed data](/docs/concepts/typed-data)).
+
+</Step>
+
+<Step>
+
 ## Describe the layout as JSON
 
 A layout is a tree: a **row** splits its space between its children, a **tabset** holds
@@ -18,32 +40,35 @@ A layout is a tree: a **row** splits its space between its children, a **tabset*
 it acts as a column.
 
 ```tsx title="layout.ts"
-import type { IJsonModel } from "@fragiola/dockable";
+import type { LayoutJson } from "@fragiola/dockable";
+import type { Types } from "./types";
 
-export const json: IJsonModel = {
-    global: {},
-    layout: {
+export const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { type: "tab", name: "Welcome", component: "welcome" },
-                    { type: "tab", name: "Notes", component: "notes" },
+                    { component: "welcome", data: { name: "Welcome" } },
+                    { component: "notes", data: { name: "Notes", text: "" } },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
-                children: [{ type: "tab", name: "Inspector", component: "inspector" }],
+                children: [{ component: "inspector", data: { name: "Inspector" } }],
             },
         ],
     },
 };
 ```
 
-Every attribute is listed in [the JSON model reference](/docs/api/json-model).
+This is **JSON v1**: `version: 1` and a `root` row. Nodes without an `id` get one when the layout
+loads. A tab whose `data` does not match its `component` does not compile. Every field is listed in
+[the JSON model reference](/docs/api/json-model).
 
 </Step>
 
@@ -54,12 +79,12 @@ Every attribute is listed in [the JSON model reference](/docs/api/json-model).
 The model is the source of truth. Create it once (not on every render) and keep it:
 
 ```tsx
-const [model] = useState(() => Model.fromJson(json));
+const [model] = useState(() => createModel<Types>(json));
 ```
 
-A **new model identity** makes `Dockable.Root` create a new engine, which is what
-[undo/redo](/docs/guides/undo-redo) relies on. Recreating it on every render would reset the
-layout each time.
+The model keeps its identity for the life of the layout: loading a saved layout or undoing a step
+replaces its state in place (`layout.load`), never the model. Recreating it on every render would
+reset the layout each time.
 
 </Step>
 
@@ -72,18 +97,19 @@ tabset or a nested row. A tabset renders its tab strip (`TabList` › `Tab`) and
 area (`TabSetContent`). `Row` inserts the splitters between children by itself.
 
 ```tsx title="render-node.tsx"
-import { type RowNode, TabSetNode } from "@fragiola/dockable";
+import type { RowNode, TabsetNode } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
+import type { Types } from "./types";
 
-export function renderNode(child: TabSetNode | RowNode): ReactNode {
-    if (child instanceof TabSetNode) {
+export function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
+    if (child.type === "tabset") {
         return (
             <Dockable.TabSet node={child} className="tabset">
-                <Dockable.TabList aria-label="Tabs" className="tabs">
+                <Dockable.TabList<Types> aria-label="Tabs" className="tabs">
                     {(tab) => (
                         <Dockable.Tab node={tab} className="tab">
-                            {tab.getName()}
+                            {tab.data.name}
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>
@@ -108,7 +134,7 @@ the root) calls its child function for every tab whose content should render, an
 area. That is how content survives moves: the element is re-parented, never remounted.
 
 ```tsx
-<Dockable.Panels>
+<Dockable.Panels<Types>>
     {(tab) => (
         <Dockable.Panel node={tab} className="panel">
             <TabContent tab={tab} />
@@ -117,17 +143,24 @@ area. That is how content survives moves: the element is re-parented, never remo
 </Dockable.Panels>
 ```
 
-Pick the content from the tab's `component` (and `config`), as a factory would:
+The parts that call a children function (`Row`, `TabList`, `Panels`) take your registry as a type
+argument: a child cannot infer it from the root. With it, `tab` is a `TabOf<Types>`.
+
+Pick the content from the tab's `component`, as a factory would. The switch narrows `tab.data` to
+that component's data, with no cast:
 
 ```tsx title="tab-content.tsx"
-import type { TabNode } from "@fragiola/dockable";
+import type { TabOf } from "@fragiola/dockable";
+import type { Types } from "./types";
 
-export function TabContent({ tab }: { tab: TabNode }) {
-    switch (tab.getComponent()) {
+export function TabContent({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
         case "notes":
-            return <textarea aria-label="Notes" />;
-        default:
-            return <p>{tab.getName()}</p>;
+            // tab.data is { name: string; text: string }
+            return <textarea aria-label={tab.data.name} defaultValue={tab.data.text} />;
+        case "welcome":
+        case "inspector":
+            return <p>{tab.data.name}</p>;
     }
 }
 ```
@@ -141,19 +174,20 @@ export function TabContent({ tab }: { tab: TabNode }) {
 ```tsx title="app.tsx"
 "use client";
 
-import { Model } from "@fragiola/dockable";
+import { createModel } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { json } from "./layout";
 import { renderNode } from "./render-node";
 import { TabContent } from "./tab-content";
+import type { Types } from "./types";
 
 export function App() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <Dockable.Root model={model} style={{ height: "100vh" }}>
-            <Dockable.Row>{renderNode}</Dockable.Row>
-            <Dockable.Panels>
+            <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+            <Dockable.Panels<Types>>
                 {(tab) => (
                     <Dockable.Panel node={tab} className="panel">
                         <TabContent tab={tab} />
@@ -201,12 +235,15 @@ keeps some start padding and why the drop indicator needs a `z-index`), and the
 ## What you have
 
 - **Drag and drop**: drag a tab into another tabset, onto a tabset's edge to split it, or to the
-  layout's edge. Each drop is an `Actions.moveNode` that goes through `onAction`.
+  layout's edge. Each drop runs the `tab.move` command, through any middleware you add with
+  `model.use`.
 - **Splitters**: drag with the pointer, or focus and use the arrow keys (10px per press).
 - **Keyboard**: arrow keys, Home and End move between tabs; Enter or Space selects; `Ctrl+Delete`
   closes a closeable tab.
 - **Content that survives**: type in the Notes tab, then drag it to the other tabset. The text is
   still there.
 
-Next, read [the model and actions](/docs/concepts/model-and-actions) to change the layout from
-code, and [composition](/docs/concepts/composition) for everything you can put in the recursion.
+Next, read [the model and commands](/docs/concepts/model-and-commands) to change the layout from
+code (`model.run("tab.add", …)`), [typed data](/docs/concepts/typed-data) for everything the
+registry types, and [composition](/docs/concepts/composition) for everything you can put in the
+recursion.

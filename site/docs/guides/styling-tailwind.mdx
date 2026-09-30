@@ -1,6 +1,6 @@
 ---
 title: Styling with Tailwind
-description: Utilities, data-* variants and className functions. No plugin, no preset.
+description: Style every primitive with plain Tailwind utilities, data-* variants and className functions. No plugin, no preset.
 ---
 
 The package paints nothing and ships no class names, so Tailwind styles it with ordinary
@@ -18,7 +18,7 @@ Tailwind v4 turns every attribute into a variant. The primitives expose their st
     node={tab}
     className="cursor-pointer px-3 text-palette-accent/85 hover:bg-palette-soft data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40"
 >
-    {tab.getName()}
+    {tab.data.name}
 </Dockable.Tab>
 ```
 
@@ -33,7 +33,7 @@ Read it from the ancestor instead. `in-data-active:` matches when **any ancestor
 
 ```tsx
 <Dockable.Tab node={tab} className="group/tab relative …">
-    {tab.getName()}
+    {tab.data.name}
     <span
         aria-hidden="true"
         className="absolute inset-x-2 bottom-0 hidden h-0.5 bg-palette-ring in-data-active:group-data-selected/tab:block"
@@ -59,9 +59,10 @@ receives the primitive's state:
 />
 ```
 
-For the node itself (not a state), close over it: `className={tab.isPinned() ? "…" : "…"}` in
-the `TabList` child function works because the strip re-renders when the model changes. Prefer
-`data-pinned:` when an attribute exists.
+For the node itself (not a state), close over it: nodes are plain objects with plain fields, so
+`className={tab.pinned ? "…" : "…"}` or one read from your typed data
+(`tab.data.dirty ? "italic" : ""`) in the `TabList` child function works, because the strip
+re-renders when the model changes. Prefer `data-pinned:` when an attribute exists.
 
 ## Structural rules to remember
 
@@ -69,7 +70,7 @@ the `TabList` child function works because the strip re-renders when the model c
   ([Sizing](/docs/getting-started/sizing)). Put padding on a wrapper, not on the root.
 - **Pad the start of the tab list** (`ps-1` or more): a tab flush with the tabset's edge cannot
   take a drop before it (gap 10).
-- **Give tab strips a minimum height** (`min-h-7` or so), or lower the global `edgeDockMargin`:
+- **Give tab strips a minimum height** (`min-h-7` or so), or lower `defaults.layout.edgeDockMargin`:
   a very thin strip at the top of the layout falls inside the 10px top-edge docking band (gap 11).
 - **Stack the drop indicator**: `z-10` (panels are portalled after it, gap 12).
 - **Don't fight structural style**: `flex-grow`, `display` or geometry you set with utilities on a
@@ -83,14 +84,15 @@ at the bottom is a markup change, not a style:
 ```tsx
 <Dockable.TabSet node={node}>
     <Dockable.TabSetContent />
-    <Dockable.TabList aria-label="Tabs" className="border-t border-palette-line">
-        {(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}
+    <Dockable.TabList<Types> aria-label="Tabs" className="border-t border-palette-line">
+        {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
     </Dockable.TabList>
 </Dockable.TabSet>
 ```
 
-The tabset's `tabLocation` attribute (`"top"` or `"bottom"`) is the natural switch:
-`node.getTabLocation() === "bottom"`.
+Where the strip goes is your app's choice, so keep the switch in your state, or per tabset in the
+registry's `tabset` data (`type Types = { tabs: …; tabset: { strip?: "top" | "bottom" } }`), read
+as `node.data?.strip === "bottom"` and changed with `tabset.configure`.
 
 <Example id="tabs-at-bottom" />
 
@@ -98,5 +100,5 @@ The tabset's `tabLocation` attribute (`"top"` or `"bottom"`) is the natural swit
 
 The examples use the Fragiola palette roles (`bg-palette-base`, `text-palette-contrast`,
 `border-palette-line`, `text-palette-accent/85`, …) so they work in every theme. That is a
-choice of this site, not a requirement: any colour utilities work. See
+choice of this site, not a requirement: any color utilities work. See
 [Theming](/docs/guides/theming).

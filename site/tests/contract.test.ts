@@ -39,10 +39,10 @@ const problemsOf = (body: string) =>
     validateSite(withPage("limitations", page(body)));
 
 describe("the site export", () => {
-    it("has the landing, every page in the sidebar and all 37 examples", () => {
+    it("has the landing, every page in the sidebar and all 38 examples", () => {
         expect(site.pages.has("index")).toBe(true);
-        expect(site.pages.size).toBe(59);
-        expect(site.manifests.get("react")?.examples).toHaveLength(37);
+        expect(site.pages.size).toBe(62);
+        expect(site.manifests.get("react")?.examples).toHaveLength(38);
     });
 
     it("passes the contract checks", () => {

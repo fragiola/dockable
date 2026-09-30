@@ -1,11 +1,12 @@
 ---
 title: Dockable.DragGroup
-description: Layouts of different models that exchange tabs by drag and drop, keeping each tab's content mounted.
+description: Layouts of different models that exchange tabs by drag and drop, each side through its model's middleware, keeping content mounted.
 ---
 
 "Layouts of different models that exchange tabs by drag and drop. Wrap the `Dockable.Root`s in it:
-a tab dragged from one drops into another (each root's `onAction` can veto), and its content keeps
-its state. Renders no element of its own."
+a tab dragged from one drops into another (a `tab.add` in the target model and a `tab.close` in
+the source, each through its model's middleware, which can veto), and its content keeps its
+state. Renders no element of its own."
 
 ```tsx
 <Dockable.DragGroup onTransfer={(transfer) => history.push(transfer)}>
@@ -14,7 +15,9 @@ its state. Renders no element of its own."
 </Dockable.DragGroup>
 ```
 
-See [Drag across windows and layouts](/docs/guides/cross-layout-drag).
+See [Drag across windows and layouts](/docs/guides/cross-layout-drag) and the
+[two layouts](/examples/two-layouts) example (an undo of transfers built on `onTransfer` and
+`transfer`).
 
 ## Props
 
@@ -23,23 +26,70 @@ See [Drag across windows and layouts](/docs/guides/cross-layout-drag).
 | prop | type | default | description |
 | --- | --- | --- | --- |
 | `children` | `ReactNode` | none | the layouts (`Dockable.Root`s) that exchange tabs, anywhere below |
-| `onTransfer` | `(transfer: ITransfer) => void` | none | called after a tab moved from one layout to another, with where it came from and where it went (what an app's undo needs) |
+| `onTransfer` | `TransferListener`: `(transfer: Transfer) => void` | none | called after a tab moved from one layout to another, with where it came from and where it went (what an app's undo needs) |
 
-`ITransfer` (from `@fragiola/dockable`): `tab` (the tab in the target model, same id), `json` (its
-JSON as it left), `from` and `to` (`{ model, layoutId, tabsetId, index }`).
+## Transfer
+
+`Transfer` (from `@fragiola/dockable`), what `onTransfer` receives:
+
+| field | type | description |
+| --- | --- | --- |
+| `tab` | `string` | the tab's id in the target model (its old id, unless that was taken there: then a generated one) |
+| `previousId` | `string` | its id in the source model |
+| `init` | `TabInit` | its fields, as it left the source model (`component`, `data`, flags, sizes) |
+| `from` | `TransferEnd` | where it was |
+| `to` | `TransferEnd` | where it went |
+
+`TransferEnd`, one side of a transfer:
+
+| field | type | description |
+| --- | --- | --- |
+| `model` | `ModelHandle` | the model. Compare it with yours: `transfer.from.model === workspace` |
+| `layoutId` | `string` | the layout the tab was (or is now) in |
+| `tabsetId` | `string \| undefined` | its tabset (or border), when it has one |
+| `index` | `number` | its position among the tabset's tabs |
+
+A `ModelHandle` is a model of any registry, where only its identity matters: the two models of a
+transfer may declare different registries, so the handle is untyped. Find your own typed model
+with `===`:
+
+```ts
+const modelOf = (handle: ModelHandle) => [workspace, scratch].find((model) => model === handle);
+```
 
 ## How it works
 
 - Each `Dockable.Root` inside joins the group (the engine's `dragGroup` option).
-- A drop into another model asks the target's `onAction` (an `addTab`), then the source's (a
-  `deleteTab`). A veto on either side changes nothing. Both actions carry `userData.transfer`.
+- A drop into another model runs a `tab.add` in the target model (the dragged tab's fields, at the
+  drop's placement) and a `tab.close` in the source, each through its own model's middleware. Both
+  are asked first with `model.can`: a veto on either side refuses the drop and changes nothing.
+- Both commands carry `meta.transfer` (`TransferMeta`, below), so a middleware or a listener can
+  tell a transfer from a plain add or close.
+- When the tab's id is taken in the target, the new tab gets a generated id (`transfer.tab`).
+  The new tab adopts the old one's moveable element, so its content moves with it.
 - The group renders every tab's content in one place (directly under it), so moving a tab between
   roots keeps its component state. Without a `DragGroup`, panels render their content themselves.
   The content gets the layout's contexts, but not providers or boundaries placed between the group
   and the panel: put those above the group, or inside the content.
-- A source veto comes after the target's `onAction` has seen the `addTab`: record history from
-  `onTransfer` or `onModelChange`, not from `onAction`.
+- Record history from `onTransfer` (or each model's `model.subscribe`), not from middleware: the
+  middleware also sees dry runs and commands another middleware may still veto.
 - A root that unmounts (or gets a new model) leaves the group.
+
+## TransferMeta
+
+`TransferMeta` is the `meta` of a transfer's `tab.add` and `tab.close` (`ctx.meta` in a
+middleware, `event.meta` in a listener): `{ transfer: { tabId, from, to } }`, the tab's id in the
+source and both models' handles.
+
+```ts
+workspace.use((ctx, next) => {
+    const transfer = (ctx.meta as TransferMeta | undefined)?.transfer;
+    if (ctx.command === "tab.close" && transfer) {
+        // the tab is leaving for another model (transfer.to), not being closed
+    }
+    return next();
+});
+```
 
 ## Data attributes
 
@@ -49,7 +99,31 @@ JSON as it left), `from` and `to` (`{ model, layoutId, tabsetId, index }`).
 
 ## useDragGroup
 
-`useDragGroup()` returns the core `DragGroup` of the enclosing `Dockable.DragGroup`, for code that
-moves tabs between its layouts, as an undo would: `group.transfer(tabId, fromModel, toModel,
-toNodeId, location, index)` returns the new tab (or `undefined` when vetoed or impossible), and
-`group.onTransfer(listener)` subscribes to transfers.
+`useDragGroup()` returns the core `DragGroup` of the enclosing `Dockable.DragGroup` (it throws
+outside one), for code that moves tabs between its layouts, as an undo would, or listens to
+transfers:
+
+```ts
+const group = useDragGroup();
+useEffect(() => group.onTransfer((transfer) => record(transfer)), [group]);
+
+// move a tab back, as an undo would
+const moved = group.transfer({ tab: last.tab, from: scratch, to: workspace, target: "tabset-1" });
+```
+
+| member | description |
+| --- | --- |
+| `transfer(request: TransferRequest): string \| undefined` | moves a tab from one model into another, as a drop would (the same `tab.add` and `tab.close`, the same `meta.transfer`). Returns the new tab's id, or `undefined` when it could not happen (a refusal, an unknown tab or target). Both models' roots must be mounted in the group |
+| `onTransfer(listener: TransferListener): () => void` | calls `listener` after each transfer (drops and `transfer` calls alike); returns the unsubscribe function |
+| `has(engine)`, `engineOf(model)` | whether a main engine belongs to the group; the main engine of a model in it |
+
+`TransferRequest`, what `transfer` takes:
+
+| field | type | description |
+| --- | --- | --- |
+| `tab` | `string` | the tab's id in `from` |
+| `from` | `ModelHandle` | the source model |
+| `to` | `ModelHandle` | the target model |
+| `target` | `string` | a tabset, row, border or layout id of `to` |
+| `location` | `DockLocation` | `"center"` (default) goes into the target; an edge splits it |
+| `index` | `number` | for a center drop: the insertion index; -1 (default) appends |

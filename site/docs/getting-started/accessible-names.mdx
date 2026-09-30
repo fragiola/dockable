@@ -12,11 +12,12 @@ A primitive renders its children, and for most parts the children are the name. 
 `Dockable.Tab`'s accessible name is its content:
 
 ```tsx
-<Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>
+<Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
 ```
 
-An icon-only tab needs a name another way: `aria-label={tab.getName()}` on the tab, or visually
-hidden text inside it.
+The model holds no text: a tab's name is a field of **your** data (`tab.data.name` here), typed by
+your registry ([Typed data](/docs/concepts/typed-data)). An icon-only tab needs a name another
+way: `aria-label={tab.data.name}` on the tab, or visually hidden text inside it.
 
 The panel is labelled by its tab automatically: `Dockable.Panel` sets
 `aria-labelledby` to the tab button's id, and the tab sets `aria-controls` to the panel's id.
@@ -27,17 +28,17 @@ Every primitive forwards arbitrary props, so you name elements the usual way. Th
 a `role="tablist"` and should be named:
 
 ```tsx
-<Dockable.TabList aria-label={tabset.getName() ?? "Tabs"}>
+<Dockable.TabList<Types> aria-label={tabset.data?.name ?? "Tabs"}>
 ```
 
-The tabset's JSON `name` attribute exists for this: "an accessible label for the tab strip (used
-as the tablist's aria-label; not displayed visually)". The React `TabList` does not read it by
-itself; pass it as above.
+A tabset's name is your data too: declare it in the registry (`tabset: { name?: string }`) and
+set it in the layout JSON (`"data": { "name": "Editors" }`). `TabList` reads nothing by itself;
+pass it as above.
 
 Buttons you add (close, maximize, pop out) are your own elements: give each one a name.
 
 ```tsx
-<button type="button" aria-label={`Close ${tab.getName()}`} onClick={close}>
+<button type="button" aria-label={`Close ${tab.data.name}`} onClick={close}>
     <XIcon aria-hidden="true" />
 </button>
 ```
@@ -52,15 +53,26 @@ type GetLabel = (key: DockableLabel, ...args: (string | number)[]) => string | u
 ```
 
 `DockableLabel` (from `@fragiola/dockable`) is an enum of label **keys**, with no default
-strings. Today the primitives resolve one key themselves: `DockableLabel.Splitter`, the
-splitter's `aria-label`. The other keys (close, maximize, menu items, …) name the parts you build
-yourself, so a single map can hold every string of your layout:
+strings. The primitives resolve a few keys themselves, each as the `aria-label` of the element they
+render:
+
+| key | used by |
+| --- | --- |
+| `DockableLabel.Splitter` | `Dockable.Splitter` |
+| `DockableLabel.Overflow_Menu_Tooltip` | `Dockable.TabOverflowTrigger` |
+| `DockableLabel.Popout_Tab` | `Dockable.PopoutTrigger`, when it pops a tab or tabset out |
+| `DockableLabel.Dock_To_Layout` | `Dockable.PopoutTrigger`, in a window, when it docks the tab back into the main layout |
+
+An `aria-label` you pass wins over the resolved one. The other keys (close, maximize, menu items,
+…) name the parts you build yourself, so a single map can hold every string of your layout:
 
 ```tsx
 import { DockableLabel } from "@fragiola/dockable";
 
 const labels: Partial<Record<DockableLabel, string>> = {
     [DockableLabel.Splitter]: "Resize",
+    [DockableLabel.Popout_Tab]: "Open in a new window",
+    [DockableLabel.Dock_To_Layout]: "Dock back",
     [DockableLabel.Close_Tab]: "Close",
     [DockableLabel.Maximize]: "Maximize",
     [DockableLabel.Restore]: "Restore",
@@ -94,6 +106,7 @@ in `args`. Every key is listed in [the labels reference](/docs/api/labels).
 | `Tab` | `role="tab"`, `aria-selected`, `aria-controls`, `aria-keyshortcuts`, a roving `tabIndex` |
 | `Panel` | `role="tabpanel"`, `aria-labelledby`, `tabIndex={-1}` |
 | `Splitter` | `role="separator"`, `aria-orientation`, `aria-valuenow`/`min`/`max`/`text`, `aria-label` from `getLabel`, `tabIndex={0}` |
+| `PopoutTrigger`, `TabOverflowTrigger` | a `<button type="button">`, `aria-label` from `getLabel` |
 | `DropIndicator` | `aria-hidden` |
 
 See [Keyboard and accessibility](/docs/guides/keyboard) for the key bindings.

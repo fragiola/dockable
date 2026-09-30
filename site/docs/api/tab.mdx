@@ -1,6 +1,6 @@
 ---
 title: Dockable.Tab
-description: A tab button (role="tab") following the APG tabs pattern with manual activation. Draggable.
+description: A draggable tab button that follows the APG tabs pattern with manual activation, its states computed from the model.
 ---
 
 "A tab button (`role="tab"`), following the APG tabs pattern with manual activation: arrow keys
@@ -12,20 +12,22 @@ Enter or Space on the selected tab moves focus into its panel. Renders only its 
     node={tab}
     className="px-3 data-selected:bg-palette-soft data-dragging:opacity-40"
 >
-    {tab.getName()}
-    {tab.isCloseable() ? <CloseButton tab={tab} /> : null}
+    {tab.data.name}
+    {model.can("tab.close", { tab: tab.id }).ok ? <CloseButton tab={tab} /> : null}
 </Dockable.Tab>
 ```
 
-Render it from a `Dockable.TabList` child function.
+Render it from a `Dockable.TabList` child function. The tab is a plain `TabOf<T>` node: its
+text is the app's (`tab.data`), and what it may do is asked of the model (`model.can`,
+`model.resolve(tab)`), never read from the node.
 
 ## Props
 
-`TabProps` extends the [common primitive props](/docs/api/root#common-props).
+`TabProps<T>` extends the [common primitive props](/docs/api/root#common-props).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `node` | `TabNode` | required | the tab to render |
+| `node` | `TabOf<T>` | required | the tab to render |
 | `children` | `ReactNode` | none | the tab button's content; the primitive renders no text of its own |
 
 ## State
@@ -34,10 +36,10 @@ Render it from a `Dockable.TabList` child function.
 
 | field | type | description |
 | --- | --- | --- |
-| `selected` | `boolean` | the tab is its tabset's selected tab |
-| `pinned` | `boolean` | the tab is pinned |
+| `selected` | `boolean` | the tab is its tabset's selected tab (`model.selectedTab(container)`) |
+| `pinned` | `boolean` | the tab is pinned (`tab.pinned === true`) |
 | `dragging` | `boolean` | the tab is being dragged |
-| `popoutEnabled` | `boolean` | the tab can be popped out into a window |
+| `popoutEnabled` | `boolean` | the tab can be popped out into a window: popouts are supported and `model.can("tab.popout", { tab })` accepts it now |
 | `overflowHidden` | `boolean` | the tab does not fit in its strip, so it is hidden (tab overflow) |
 
 ## Data attributes and ARIA
@@ -48,15 +50,15 @@ Render it from a `Dockable.TabList` child function.
 | `data-selected` | the selected tab |
 | `data-pinned` | pinned |
 | `data-dragging` | being dragged |
-| `data-popout-enabled` | the tab allows popping out, and popouts are supported |
+| `data-popout-enabled` | popouts are supported and the model accepts `tab.popout` for it (`model.can`: its resolved `enablePopout`, and every middleware) |
 | `data-overflow-hidden` | the tab does not fit in its strip, so it is hidden (tab overflow); it also gets `display: none` |
-| `id` | `getTabButtonId(tab)` (`dockable-tabbutton-<id>`) |
+| `id` | `engine.tabButtonId(tab.id)`, unique on the page (`getTabButtonId(id, scope)`: `dockable-<scope>tabbutton-<id>`) |
 | `role` | `"tab"` |
 | `aria-selected` | `true` or `false` |
-| `aria-controls` | its panel's id |
-| `aria-keyshortcuts` | `focusTabToggle` and (when closeable) `closeTab` |
+| `aria-controls` | its panel's id (`engine.tabPanelId(tab.id)`) |
+| `aria-keyshortcuts` | `focusTabToggle` and, when its resolved `enableClose` is true and it is not pinned, `closeTab` |
 | `tabIndex` | `0` on the tab stop (the selected tab, or the first tab when none is), else `-1` |
-| `draggable` | the tab's `enableDrag` |
+| `draggable` | the tab's resolved `enableDrag` (`model.resolve(tab).enableDrag`) |
 
 ## Keyboard
 
@@ -65,13 +67,15 @@ Render it from a `Dockable.TabList` child function.
 | Left/Right (Up/Down when vertical) | focus the previous/next tab |
 | Home / End | focus the first/last tab |
 | Enter, Space | select; on the selected tab, move focus into its panel |
-| `closeTab` (`Ctrl+Delete`) | close the tab when closeable, focusing a neighbour first |
+| `closeTab` (`Ctrl+Delete`) | run `tab.close` when `model.can` accepts it, focusing a neighbour first |
 | `focusTabToggle` (off by default) | move focus into the tab's content |
 
 ## Behaviour
 
-- A click selects the tab (`Actions.selectTab`). In a border, a click on the selected tab
-  closes the border's panel (the same action, which the model turns into a deselect).
+- A click runs `tab.select`. In a border, a click on the selected tab closes the border's panel
+  (`border.configure` with `open: false`).
+- Every command goes through `engine.run` (`model.run`), so the model's middleware sees it and
+  may veto it.
 - It is the drag source for its tab ([`useDragNode`](/docs/api/hooks#usedragnode)), and the
   element the browser snapshots as the drag image.
 - The engine measures it (for drop hit-testing within the strip).

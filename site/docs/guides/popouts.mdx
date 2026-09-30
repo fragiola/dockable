@@ -1,11 +1,15 @@
 ---
 title: Popouts
-description: Move tabs into native browser windows with live content - the host page, popoutURL, theming and the close policy.
+description: Move tabs into native browser windows with live content - the host page, popoutURL, the commands, theming and closing.
 ---
 
 A popout moves a tab into a **native browser window**. The content keeps its state: the tab's
 moveable element is re-parented into the new document with `appendChild`, never cloned, and its
 React tree stays where it was.
+
+In the model, a popout is a **window layout**: an entry of `state.windows` (a `WindowLayout`, with
+its `id`, its screen `rect` and its own root row). The core opens one native window per window
+layout while the layout is mounted, and closes a window whose layout is gone.
 
 <Example id="popout" />
 
@@ -40,19 +44,24 @@ Under a **base path** (GitHub Pages, a sub-directory deploy), include it: the wi
 with `window.open`, which knows nothing about your router. The examples (a Vite app)
 use `` `${import.meta.env.BASE_URL}popout.html` ``.
 
+`openWindow` on `Root` replaces the opener, a function `(url, name, features)` returning the new
+`Window` or `null` (the default calls the main window's `open`). Use it to open windows through
+another API, or to fake them in tests.
+
 ## 3. Render the windows
 
 `Dockable.Popout` goes once, directly under the root. For every window layout it opens a window
-and, once the window is ready (styles copied), portals your child function's result into it. A
-`Row` without `node` inside renders the window layout's root row:
+and, once the window is ready (styles copied), portals your child function's result into it. The
+child function receives the `WindowLayout`; a `Row` without `node` inside renders that window's
+root row:
 
 ```tsx
 <Dockable.Root model={model} popoutURL="/popout.html">
-    <Dockable.Row>{renderNode}</Dockable.Row>
-    <Dockable.Panels>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
+    <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+    <Dockable.Panels<Types>>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
     <Dockable.DropIndicator className="drop-indicator" />
-    <Dockable.Popout className="popout-root" title={(layout) => "My app"}>
-        {() => <Dockable.Row>{renderNode}</Dockable.Row>}
+    <Dockable.Popout<Types> className="popout-root" title={(layout) => "My app"}>
+        {() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}
     </Dockable.Popout>
 </Dockable.Root>
 ```
@@ -62,10 +71,11 @@ positioned in its own window.
 
 ## 4. Pop a tab out
 
-Allow it per tab (`enablePopout: true`, or `tabEnablePopout` globally), then put a
-`Dockable.PopoutTrigger` in the tabset's header. It pops the selected tab out, and in the window
-the same button docks it back (`data-mode` is `"popout"` or `"dock"`). It renders nothing when
-neither is possible (popouts unsupported, the tab does not allow it):
+Allow it per tab (`enablePopout: true`, or for every tab with `defaults.tab.enablePopout`: the
+built-in default is false), then put a `Dockable.PopoutTrigger` in the tabset's header. It pops the
+selected tab out, and in the window the same button docks it back (`data-mode` is `"popout"` or
+`"dock"`). It renders nothing when neither is possible (popouts unsupported, or the model refuses
+it):
 
 ```tsx
 <Dockable.PopoutTrigger aria-label="Pop out" className="group">
@@ -74,13 +84,31 @@ neither is possible (popouts unsupported, the tab does not allow it):
 </Dockable.PopoutTrigger>
 ```
 
-`target="tabset"` moves the whole tabset into one window. From code, use
-`engine.popout(node)`/`engine.dockBack(node)` (and `engine.canPopout(node)` to know whether it
-can), or dispatch `Actions.popoutTab` yourself. `Tab` also exposes `data-popout-enabled`, for a
-button that lives in the tab.
+`target="tabset"` moves the whole tabset into one window. `Tab` also exposes
+`data-popout-enabled`, for a button that lives in the tab.
+
+From code, two commands create a window layout:
+
+- `tab.popout` `{ tab, rect? }` moves a tab into a new window. It is refused when the tab's
+  `enablePopout` resolves to false, when it is pinned, or when it is already in a window.
+- `tabset.popout` `{ tabset, rect? }` moves a whole tabset. It is refused when the tabset is empty
+  or already in a window, or when any of its tabs does not allow popouts.
+
+Both return `{ window }`, the new window layout's id. `rect` is the window's screen rect; without
+one a default place is used. The engine's `engine.popout(id)` runs the right command with the
+node's current screen rect, so the window opens where the tab was; `engine.canPopout(id)` answers
+with `model.can` (and whether popouts are supported); `engine.dockBack(id)` moves a tab or tabset
+of a window back into the main layout.
+
+```tsx
+const { run, engine } = useDockable<Types>();
+const popOut = () => engine.popout(tab.id); // or run("tab.popout", { tab: tab.id })
+const allowed = engine.canPopout(tab.id);
+```
 
 `supportsPopout` on `Root` decides whether windows open at all; the default is "a desktop
-pointer is present". Without support, window layouts are docked back immediately.
+pointer is present". Without support (or when the browser blocks the window), a window layout is
+docked back immediately.
 
 ## Theming the popout
 
@@ -100,46 +128,49 @@ them in sync, so a theme switch follows into open windows:
 A theme that lives on another element (a wrapper `div`) is not on the document root: set it in
 `Dockable.Popout`'s `onOpen`, which runs when the popout document is ready and before its content
 renders (the examples' kit does this for its per-example theme).
-`onPopoutOpen`/`onPopoutClose` on `Root`
-receive the same `(layout, window, document)` arguments, for set-up that is not about rendering
-(a CSS-in-JS cache for the new document, analytics).
+`onPopoutOpen`/`onPopoutClose` on `Root` receive the same `(layout, window, document)` arguments
+(`layout` is the `WindowLayout`), for set-up that is not about rendering (a CSS-in-JS cache for
+the new document, analytics).
 
 ## Closing a popout
 
-When the user closes a popout window, the **close policy** decides what happens to its tabs.
-Set it with `popoutClosePolicy` on `Root`:
+When the user closes a popout window, the core runs **`window.close`** for its layout: its tabs
+move back into the main layout's active tabset (its first tabset when none is active), and the
+window layout is removed. The result lists the tabs that moved back. It is a command like any
+other, so a listener sees it and an undo can reverse it.
 
-| policy | closing the window | |
-| --- | --- | --- |
-| `"dock"` (default) | moves its tabs into the main layout's active tabset (else its first), as `moveNode` actions (grouped with `Actions.group`) through `onAction` | Dockable's default |
-| `"float"` | dispatches `Actions.closePopout(layoutId)`, which turns the window layout into a float | FlexLayout's behaviour |
+The same command closes a window from code:
 
-Use the default. `"float"` exists for parity and is tested, but floats are not rendered yet, so a
-floated layout (and its tabs) is not visible today. For the same reason, **do not veto** the
-dock-back `moveNode` actions in `onAction` while a window closes: the tabs would stay in a
-window layout that has no window. Both cases are in [Limitations](/docs/limitations).
+```ts
+model.run("window.close", { window: windowId }); // e.g. the id tab.popout returned
+```
+
+A "dock back" button inside popped-out content moves one tab home; the engine does it, closing
+the window when it was the window's last tab:
+
+```tsx
+const { mainEngine } = useDockable<Types>();
+mainEngine.dockBack(tab.id);
+```
+
+Do not veto `window.close` in a middleware for a window the user closed: the window is already
+gone, and its layout would stay in the state without it.
 
 Other ways a popout goes away:
 
-- the main page unloading (`pagehide`) closes every popout **without** applying the policy: the
-  model still has the window layouts, so a layout saved at that moment reopens them;
-- `Actions.closePopout(layoutId)` is FlexLayout's action and always converts the window into a
-  float. To close a window from code and keep its tabs visible, move them back instead.
+- the main page unloading (`pagehide`) closes every popout **without** running `window.close`:
+  the model still has the window layouts, so a layout saved at that moment reopens them;
+- a `layout.load` whose layout drops a window closes that window.
 
-A "dock back" button inside popped-out content moves the tab home:
-
-```tsx
-const { mainEngine, model } = useDockable();
-const target = model.getActiveTabset() ?? model.getFirstTabSet();
-if (target) mainEngine.doAction(Actions.moveNode(tab.getId(), target.getId(), DockLocation.CENTER, -1));
-```
+The window's screen rect is recorded in the model (a transient `window.configure` when the window
+moves or resizes), so a saved layout reopens it in place.
 
 ## What works across windows, and what does not
 
 - **Works**: content state (counters, inputs, scroll) survives popping out and docking back;
-  splitters, tabs, keyboard and maximize work inside the window; the window's layout is saved by
-  `model.toJson()` under `subLayouts` and reopened by `Model.fromJson` (the browser may block a
-  window opened without a user gesture).
+  splitters, tabs, keyboard and maximize work inside the window; the window layouts are saved by
+  `model.toJSON()` under `windows` and reopened by `createModel` or `layout.load` (the browser may
+  block a window opened without a user gesture).
 - **Drags**: tabs drag between the main window and a popout, and between popouts, like between
   tabsets. See [Drag across windows and layouts](/docs/guides/cross-layout-drag).
 

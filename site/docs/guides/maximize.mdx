@@ -1,6 +1,6 @@
 ---
 title: Maximize
-description: Let a tabset fill the layout, and style the maximized state.
+description: Let a tabset fill its layout with the tabset.maximize command, and style the maximized state from data attributes.
 ---
 
 Maximizing a tabset makes it fill its layout: every other tabset, every row that does not contain
@@ -9,32 +9,34 @@ the whole root row, however deeply it is nested.
 
 This differs from FlexLayout, which moves (portals) the maximized tabset over the layout. Dockable
 hides what is off the maximized tabset's path instead: nothing remounts, and the content keeps
-its moveable element. The rule is the core's `model.isHiddenByMaximize(node)`, which `TabSet` and
+its moveable element. The rule is the core's `model.isHiddenByMaximize(id)`, which `TabSet` and
 `Row` read (`TabSetState.hidden`, `RowState.hidden`).
 
 <Example id="maximize" />
 
-## The action
+## The command
 
-`Actions.maximizeToggle(tabsetId)` maximizes a tabset, or restores it when it is the maximized
-one:
+`tabset.maximize` with `value: true` maximizes a tabset (and makes it the active one);
+`value: false` restores it. It is refused when the tabset's `enableMaximize` resolves to false, and for
+the only tabset of its layout (there is nothing to hide). `model.can` answers the same question
+without running anything, so a button can hide itself:
 
 ```tsx
-import { Actions, DockableLabel, type TabSetNode } from "@fragiola/dockable";
+import { DockableLabel, type TabsetNode } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 
-function MaximizeButton({ tabset }: { tabset: TabSetNode }) {
-    const { engine, model, getLabel } = useDockable();
-    const maximized = tabset.isMaximized();
-    // a lone tabset has nothing to hide
-    const alone = model.getRootRow(tabset.getLayoutId())?.getChildren().length === 1;
-    if (!tabset.isEnableMaximize() || (alone && !maximized)) return null;
+type Types = { tabs: { card: { name: string } } };
+
+function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { model, run, layoutId, getLabel } = useDockable<Types>();
+    const maximized = model.maximizedTabset(layoutId)?.id === tabset.id;
+    if (!model.can("tabset.maximize", { tabset: tabset.id, value: true }).ok) return null;
     return (
         <button
             type="button"
             aria-pressed={maximized}
             aria-label={getLabel?.(maximized ? DockableLabel.Restore : DockableLabel.Maximize)}
-            onClick={() => engine.doAction(Actions.maximizeToggle(tabset.getId(), tabset.getLayoutId()))}
+            onClick={() => run("tabset.maximize", { tabset: tabset.id, value: !maximized })}
         >
             {maximized ? <MinimizeIcon aria-hidden="true" /> : <MaximizeIcon aria-hidden="true" />}
         </button>
@@ -42,16 +44,29 @@ function MaximizeButton({ tabset }: { tabset: TabSetNode }) {
 }
 ```
 
-Pass the tabset's layout id: in a popout window, maximize applies to that window's layout.
+The command needs only the tabset: each layout has its own maximized tabset, so in a popout window
+maximize applies to that window's layout. `layoutId` from `useDockable` is the layout the component
+renders in (`MAIN_LAYOUT` or a window's id), which `maximizedTabset` takes.
 
-A double click on the tab strip is a common shortcut; attach it to your header element:
+A double click on the tab strip is a common shortcut; attach it to your header element, and skip
+presses on the tabs and buttons inside it:
 
 ```tsx
-<div className="header" onDoubleClick={() => engine.doAction(Actions.maximizeToggle(node.getId(), node.getLayoutId()))}>
+<div
+    className="header"
+    onDoubleClick={(event) => {
+        if ((event.target as Element).closest('[role="tab"], button')) return;
+        run("tabset.maximize", {
+            tabset: node.id,
+            value: model.maximizedTabset(layoutId)?.id !== node.id,
+        });
+    }}
+>
 ```
 
-Maximizing is allowed unless `enableMaximize: false` (per tabset, or `tabSetEnableMaximize`
-globally).
+Maximizing is allowed unless `enableMaximize: false`, per tabset or for every tabset through
+`defaults.tabset.enableMaximize`. Moving the maximized tabset (or a row holding it) elsewhere
+restores the layout.
 
 ## Styling the state
 
@@ -69,11 +84,18 @@ are hidden too (`Panel`'s `data-visible` is absent), and their content stays mou
 
 ## Reading it
 
-`model.getMaximizedTabset(layoutId?)` returns the maximized tabset, or `undefined`. The
-maximized state is saved by `toJson()` (`maximized: true` on the tabset) and restored by
-`fromJson`.
+`model.maximizedTabset(layoutId?)` returns the maximized tabset of a layout (the main one by
+default), or `undefined`. To re-render when it changes, select it with `useModelState`:
+
+```tsx
+const maximized = useModelState((_state, model) => model.maximizedTabset()?.id);
+```
+
+The maximized state is part of the layout: `model.toJSON()` saves it as the layout's `maximized`
+(the tabset's id; a window layout has its own), and `createModel` or `layout.load` restores it.
 
 ## Keyboard
 
-There is no default key binding for maximize. Add one in your own key handler, and dispatch the
-same action (see [Keyboard and accessibility](/docs/guides/keyboard)).
+There is no default key binding for maximize. Add one in your own key handler (the
+[maximize example](/examples/maximize) restores on Escape) and run the same command (see
+[Keyboard and accessibility](/docs/guides/keyboard)).

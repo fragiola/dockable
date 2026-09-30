@@ -1,6 +1,6 @@
 ---
 title: Dockable.Splitter
-description: A splitter between two children of a row, or beside a border's panel (role="separator"), draggable and keyboard operable.
+description: A splitter between two children of a row, or beside a border's panel, that resizes them by pointer or keyboard.
 ---
 
 "A splitter between two children of a row, or between a border's panel and the layout
@@ -10,24 +10,24 @@ description: A splitter between two children of a row, or beside a border's pane
 `Dockable.Row` renders one between every two children. Render your own through `renderSplitter`:
 
 ```tsx
-function renderSplitter(props: RowSplitterProps) {
+function renderSplitter(props: RowSplitterProps<Types>) {
     return <Dockable.Splitter {...props} className="splitter" />;
 }
 ```
 
 ## Props
 
-`SplitterProps` extends the [common primitive props](/docs/api/root#common-props).
+`SplitterProps<T>` extends the [common primitive props](/docs/api/root#common-props).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `node` | `RowNode \| BorderNode` | required | the row (or border) the splitter resizes |
+| `node` | `RowNode<T> \| BorderNode<T>` | required | the row (or border) the splitter resizes |
 | `index` | `number` | `0` | in a row, the splitter sits before child `index` (1-based); a border's splitter has none |
 | `children` | `ReactNode` | none | content such as a grip |
 
 ## State
 
-`SplitterState` extends the core's `ISplitterState`:
+`SplitterState` extends the core's `SplitterState` (the `SplitterController` state):
 
 | field | type | description |
 | --- | --- | --- |
@@ -53,8 +53,20 @@ function renderSplitter(props: RowSplitterProps) {
 
 `display: none` while a tabset is maximized; `transform: translateX(…)`/`translateY(…)` during a
 non-realtime drag; `pointer-events: auto` on a border's splitter (an overlay border's content is
-`pointer-events: none`). Nothing else: its size is yours (and the engine measures it as the model's
-splitter size).
+`pointer-events: none`). Nothing else: its size is yours (and the engine measures it as the
+layout's splitter size, `engine.splitterSize()`).
+
+## Commands
+
+A drag or a key press resizes through the model, so middleware sees every resize:
+
+- a row splitter runs `row.resize` (`{ row, weights }`), a border splitter `border.resize`
+  (`{ border, size }`);
+- a realtime drag (`realtimeResize`, the default) runs them with `{ transient: true }` on every
+  move, then one non-transient command on release. Undo and persistence usually skip transient
+  events (`event.transient`);
+- an outline drag (`realtimeResize={false}`) previews with `transform` and runs one command on
+  release.
 
 ## Keyboard
 

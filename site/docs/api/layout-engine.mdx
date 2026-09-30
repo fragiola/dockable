@@ -1,124 +1,452 @@
 ---
 title: LayoutEngine
-description: The framework-agnostic engine for one layout - measures, positions panels, owns moveable elements, dispatches actions.
+description: The framework-agnostic engine of one layout. It measures, positions panels, owns the elements that host tab content and runs commands on the model.
 ---
 
-"The framework-agnostic layout engine for one `ModelLayout`. It implements the model's
-layout-controller contract, measures the elements an adapter registers and writes their rects
-into the model, positions tab panels over their tabset's content area (structural style only),
-owns the moveable elements that host tab content, dispatches actions through `onAction`, and
-tells adapters when to re-render through a revision counter."
+"The framework-agnostic engine of one layout (the main layout or a popout window's). It measures
+the elements an adapter registers, positions tab panels over their tabset's content area
+(structural style only), owns the moveable elements that host tab content, and runs commands on
+the model. Adapters re-render when `getSnapshot` changes."
 
-In React you never create one: `Dockable.Root` does, and `useDockable()` gives it to you. Most
-apps use three methods: `doAction`, `sync` and (rarely) `isSupportsPopout`.
+In React you never create one: `Dockable.Root` does, and `useDockable()` gives it to you (with
+the model and its `run`). Most apps need none of its methods: the model does the work. The few
+an app calls are the popout ones (`canPopout`, `popout`, `dockBack`), `sync`, and
+`getCurrentDocument` for listeners that must follow a tab into a popout window.
 
 ```tsx
-const { engine } = useDockable();
-engine.doAction(Actions.selectTab("t1"));
+const { engine } = useDockable<Types>();
+if (engine.canPopout(tab.id)) engine.popout(tab.id);
 ```
 
-## For apps
+The engine reads the model's immutable state and never writes to it: every change goes through
+`run`. Everything the view needs that is not layout state (measured rects, moveable elements,
+scroll positions, which tabs were rendered) lives in the engine, keyed by node id. When a command
+removes a tab, its view state goes too; `layout.load` with the same ids keeps every moveable
+element, so the content survives.
 
-| method | description |
+## Creating one
+
+`createLayoutEngine<T>(options: LayoutEngineOptions<T>): LayoutEngine<T>` (the same as
+`new LayoutEngine<T>(options)`) creates the engine of a layout of `model`, the main layout by
+default. Popout windows get their engines from the main one: an adapter never creates those.
+
+`LayoutEngineOptions<T>`:
+
+| option | type | description |
+| --- | --- | --- |
+| `model` | `Model<T>` | the model |
+| `layoutId` | `string` | the layout this engine drives; defaults to the main layout (`"main"`) |
+| `main` | `LayoutEngine<T>` | the main layout's engine, for the engines of popout windows |
+| `measure` | `MeasureFunction` | injectable element measurement (tests pass fixed rects); defaults to `getBoundingClientRect` |
+| `realtimeResize` | `boolean` | true (default) to resize live while a splitter is dragged; false to preview and commit on release |
+| `tabDragSpeed` | `number` | seconds a view may take to animate the drop outline (exposed as data; default 0.3) |
+| `popout` | `PopoutOptions<T>` | popout windows (main engine only): `popoutURL`, `supportsPopout`, `title`, `onPopoutOpen`, `onPopoutClose`, `mirrorRoot`, `openWindow`. See [Popouts](/docs/guides/popouts) |
+| `onExternalDrag` | `OnExternalDrag<T>` | accepts foreign drags (files, links, other libraries) as new tabs (main engine only; popout layouts use the main engine's) |
+| `dragGroup` | `DragGroup` | layouts of other models this layout exchanges tabs with by drag and drop (main engine only). Without one, drags never cross models |
+| `idScope` | `string` | what keeps this layout's DOM ids and window names apart from another layout's on the page (see below). Main engine only |
+
+`idScope` exists because default node ids (`tab-1`, `window-1`) are the same in every model: two
+layouts on one page would otherwise emit the same `aria-controls` and `aria-labelledby` ids and
+the same popout window names. It defaults to a page-unique `d<n>-`; `Dockable.Root` passes
+React's `useId()`, so server and client agree. Popout engines share their main engine's scope.
+
+### Settings
+
+`setOptions(settings: LayoutEngineSettings<T>)` updates the options an adapter may change on
+every render. `LayoutEngineSettings<T>` is the subset of `LayoutEngineOptions<T>` that can change:
+`realtimeResize`, `tabDragSpeed`, `popout`, `onExternalDrag` and `dragGroup`. An option left out
+goes back to its default. `model`, `layoutId`, `main`, `measure` and `idScope` are fixed for the
+engine's life.
+
+## Running commands
+
+| member | description |
 | --- | --- |
-| `of(model)` (static: `LayoutEngine.of(model)`) | the engine driving `model`'s main layout, once a view created it (a mounted `Dockable.Root`), else `undefined`. UI outside the layout uses it to dispatch through `onAction` |
-| `doAction(action)` | dispatches an action through `onAction`, which may replace or veto it. Returns the added node for `addTab` |
-| `interceptAction(action)` | runs `onAction` on an action without applying it: returns the action to apply (the same one, or the handler's replacement), or `undefined` when vetoed. `doAction` is `interceptAction` followed by `model.doAction` |
-| `sync()` | runs the measure-and-position cycle: measures every registered element into the model, positions the tab panels and discovers the splitter size. The primitives call it after every commit; call it yourself when something moved the tabsets without resizing any element (for example flipping `dir` at runtime, gap 4) |
-| `getModel()` | the model |
-| `getLayoutId()`, `getLayout()`, `isMainLayout()` | the layout this engine drives |
-| `getMainEngine()` | the main layout's engine (for a popout's engine) |
-| `isSupportsPopout()` | whether window layouts open as native popouts |
-| `isInWindow(node)` | whether a tab or tabset lives in a popout window's layout |
-| `canPopout(node)` | whether a tab (or a whole tabset) can be popped out now: popouts supported, not in a window already, and `enablePopout` on it (every tab of it) |
-| `popout(node)` | pops a tab or a whole tabset out into a window, through `onAction` |
-| `dockBack(node)` | moves a tab (or every tab of a tabset) from a window into the main layout's active tabset (else its first); emptying a window closes it |
-| `isRealtimeResize()` | the `realtimeResize` option |
-| `isSplitterDragging()` | true while any splitter of the model is being dragged |
-| `getTabDragSpeed()` | seconds a view may take to animate the drop outline |
-| `registerTabList(container, element, vertical?)` | registers (or, with `null`, unregisters) a tabset's or border's tab list for tab overflow: the tabs that do not fit are hidden, keeping the selected one (`Dockable.TabList` does) |
-| `registerOverflowTrigger(container, element)` | registers the overflow trigger beside a tab list: the space it takes is reserved in the strip (`Dockable.TabOverflowTrigger` does) |
-| `getHiddenTabs(containerId)` | the ids of a container's tabs hidden by tab overflow, in model order (the same array until it changes) |
-| `subscribeOverflow(listener)` | calls `listener` when a container's hidden tabs change; returns the unsubscribe function |
-| `handleOverlayPointerDown(event)` | call on every `pointerdown` of the document (capture phase): a press in the main layout's area outside an open overlay border's panel closes it (`Dockable.Root` does). Returns true when a panel closed |
-| `handleOverlayKeyDown(event, key)` | call on every `keydown` with the close key (`keyMap.closeOverlayBorder`): with focus in an open overlay panel or on its tab button, closes it and focuses the tab button (`Dockable.Root` does) |
-| `closeOverlayBorder(border)` | closes a border's panel (deselects its tab through `onAction`); focus in the panel goes back to the tab button |
-| `focusAdjacentTabset(delta)` | moves focus to the selected tab button of the next (`1`) or previous (`-1`) tabset in this layout (wrapping); the target also becomes the active tabset. Returns true when focus moved |
-| `getPopoutManager()` | the popout windows of the model (owned by the main engine) |
-| `getDragDropManager()` | the drag-and-drop state machine of this layout (`addTabWithDragAndDrop(event, json, onDrop?, dragImage?)` starts a new-tab drag from any element) |
-| `getOnExternalDrag()` | the `onExternalDrag` handler (set on the main engine) |
-| `getDragGroup()` | the [drag group](/docs/guides/cross-layout-drag) this layout exchanges tabs in (the main engine's), if any |
-| `registerDropZone(element, options)` | makes `element` (anywhere in the document) a drop zone for this model's drags: `{ accepts?, onDrop, onOverChange? }`. While a drag the zone accepts is over it, the layouts hide their outline; a drop calls `onDrop` with the dragged node instead of moving it. Returns the unregister function |
-| `getCurrentDocument()`, `getCurrentWindow()`, `getWindowId()` | the document and window the layout renders in |
-| `getLayoutRef()` | the root element, once attached |
+| `run(command, payload, options?)` | `model.run`, for the adapters: runs a command through the model's middleware and returns its `CommandResult`. See [the command bus](/docs/api/command-bus) and [Commands](/docs/api/commands) |
+| `model` | the model (read-only) |
+| `layoutId` | the id of the layout this engine drives (read-only) |
+| `main` | the main layout's engine (itself, for the main engine; read-only) |
+| `isMainLayout()` | whether this engine drives the main layout |
+| `engineOf(id)` | the engine of the layout a node is in: a popout's, or the main one |
+| `node(id)` | a node of the model, typed by its registry (`Node<T> \| undefined`) |
 
-## For adapters
+## The render cycle
 
-The adapter's side of the cycle, as the engine documents it:
+The adapter's side of the cycle:
 
-1. call `prepare()` before rendering a layout (computes paths and min/max sizes);
+1. call `prepare()` before rendering a layout (computes paths and size ranges);
 2. render the structure, registering elements with `registerMeasurable`, `registerTabPanel` and
    `registerSplitter`;
 3. call `sync()` after every commit (a layout effect in React);
 4. re-render when the revision from `subscribe`/`getSnapshot` changes.
 
 "The engine never renders geometry through the adapter: panel positions are written directly, so
-a resize or splitter drag does not require a re-render."
+a resize or splitter drag does not require a re-render." A transient `row.resize` (a realtime
+splitter drag) is applied by writing `flex-grow` on the registered elements, with no re-render
+at all; the lasting command at the release re-renders once.
+
+```ts
+import { createLayoutEngine, createModel } from "@fragiola/dockable";
+
+const model = createModel<Types>(json);
+const engine = createLayoutEngine({ model });
+engine.attachRoot(rootElement);
+
+function render() {
+    engine.prepare();
+    // … build the DOM, then register each element by node id:
+    engine.registerMeasurable(tabset.id, "tabset", tabsetElement);
+    engine.registerMeasurable(tabset.id, "tabsetcontent", contentElement);
+    engine.registerTabPanel(tab.id, panelElement);
+    engine.attachMoveable(tab.id, panelElement);
+    engine.sync();
+}
+engine.subscribe(render);
+render();
+```
 
 | method | description |
 | --- | --- |
-| `createLayoutEngine(options)` | creates a `LayoutEngine` for a layout of `model` (the main layout by default) |
-| `setOptions(options)` | updates the callbacks and options an adapter passes on every render (`onAction`, `onModelChange`, `realtimeResize`, `tabDragSpeed`, `popout`) |
-| `subscribe(listener)` / `getSnapshot()` | the render revision: a number that changes whenever adapters should re-render (bound, for `useSyncExternalStore`) |
-| `getContentRevision()` | a revision that only changes when tab content should re-render too |
-| `prepare(path?)` | computes the `data-layout-path` of every node and the min/max sizes; call before rendering |
-| `attachRoot(element)` / `detachRoot()` | attaches the layout's root element (the containing block the panels are positioned in) and starts observing it and its window |
-| `registerMeasurable(node, kind, element)` | registers (or, with `null`, unregisters) an element whose geometry feeds the model; `kind` is `"row"`, `"tabset"`, `"tabstrip"`, `"tabsetcontent"`, `"tabbutton"`, … |
-| `registerTabPanel(node, element)` | registers the element a tab's content panel is positioned with |
-| `registerSplitter(element, isHorizontal, register?)` | registers a splitter element; its thickness becomes the model's splitter size |
-| `getMoveableElement(tab)` | the element hosting the tab's content, created on first use |
-| `attachMoveable(tab, panel)` | moves the tab's moveable element into `panel`; the same element is re-parented, never cloned |
-| `releaseMoveable(tab, panel?)` | parks the moveable element in the hidden moveables home when its panel goes away |
-| `createMoveableElement()` | creates the element that hosts a tab's content: `<div data-dockable-moveable>` in the main layout's document, with structural sizing only. Called by the model, lazily |
-| `getMoveablesHome()` | the hidden element moveables are parked in (main layout only) |
-| `syncLayoutMetrics()` | batch-measures all registered elements and writes rects into the model; returns true on change (part of `sync()`) |
-| `positionTabPanels()` | positions the tab panels over their parent's content area and sets their visibility (part of `sync()`) |
-| `updateRect()` | re-measures the layout root; a changed size relayouts |
+| `subscribe(listener)` | calls `listener` when adapters should re-render; returns the unsubscribe function (bound, for `useSyncExternalStore`) |
+| `getSnapshot()` | the render revision: a number that changes whenever adapters should re-render (bound). Every engine of a model shares it |
+| `prepare()` | prepares the layout for rendering: the `data-layout-path` of every node and the size ranges rows and tabsets are rendered with. Call before rendering |
+| `attachRoot(element)` | attaches the layout's root element, the containing block the panels are positioned in, and starts observing it, the window it lives in and the model. Idempotent; attaching another element detaches the previous one first |
+| `detachRoot()` | detaches the root element and releases every observer and listener |
+| `sync()` | runs the measure-and-position cycle: measures every registered element, positions the tab panels and discovers the splitter size. The primitives call it after every commit; call it yourself when something moved the tabsets without resizing any element (for example flipping `dir` at runtime) |
+| `positionTabPanels()` | positions the tab panels over their container's content area and shows only the visible ones (part of `sync()`). Writes only structural style: `position`, `left`, `top`, `width`, `height`, `display` |
+| `updateRect()` | re-measures the layout root; a changed size relayouts (bound) |
+| `redraw()` | asks adapters to re-render (bumps the revision) |
+| `dispose()` | detaches and forgets everything. The engine must not be used afterwards |
+
+## Registration by id
+
+Elements are registered against node ids, never node objects: a node is a new object in every
+state that changes it, its id is not.
+
+| method | description |
+| --- | --- |
+| `registerMeasurable(id, kind, element)` | registers (or, with `null`, unregisters) an element whose geometry the engine measures. `kind` is a `MeasurableKind` |
+| `registerTabList(containerId, element, vertical?)` | registers (or, with `null`, unregisters) a tabset's or border's tab list for tab overflow: when its tabs do not fit, the engine hides the ones that do not (keeping the selected one) and reports them through `getHiddenTabs`. `vertical` is the direction the tabs run (`Dockable.TabList` does) |
+| `registerOverflowTrigger(containerId, element)` | registers (or, with `null`, unregisters) the overflow trigger of a tab container: the space it takes is reserved in the strip (`Dockable.TabOverflowTrigger` does) |
+| `registerTabPanel(tabId, element)` | registers (or, with `null`, unregisters) the element a tab's content panel is positioned with |
+| `registerSplitter(element, isHorizontal, register?)` | registers (or, with `register` false, unregisters) a splitter element. Its thickness (width while `isHorizontal()`, height otherwise) becomes the splitter size of every layout of the model. The orientation is read at every measure pass, since a row can flip it |
+| `registerDropZone(element, options)` | makes `element` (anywhere in the document) a drop zone for this model's drags: `DropZoneOptions<T>`, `{ accepts?, onDrop, onOverChange? }`. While a drag the zone accepts is over it, the layouts show no outline; a drop calls `onDrop` with the `DragSubject<T>` instead of moving anything. Returns the unregister function |
+
+## Derived view data
+
+| method | description |
+| --- | --- |
+| `path(id)` | the `data-layout-path` of a node of this layout (the root row's is the layout's prefix: `""` for the main layout, `/sublayout<n>` for a window). See [Layout paths](/docs/concepts/layout-paths) |
+| `minMax(id)` | the `SizeRange` of a row or tabset of this layout: its flex min/max, from its own limits, its tabs' and its tab strip's height |
+| `rowOrientation(rowId)` | the `Orientation` of a row of this layout: `"horizontal"` or `"vertical"` |
+| `splitterSize()` | the measured splitter thickness, shared by every layout of the model |
+| `tabButtonId(tabId)` | the DOM id of a tab's button in this layout, unique on the page (see `idScope`); its panel's `aria-labelledby` |
+| `tabPanelId(tabId)` | the DOM id of a tab's panel in this layout, unique on the page; its button's `aria-controls` |
+| `edgeBands()` | the `EdgeBand[]` of this layout's root row, relative to the layout root: where a drop docks to an edge, and where an edge indicator goes. Empty when edge docking is off |
+| `getHiddenTabs(containerId)` | the ids of a container's tabs hidden by tab overflow, in model order (the same array until it changes; bound) |
+| `subscribeOverflow(listener)` | calls `listener` when a container's hidden tabs change; returns the unsubscribe function (bound) |
+| `isPanelVisible(tabId)` | whether a tab's panel is shown: selected, and not hidden by a maximized tabset or a hidden border |
+| `shouldRender(tabId, renderOnDemand?)` | whether a tab's content should be rendered: once rendered it stays rendered (its state is kept); before that, when its container's content area has a size and it is selected (or `renderOnDemand` is false). Marks it rendered |
+| `rect(kind, id)` | a measured rect of a node of this layout, relative to the layout root |
+| `contentRect(containerId)` | the content area a tab's panel is positioned over (its tabset's, or its border's) |
+
+## Moveables
+
+The content of a tab lives in a moveable element that the engine owns, keyed by tab id. It is
+re-parented with `appendChild`, never cloned, so moving a tab between tabsets, borders and popout
+windows never remounts its content.
+
+| method | description |
+| --- | --- |
+| `getMoveableElement(tabId)` | the element that hosts a tab's content: `<div data-dockable-moveable>` in the main layout's document, created on first use and kept for as long as the tab exists |
+| `attachMoveable(tabId, panel, options?)` | moves the tab's moveable element into `panel` (its current panel) and restores its scroll position. `options` is a `MoveableOptions` |
+| `releaseMoveable(tabId, panel?, options?)` | parks the moveable element in the hidden moveables home when its panel goes away, so the content's DOM (and the framework state rendered into it) is never destroyed by unmounting a panel. A later `attachMoveable` moves the same element into a new panel |
+| `getMoveablesHome()` | the hidden element moveables are parked in (main layout only), marked with `MOVEABLES_HOME_ATTRIBUTE` |
+
+`MoveableOptions` (how a panel hosts its content, a view option rather than layout state; the
+`scrollable` and `remountInWindow` props of [Dockable.Panel](/docs/api/panel)):
+
+| field | type | description |
+| --- | --- | --- |
+| `scrollable` | `boolean` | the content scrolls inside its panel (default true); false clips it |
+| `remountInWindow` | `boolean` | the content is remounted when it moves to another window, so it is not parked (default false) |
+
+## Popouts
+
+The main engine owns the popout windows: one native window per window layout of the state,
+opened while the main engine is attached. The methods take node ids and return
+`CommandResult`s, so a middleware can refuse them.
+
+| method | description |
+| --- | --- |
+| `getPopoutManager()` | the `PopoutManager` of the model's windows (owned by the main engine) |
+| `isSupportsPopout()` | whether window layouts open as native popouts (`supportsPopout`, by default a desktop pointer) |
+| `isInWindow(id)` | whether a node (a tab or a tabset) lives in a popout window's layout |
+| `canPopout(id)` | whether a tab, or a whole tabset, can be popped out now: popouts are supported and the model accepts `tab.popout` (or `tabset.popout`) in a dry run (`model.can`) |
+| `popout(id)` | pops a tab, or a whole tabset, out into a window at its place on screen: runs `tab.popout` or `tabset.popout`. Returns `CommandResult<{ window: string }>` |
+| `dockBack(id)` | docks a tab, or every tab of a tabset, of a window back into the main layout's active tabset (its first one otherwise): runs `window.close` when that is all the window holds, otherwise `tab.move` (in a `batch`). Returns a refused result when the node is not in a window |
+
+Closing a window from the browser runs `window.close`, which docks its tabs back the same way.
+See [Popouts](/docs/guides/popouts) and [Dockable.PopoutTrigger](/docs/api/popout-trigger).
+
+## Interaction
+
+| method | description |
+| --- | --- |
+| `getDragDropManager()` | the drag-and-drop state machine of this layout (see [below](#drag-and-drop)) |
+| `getDragGroup()` | the [drag group](/docs/guides/cross-layout-drag) this layout exchanges tabs in (the main engine's), if any |
+| `getOnExternalDrag()` | the `onExternalDrag` handler (set on the main engine) |
+| `handleOverlayPointerDown(event)` | call on every `pointerdown` of the document (capture phase): a press in the main layout's area (not on a border strip) outside an open overlay border's panel closes it. Presses inside an element marked `OVERLAY_ATTRIBUTE` keep it open (`Dockable.Root` does). Returns true when a panel closed |
+| `handleOverlayKeyDown(event, key)` | call on every `keydown` with the close key (`keyMap.closeOverlayBorder`): with focus in an open overlay panel or on its tab button, closes it and focuses the tab button (`Dockable.Root` does). Returns true, and prevents the default, when a panel closed |
+| `closeOverlayBorder(borderId)` | closes a border's panel (`border.configure` with `open: false`); focus in the panel goes back to the tab button |
+| `focusAdjacentTabset(delta)` | moves focus to the selected tab button of the next (`1`) or previous (`-1`) tabset in this layout (wrapping), from the tabset containing focus or else the active one; the target becomes the active tabset. Returns true when focus moved |
+| `isRealtimeResize()` | the `realtimeResize` option |
+| `isSplitterDragging()` | true while any splitter of the model is being dragged |
 | `setSplitterDragging(dragging)` | marks a splitter drag in progress (used by the splitter controller) |
-| `getBoundingClientRect(element)` | an element's rect relative to the layout root |
-| `getDomRect()` / `getFreshDomRect()` | the layout root's rect in viewport coordinates (cached per pass / measured now) |
-| `getScreenRect(rect)` | a layout-relative rect in screen coordinates (for opening popout windows) |
-| `getRelativeRect(rect)` | a sub-layout-relative rect relative to the main layout |
-| `redrawLayout()` / `redrawLayoutAndTabContent()` | asks adapters to re-render the structure (and the content) |
-| `dispose()` | detaches and forgets everything |
+| `getTabDragSpeed()` | seconds a view may take to animate the drop outline |
 
-## Options
-
-`ILayoutEngineOptions`:
-
-| option | description |
-| --- | --- |
-| `model` | the model |
-| `layoutId` | the layout this engine drives; defaults to the main layout |
-| `onAction` | `OnAction`: return the action (or a replacement) to apply it, or `undefined` to veto it |
-| `onModelChange` | `OnModelChange`: called after the model applied an action |
-| `mainEngine` | the main layout's engine, for engines of popout sub-layouts |
-| `measure` | injectable element measurement (tests pass fixed rects); defaults to `getBoundingClientRect` |
-| `realtimeResize` | true (default) to resize live while a splitter is dragged; false to preview and commit on release |
-| `tabDragSpeed` | seconds a view may take to animate the drop outline (default 0.3) |
-| `onExternalDrag` | `OnExternalDrag`: accepts foreign drags (files, links, other libraries) as new tabs (main engine only; popout layouts use the main engine's) |
-| `onAllowDrop` | `OnAllowDrop`: whether a drag may drop at a target, like `model.setOnAllowDrop`, which it sets while given (main engine only); removing it restores the model's previous rule |
-| `dragGroup` | `DragGroup`: layouts of other models this layout exchanges tabs with by drag and drop (main engine only). Without one, drags never cross models |
-| `popout` | popout windows (main engine only): `popoutURL`, `supportsPopout`, `closePolicy`, `title`, `onPopoutOpen`, `onPopoutClose`, `mirrorRoot` (`true` or a list of `<html>`/`<body>` attribute names to mirror into each popout) |
-
-## Helpers exported with it
-
-| export | description |
-| --- | --- |
-| `isTabPanelVisible(tab)` | whether a tab's panel is shown: selected, and not hidden by a maximized tabset or a hidden border |
-| `MOVEABLE_ATTRIBUTE` | `"data-dockable-moveable"`, the attribute on the element hosting a tab's content |
-| `POPOUT_ATTRIBUTE` | `"data-dockable-popout"`, the attribute on a popout's content root |
+## Geometry
 
 The core never touches the global `document` or `window`: all DOM access goes through the root
 element's `ownerDocument` and `defaultView`, which is why the same engine runs inside a popout
 window.
+
+| method | description |
+| --- | --- |
+| `getBoundingClientRect(element)` | an element's rect relative to the layout root |
+| `getDomRect()` | the layout root's rect in viewport coordinates (cached per measure pass) |
+| `getFreshDomRect()` | the layout root's rect in viewport coordinates, measured now |
+| `getScreenRect(rect)` | a layout-relative rect in screen coordinates (for opening popout windows) |
+| `getLayoutRef()` | the root element, once attached |
+| `getCurrentDocument()` | the document the layout renders in (a popout's own document for a window layout) |
+| `getCurrentWindow()` | the window the layout renders in |
+
+## Paths
+
+The `data-layout-path` scheme, as functions: every adapter emits the same values, so e2e
+selectors work across frameworks. See [Layout paths](/docs/concepts/layout-paths).
+
+| export | description |
+| --- | --- |
+| `computePaths(root, prefix?, borders?)` | the path of every node of a layout, as a `Map` from node id: rows `/r<i>`, tabsets `/ts<i>` and tabs `/t<i>` by their index in their parent, under `prefix`; borders `/border/<location>` with their tabs below |
+| `windowPath(n)` | the path prefix of a window layout: `/sublayout<n>` |
+| `getTabButtonPath(tabPath)` | a tab button's path: its panel path with the last segment renamed (`/ts0/t1` gives `/ts0/tb1`) |
+| `getTabStripPath(tabsetPath)` | a tabset's tab strip path (`/ts0/tabstrip`) |
+| `getSplitterPath(nodePath, index)` | the path of the splitter before child `index` (1-based) of a row or border (`/s0` is between the root row's first two children) |
+| `DROP_INDICATOR_PATH` | `"/outline"`, the drop indicator's path |
+| `getTabButtonId(tabId, scope?)` | the DOM id of a tab's button; `engine.tabButtonId(id)` passes the engine's scope |
+| `getTabPanelId(tabId, scope?)` | the DOM id of a tab's panel; `engine.tabPanelId(id)` passes the engine's scope |
+
+## Attributes
+
+| export | value | marks |
+| --- | --- | --- |
+| `MOVEABLE_ATTRIBUTE` | `"data-dockable-moveable"` | the element hosting a tab's content |
+| `MOVEABLES_HOME_ATTRIBUTE` | `"data-dockable-moveables-home"` | the hidden element that parks moveables whose panel is gone |
+| `OVERLAY_ATTRIBUTE` | `"data-dockable-overlay"` | an element that belongs to an open overlay border (its wrapper, splitter, toolbar): a press on it does not close the overlay |
+| `POPOUT_ATTRIBUTE` | `"data-dockable-popout"` | a popout window's content root |
+
+## Types
+
+| type | description |
+| --- | --- |
+| `MeasurableKind` | the kinds of element whose geometry the engine measures: `"row"`, `"tabset"`, `"tabstrip"`, `"tabsetcontent"`, `"tabbutton"`, `"borderheader"`, `"bordercontent"` |
+| `MeasureFunction` | `(element: HTMLElement) => Rect`: measures an element in viewport coordinates |
+| `MoveableOptions` | how a panel hosts its content (see [Moveables](#moveables)) |
+| `SizeRange` | the size range of a row or tabset, in px: `minWidth`, `minHeight`, `maxWidth`, `maxHeight` (read-only) |
+| `EdgeBand` | an edge drop band: `location` (a `BorderLocation`: `"top"`, `"bottom"`, `"left"` or `"right"`) and `rect`, relative to the layout root |
+
+## Drag and drop
+
+The drag-and-drop machine lives in the core: one `DragDropManager` per engine, working on native
+drag events that the engine listens to on its root, so the same code path runs in a popout
+document. The drag in progress is page-wide (a static `DragState`), so a drag crosses the layouts
+and windows of a model, and, with a drag group, of other models.
+
+A drop resolves in two steps: the geometric candidates under the pointer (open overlay borders,
+the root row's edge bands, the maximized tabset or the tabsets under the pointer, then the border
+strips and open border panels), each turned into the command the drop would run (`tab.move`,
+`tabset.move`, or `tab.add` for a new tab) and asked of `model.can`. The first accepted candidate
+is the target; the first refused one is reported as refused (`data-drop-refused`). So a middleware
+veto refuses a drop: see [Restricting drops](/docs/guides/restricting-drops). The drop runs that
+command through `model.run`.
+
+Every Dockable drag sets `DRAG_TYPE` (`"application/x-dockable"`) on its data transfer, and the
+manager claims only the events that carry it: another library's drag passes through, or goes to
+`onExternalDrag`. Every `drop` and `dragend` in the document ends the page's drag.
+
+### DragDropManager
+
+Static members, for the page:
+
+| member | description |
+| --- | --- |
+| `getDragState()` | the drag in progress, a `DragState`, or `undefined` |
+| `subscribeDrag(listener)` | calls `listener` when a drag starts or ends; returns the unsubscribe function |
+| `startAddDrag(model, event, tab, onDrop?, dragImage?)` | starts dragging a new tab (`tab: TabInitOf<T>`) into the layout of `model` from a consumer element anywhere on the page (a sidebar item, a palette entry). Returns false, starting nothing, when no layout of `model` is attached. A drop runs `tab.add`, then calls `onDrop` (`useDragSource` does) |
+| `endDrag()` | ends the page's drag, if any (a drag source's `dragend`) |
+| `registerDropZone(model, element, options)` | makes `element` a drop zone for drags of `model`'s layouts (what `engine.registerDropZone` calls). Returns the unregister function |
+
+Members of a layout's manager (`engine.getDragDropManager()`):
+
+| member | description |
+| --- | --- |
+| `getIndicatorState()` | the drop indicator of this layout, a `DropIndicatorState` (the same object until it changes; bound) |
+| `subscribe(listener)` | calls `listener` when the indicator changes; returns the unsubscribe function (bound) |
+| `startDrag(event, id, dragImage?)` | starts dragging a tab or a whole tabset of this layout, by id. Call from the source's `dragstart`; `dragImage` is the element the browser snapshots (with none, the browser default) |
+| `startAddDrag(event, tab, onDrop?, dragImage?)` | starts dragging a new tab into this layout from a consumer element. Call from its `dragstart`, and `onDragEnded` from its `dragend` |
+| `onDragEnded()` | ends the drag (called on `dragend` from the drag source, or by the lost drag fallback) |
+| `attach(element)` | attaches the native drag listeners to a layout root, and the document listeners that end the page's drag; returns the detach function (`attachRoot` does) |
+| `hideIndicator()` | hides this layout's outline without ending the drag (the pointer is over a drop zone) |
+| `isDragging()` | a drag is over this layout |
+| `dispose()` | detaches the lost drag guard |
+
+### DragState
+
+The drag in progress; there is one for the page, shared by every window of a model.
+
+| member | description |
+| --- | --- |
+| `mainEngine` | the main engine of the model the drag belongs to |
+| `source` | how the drag started, a `DragSourceKind` |
+| `subject` | what is dragged, a `DragSubject` of the drag's own model |
+| `onNewTabDropped` | for an add or external drag: called after the drop, a `NewTabDropped` |
+| `dragId` | the id of the dragged tab or tabset (undefined for a new tab) |
+| `isNewTab()` | true for drags that create a new tab on drop |
+| `subjectOf(model)` | what is dragged, typed by the registry of `model` (`DragSubject<T>`), when the drag belongs to `model`; otherwise `undefined`. Models of a drag group may share ids, so check the model before the id |
+
+### Drag types
+
+| type | description |
+| --- | --- |
+| `DragSubject<T>` | what is dragged: `{ kind: "tab", tab: TabOf<T> }`, `{ kind: "tabset", tabset: TabsetNode<T> }`, or `{ kind: "new", tab: TabInitOf<T> }` (a drag source, or a foreign drag) |
+| `DragSourceKind` | how a drag started: `"internal"` (a node of a layout), `"add"` (a consumer element that adds a tab) or `"external"` (a foreign drag) |
+| `DragEventLike` | the subset of a native `DragEvent` the manager uses: `clientX`, `clientY`, `dataTransfer`, `target`, `preventDefault` |
+| `DropKind` | what a drop outline represents: `"rect"` (into or beside a node) or `"edge"` (at a layout edge) |
+| `DropLocation` | where a drop goes relative to its target: `"center"`, `"top"`, `"bottom"`, `"left"` or `"right"` |
+| `DropZoneOptions<T>` | `accepts?(drag: DragSubject<T>)`, `onDrop(drag, event: DragEventLike)` (nothing is moved: run the command you want) and `onOverChange?(over: boolean)` |
+| `ExternalDrag<T>` | what `onExternalDrag` returns to accept a foreign drag: `tab` (a `TabInitOf<T>`, the tab the drop creates) and `onDrop?` (a `NewTabDropped`) |
+| `NewTabDropped` | `(tab: string \| undefined, event: DragEventLike) => void`: called after an add or external drag was dropped, with the new tab's id, or undefined when refused |
+| `OnExternalDrag<T>` | `(event: DragEventLike) => ExternalDrag<T> \| undefined`: decides whether a drag that did not start in a layout (files, links, text, another library's element) can drop into it. It is called when the drag enters a layout, when only `event.dataTransfer.types` is readable. See [External drag](/docs/guides/external-drag) |
+
+`DropIndicatorState`, what a drop indicator shows (the same object until it changes; the React
+`Dockable.DropIndicator` renders it):
+
+| field | type | description |
+| --- | --- | --- |
+| `visible` | `boolean` | a drop target is under the pointer |
+| `rect` | `Rect` | the drop outline, relative to the layout root (1x1 at the pointer when a drag enters) |
+| `location` | `DropLocation` | where the dragged node would dock relative to the target |
+| `kind` | `DropKind` | `"edge"` for a drop at the outer edge of a layout, `"rect"` otherwise |
+| `dragging` | `boolean` | a drag is over this layout |
+| `dragNodeId` | `string \| undefined` | the id of the dragged tab or tabset (undefined for a new tab) |
+| `showEdges` | `boolean` | edge docking is enabled (and no tabset is maximized): edge affordances may be shown |
+| `tabDragSpeed` | `number` | seconds a view may take to animate the outline between targets (the core never animates) |
+| `targetNodeId` | `string \| undefined` | the id of the drop target node (a tabset, a row for edge drops, a border) |
+| `targetTabSetId` | `string \| undefined` | the id of the tabset (or border) the drop goes into or beside |
+| `index` | `number` | the insertion index in the target's tab strip, or -1 for a drop on the content area |
+| `refused` | `boolean` | the pointer is over a target that refuses the drop (a rule of the layout, a middleware) |
+| `refusedTabSetId` | `string \| undefined` | the id of the tabset (or border) that refused the drop, when it was one |
+| `revealedBorder` | `"top" \| "bottom" \| "left" \| "right" \| undefined` | an auto-hide border with no tabs that the drag reveals (main layout only) |
+
+## Splitters
+
+`SplitterController` is the headless behaviour of one splitter: the splitter before child
+`index` (1-based) of a row, or a border's splitter. The adapter forwards native pointer and
+keyboard events and renders the ARIA values and state. It runs `row.resize` or `border.resize`:
+transient on every move of a realtime drag, then one lasting command on release. Without
+realtime resize, it exposes the bounded preview offset instead, and commits on release.
+
+`createSplitterController<T>(engine, nodeId, index)` (the same as
+`new SplitterController<T>(engine, nodeId, index)`) creates one; `useSplitter` does it for you.
+
+| member | description |
+| --- | --- |
+| `attach(element)` | attaches the splitter element (or detaches with `null`): registers it for splitter-size discovery and installs the non-passive touchstart guard Android needs |
+| `onPointerDown(event)` | starts a pointer drag. Call from the splitter's `pointerdown` (bound) |
+| `onKeyDown(event)` | arrow keys move the splitter by 10px. Call from the splitter's `keydown` (bound) |
+| `getState()` | the current `SplitterState` (the same object until it changes; bound) |
+| `subscribe(listener)` | calls `listener` when the state changes; returns the unsubscribe function (bound) |
+| `getAria()` | the `SplitterAria` values, computed from the current geometry |
+| `isHorizontal()` | true when the splitter sits between side by side children (it moves along x; bound) |
+| `isHidden()` | true when the splitter must not render: row splitters hide while a tabset is maximized |
+| `dispose()` | stops any drag in progress and releases every listener and timer |
+
+`SplitterAria`, the ARIA attributes of a splitter (`role="separator"`):
+
+| field | type | description |
+| --- | --- | --- |
+| `orientation` | `"horizontal" \| "vertical"` | the separator's orientation: `"vertical"` for a splitter between side by side children |
+| `valueNow` | `number \| undefined` | row splitters: the 0-100 position within the row; border splitters: the border size in px |
+| `valueMin` | `number \| undefined` | the smallest value |
+| `valueMax` | `number \| undefined` | the largest value |
+| `valueText` | `string \| undefined` | the formatted value (`"40%"` or `"200px"`), announced in preference to the raw number |
+
+`SplitterState`, the drag state of a splitter:
+
+| field | type | description |
+| --- | --- | --- |
+| `dragging` | `boolean` | true while the splitter is being dragged with the pointer |
+| `previewOffset` | `number \| undefined` | while an outline (non-realtime) drag is in progress: how far, in px along the splitter's axis, the splitter would move if released now (bounded). `undefined` otherwise |
+
+Two helpers are exported with it:
+
+| export | description |
+| --- | --- |
+| `startDrag(doc, event, captureElement, drag, dragEnd, dragCancel)` | starts a pointer drag: captures the pointer (so `pointerup`/`pointercancel` fire even if the pointer leaves the window) and calls `drag(x, y)` on each move of that pointer until release (`dragEnd`) or cancel (`dragCancel`). Returns a function that stops listening without calling either |
+| `enablePointerOnIFrames(enable, document)` | disables (or re-enables) pointer events on the iframes and webviews of a document, so a drag over one keeps its events |
+
+## Keyboard
+
+The configurable command shortcuts. `Dockable.Root` takes an `IKeyMap` as `keyMap`; see
+[Keyboard](/docs/guides/keyboard).
+
+`IKeyMap`, bindings as `"Ctrl+Shift+Key"` strings (modifiers in any order, key compared
+case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disables a shortcut:
+
+| field | default | description |
+| --- | --- | --- |
+| `closeTab` | `"Ctrl+Delete"` | closes the focused tab button's tab (when the tab is closeable) |
+| `renameTab` | `"F2"` | starts renaming the focused tab button's tab (when the tab is renameable, tabset tabs only) |
+| `focusTabToggle` | off | toggles focus between the selected tab button and its content |
+| `focusNextTabset` | off | moves focus to the selected tab button of the next tabset in the layout (wrapping), from anywhere within the layout, tab content included |
+| `focusPreviousTabset` | off | the same, to the previous tabset |
+| `closeOverlayBorder` | `"Escape"` | closes an open overlay border panel when focus is inside it (or on its tab button) and returns focus to the tab button |
+
+| export | description |
+| --- | --- |
+| `defaultKeyMap` | the default bindings above, exported so applications can display or re-register them |
+| `resolveKeyMap(keyMap)` | merges the configured bindings over the defaults; a binding passed as an explicit `undefined` disables that shortcut |
+| `matchesKey(event, spec)` | true when `event` is exactly the key combination `spec` (a disabled binding never matches) |
+| `hasModifier(event)` | true when any modifier key is held (the fixed ARIA pattern keys, arrows on tabs and splitters, only apply unmodified) |
+| `toAriaKeyShortcuts(spec)` | the `aria-keyshortcuts` spelling of a binding (`Ctrl` becomes `Control`) |
+| `IKeyEventLike` | the fields shared by native and framework keyboard events: `key`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |
+
+## Tab overflow
+
+The arithmetic behind `registerTabList`: which tabs of a strip fit, and which go to an overflow
+menu. Dockable hides the tabs that do not fit (keeping the selected one) instead of scrolling
+the strip. See [Tab overflow](/docs/guides/tab-overflow).
+
+`computeTabOverflow(input: ITabOverflowInput): ITabOverflowResult` splits a strip's tabs into the
+visible and the hidden ones. When every tab fits, all are visible. Otherwise the tabs fit from the
+start into `available - reserve`, stopping at the first that does not fit; when the selected tab
+is not among them, tabs are taken off the end until it fits, and it is shown in its place. The
+selected tab always shows, even alone in too small a strip; with no selection, the first tab does.
+
+`ITabOverflowInput` (sizes in px along the strip's axis):
+
+| field | type | description |
+| --- | --- | --- |
+| `available` | `number` | the space for the tabs: the strip's inner size, plus the trigger's space while it shows |
+| `sizes` | `readonly number[]` | each tab's natural size, in model order |
+| `gap` | `number` | the gap between two tabs |
+| `selectedIndex` | `number` | the selected tab's index, or -1: it stays in the strip when anything is hidden |
+| `reserve` | `number` | the space the overflow trigger takes, reserved only when something is hidden |
+
+`ITabOverflowResult`:
+
+| field | type | description |
+| --- | --- | --- |
+| `visible` | `number[]` | the indices of the tabs that stay in the strip, in model order |
+| `hidden` | `number[]` | the indices of the tabs that go to the menu, in model order |

@@ -17,5 +17,5 @@ export default {
         "Switch",
         "Select",
     ],
-    docs: "/docs/concepts/model-and-actions",
+    docs: "/docs/concepts/model-and-commands",
 } satisfies ExampleMeta;

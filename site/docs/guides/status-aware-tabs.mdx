@@ -1,28 +1,101 @@
 ---
 title: Status-aware tabs
-description: Tabs that show what their content is doing - unsaved changes, errors, live counts.
+description: Tabs that show what their content is doing, such as unsaved changes, errors or live counts, read from the tab's typed data.
 ---
 
 A tab button and its content are rendered in different places (the strip and the panel layer),
-so a tab cannot read its content's state through props. Share it another way. Two patterns.
+so a tab cannot read its content's state through props. Share it another way. Two patterns: the
+tab's own `data`, changed with a command, and a store of your own keyed by tab id.
 
 <Example id="content-aware-tabs" />
 
-## 1. A store keyed by tab id
+## 1. The status in the tab's data
 
-Keep status in a small external store (or context above `Dockable.Root`), keyed by
-`tab.getId()`. The content writes; the tab reads.
+A tab's `data` is typed by its component (see [Typed data](/docs/concepts/typed-data)). Put the
+status there, next to the tab's name:
+
+```ts
+import { createModel, type LayoutJson, type TabOf } from "@fragiola/dockable";
+
+type Status = "healthy" | "degraded" | "down";
+
+type Types = {
+    tabs: {
+        monitor: { name: string; status: Status; incidents: number };
+        document: { name: string; dirty: boolean };
+    };
+};
+
+const model = createModel<Types>(json); // json: LayoutJson<Types>
+```
+
+The content writes it with `tab.update`. The payload names the component, and `data` is the
+**whole** new value (not a patch), checked against that component's type:
+
+```tsx
+import type { TabNode } from "@fragiola/dockable";
+import { useDockable } from "@fragiola/dockable-react";
+
+function Editor({ tab }: { tab: TabNode<"document", Types["tabs"]["document"]> }) {
+    const { run } = useDockable<Types>();
+    const setDirty = (dirty: boolean) => {
+        // only when the flag changes, not on every keystroke
+        if (tab.data.dirty !== dirty) {
+            run("tab.update", { tab: tab.id, component: "document", data: { ...tab.data, dirty } });
+        }
+    };
+    // … call setDirty(true) on edit, setDirty(false) on save
+}
+```
+
+The tab reads `tab.data`. It is a union over the components, so `data` narrows on
+`tab.component`, with no cast:
+
+```tsx
+function StatusTab({ tab }: { tab: TabOf<Types> }) {
+    const status = tab.component === "monitor" ? tab.data.status : undefined;
+    const dirty = tab.component === "document" && tab.data.dirty;
+    return (
+        <Dockable.Tab node={tab} data-status={status} data-modified={dirty ? "" : undefined}>
+            {tab.data.name}
+            {tab.component === "monitor" && tab.data.incidents > 0 ? (
+                <span className="badge">{tab.data.incidents}</span>
+            ) : null}
+        </Dockable.Tab>
+    );
+}
+```
+
+Forwarded `data-*` props follow the same convention as the package's own: present or absent.
+Style them like the built-in state: `data-modified:italic`,
+`.tab[data-status="down"] { color: red }`.
+
+The strip re-renders with the model, so the `TabList` child function always sees the current
+`data`. Because the status is in the model, it is:
+
+- **saved with the layout**: `model.toJSON()` writes it, and a restored layout shows it;
+- **in every window**: a popped-out tab reads the same model;
+- **a command**: a middleware sees it, `model.subscribe` reports it, and an undo history built on
+  the model records it (see [Undo and redo](/docs/guides/undo-redo)).
+
+Use it for changes a user would recognize as a step (saved, modified, failed), not for a value
+that ticks every second. For those, the next pattern.
+
+## 2. A store keyed by tab id
+
+Values that change often and do not belong to the layout (a live counter, a progress bar) live
+in a small external store, keyed by `tab.id`. The content writes; the tab reads.
 
 ```tsx
 import { useSyncExternalStore } from "react";
 
-type Status = { dirty?: boolean; errors?: number };
-const statuses = new Map<string, Status>();
+type Live = { unread?: number };
+const values = new Map<string, Live>();
 const listeners = new Set<() => void>();
 
-export const statusStore = {
-    set(id: string, status: Status) {
-        statuses.set(id, { ...statuses.get(id), ...status });
+export const liveStore = {
+    set(id: string, value: Live) {
+        values.set(id, { ...values.get(id), ...value });
         for (const listener of listeners) listener();
     },
     subscribe(listener: () => void) {
@@ -31,56 +104,58 @@ export const statusStore = {
     },
 };
 
-export function useTabStatus(id: string): Status | undefined {
-    return useSyncExternalStore(statusStore.subscribe, () => statuses.get(id));
+export function useLive(id: string): Live | undefined {
+    return useSyncExternalStore(liveStore.subscribe, () => values.get(id));
 }
 ```
 
 ```tsx
 // in the tab strip
-function StatusTab({ tab }: { tab: TabNode }) {
-    const status = useTabStatus(tab.getId());
+function LiveTab({ tab }: { tab: TabOf<Types> }) {
+    const live = useLive(tab.id);
     return (
-        <Dockable.Tab node={tab} data-dirty={status?.dirty ? "" : undefined}>
-            {tab.getName()}
-            {status?.errors ? <span className="badge">{status.errors}</span> : null}
+        <Dockable.Tab node={tab}>
+            {tab.data.name}
+            {live?.unread ? <span className="badge">{live.unread}</span> : null}
         </Dockable.Tab>
     );
 }
 
 // in the content
-statusStore.set(tab.getId(), { dirty: true });
+liveStore.set(tab.id, { unread: 3 });
 ```
 
-Forwarded `data-*` props follow the same convention as the package's own: present or absent.
-Style them like the built-in state: `data-[dirty]:italic`, `.tab[data-dirty]::after { content: "●" }`.
-
-The content stays mounted across moves (and popouts), so it keeps writing to the same id wherever
-its tab goes.
-
-## 2. The tab's `config`, through an action
-
-For status that belongs **in the layout** (saved with it, part of undo, visible in popouts through
-the model), write it into the tab's `config`:
-
-```tsx
-const { engine } = useDockable();
-engine.doAction(
-    Actions.updateNodeAttributes(tab.getId(), { config: { ...tab.getConfig(), unread: 3 } }),
-);
-```
-
-The strip re-renders with the model, so `tab.getConfig()?.unread` is current in the `TabList`
-child function. Each update is an action (visible to `onAction`, and to an undo history if you keep one), so
-use it for occasional changes, not for a value that ticks every second.
+The content stays mounted across moves (and popouts), and a tab's id never changes within its
+model, so the content keeps writing to the same key wherever its tab goes. Drop a closed tab's
+entry from `model.subscribe` when you need to (`event.command === "tab.close"`).
 
 ## Closing a dirty tab
 
-Combine the store with an `onAction` veto to confirm before closing a tab with unsaved changes;
-see [Tabs](/docs/guides/tabs#confirming-a-close).
+A middleware on `tab.close` can refuse to close a tab with unsaved changes. It sees every close,
+from a button, a key or a drop zone, and `model.can("tab.close", …)` then answers `false`, so a
+close button can hide itself:
+
+```ts
+import { veto } from "@fragiola/dockable";
+
+model.use((ctx, next) => {
+    if (ctx.command === "tab.close") {
+        const tab = ctx.get(ctx.payload.tab);
+        if (tab?.type === "tab" && tab.component === "document" && tab.data.dirty) {
+            return veto("Save the document before closing it.");
+        }
+    }
+    return next();
+});
+```
+
+`ctx.get` returns a node of the registry, so `tab.data` narrows once `type` and `component` are
+checked. More on closing, and on asking the user first, in [Tabs](/docs/guides/tabs).
 
 ## A live dashboard
 
-The ops monitor example drives tab badges from streaming data and marks tabsets by severity.
+The ops monitor example drives tab badges from streaming data (each service panel writes its alert
+level into its tab's data when the level changes) and keeps its incident region locked with a
+middleware.
 
 <Example id="ops-monitor" />

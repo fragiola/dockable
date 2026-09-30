@@ -1,157 +1,273 @@
 ---
-title: The model and actions
-description: The layout is a JSON model. Every change is an action, and every action can be intercepted, replaced or vetoed.
+title: The model and commands
+description: The layout is an immutable JSON-shaped state. Every change is a command that runs through a middleware chain, and every commit emits one event.
 ---
 
-The **model is the source of truth**. What you render is a function of it, and it changes only
-through **actions**. You never mutate nodes: `tab.setName()` exists on the node class for the
-model's own use, but calling it bypasses everything described below.
+The **model is the source of truth**. What you render is a function of its state, and the state
+changes only through **commands**: `model.run("tab.close", { tab: "t1" })`. Every command, whether
+your code runs it or a primitive does (a click, a drop, a splitter drag), goes through the same
+middleware chain, and every commit emits one event.
 
 ## JSON in, JSON out
 
 ```ts
-import { type IJsonModel, Model } from "@fragiola/dockable";
+import { createModel, type LayoutJson } from "@fragiola/dockable";
 
-const model = Model.fromJson(json); // IJsonModel -> Model
-const saved: IJsonModel = model.toJson(); // Model -> IJsonModel
+type Types = { tabs: { editor: { name: string; path: string }; log: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
+        type: "row",
+        children: [
+            {
+                type: "tabset",
+                id: "editors",
+                children: [{ id: "readme", component: "editor", data: { name: "README.md", path: "/README.md" } }],
+            },
+        ],
+    },
+};
+
+const model = createModel<Types>(json); // LayoutJson -> Model<Types>
+const saved: LayoutJson<Types> = model.toJSON(); // Model -> LayoutJson (a writable copy)
 ```
 
-`toJson()` returns the whole layout (global attributes, rows, tabsets, tabs, popout windows) as
-plain JSON you can store anywhere. Tabs without an `id` get a generated one, and `toJson()`
-keeps it, so a round trip is stable. The format is FlexLayout's (`IJsonModel`); every attribute
-is in [the JSON model reference](/docs/api/json-model).
+A layout document is **JSON v1**: `version: 1`, a `root` row, and optionally `defaults`, the
+`active` and `maximized` tabsets, `borders` and popout `windows`. A tab names its `component` and
+carries its `data`, typed by the `Types` registry ([Typed data](/docs/concepts/typed-data)). Every
+field is in [the JSON model reference](/docs/api/json-model).
 
-`Model.fromJson(json, previousModel)` takes an optional previous model: tabs with the same id
-**adopt its view state** (their moveable element, scroll position), so a mounted layout can swap
-to a new model without remounting tab content. [Undo/redo](/docs/guides/undo-redo) is built on
-this.
+- **Ids are explicit.** A node without an `id` gets one at load (`tab-1`, `tabset-2`, …, or your
+  `createId` option), and `toJSON()` writes it, so a round trip is stable:
+  `createModel(model.toJSON()).state` deep-equals `model.state`. `JSON.stringify(model)` works too.
+- **Loading validates.** `createModel` checks the document against the JSON v1 schema (duplicate
+  ids, two borders on one side, an `active` naming a missing tabset, …) and throws a
+  `LayoutValidationError` whose `issues` list every problem with its JSON path.
+  `validateLayout(json)` returns the same issues instead of throwing, for code that must not throw.
+- **The model loads in plain Node.** It needs no DOM, so it works in tests, on a server, or in a
+  worker.
 
-## Dispatching actions
+## The state is plain data
 
-`Actions` has one static creator per change. Each returns an `Action` (`{ type, data }`):
+`model.state` is the whole layout as readonly plain objects: no classes, no getters, no methods.
+A node is told apart by its `type` field (`"row"`, `"tabset"`, `"tab"`, `"border"`), and its
+fields are read directly:
 
 ```ts
-import { Actions, DockLocation } from "@fragiola/dockable";
-
-Actions.selectTab("t1");
-Actions.deleteTab("t1");
-Actions.renameTab("t1", "Report");
-Actions.addTab({ type: "tab", name: "New", component: "card" }, "ts0", DockLocation.CENTER, -1);
-Actions.moveNode("t1", "ts1", DockLocation.RIGHT, -1);
-Actions.maximizeToggle("ts0");
+const tabset = model.get("editors");
+if (tabset?.type === "tabset") {
+    tabset.children; // readonly TabOf<Types>[]
+    tabset.selected; // the index of the selected tab, -1 when none
+    tabset.weight; // its relative size in its row
+}
 ```
 
-Dispatch them **through the engine**, which you get with `useDockable()` anywhere inside
-`Dockable.Root` (tab content, your buttons, overlays):
+The state is **immutable**. A command never changes it in place: it produces a new state that
+shares every untouched node with the previous one, and the objects are frozen. So a node you hold
+is a snapshot (read the model again to see a later change), `before === after` tells you nothing
+changed, and keeping an old state (for undo, a diff, a test) costs nothing.
+
+The state holds only the layout. Measured rects, scroll positions, which tabs have rendered: that
+is view state, kept by the engine and keyed by node id ([Geometry](/docs/concepts/geometry)).
+
+## Running commands
+
+A command is a name and a JSON payload. `model.run` is typed by your registry: the payload is
+checked against the command, and `data` against the component.
+
+```ts
+model.run("tab.select", { tab: "readme" });
+model.run("tab.close", { tab: "readme" });
+model.run("tab.add", { component: "log", data: { name: "Log" }, to: "editors", select: true });
+model.run("tab.move", { tab: "log", to: "editors", location: "right" }); // split beside it
+model.run("tab.update", { tab: "log", component: "log", data: { name: "Build log" } });
+model.run("tabset.maximize", { tabset: "editors", value: true });
+```
+
+Every command returns a `CommandResult`, and **never throws** on bad input:
+
+```ts
+const result = model.run("tab.close", { tab: "readme" });
+if (result.ok) {
+    result.value.tab; // the command's value
+} else {
+    result.error.code; // "not_found", "refused", "vetoed", "invalid_payload", …
+    result.error.message;
+    result.error.path; // a JSON pointer into the payload, e.g. "/tab"
+}
+```
+
+`refused` means a rule of the layout forbids it: a pinned tab cannot close, a tab whose
+`enableDrag` is false cannot move, a tabset with `enableDrop: false` takes no drop. The permission
+flags are enforced by the commands themselves, so code cannot bypass them either.
+
+`run` is bound, so it can be passed around on its own. Inside `Dockable.Root`, `useDockable()`
+returns it (with the model):
 
 ```tsx
-import { Actions } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 
 function CloseButton({ tabId }: { tabId: string }) {
-    const { engine } = useDockable();
+    const { run } = useDockable<Types>();
     return (
-        <button type="button" aria-label="Close" onClick={() => engine.doAction(Actions.deleteTab(tabId))}>
+        <button type="button" aria-label="Close" onClick={() => run("tab.close", { tab: tabId })}>
             ×
         </button>
     );
 }
 ```
 
-<Callout type="warn" title="engine.doAction, not model.doAction">
-    `engine.doAction(action)` runs your `onAction` first, then applies the result with
-    `model.doAction`. Calling `model.doAction` directly applies the action **without** `onAction`,
-    so a veto or a rewrite you wrote there never sees it. The primitives always go through the
-    engine; do the same.
+Outside the root, call `model.run` directly: the model is all a command needs, mounted or not.
+
+The rest of the bus:
+
+- `model.dispatch({ command, payload })` runs a command given as **untrusted JSON** (a stored
+  layout, a message from a server, an AI tool call): the envelope and the payload are validated
+  before anything runs.
+- `model.can(command, payload)` returns what `run` would return, without committing or emitting
+  anything. Enable a button with `model.can("tabset.maximize", { tabset, value: true }).ok`.
+- `model.run("batch", { commands: [...] })` runs several commands as **one atomic step**: if one
+  fails, none applies, and the batch emits a single event.
+- `run(command, payload, { transient: true })` marks a step of a continuous gesture (the splitters
+  run `row.resize` this way on every pointer move); `{ meta }` passes free-form information to
+  middleware and listeners.
+- `model.commands()` lists every command with its description and the JSON Schemas of its payload
+  and result.
+
+Every command, its payload and its errors are in [the commands reference](/docs/api/commands); the
+bus itself (ordering, re-entrancy, error codes) is in [the command bus reference](/docs/api/command-bus).
+
+## Intercepting: middleware
+
+`model.use(middleware)` adds a function that runs around **every** command: yours, and the ones the
+primitives run (a click selecting a tab, a drop moving one, a splitter resizing a row). It sees a
+context and a `next` function, and can do three things:
+
+```ts
+import { type Middleware, veto } from "@fragiola/dockable";
+
+const policy: Middleware<Types> = (ctx, next) => {
+    // veto: return an error without calling next(); the "readme" tab cannot be closed
+    if (ctx.command === "tab.close" && ctx.payload.tab === "readme") {
+        return veto("The README stays open.");
+    }
+    // rewrite: assign a new payload, then call next() (it is validated again)
+    if (ctx.command === "tab.add") {
+        ctx.payload = { ...ctx.payload, select: true };
+    }
+    // observe: call next() and look at its result
+    return next();
+};
+
+const remove = model.use(policy); // returns the function that removes it
+```
+
+Checking `ctx.command` narrows `ctx.payload` to that command's payload. The context also carries
+the committed `state`, `get(id)` and `parentOf(id)` (as the command sees them, inside a batch too),
+`meta`, `transient`, and `dryRun`.
+
+A drag is not special. While you drag, the engine asks `model.can` for the command each drop target
+would run, on every `dragover`: a middleware veto hides the drop indicator over that target, and a
+drop runs the command through the chain again. One policy covers drags, keyboard, menus and code.
+See [Restricting drops](/docs/guides/restricting-drops).
+
+<Callout type="warn" title="No side effects in a dry run">
+    `model.can` runs the middleware chain with `ctx.dryRun` set to true, and the drop indicator calls
+    it on every `dragover`. Log, notify or fetch only when `ctx.dryRun` is false.
 </Callout>
 
-`Actions.group([a, b, c])` applies several actions as one: one undo step and one change
-notification. Every creator is listed in [the Actions reference](/docs/api/actions).
+Middleware is synchronous, and runs outermost first (the first one added wraps the others). A
+middleware that throws yields a `middleware_error` result, and nothing is committed.
 
-## Intercepting: `onAction`
+## Reacting: events
 
-`Dockable.Root`'s `onAction` sees **every** action the layout dispatches: yours, and the ones
-the primitives dispatch (a click selecting a tab, a drop moving one, a splitter resizing a
-row). "Return it (or a replacement) to apply it, `undefined` to veto":
+`model.subscribe(listener)` is called once per commit, with a `CommandEvent`: the `command`, its
+`payload` and `result`, the state `before` and `after`, `transient` and `meta` (and, for a batch,
+the `commands` it ran). It is the place to persist the layout, sync it or log it:
 
-```tsx
-import { type Action, Actions, DockLocation } from "@fragiola/dockable";
-
-function onAction(action: Action): Action | undefined {
-    // veto: the "Home" tab cannot be closed
-    if (action.type === Actions.DELETE_TAB && action.data.node === "home") {
-        return undefined;
+```ts
+const unsubscribe = model.subscribe((event) => {
+    if (!event.transient) {
+        localStorage.setItem("layout", JSON.stringify(model.toJSON()));
     }
-    // rewrite: new tabs always open selected
-    if (action.type === Actions.ADD_TAB) {
-        return Actions.addTab(action.data.json, action.data.toNode, DockLocation.getByName(action.data.location), action.data.index, true);
-    }
-    return action;
-}
-
-<Dockable.Root model={model} onAction={onAction}>
+});
 ```
 
-The action type constants are strings like `"FlexLayout_DeleteTab"` (kept from FlexLayout);
-compare with `Actions.DELETE_TAB`, not the literal. `action.data` holds the creator's
-arguments, under the names each creator uses (`node`, `toNode`, `fromNode`, `tabNode`, …; the
-[Actions reference](/docs/api/actions) lists them).
+While a splitter is dragged live, the engine runs `row.resize` as transient on every pointer move,
+and each one emits an event. Skip them (as above) or debounce: the gesture ends with a normal,
+non-transient command. [Persistence](/docs/guides/persistence) and
+[undo/redo](/docs/guides/undo-redo) are both built on these events.
 
-A drag is not special: a drop dispatches `Actions.moveNode`, so vetoing it cancels the drop. To
-refuse a drop **before** it happens (so the indicator never shows it), use
-[`model.setOnAllowDrop`](/docs/guides/restricting-drops).
-
-## Reacting: `onModelChange`
-
-`onModelChange(model, action)` is called after the model applied an action. It is the place to
-persist the layout, sync it to a server or log it:
+In React, `useModelState(selector)` subscribes a component to a slice of the state, and re-renders
+it only when that slice changes:
 
 ```tsx
-<Dockable.Root
-    model={model}
-    onModelChange={(model, action) => {
-        if (!action.isAdjusting()) {
-            localStorage.setItem("layout", JSON.stringify(model.toJson()));
-        }
-    }}
->
+const count = useModelState<Types, number>((state, model) => model.tabs().length);
 ```
-
-While a splitter is dragged live, the engine applies `adjustWeights` actions marked as
-**adjusting** (`action.isAdjusting()`) on every pointer move, and calls `onModelChange` for
-each. Skip them (as above) or debounce: the gesture ends with a normal action.
-
-For listeners outside React (or on a model not rendered yet), `model.addChangeListener` takes
-`{ onBeforeAction?, onAfterAction? }` or a function. It fires for **every** action, including
-direct `model.doAction` calls.
 
 ## Reading the model
 
-The model and its nodes are plain classes with getters, safe to call during render:
+The queries read the current state; each is O(1) or a walk of the tree, and safe during render.
 
 ```ts
-model.getRootRow(); // RowNode
-model.getActiveTabset(); // TabSetNode | undefined
-model.getMaximizedTabset(); // TabSetNode | undefined
-model.getNodeById("t1"); // Node | undefined
-model.getFirstTabSet(); // TabSetNode | undefined
-model.visitNodes((node, level) => { /* every node, every layout */ });
-
-tabset.getSelectedNode(); tabset.getTabNodes(); tabset.isActive(); tabset.isMaximized();
-tab.getName(); tab.getComponent(); tab.getConfig(); tab.isSelected(); tab.getParent();
+model.state; // LayoutState<Types>: root, borders, windows, active, maximized, defaults
+model.get("readme"); // a node by id
+model.parentOf("readme"); // its row, tabset or border
+model.layoutOf("readme"); // MAIN_LAYOUT, or a window id
+model.root(); // a layout's root row (default the main layout)
+model.tabs(); // every tab, in tree order: TabOf<Types>[]
+model.tabsets(); // a layout's tabsets
+model.selectedTab("editors"); // a tabset's (or border's) selected tab
+model.activeTabset(); // the active tabset of a layout
+model.maximizedTabset(); // the maximized tabset of a layout
+model.isHiddenByMaximize("tools"); // hidden because another tabset is maximized
+model.resolve(tab); // a node's behaviour flags, resolved through the layout defaults
+model.resolveLayout(); // the layout-wide settings, resolved
 ```
 
-The primitives re-render when the engine's revision changes, so reading the model inside the
-layout is always current. Outside the root, subscribe to `onModelChange`.
+A flag a node does not set comes from the layout `defaults` (then from the built-in value), so read
+it with `model.resolve(node)`, not from the node: `model.resolve(tab).enableClose`. To know whether
+something is allowed right now (the defaults, the rules and your middleware together), ask
+`model.can`: `model.can("tab.close", { tab: tab.id }).ok`.
+
+The primitives re-render when the state changes, so reading the model inside the layout is always
+current. Outside it, subscribe (`model.subscribe`, or `useSyncExternalStore` over it).
+
+## Replacing the layout: `layout.load`
+
+A saved layout, an undo step or a remote update replaces the whole state with one command, in
+place:
+
+```ts
+const result = model.run("layout.load", { layout: savedJson });
+if (result.ok) {
+    result.value.added; // node and window ids only in the new layout
+    result.value.removed; // ids only in the old one
+}
+```
+
+The model keeps its identity; only its state changes, so `Dockable.Root` keeps its engine. Nodes
+keep their identity **by id**: a tab whose id is in both layouts keeps its mounted content (its
+moveable element, its scroll position), wherever it moves. Only the removed tabs unmount.
+
+`layout.load` validates the document like `createModel`, but returns the problems instead of
+throwing: `invalid_payload` with every issue, its paths under `/layout`. For stored text, run it
+through `model.dispatch`, which validates the whole input:
+
+```ts
+const result = model.dispatch({ command: "layout.load", payload: { layout: JSON.parse(text) } });
+```
 
 ## One model, several layouts
 
-A model holds the **main** layout (`Model.MAIN_LAYOUT_ID`) and one sub-layout per popout window.
-Methods that depend on the layout take a `layoutId` (defaulting to the main one), and
-`useDockable().layoutId` says which layout a component renders in.
+A model holds the **main** layout (`MAIN_LAYOUT`, `"main"`: the root row, the borders, the active
+and maximized tabsets) and one window layout per popout window (`model.state.windows`, each with
+its own root row). Queries that depend on the layout take a layout id and default to the main one,
+and `useDockable().layoutId` says which layout a component renders in.
 
 ## See it
 
-<Example id="component-factory" />
-
 <Example id="layout-lab" />
+
+<Example id="command-console" />

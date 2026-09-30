@@ -1,16 +1,16 @@
 ---
 title: Dockable.BorderContent
-description: Where a border's panel opens - an area sized by the border, and the border's splitter.
+description: Where a border's panel opens, an area sized by the border's size, with the border's splitter on the layout's side.
 ---
 
 "The place a border's panel opens: an area sized by the border's `size` (the engine positions the
 selected tab's panel over it) and the border's splitter, on the layout's side of it. Hidden while
-no tab is selected. A split border sits beside the layout and shrinks it; an overlay border
-(`borderType: "overlay"`) is positioned over the layout's edge, so its stacking (`z-index`) is
-yours. Render it from `Dockable.Borders`'s `renderContent`."
+no tab is selected. A docked border sits beside the layout and shrinks it; an overlay border
+(`mode: "overlay"`) is positioned over the layout's edge, so its stacking (`z-index`) is yours.
+Render it from `Dockable.Borders`'s `renderContent`."
 
 ```tsx
-<Dockable.Borders
+<Dockable.Borders<Types>
     renderBar={renderBar}
     renderContent={(border) => (
         <Dockable.BorderContent
@@ -24,12 +24,12 @@ yours. Render it from `Dockable.Borders`'s `renderContent`."
 
 ## Props
 
-`BorderContentProps` extends the [common primitive props](/docs/api/root#common-props).
+`BorderContentProps<T>` extends the [common primitive props](/docs/api/root#common-props).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `node` | `BorderNode` | required | the border |
-| `renderSplitter` | `(border: BorderNode) => ReactNode` | `<Dockable.Splitter node={border} />` | renders the border's splitter |
+| `node` | `BorderNode<T>` | required | the border |
+| `renderSplitter` | `(border: BorderNode<T>) => ReactNode` | `<Dockable.Splitter node={border} />` | renders the border's splitter |
 | `splitter` | `boolean` | `true` | `false` renders no splitter (the panel keeps its size) |
 
 ## State
@@ -54,7 +54,8 @@ The border's `BorderState` (see [Dockable.Border](/docs/api/border#state)).
   (`Dockable.Splitter` of a border is `pointer-events: auto`) keeps taking them. Hit-testing, not
   cosmetics.
 - The area: `width`, `min-width`, `max-width` (left and right) or `height`, `min-height`,
-  `max-height` (top and bottom), from the border's `size`, `minSize` and `maxSize`.
+  `max-height` (top and bottom), from the border's resolved `size`, `minSize` and `maxSize`
+  (`model.resolve(border)`: its own values, else `defaults.border`).
 
 ## Overlay borders
 
@@ -65,6 +66,7 @@ An overlay border's panel opens over the layout instead of shrinking it. It clos
 - on `keyMap.closeOverlayBorder` (`"Escape"`) with focus in the panel or on its tab button; focus
   goes back to the tab button.
 
-Both go through `onAction` (an `Actions.selectTab` that deselects). Turn a border into an overlay
-with `Actions.setBorderType(borderId, "overlay")` (border ids are `border_<location>`), or
-`borderType: "overlay"` in its JSON.
+Both run `border.configure` with `open: false` through the model's middleware. Turn a border into
+an overlay with `model.run("border.configure", { border: "border_left", mode: "overlay" })` (a
+border without an explicit id gets `border_<location>`), with `mode: "overlay"` in its JSON, or
+for every border with `defaults.border.mode`.

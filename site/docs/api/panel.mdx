@@ -1,6 +1,6 @@
 ---
 title: Dockable.Panel
-description: A tab's content panel (role="tabpanel"), positioned by the engine over its tabset's content area.
+description: A tab's content panel, positioned by the engine over its tabset's content area and kept mounted when the tab moves.
 ---
 
 "A tab's content panel (`role="tabpanel"`). Renders two portals:
@@ -14,9 +14,14 @@ The content's position in the React tree never changes (it always lives under
 remounting the content."
 
 ```tsx
-<Dockable.Panels>
+<Dockable.Panels<Types>>
     {(tab) => (
-        <Dockable.Panel node={tab} className="bg-palette-base text-palette-contrast">
+        <Dockable.Panel
+            node={tab}
+            scrollable={tab.component !== "chart"}
+            remountInWindow={tab.component === "video"}
+            className="bg-palette-base text-palette-contrast"
+        >
             <TabContent tab={tab} />
         </Dockable.Panel>
     )}
@@ -25,12 +30,17 @@ remounting the content."
 
 ## Props
 
-`PanelProps` extends the [common primitive props](/docs/api/root#common-props).
+`PanelProps<T>` extends the [common primitive props](/docs/api/root#common-props).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `node` | `TabNode` | required | the tab whose content this is |
+| `node` | `TabOf<T>` | required | the tab whose content this is |
 | `children` | `ReactNode` | none | the tab's content |
+| `scrollable` | `boolean` | `true` | the content element scrolls its overflow; `false` clips it |
+| `remountInWindow` | `boolean` | `false` | remount the content when the tab moves to another window (default: the same content moves, keeping its state). For content bound to its document (an iframe, a canvas context) |
+
+Both are view options, not model attributes: decide them per tab from `tab.component` or
+`tab.data`.
 
 `style` (a value or a function) is accepted, but the keys the engine owns are **dropped** from
 it: `position`, `inset`, `left`, `top`, `right`, `bottom`, `width`, `height`, `display`.
@@ -41,8 +51,8 @@ it: `position`, `inset`, `left`, `top`, `right`, `bottom`, `width`, `height`, `d
 
 | field | type | description |
 | --- | --- | --- |
-| `selected` | `boolean` | the tab is its tabset's selected tab |
-| `visible` | `boolean` | the panel is shown (selected, and not hidden by another tabset being maximized) |
+| `selected` | `boolean` | the tab is its tabset's selected tab (`model.selectedTab(container)`) |
+| `visible` | `boolean` | the panel is shown (selected, and not hidden by another tabset being maximized): `engine.isPanelVisible(tab.id)` |
 
 ## Data attributes and ARIA
 
@@ -51,14 +61,14 @@ it: `position`, `inset`, `left`, `top`, `right`, `bottom`, `width`, `height`, `d
 | `data-layout-path` | the tab's panel path: `/ts0/t1` |
 | `data-selected` | the selected tab |
 | `data-visible` | shown |
-| `id` | `getTabPanelId(tab)` (`dockable-tab-<id>`) |
+| `id` | `engine.tabPanelId(tab.id)`, unique on the page (`getTabPanelId(id, scope)`: `dockable-<scope>tab-<id>`) |
 | `role` | `"tabpanel"` |
 | `aria-labelledby` | its tab button's id |
 | `aria-keyshortcuts` | the `focusTabToggle` binding, when set |
 | `tabIndex` | `-1` (focusable from code: Enter on the selected tab moves focus here) |
 
 Inside it, the content sits in the moveable element: `<div data-dockable-moveable>`, sized
-`100%` by `100%`, with `overflow: auto` (or `hidden` when the tab's `enableScrollbars` is false).
+`100%` by `100%`, with `overflow: auto` (or `hidden` when `scrollable` is `false`).
 
 ## Structural style
 
@@ -67,10 +77,11 @@ and `display` directly.
 
 ## Behaviour
 
-- A press inside makes its tabset active.
+- A press inside makes its tabset active (`tabset.activate`, through the model's middleware).
 - With `focusTabToggle` bound, that key (anywhere in the content) returns focus to the tab
   button.
-- `enableWindowReMount: true` on the tab remounts its content when it moves between windows.
+- `remountInWindow` remounts its content when the tab moves between windows (the content is keyed
+  by its layout).
 
 ## Styling notes
 

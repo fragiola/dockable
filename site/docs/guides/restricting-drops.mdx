@@ -1,26 +1,31 @@
 ---
 title: Restricting drops
-description: What can be dragged where, today - attributes, setOnAllowDrop and onAction.
+description: Decide what can be dragged where with node flags and a middleware veto, which the drag also asks through model.can.
 ---
 
-Three mechanisms decide what can be dragged and where it can land. All three exist today and
-work together.
+Two mechanisms decide what can be dragged and where it can land, and they work together: the
+**flags** on nodes, which the commands enforce, and **middleware** (`model.use`), which can veto
+any command. A drag uses both the same way: for every target under the pointer it builds the
+command the drop would run and asks `model.can`, so a refused target never shows the outline, and
+a drop (or a command from your own code) is refused by the same rules.
 
 <Example id="locked-regions" />
 
-## 1. Attributes
+## 1. Flags
 
-Set them per node in the JSON, or for every node through the global attributes
-(`tabEnableDrag`, `tabSetEnableDrop`, …):
+Set them per node in the JSON, or for every node of a kind through the layout's `defaults`
+(`defaults.tab.enableDrag`, `defaults.tabset.enableDrop`, …):
 
-| attribute | on | effect |
+| field | on | effect |
 | --- | --- | --- |
-| `enableDrag` | tab | whether the user can drag the tab (the `Tab` is not `draggable` when false) |
-| `enableDrag` | tabset | whether the user can drag tabs out of this tabset |
-| `enableDrop` | tabset | whether tabs can be dropped into this tabset |
+| `enableDrag` | tab | whether the tab can move (`tab.move` refuses it, and the `Tab` is not `draggable` when false) |
+| `enableDrag` | tabset | whether the whole tabset can move (`tabset.move`) |
+| `enableDrop` | tabset, border | whether tabs can be dropped into it (a center drop) |
 | `enableDivide` | tabset | whether dropping on an edge of this tabset splits it to create a new tabset |
-| `pinned` | tab | a pinned tab cannot be dragged out of its tabset |
-| `enableEdgeDock` | global | enable docking to the edges of the layout |
+| `enableClose` | tabset | false also refuses merging the whole tabset into another one |
+| `pinned` | tab | a pinned tab cannot be dragged out of its tabset, nor into a border |
+| `enablePopout` | tab | false refuses moving the tab into a popout window |
+| `edgeDock` | `defaults.layout` | whether a drag offers docking to the edges of the layout |
 
 ```json
 {
@@ -28,71 +33,97 @@ Set them per node in the JSON, or for every node through the global attributes
     "id": "console",
     "enableDrop": false,
     "enableDivide": false,
-    "children": [{ "type": "tab", "name": "Console", "enableDrag": false }]
+    "children": [{ "component": "console", "data": { "name": "Console" }, "enableDrag": false }]
 }
 ```
 
-Change them at runtime with `Actions.updateNodeAttributes(nodeId, { enableDrop: false })` (a
-"lock layout" toggle), or `Actions.updateModelAttributes({ tabSetEnableDrop: false })` for all.
+Change them at runtime with commands: `tabset.configure` `{ tabset, enableDrop: false }` for one
+tabset (a "lock layout" toggle), `tab.configure` for a tab, `border.configure` for a border, or
+`layout.configure` `{ defaults: { tabset: { enableDrop: false } } }` for all. A `null` value
+removes a node's own value, so the default applies again.
 
-## 2. `model.setOnAllowDrop`
+## 2. A middleware veto
 
-For rules that depend on **what** is dragged and **where**, give the model a predicate. It runs
-during the drag, for every candidate target, so a refused target never shows the indicator:
+For rules that depend on **what** is placed and **where**, add a middleware. Every drop runs one
+of three commands, so the rule guards those:
 
-```ts
-import { type DropInfo, type Node, TabNode, TabSetNode } from "@fragiola/dockable";
+- `tab.move` `{ tab, to, location, index }`: a tab of the layout;
+- `tabset.move` `{ tabset, to, location, index }`: a whole tabset (dragged by its header);
+- `tab.add` `{ component, data, …, to, location, index }`: a new tab (a
+  [drag source](/docs/guides/external-drag), a foreign drag, or a transfer from another layout).
 
-model.setOnAllowDrop((dragNode: Node, dropInfo: DropInfo) => {
-    const target = dropInfo.node; // the tabset (or row) the drop would go into
-    // tabs from the "tools" group only dock into tool tabsets
-    if (dragNode instanceof TabNode && dragNode.getConfig()?.group === "tools") {
-        return target instanceof TabSetNode && target.getConfig()?.kind === "tools";
-    }
-    // nothing docks to the layout's outer edge
-    return dropInfo.kind !== "edge";
-});
-```
-
-`dropInfo` has the target `node`, the `location` (a `DockLocation`: `dropInfo.location.getName()`
-is `"center"`, `"top"`, …), the tab `index`, the outline `rect` and the `kind` (`"rect"` or
-`"edge"`).
-
-Set it once, right after creating the model. It belongs to the model instance: a new model
-(after [undo/redo](/docs/guides/undo-redo) or [restoring](/docs/guides/persistence)) needs it set
-again. Or pass the same function as `onAllowDrop` to `Dockable.Root`: the root sets it on whatever
-model it renders, and restores the model's own rule when the prop goes away.
-
-```tsx
-<Dockable.Root model={model} onAllowDrop={allowDrop}>
-```
-
-```tsx
-const [model] = useState(() => {
-    const model = Model.fromJson(json);
-    model.setOnAllowDrop(allowDrop);
-    return model;
-});
-```
-
-## 3. `onAction`: the last word
-
-A drop dispatches `Actions.moveNode` through `onAction`, so you can still veto (or rewrite) a
-drop at the moment it happens. Use it for rules that need async work or app state, knowing that
-the indicator already showed the target as valid:
+`to` is the target's id: a tabset, a border, or a row (a drop at the layout's edge is `to` its root
+row, with an edge `location`; code may also pass a layout id such as `MAIN_LAYOUT`). Return `veto(message)` to refuse, or `next()` to let it through:
 
 ```ts
-const onAction = (action: Action) => {
-    if (action.type === Actions.MOVE_NODE && isLocked(action.data.toNode)) {
-        return undefined;
-    }
-    return action;
+import { createModel, type Middleware, type TabAddPayload, type TabOf, veto } from "@fragiola/dockable";
+
+type Types = {
+    tabs: { doc: { name: string; group: "tools" | "docs" }; console: { name: string } };
+    tabset: { kind: "tools" | "docs" };
 };
+
+const toolsStayTogether: Middleware<Types> = (ctx, next) => {
+    // what is placed: an existing tab (tab.move) or a new one (tab.add)
+    let tab: TabOf<Types> | TabAddPayload<Types> | undefined;
+    let to: string;
+    if (ctx.command === "tab.move") {
+        const node = ctx.get(ctx.payload.tab);
+        tab = node?.type === "tab" ? node : undefined;
+        to = ctx.payload.to;
+    } else if (ctx.command === "tab.add") {
+        tab = ctx.payload; // the new tab itself: component, data and placement
+        to = ctx.payload.to;
+    } else {
+        return next();
+    }
+    const target = ctx.get(to);
+    // tabs of the "tools" group only go into tools tabsets
+    if (tab?.component === "doc" && tab.data.group === "tools") {
+        return target?.type === "tabset" && target.data?.kind === "tools"
+            ? next()
+            : veto("Tools stay in a tools tabset");
+    }
+    return next();
+};
+
+const model = createModel<Types>(json);
+model.use(toolsStayTogether); // returns the function that removes it
 ```
+
+`ctx.command` narrows `ctx.payload`, and `ctx.get` / `ctx.parentOf` read the layout as the command
+sees it. A middleware belongs to the model: install it once, right after `createModel`. Loading
+another layout (`layout.load`, an [undo step](/docs/guides/undo-redo), a
+[restore](/docs/guides/persistence)) keeps the same model, so the rule stays.
+
+### How the drag asks
+
+During a drag, the layout builds the command each target would run and asks `model.can`, which
+runs your middleware with `ctx.dryRun === true` and commits nothing. A middleware must not cause
+side effects in a dry run (no dialog, no state change): check `ctx.dryRun` before doing anything
+but deciding. The answer is kept for the rest of the drag while the layout does not change, so a
+rule should depend on the command and the layout, not on something that changes mid-drag.
+
+Over a refused target, the drop indicator hides (or moves to the next target that accepts), and a
+drop does nothing. The real drop runs the command through `model.run`, so your middleware sees it
+once more, this time with `ctx.dryRun === false`: a veto there still stops it.
+
+### Rules from code
+
+The same middleware refuses a command run from code, and the result says why:
+
+```ts
+const result = model.run("tab.move", { tab: "notes", to: "reference" });
+if (!result.ok) console.log(result.error.code, result.error.message); // "vetoed", "Tools stay in …"
+```
+
+A rule the layout itself enforces (a flag, a pinned tab) comes back as `refused`; a middleware
+veto as `vetoed`. More on middleware in [the command bus](/docs/api/command-bus).
 
 ## Feedback for a refused target
 
 Over a target that a rule refuses, the outline hides, the browser shows its "not allowed" cursor,
-and `Dockable.Root`, `DropIndicator` and the refusing `TabSet` get `data-drop-refused`. Style them
-to say why: see [Drop zones and drop feedback](/docs/guides/drop-zones#refused-drops) and the
-`locked-regions` example above.
+and `Dockable.Root`, `DropIndicator` and the refusing `TabSet` (or `Border`) get
+`data-drop-refused`. Style them to say why: see
+[Drop zones and drop feedback](/docs/guides/drop-zones#refused-drops) and the `locked-regions`
+example above.

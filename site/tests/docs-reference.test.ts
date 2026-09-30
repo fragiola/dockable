@@ -104,7 +104,7 @@ function interfaceFields(
         `export interface ${name}\\b([^{]*)\\{([\\s\\S]*?)\\n\\}`,
     ).exec(source);
     const aliased = new RegExp(
-        `export type ${name}\\b[^=]*= \\{([\\s\\S]*?)\\n\\}`,
+        `export type ${name}\\b(?:<[^>]*>)?\\s*= \\{([\\s\\S]*?)\\n\\}`,
     ).exec(source);
     if (!declared && !aliased) return undefined;
     const heritage = declared?.[1] ?? "";
