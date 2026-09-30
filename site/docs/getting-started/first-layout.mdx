@@ -11,7 +11,7 @@ them, tabs you can drag, and panels whose content survives every move. It ends w
 
 <Step>
 
-### Describe the layout as JSON
+## Describe the layout as JSON
 
 A layout is a tree: a **row** splits its space between its children, a **tabset** holds
 **tabs**. `weight` is a relative size. A row nested in a row takes the opposite orientation, so
@@ -49,7 +49,7 @@ Every attribute is listed in [the JSON model reference](/docs/api/json-model).
 
 <Step>
 
-### Create the model once
+## Create the model once
 
 The model is the source of truth. Create it once (not on every render) and keep it:
 
@@ -65,7 +65,7 @@ layout each time.
 
 <Step>
 
-### Render the structure
+## Render the structure
 
 You own the recursion. `Dockable.Row` calls its child function for every child of the row: a
 tabset or a nested row. A tabset renders its tab strip (`TabList` › `Tab`) and marks its content
@@ -100,7 +100,7 @@ export function renderNode(child: TabSetNode | RowNode): ReactNode {
 
 <Step>
 
-### Render the panels
+## Render the panels
 
 Tab content does **not** live inside the tabset. `Dockable.Panels` (placed once, directly under
 the root) calls its child function for every tab whose content should render, and
@@ -136,7 +136,7 @@ export function TabContent({ tab }: { tab: TabNode }) {
 
 <Step>
 
-### Put it together, and give the root a size
+## Put it together, and give the root a size
 
 ```tsx title="app.tsx"
 "use client";
