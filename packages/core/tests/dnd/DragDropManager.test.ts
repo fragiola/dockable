@@ -456,6 +456,18 @@ describe("foreign drags and resets", () => {
         expect(s.manager.getIndicatorState().dragging).toBe(false);
     });
 
+    it("takes events that carry no types at all as the page's drag (synthetic events)", () => {
+        const s = setup();
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        const untyped = () => fakeDataTransfer([]);
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185, untyped()));
+        const over = dragEvent("dragover", 312, 185, untyped());
+        s.root.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(true);
+        s.root.dispatchEvent(dragEvent("drop", 312, 185, untyped()));
+        expect(children(s, "ts1")).toEqual(["t2", "t0"]);
+    });
+
     it("drops a stale drag state when a foreign drag arrives, instead of taking it over", () => {
         const s = setup();
         s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");

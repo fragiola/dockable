@@ -189,6 +189,16 @@ function hasOwnPayload(event: DragEventLike): boolean {
     return !!types && Array.from(types).includes(DRAG_TYPE);
 }
 
+/**
+ * A drag that is someone else's: it carries types, and not Dockable's. A drag that carries no
+ * types at all (a synthetic event, as FlexLayout's cross-window test helpers send) is taken as the
+ * page's drag, when there is one: a foreign drag always carries its data's types.
+ */
+function isForeignDrag(event: DragEventLike): boolean {
+    const types = event.dataTransfer?.types;
+    return !!types && types.length > 0 && !hasOwnPayload(event);
+}
+
 /** A command a drop runs, as the manager prepares it. */
 type DropCommand =
     | { command: "tab.move"; payload: PayloadOf<AnyTypes, "tab.move"> }
@@ -624,7 +634,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     /** `dragenter` on the layout root */
     onDragEnterRaw = (event: DragEventLike) => {
         const state = DragDropManager.dragState;
-        if (state && state.source !== "external" && !hasOwnPayload(event)) {
+        if (state && state.source !== "external" && isForeignDrag(event)) {
             // a drag that is not Dockable's while a stale state lingers (its dragend never came)
             state.mainEngine.getDragDropManager().onDragEnded();
         }
@@ -687,7 +697,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         if (!state) {
             return false;
         }
-        if (event && state.source !== "external" && !hasOwnPayload(event)) {
+        if (event && state.source !== "external" && isForeignDrag(event)) {
             return false; // not Dockable's drag
         }
         if (sameModel(state.mainEngine.model, this.engine.model)) {
