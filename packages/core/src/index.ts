@@ -134,7 +134,12 @@ export type {
     WindowJson,
 } from "./state/json";
 export { LayoutValidationError, validateLayout } from "./state/load";
-export { createModel, type Model, type ModelOptions } from "./state/model";
+export {
+    createModel,
+    type Model,
+    type ModelHandle,
+    type ModelOptions,
+} from "./state/model";
 export {
     type AnyTypes,
     type BorderDataOf,

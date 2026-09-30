@@ -38,20 +38,19 @@ export function Panels<T extends DockableTypes = AnyTypes>(
     }
     const model = typedModel<T>(erased);
 
-    // every layout, including those whose panel layer is not mounted (yet): the content of a tab
-    // moving to a window that is still opening must stay mounted
-    const all = [
-        ...model.tabs(),
-        ...model.state.windows.flatMap((window) => model.tabs(window.id)),
-    ];
-    const tabs = all.filter((tab) =>
-        engine.shouldRender(
-            tab.id,
-            typeof renderOnDemand === "function"
-                ? renderOnDemand(tab)
-                : renderOnDemand,
-        ),
-    );
+    // every layout's tabs (`tabs()` with no layout), including those whose panel layer is not
+    // mounted (yet): the content of a tab moving to a window that is still opening must stay
+    // mounted
+    const tabs = model
+        .tabs()
+        .filter((tab) =>
+            engine.shouldRender(
+                tab.id,
+                typeof renderOnDemand === "function"
+                    ? renderOnDemand(tab)
+                    : renderOnDemand,
+            ),
+        );
     tabs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
     return (

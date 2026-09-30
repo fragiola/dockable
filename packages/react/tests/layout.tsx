@@ -1,9 +1,9 @@
-import {
-    type LayoutJson,
-    type Model,
-    type RowNode,
-    type TabOf,
-    type TabsetNode,
+import type {
+    LayoutJson,
+    Model,
+    RowNode,
+    TabOf,
+    TabsetNode,
 } from "@fragiola/dockable";
 import * as React from "react";
 import { Dockable, type RootProps } from "../src";
@@ -105,8 +105,11 @@ export function Layout({ model, children, ...rest }: LayoutProps) {
 export function recordCommands(
     model: Model<Types>,
 ): { command: string; payload: unknown; transient: boolean }[] {
-    const commands: { command: string; payload: unknown; transient: boolean }[] =
-        [];
+    const commands: {
+        command: string;
+        payload: unknown;
+        transient: boolean;
+    }[] = [];
     model.use((ctx, next) => {
         if (!ctx.dryRun && !ctx.inBatch) {
             commands.push({

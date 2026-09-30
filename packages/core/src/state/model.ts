@@ -66,6 +66,17 @@ export interface ModelOptions<T extends DockableTypes = AnyTypes> {
 }
 
 /**
+ * A model of any registry, where only its identity and its untyped side matter (a drag group's
+ * transfers join models of different registries): every `Model<T>` is one. Compare it (`===`)
+ * with your own models; `dispatch` runs a command given as JSON.
+ */
+export interface ModelHandle {
+    dispatch(input: unknown): CommandResult<unknown>;
+    commands(): readonly CommandInfo[];
+    toJSON(): unknown;
+}
+
+/**
  * The layout model: an immutable state tree changed only by commands. Queries read the current
  * state; `run` (typed) and `dispatch` (untrusted JSON) apply commands through the middleware
  * chain; `subscribe` receives one event per commit. `run`, `dispatch`, `can`, `use` and `subscribe`
@@ -85,7 +96,10 @@ export interface Model<T extends DockableTypes = AnyTypes> {
     root(layout?: string): RowNode<T> | undefined;
     /** a popout window's layout */
     windowLayout(id: string): WindowLayout<T> | undefined;
-    /** every tab (of a layout when given, the main layout's including its borders), in tree order */
+    /**
+     * the tabs of a layout when given (the main layout's include its borders'), else every tab of
+     * the model, the windows' included; in tree order
+     */
     tabs(layout?: string): TabOf<T>[];
     /** every tabset of a layout (default the main layout), in tree order */
     tabsets(layout?: string): TabsetNode<T>[];

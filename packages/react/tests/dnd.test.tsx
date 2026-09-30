@@ -1,9 +1,14 @@
-import { DragDropManager, Model, type TabNode } from "@fragiola/dockable";
+import {
+    createModel,
+    DRAG_TYPE,
+    DragDropManager,
+    type LayoutJson,
+} from "@fragiola/dockable";
 import { act, render, screen } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Dockable, useDockable } from "../src";
-import { Layout, twoTabsets } from "./layout";
+import { Layout, type Types, twoTabsets } from "./layout";
 
 const path = (p: string) => {
     const element = document.querySelector<HTMLElement>(
@@ -13,50 +18,63 @@ const path = (p: string) => {
     return element;
 };
 
+function freshModel(json: LayoutJson<Types> = twoTabsets) {
+    return createModel<Types>(structuredClone(json));
+}
+
+/** A fake DataTransfer: the types a drag carries (a Dockable drag carries DRAG_TYPE), and spies. */
+function fakeDataTransfer(types: string[] = [DRAG_TYPE]) {
+    return {
+        types,
+        setData: vi.fn((type: string, _data: string) => {
+            if (!types.includes(type)) types.push(type);
+        }),
+        setDragImage: vi.fn<(image: Element, x: number, y: number) => void>(),
+        effectAllowed: "none",
+        dropEffect: "none",
+    };
+}
+
 // jsdom has no DragEvent: a MouseEvent with a fake dataTransfer carries what the core reads
-function dragEvent(type: string, x: number, y: number) {
+function dragEvent(
+    type: string,
+    x: number,
+    y: number,
+    dataTransfer = fakeDataTransfer(),
+) {
     const event = new MouseEvent(type, {
         bubbles: true,
         cancelable: true,
         clientX: x,
         clientY: y,
     });
-    Object.defineProperty(event, "dataTransfer", {
-        value: {
-            setData: vi.fn(),
-            setDragImage: vi.fn(),
-            effectAllowed: "none",
-            dropEffect: "none",
-        },
-    });
+    Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
     return event as unknown as DragEvent;
 }
 
 afterEach(() => {
     if (DragDropManager.getDragState()) {
         act(() => {
-            DragDropManager.getDragState()
-                ?.mainEngine.getDragDropManager()
-                .onDragEnded();
+            DragDropManager.endDrag();
         });
     }
 });
 
 describe("Dockable.Tab dragging", () => {
     it("is draggable only when the tab enables drag", () => {
-        const model = Model.fromJson({
-            global: {},
-            layout: {
+        const model = freshModel({
+            version: 1,
+            root: {
                 type: "row",
                 children: [
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", id: "a", name: "A" },
+                            { id: "a", component: "test", data: { name: "A" } },
                             {
-                                type: "tab",
                                 id: "b",
-                                name: "B",
+                                component: "test",
+                                data: { name: "B" },
                                 enableDrag: false,
                             },
                         ],
@@ -70,19 +88,23 @@ describe("Dockable.Tab dragging", () => {
     });
 
     it("starts a drag on dragstart, marking the tab and the root as dragging", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         render(<Layout model={model} />);
         const tab = path("/ts0/tb1");
+        const dataTransfer = fakeDataTransfer([]);
         act(() => {
-            tab.dispatchEvent(dragEvent("dragstart", 10, 10));
+            tab.dispatchEvent(dragEvent("dragstart", 10, 10, dataTransfer));
         });
-        expect(DragDropManager.getDragState()?.dragNode?.getId()).toBe("t1");
+        const subject = DragDropManager.getDragState()?.subjectOf(model);
+        expect(subject?.kind === "tab" ? subject.tab.id : undefined).toBe("t1");
+        // the drag carries Dockable's type, so the layouts claim its events
+        expect(dataTransfer.types).toContain(DRAG_TYPE);
         expect(tab).toHaveAttribute("data-dragging", "");
         expect(path("/layout")).toHaveAttribute("data-dragging", "");
         expect(path("/ts0/tb0")).not.toHaveAttribute("data-dragging");
 
         act(() => {
-            tab.dispatchEvent(dragEvent("dragend", 10, 10));
+            tab.dispatchEvent(dragEvent("dragend", 10, 10, dataTransfer));
         });
         expect(DragDropManager.getDragState()).toBeUndefined();
         expect(tab).not.toHaveAttribute("data-dragging");
@@ -90,12 +112,16 @@ describe("Dockable.Tab dragging", () => {
     });
 
     it("cancels the dragstart of a tab that cannot be dragged", () => {
-        const model = Model.fromJson({
-            global: { tabEnableDrag: false },
-            layout: {
+        const model = freshModel({
+            version: 1,
+            defaults: { tab: { enableDrag: false } },
+            root: {
                 type: "row",
                 children: [
-                    { type: "tabset", children: [{ type: "tab", name: "A" }] },
+                    {
+                        type: "tabset",
+                        children: [{ component: "test", data: { name: "A" } }],
+                    },
                 ],
             },
         });
@@ -109,7 +135,7 @@ describe("Dockable.Tab dragging", () => {
 
 describe("Dockable.DropIndicator", () => {
     function DragFrom({ tabId }: { tabId: string }) {
-        const { engine, model } = useDockable();
+        const { engine } = useDockable<Types>();
         return (
             <button
                 type="button"
@@ -117,17 +143,14 @@ describe("Dockable.DropIndicator", () => {
                 onClick={() =>
                     engine
                         .getDragDropManager()
-                        .setDragNode(
-                            dragEvent("dragstart", 0, 0),
-                            model.getNodeById(tabId) as TabNode,
-                        )
+                        .startDrag(dragEvent("dragstart", 0, 0), tabId)
                 }
             />
         );
     }
 
     it("is hidden outside a drag and follows the computed drop rect during one", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         render(
             <Layout model={model}>
                 <Dockable.DropIndicator data-testid="indicator" />
@@ -182,8 +205,30 @@ describe("Dockable.DropIndicator", () => {
         expect(indicator).not.toHaveAttribute("data-dragging");
     });
 
+    it("ignores drag events that do not carry Dockable's type", () => {
+        const model = freshModel();
+        render(
+            <Layout model={model}>
+                <Dockable.DropIndicator data-testid="indicator" />
+                <DragFrom tabId="t2" />
+            </Layout>,
+        );
+        act(() => {
+            screen.getByTestId("start").click();
+        });
+        const root = path("/layout");
+        const foreign = fakeDataTransfer(["text/plain"]);
+        act(() => {
+            root.dispatchEvent(dragEvent("dragenter", 50, 50, foreign));
+            root.dispatchEvent(dragEvent("dragover", 50, 50, foreign));
+        });
+        const indicator = screen.getByTestId("indicator");
+        expect(indicator).not.toHaveAttribute("data-visible");
+        expect(indicator.style.display).toBe("none");
+    });
+
     it("supports render and children", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         render(
             <Layout model={model}>
                 <Dockable.DropIndicator
@@ -198,7 +243,7 @@ describe("Dockable.DropIndicator", () => {
     });
 
     it("renders no text of its own", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         render(
             <Dockable.Root model={model}>
                 <Dockable.DropIndicator data-testid="indicator" />

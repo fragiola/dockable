@@ -1,12 +1,13 @@
 import type { LayoutEngine } from "../engine/LayoutEngine";
 import type { DockLocation } from "../geometry/dock";
 import type { TabInit } from "../state/json";
-import type { Model } from "../state/model";
+import type { Model, ModelHandle } from "../state/model";
 import type { AnyTypes } from "../state/types";
 
 /** Where a transferred tab was, or where it went. */
 export interface TransferEnd {
-    model: Model<AnyTypes>;
+    /** the model (compare it with yours: `transfer.from.model === a`) */
+    model: ModelHandle;
     /** the layout the tab was (or is now) in */
     layoutId: string;
     /** its tabset (or border), when it has one */
@@ -33,8 +34,8 @@ export type TransferListener = (transfer: Transfer) => void;
 export interface TransferMeta {
     transfer: {
         tabId: string;
-        from: Model<AnyTypes>;
-        to: Model<AnyTypes>;
+        from: ModelHandle;
+        to: ModelHandle;
     };
 }
 
@@ -42,8 +43,8 @@ export interface TransferMeta {
 export interface TransferRequest {
     /** the tab's id in `from` */
     tab: string;
-    from: Model<AnyTypes>;
-    to: Model<AnyTypes>;
+    from: ModelHandle;
+    to: ModelHandle;
     /** a tabset, row, border or layout of `to` */
     target: string;
     location?: DockLocation | undefined;
@@ -88,7 +89,7 @@ export class DragGroup {
     }
 
     /** The main engine of `model` in this group, if it joined. */
-    engineOf(model: Model<AnyTypes>): LayoutEngine<AnyTypes> | undefined {
+    engineOf(model: ModelHandle): LayoutEngine<AnyTypes> | undefined {
         for (const engine of this.engines) {
             if (engine.model === model) {
                 return engine;

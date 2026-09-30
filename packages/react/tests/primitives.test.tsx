@@ -1,20 +1,30 @@
 import {
-    type Action,
-    Actions,
-    createLayoutEngine,
+    createModel,
     DockableLabel,
-    DockLocation,
+    type LayoutEngine,
     MOVEABLE_ATTRIBUTE,
-    Model,
     type RowNode,
-    type TabSetNode,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Dockable, useDockable } from "../src";
+import {
+    Dockable,
+    type RenderedProps,
+    type TabState,
+    useDockable,
+} from "../src";
 import { useDockableContext } from "../src/context";
-import { Layout, mounts, renderNode, renderPanel, twoTabsets } from "./layout";
+import {
+    Layout,
+    mounts,
+    recordCommands,
+    renderNode,
+    renderPanel,
+    type Types,
+    twoTabsets,
+} from "./layout";
 
 const path = (p: string) =>
     document.querySelector<HTMLElement>(`[data-layout-path="${p}"]`);
@@ -23,7 +33,19 @@ const mustPath = (p: string) => {
     if (!element) throw new Error(`no element at ${p}`);
     return element;
 };
-const fresh = () => Model.fromJson(structuredClone(twoTabsets));
+const fresh = () => createModel<Types>(structuredClone(twoTabsets));
+
+/** a Row child function that renders only tabsets, with bare tabs (no text) */
+function bareTabset(child: TabsetNode | RowNode) {
+    return child.type === "tabset" ? (
+        <Dockable.TabSet node={child}>
+            <Dockable.TabList>
+                {(tab) => <Dockable.Tab node={tab} />}
+            </Dockable.TabList>
+            <Dockable.TabSetContent />
+        </Dockable.TabSet>
+    ) : null;
+}
 
 beforeEach(() => {
     mounts.clear();
@@ -44,8 +66,6 @@ describe("composition and ARIA", () => {
         const tab0 = mustPath("/ts0/tb0");
         expect(tab0).toHaveAttribute("role", "tab");
         expect(tab0).toHaveAttribute("aria-selected", "true");
-        expect(tab0).toHaveAttribute("aria-controls", "dockable-tab-t0");
-        expect(tab0).toHaveAttribute("id", "dockable-tabbutton-t0");
         expect(tab0).toHaveAttribute("tabindex", "0");
         expect(tab0).toHaveAttribute("aria-keyshortcuts", "Control+Delete");
         expect(mustPath("/ts0/tb1")).toHaveAttribute("aria-selected", "false");
@@ -53,11 +73,12 @@ describe("composition and ARIA", () => {
 
         const panel = mustPath("/ts0/t0");
         expect(panel).toHaveAttribute("role", "tabpanel");
-        expect(panel).toHaveAttribute("id", "dockable-tab-t0");
-        expect(panel).toHaveAttribute(
-            "aria-labelledby",
-            "dockable-tabbutton-t0",
-        );
+        // the DOM ids are scoped per root: the tab and its panel name each other
+        expect(tab0.id).not.toBe("");
+        expect(panel.id).not.toBe("");
+        expect(tab0).toHaveAttribute("aria-controls", panel.id);
+        expect(panel).toHaveAttribute("aria-labelledby", tab0.id);
+        expect(mustPath("/ts0/tb1").id).not.toBe(tab0.id);
 
         const splitter = mustPath("/s0");
         expect(splitter).toHaveAttribute("role", "separator");
@@ -98,13 +119,13 @@ describe("composition and ARIA", () => {
         expect(mustPath("/ts0")).not.toHaveAttribute("data-active");
 
         act(() => {
-            model.doAction(Actions.setActiveTabset("ts0"));
+            model.run("tabset.activate", { tabset: "ts0" });
         });
         expect(mustPath("/ts0")).toHaveAttribute("data-active", "");
         expect(mustPath("/ts1")).not.toHaveAttribute("data-active");
 
         act(() => {
-            model.doAction(Actions.maximizeToggle("ts1"));
+            model.run("tabset.maximize", { tabset: "ts1", value: true });
         });
         expect(mustPath("/ts1")).toHaveAttribute("data-maximized", "");
         expect(mustPath("/layout")).toHaveAttribute("data-maximized", "");
@@ -112,9 +133,10 @@ describe("composition and ARIA", () => {
     });
 
     it("marks an empty tabset", () => {
-        const model = Model.fromJson({
-            global: { tabSetEnableDeleteWhenEmpty: false },
-            layout: {
+        const model = createModel<Types>({
+            version: 1,
+            defaults: { tabset: { deleteWhenEmpty: false } },
+            root: {
                 type: "row",
                 children: [{ type: "tabset", id: "empty", children: [] }],
             },
@@ -128,16 +150,7 @@ describe("composition and ARIA", () => {
         const model = fresh();
         render(
             <Dockable.Root model={model} data-testid="root">
-                <Dockable.Row>
-                    {(child) => (
-                        <Dockable.TabSet node={child as TabSetNode}>
-                            <Dockable.TabList>
-                                {(tab) => <Dockable.Tab node={tab} />}
-                            </Dockable.TabList>
-                            <Dockable.TabSetContent />
-                        </Dockable.TabSet>
-                    )}
-                </Dockable.Row>
+                <Dockable.Row>{bareTabset}</Dockable.Row>
                 <Dockable.Panels>
                     {(tab) => <Dockable.Panel node={tab} />}
                 </Dockable.Panels>
@@ -171,34 +184,31 @@ describe("render, refs and props", () => {
     });
 
     it("calls render={(props, state) => ...} with the props and the state", () => {
-        const renderTab = vi.fn(
-            (
-                props: React.HTMLAttributes<HTMLElement>,
-                state: { selected: boolean },
-            ) => (
-                <button
-                    type="button"
-                    {...props}
-                    data-was-selected={String(state.selected)}
-                />
-            ),
-        );
+        const renderTab = vi.fn((props: RenderedProps, state: TabState) => (
+            <button
+                type="button"
+                {...props}
+                data-was-selected={String(state.selected)}
+            />
+        ));
         const model = fresh();
         render(
             <Dockable.Root model={model}>
                 <Dockable.Row>
-                    {(child) => (
-                        <Dockable.TabSet node={child as TabSetNode}>
-                            <Dockable.TabList>
-                                {(tab) => (
-                                    <Dockable.Tab
-                                        node={tab}
-                                        render={renderTab}
-                                    />
-                                )}
-                            </Dockable.TabList>
-                        </Dockable.TabSet>
-                    )}
+                    {(child) =>
+                        child.type === "tabset" ? (
+                            <Dockable.TabSet node={child}>
+                                <Dockable.TabList>
+                                    {(tab) => (
+                                        <Dockable.Tab
+                                            node={tab}
+                                            render={renderTab}
+                                        />
+                                    )}
+                                </Dockable.TabList>
+                            </Dockable.TabSet>
+                        ) : null
+                    }
                 </Dockable.Row>
             </Dockable.Root>,
         );
@@ -232,23 +242,25 @@ describe("render, refs and props", () => {
         render(
             <Dockable.Root model={model}>
                 <Dockable.Row>
-                    {(child) => (
-                        <Dockable.TabSet node={child as TabSetNode}>
-                            <Dockable.TabList>
-                                {(tab) => (
-                                    <Dockable.Tab
-                                        node={tab}
-                                        className={(s) =>
-                                            s.selected ? "on" : "off"
-                                        }
-                                        style={(s) => ({
-                                            opacity: s.selected ? 1 : 0.5,
-                                        })}
-                                    />
-                                )}
-                            </Dockable.TabList>
-                        </Dockable.TabSet>
-                    )}
+                    {(child) =>
+                        child.type === "tabset" ? (
+                            <Dockable.TabSet node={child}>
+                                <Dockable.TabList>
+                                    {(tab) => (
+                                        <Dockable.Tab
+                                            node={tab}
+                                            className={(s) =>
+                                                s.selected ? "on" : "off"
+                                            }
+                                            style={(s) => ({
+                                                opacity: s.selected ? 1 : 0.5,
+                                            })}
+                                        />
+                                    )}
+                                </Dockable.TabList>
+                            </Dockable.TabSet>
+                        ) : null
+                    }
                 </Dockable.Row>
             </Dockable.Root>,
         );
@@ -259,33 +271,37 @@ describe("render, refs and props", () => {
 
     it("composes consumer handlers after the internal ones", () => {
         const calls: string[] = [];
-        const onAction = (action: Action) => {
-            calls.push(`action:${action.type}`);
-            return action;
-        };
         const model = fresh();
+        model.use((ctx, next) => {
+            if (!ctx.dryRun) {
+                calls.push(`command:${ctx.command}`);
+            }
+            return next();
+        });
         render(
-            <Dockable.Root model={model} onAction={onAction}>
+            <Dockable.Root model={model}>
                 <Dockable.Row>
-                    {(child) => (
-                        <Dockable.TabSet node={child as TabSetNode}>
-                            <Dockable.TabList>
-                                {(tab) => (
-                                    <Dockable.Tab
-                                        node={tab}
-                                        onClick={() =>
-                                            calls.push(`click:${tab.getId()}`)
-                                        }
-                                    />
-                                )}
-                            </Dockable.TabList>
-                        </Dockable.TabSet>
-                    )}
+                    {(child) =>
+                        child.type === "tabset" ? (
+                            <Dockable.TabSet node={child}>
+                                <Dockable.TabList>
+                                    {(tab) => (
+                                        <Dockable.Tab
+                                            node={tab}
+                                            onClick={() =>
+                                                calls.push(`click:${tab.id}`)
+                                            }
+                                        />
+                                    )}
+                                </Dockable.TabList>
+                            </Dockable.TabSet>
+                        ) : null
+                    }
                 </Dockable.Row>
             </Dockable.Root>,
         );
         fireEvent.click(mustPath("/ts0/tb1"));
-        expect(calls).toEqual([`action:${Actions.SELECT_TAB}`, "click:t1"]);
+        expect(calls).toEqual(["command:tab.select", "click:t1"]);
     });
 
     it("keeps structural style keys over the consumer's", () => {
@@ -396,7 +412,7 @@ describe("ref stability", () => {
             </Dockable.Root>,
         );
         act(() => {
-            model.doAction(Actions.selectTab("t1"));
+            model.run("tab.select", { tab: "t1" });
         });
         expect(elementRef.current).toBe(mustPath("/layout"));
         // the child's layout effect patches attachRoot before the root's ref attaches: that first
@@ -419,7 +435,7 @@ describe("inline callback refs", () => {
         const { rerender } = render(<App />);
         rerender(<App />);
         act(() => {
-            model.doAction(Actions.selectTab("t1"));
+            model.run("tab.select", { tab: "t1" });
         });
         expect(calls.filter((el) => el !== null)).toHaveLength(1);
         expect(calls).not.toContain(null);
@@ -427,30 +443,28 @@ describe("inline callback refs", () => {
 });
 
 describe("interaction", () => {
-    it("selects a tab on click through onAction", () => {
-        const onAction = vi.fn((action: Action) => action);
+    it("selects a tab on click with tab.select", () => {
         const model = fresh();
-        render(<Layout model={model} onAction={onAction} />);
+        const commands = recordCommands(model);
+        render(<Layout model={model} />);
         fireEvent.click(mustPath("/ts0/tb1"));
-        expect(onAction).toHaveBeenCalledWith(
-            expect.objectContaining({
-                type: Actions.SELECT_TAB,
-                data: { tabNode: "t1" },
-            }),
-        );
+        expect(commands).toEqual([
+            { command: "tab.select", payload: { tab: "t1" }, transient: false },
+        ]);
         expect(mustPath("/ts0/tb1")).toHaveAttribute("aria-selected", "true");
     });
 
     it("moves focus with the arrow keys, Home and End, and selects with Enter", () => {
-        const onAction = vi.fn((action: Action) => action);
-        render(<Layout model={fresh()} onAction={onAction} />);
+        const model = fresh();
+        const commands = recordCommands(model);
+        render(<Layout model={model} />);
         const tab0 = mustPath("/ts0/tb0");
         const tab1 = mustPath("/ts0/tb1");
         tab0.focus();
 
         fireEvent.keyDown(tab0, { key: "ArrowRight" });
         expect(document.activeElement).toBe(tab1);
-        expect(onAction).not.toHaveBeenCalled(); // manual activation
+        expect(commands).toEqual([]); // manual activation
 
         fireEvent.keyDown(tab1, { key: "Home" });
         expect(document.activeElement).toBe(tab0);
@@ -460,9 +474,9 @@ describe("interaction", () => {
         expect(document.activeElement).toBe(tab0);
 
         fireEvent.keyDown(tab1, { key: "Enter" });
-        expect(onAction).toHaveBeenCalledWith(
-            expect.objectContaining({ type: Actions.SELECT_TAB }),
-        );
+        expect(commands).toEqual([
+            { command: "tab.select", payload: { tab: "t1" }, transient: false },
+        ]);
         expect(tab1).toHaveAttribute("aria-selected", "true");
     });
 
@@ -473,7 +487,7 @@ describe("interaction", () => {
             key: "Delete",
             ctrlKey: true,
         });
-        expect(model.getNodeById("t1")).toBeUndefined();
+        expect(model.get("t1")).toBeUndefined();
     });
 
     it("moves focus to the previous tab when the last tab is closed", () => {
@@ -482,7 +496,7 @@ describe("interaction", () => {
         const last = mustPath("/ts0/tb1");
         last.focus();
         fireEvent.keyDown(last, { key: "Delete", ctrlKey: true });
-        expect(model.getNodeById("t1")).toBeUndefined();
+        expect(model.get("t1")).toBeUndefined();
         expect(document.activeElement).toBe(mustPath("/ts0/tb0"));
     });
 
@@ -490,19 +504,20 @@ describe("interaction", () => {
         const model = fresh();
         render(<Layout model={model} />);
         fireEvent.pointerDown(mustPath("/ts1"), { button: 0 });
-        expect(model.getActiveTabset()?.getId()).toBe("ts1");
+        expect(model.activeTabset()?.id).toBe("ts1");
     });
 
-    it("dispatches adjustWeights from the splitter keyboard", () => {
-        const onAction = vi.fn((action: Action) => action);
-        render(<Layout model={fresh()} onAction={onAction} />);
-        // jsdom measures everything as 100x100, so give the row real geometry to split
+    it("runs row.resize from the splitter keyboard", () => {
+        const model = fresh();
+        const commands = recordCommands(model);
+        render(<Layout model={model} />);
         const splitter = mustPath("/s0");
         fireEvent.keyDown(splitter, { key: "ArrowRight" });
-        const adjust = onAction.mock.calls
-            .map(([a]) => a)
-            .find((a) => a.type === Actions.ADJUST_WEIGHTS);
-        expect(adjust).toBeDefined();
+        const resize = commands.find((c) => c.command === "row.resize");
+        expect(resize).toMatchObject({
+            payload: { row: "row" },
+            transient: false,
+        });
     });
 });
 
@@ -521,10 +536,10 @@ describe("panels and content", () => {
 
         rerender(<Layout model={model} />);
         act(() => {
-            model.doAction(Actions.selectTab("t1"));
+            model.run("tab.select", { tab: "t1" });
         });
         act(() => {
-            model.doAction(Actions.selectTab("t0"));
+            model.run("tab.select", { tab: "t0" });
         });
 
         expect(
@@ -542,9 +557,12 @@ describe("panels and content", () => {
         const content = screen.getByTestId("content-t2");
 
         act(() => {
-            model.doAction(
-                Actions.moveNode("t2", "ts0", DockLocation.CENTER, 0),
-            );
+            model.run("tab.move", {
+                tab: "t2",
+                to: "ts0",
+                location: "center",
+                index: 0,
+            });
         });
 
         expect(screen.getByTestId("content-t2")).toBe(content);
@@ -554,37 +572,35 @@ describe("panels and content", () => {
         expect(mustPath("/ts0/t0")).toContainElement(content);
     });
 
-    it("keeps content state through a model swap (Model.fromJson with the previous model)", () => {
-        // what an undo/redo does: render a new model rebuilt from saved JSON, adopting the old one
-        let setModel: (model: Model) => void = () => {};
-        function Swappable({ initial }: { initial: Model }) {
-            const [model, set] = React.useState(initial);
-            setModel = set;
-            return <Layout model={model} />;
-        }
-        const first = fresh();
-        render(<Swappable initial={first} />);
+    it("keeps content state through layout.load of saved layouts (undo and redo)", () => {
+        // what an undo/redo does: load saved JSON into the same model, keeping the tab ids
+        const model = fresh();
+        render(<Layout model={model} />);
         fireEvent.click(screen.getByTestId("inc-t2"));
         fireEvent.change(screen.getByTestId("input-t2"), {
             target: { value: "typed" },
         });
         const content = screen.getByTestId("content-t2");
-        const saved = first.toJson();
+        const saved = model.toJSON();
 
         act(() => {
-            first.doAction(
-                Actions.moveNode("t2", "ts0", DockLocation.CENTER, -1),
-            );
+            model.run("tab.move", {
+                tab: "t2",
+                to: "ts0",
+                location: "center",
+                index: -1,
+            });
         });
-        const moved = first.toJson();
-        const undone = Model.fromJson(saved, first);
+        const moved = model.toJSON();
         act(() => {
-            setModel(undone); // "undo"
+            model.run("layout.load", { layout: saved }); // "undo"
         });
+        expect(mustPath("/ts1/t0")).toContainElement(content);
         expect(screen.getByTestId("content-t2")).toBe(content);
         act(() => {
-            setModel(Model.fromJson(moved, undone)); // "redo"
+            model.run("layout.load", { layout: moved }); // "redo"
         });
+        expect(mustPath("/ts0/t2")).toContainElement(content);
 
         expect(screen.getByTestId("content-t2")).toBe(content);
         expect(screen.getByTestId("inc-t2")).toHaveTextContent("count 1");
@@ -593,34 +609,37 @@ describe("panels and content", () => {
     });
 
     it("moves a panel between two layers in one document without remounting the content", () => {
-        const model = fresh();
+        const model = createModel<Types>({
+            ...structuredClone(twoTabsets),
+            defaults: { tab: { enablePopout: true } },
+        });
         const layerHost = document.body.appendChild(
             document.createElement("div"),
         );
+        // the popout's native window: an iframe's, so nothing opens
+        const frame = document.body.appendChild(
+            document.createElement("iframe"),
+        );
+        const popoutWindow = frame.contentWindow;
+        if (!popoutWindow) throw new Error("no window");
 
-        // stands in for the popout's layer: a second panel layer, in the same document
+        // stands in for the popout's layer: the window layout's engine attached to a second panel
+        // layer, in the same document
         function SecondLayer() {
             const { setLayer, engine } = useDockableContext("test");
-            const engines = React.useRef(
-                new Map<string, ReturnType<typeof createLayoutEngine>>(),
-            );
-            const layoutIds = [...model.getLayouts().keys()].filter(
-                (id) => id !== Model.MAIN_LAYOUT_ID,
-            );
+            const attached = React.useRef(new Set<LayoutEngine>());
             React.useLayoutEffect(() => {
-                for (const layoutId of layoutIds) {
-                    if (engines.current.has(layoutId)) {
+                for (const window of model.state.windows) {
+                    const sub = engine
+                        .getPopoutManager()
+                        .getLayoutEngine(window.id);
+                    if (!sub || attached.current.has(sub)) {
                         continue;
                     }
-                    const sub = createLayoutEngine({
-                        model,
-                        layoutId,
-                        mainEngine: engine,
-                    });
-                    engines.current.set(layoutId, sub);
+                    attached.current.add(sub);
                     sub.attachRoot(layerHost);
-                    setLayer(layoutId, {
-                        layoutId,
+                    setLayer(window.id, {
+                        layoutId: window.id,
                         element: layerHost,
                         engine: sub,
                     });
@@ -630,7 +649,11 @@ describe("panels and content", () => {
         }
 
         render(
-            <Layout model={model}>
+            <Layout
+                model={model}
+                supportsPopout
+                openWindow={() => popoutWindow}
+            >
                 <SecondLayer />
             </Layout>,
         );
@@ -639,7 +662,8 @@ describe("panels and content", () => {
         const moveable = content.closest(`[${MOVEABLE_ATTRIBUTE}]`);
 
         act(() => {
-            model.doAction(Actions.popoutTab("t2", "window"));
+            const result = model.run("tab.popout", { tab: "t2" });
+            expect(result.ok).toBe(true);
         });
 
         expect(layerHost).toContainElement(content);
@@ -647,6 +671,7 @@ describe("panels and content", () => {
         expect(screen.getByTestId("inc-t2")).toHaveTextContent("count 1");
         expect(mounts.get("t2")).toBe(1);
         layerHost.remove();
+        frame.remove();
     });
 
     it("renders only selected (or already rendered) tabs with render on demand", () => {
@@ -664,7 +689,7 @@ describe("StrictMode", () => {
         const error = vi.spyOn(console, "error");
         const warn = vi.spyOn(console, "warn");
         const model = fresh();
-        let engineRef: ReturnType<typeof useDockable>["engine"] | undefined;
+        let engineRef: LayoutEngine | undefined;
         function Probe() {
             engineRef = useDockable().engine;
             return null;
@@ -683,7 +708,6 @@ describe("StrictMode", () => {
         expect(registrations?.measurables.size).toBe(10);
         expect(registrations?.tabPanels.size).toBe(2);
         expect(registrations?.splitters.size).toBe(1);
-        expect(model.getMainLayout().getController()).toBe(engineRef);
         expect(
             document.querySelectorAll(`[${MOVEABLE_ATTRIBUTE}]`),
         ).toHaveLength(2);
@@ -692,27 +716,31 @@ describe("StrictMode", () => {
 });
 
 describe("hooks", () => {
-    it("useDockable dispatches through onAction", () => {
-        const onAction = vi.fn((action: Action) => action);
-        function PopButton() {
-            const { engine } = useDockable();
+    it("useDockable runs commands through the model's middleware", () => {
+        const model = fresh();
+        const commands = recordCommands(model);
+        function SelectButton() {
+            const { run } = useDockable<Types>();
             return (
                 <button
                     type="button"
                     data-testid="select"
-                    onClick={() => engine.doAction(Actions.selectTab("t1"))}
+                    onClick={() => run("tab.select", { tab: "t1" })}
                 >
                     select
                 </button>
             );
         }
         render(
-            <Layout model={fresh()} onAction={onAction}>
-                <PopButton />
+            <Layout model={model}>
+                <SelectButton />
             </Layout>,
         );
         fireEvent.click(screen.getByTestId("select"));
-        expect(onAction).toHaveBeenCalledTimes(1);
+        expect(commands).toEqual([
+            { command: "tab.select", payload: { tab: "t1" }, transient: false },
+        ]);
+        expect(mustPath("/ts0/tb1")).toHaveAttribute("aria-selected", "true");
     });
 
     it("Row accepts renderSplitter and splitter={false}", () => {
@@ -733,29 +761,36 @@ describe("hooks", () => {
         render(
             <Dockable.Root model={model}>
                 <Dockable.Row splitter={false}>{renderNode}</Dockable.Row>
-                <Dockable.Panels>{renderPanel}</Dockable.Panels>
+                <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
             </Dockable.Root>,
         );
         expect(screen.queryByRole("separator")).toBeNull();
     });
 
     it("renders nested rows through the child function", () => {
-        const model = Model.fromJson({
-            global: {},
-            layout: {
+        const model = createModel<Types>({
+            version: 1,
+            root: {
                 type: "row",
                 children: [
-                    { type: "tabset", children: [{ type: "tab", name: "A" }] },
+                    {
+                        type: "tabset",
+                        children: [{ component: "test", data: { name: "A" } }],
+                    },
                     {
                         type: "row",
                         children: [
                             {
                                 type: "tabset",
-                                children: [{ type: "tab", name: "B" }],
+                                children: [
+                                    { component: "test", data: { name: "B" } },
+                                ],
                             },
                             {
                                 type: "tabset",
-                                children: [{ type: "tab", name: "C" }],
+                                children: [
+                                    { component: "test", data: { name: "C" } },
+                                ],
                             },
                         ],
                     },
@@ -769,6 +804,6 @@ describe("hooks", () => {
             "aria-orientation",
             "horizontal",
         );
-        expect((model.getRootRow() as RowNode).getChildren()).toHaveLength(2);
+        expect(model.root()?.children).toHaveLength(2);
     });
 });

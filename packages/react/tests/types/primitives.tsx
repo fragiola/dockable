@@ -2,7 +2,13 @@
 // children functions and hooks with no cast, and a `render` function's props fit any element.
 import { createModel, type RowNode, type TabsetNode } from "@fragiola/dockable";
 import type * as React from "react";
-import { Dockable, useDockable, useDragSource, useModelState } from "../../src";
+import {
+    Dockable,
+    useDockable,
+    useDragGroup,
+    useDragSource,
+    useModelState,
+} from "../../src";
 
 type Types = {
     tabs: {
@@ -170,3 +176,19 @@ export const zone = (
         }}
     />
 );
+
+// DragGroup: models of different registries meet in one group; transfers compare with yours
+type Other = { tabs: { note: { name: string; text: string } } };
+const other = createModel<Other>();
+
+export function Group() {
+    const group = useDragGroup();
+    group.transfer({ tab: "a", from: model, to: other, target: "main" });
+    group.onTransfer((transfer) => {
+        const intoOther: boolean = transfer.to.model === other;
+        const fromMain: boolean = transfer.from.model === model;
+        void intoOther;
+        void fromMain;
+    });
+    return null;
+}
