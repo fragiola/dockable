@@ -47,7 +47,7 @@ around on their own (`const { run } = model`).
 | member | returns | description |
 | --- | --- | --- |
 | `run(command, payload, options?)` | `CommandResult<ResultOf<T, C>>` | runs a command, typed by the registry `T`; commits and emits on success |
-| `dispatch(input)` | `CommandResult<unknown>` | runs a command given as untrusted JSON `{ command, payload, transient? }`, validated first |
+| `dispatch(input, options?)` | `CommandResult<unknown>` | runs a command given as untrusted JSON `{ command, payload, transient? }`, validated first; `options.meta` (`DispatchOptions`) is the app's |
 | `can(command, payload, options?)` | `CommandResult<ResultOf<T, C>>` | what `run` would return, without committing or emitting anything |
 
 None of them throws on bad input: an unknown name, a malformed payload, a missing node or a
@@ -85,7 +85,7 @@ The payload is still validated at run time, so a call from plain JavaScript (or 
 ### `dispatch`
 
 ```ts
-dispatch(input: unknown): CommandResult<unknown>;
+dispatch(input: unknown, options?: DispatchOptions): CommandResult<unknown>;
 ```
 
 For input you did not type yourself: a saved file, a message from another window or a server, an
@@ -141,7 +141,7 @@ The third argument of `run` and `can`.
 
 | field | type | description |
 | --- | --- | --- |
-| `transient` | `boolean` | a step of a continuous gesture (a splitter drag): the event is marked `transient: true`, so an undo stack can merge the steps. Only `row.resize`, `border.resize`, `window.configure` and a batch of those accept it; any other command returns `invalid_payload` at `/transient` |
+| `transient` | `boolean` | a step of a continuous gesture (a splitter drag): the event is marked `transient: true`, so an undo stack can merge the steps. Only `row.resize`, `border.resize`, `window.configure` and a batch of those accept it; any other command returns `invalid_payload` at `/transient` (inside a transient batch: at that step's `/commands/<i>/command`) |
 | `meta` | `Readonly<Record<string, unknown>>` | free-form information, passed to every middleware (`ctx.meta`) and listener (`event.meta`); a drag group marks the commands of a transfer with it, the undo kit its own loads |
 
 ## Results and errors

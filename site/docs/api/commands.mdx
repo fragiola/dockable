@@ -7,7 +7,7 @@ description: Every command the model runs, with its payload and result types and
 
 The model runs 23 commands. Each one takes a JSON payload, checked against its JSON Schema, and returns a `CommandResult`: `{ ok: true, value }`, or `{ ok: false, error }`. Run one with `model.run(name, payload)` (typed by your registry), or give it as untrusted JSON to `model.dispatch({ command, payload })`, which validates it first. `model.commands()` returns this same list with the schemas, ready to become tool definitions for an assistant.
 
-Every command can return `invalid_payload` (the payload does not match its schema, with the path of each problem), `vetoed` (a middleware refused it), `queued` (a middleware ran it while another command was running) and `middleware_error`; a command that names a node can return `not_found`, and one whose rules refuse the change returns `refused`. See [the command bus](/docs/api/command-bus) for the results, the middleware and the events.
+Every command can return `invalid_payload` (the payload does not match its schema, with the path of each problem), `vetoed` (a middleware refused it), `queued` (a middleware ran it while another command was running) and `middleware_error`; each command lists the ones its own rules add: `not_found` (a node it names is missing) and `refused` (a rule of the layout refuses the change). See [the command bus](/docs/api/command-bus) for the results, the middleware and the events.
 
 The payload types below use `T`, your registry (see [typed data](/docs/concepts/typed-data)): a tab's `data` is checked against its `component`.
 
@@ -45,6 +45,8 @@ Add a new tab. `component` names what the tab shows and `data` holds its state (
 | --- | --- | --- | --- |
 | `tab` | `string` | yes | the tab's id |
 
+**Errors**: `not_found`, `refused`, besides those every command can return.
+
 ```ts
 model.run("tab.add", {
     component: "editor",
@@ -76,6 +78,8 @@ Select a tab, making it visible. In a tabset the tabset also becomes the active 
 | --- | --- | --- | --- |
 | `tab` | `string` | yes | the tab's id |
 
+**Errors**: `not_found`, besides those every command can return.
+
 ```ts
 model.run("tab.select", {
     tab: "tab-1"
@@ -101,6 +105,8 @@ Close a tab and remove it from the layout. Refused for a pinned tab or one whose
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `tab` | `string` | yes | the tab's id |
+
+**Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tab.close", {
@@ -132,6 +138,8 @@ Move a tab to another place: into a tabset or border at an index (location cente
 | --- | --- | --- | --- |
 | `tab` | `string` | yes | the tab's id |
 
+**Errors**: `not_found`, `refused`, besides those every command can return.
+
 ```ts
 model.run("tab.move", {
     tab: "tab-1",
@@ -161,6 +169,8 @@ Replace a tab's data (and optionally switch its component). `data` is the whole 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `tab` | `string` | yes | the tab's id |
+
+**Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("tab.update", {
@@ -194,6 +204,8 @@ Pin (value true) or unpin a tab of a tabset. Pinned tabs sit at the start of the
 | --- | --- | --- | --- |
 | `tab` | `string` | yes | the tab's id |
 
+**Errors**: `not_found`, `refused`, besides those every command can return.
+
 ```ts
 model.run("tab.pin", {
     tab: "tab-1",
@@ -207,20 +219,22 @@ model.run("tab.pin", {
 
 ### `tab.popout`
 
-Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts or is already in a window.
+Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts, is pinned or is already in a window.
 
 **Payload** (`{ tab: string; rect?: Rect }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `tab` | `string` | yes | the tab's id |
-| `rect` | `object` | no | the window's screen rect (default: where the tab is on screen) |
+| `rect` | `object` | no | the window's screen rect; without one, a 600x400 window offset 50px per open window (engine.popout passes the tab's place on screen) |
 
 **Result** (`{ window: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `window` | `string` | yes | the new window's id |
+
+**Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tab.popout", {
@@ -257,6 +271,8 @@ Change a tab's behaviour flags and size limits. A null value removes the tab's o
 | --- | --- | --- | --- |
 | `tab` | `string` | yes | the tab's id |
 
+**Errors**: `not_found`, besides those every command can return.
+
 ```ts
 model.run("tab.configure", {
     tab: "tab-1",
@@ -286,6 +302,8 @@ Make a tabset the active one of its layout.
 | --- | --- | --- | --- |
 | `tabset` | `string` | yes | the tabset's id |
 
+**Errors**: `not_found`, besides those every command can return.
+
 ```ts
 model.run("tabset.activate", {
     tabset: "tabset-1"
@@ -313,6 +331,8 @@ Maximize a tabset so it fills its layout (value true), or restore it (value fals
 | --- | --- | --- | --- |
 | `tabset` | `string` | yes | the tabset's id |
 
+**Errors**: `not_found`, `refused`, besides those every command can return.
+
 ```ts
 model.run("tabset.maximize", {
     tabset: "tabset-1",
@@ -339,6 +359,8 @@ Close a tabset: its closable tabs close, and the tabset is removed once empty. R
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `closed` | `string[]` | yes | the ids of the tabs that closed |
+
+**Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tabset.close", {
@@ -369,6 +391,8 @@ Move a whole tabset: merge its tabs into another tabset (location center), place
 | --- | --- | --- | --- |
 | `tabset` | `string` | yes | the tabset's id |
 
+**Errors**: `not_found`, `refused`, besides those every command can return.
+
 ```ts
 model.run("tabset.move", {
     tabset: "tabset-1",
@@ -390,13 +414,15 @@ Open a whole tabset in a new browser window. Refused when any of its tabs does n
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `tabset` | `string` | yes | the tabset's id |
-| `rect` | `object` | no | the window's screen rect (default: where the tabset is on screen) |
+| `rect` | `object` | no | the window's screen rect; without one, a 600x400 window offset 50px per open window (engine.popout passes the tabset's place on screen) |
 
 **Result** (`{ window: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `window` | `string` | yes | the new window's id |
+
+**Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tabset.popout", {
@@ -436,6 +462,8 @@ Change a tabset's behaviour flags, size limits or data. A null value removes the
 | --- | --- | --- | --- |
 | `tabset` | `string` | yes | the tabset's id |
 
+**Errors**: `not_found`, besides those every command can return.
+
 ```ts
 model.run("tabset.configure", {
     tabset: "tabset-1",
@@ -468,6 +496,8 @@ It may run as a step of a continuous gesture: `model.run(…, { transient: true 
 | --- | --- | --- | --- |
 | `row` | `string` | yes | the row's id |
 
+**Errors**: `not_found`, besides those every command can return.
+
 ```ts
 model.run("row.resize", {
     row: "row-1",
@@ -498,6 +528,8 @@ Set (or, with null, remove) a row's data.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `row` | `string` | yes | the row's id |
+
+**Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("row.configure", {
@@ -533,6 +565,8 @@ It may run as a step of a continuous gesture: `model.run(…, { transient: true 
 | --- | --- | --- | --- |
 | `border` | `string` | yes | the border's id |
 | `size` | `number` | yes | the size it got, in px |
+
+**Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("border.resize", {
@@ -572,6 +606,8 @@ Open or close a border's panel (open), switch it between docked and overlay (mod
 | --- | --- | --- | --- |
 | `border` | `string` | yes | the border's id |
 
+**Errors**: `not_found`, `refused`, besides those every command can return.
+
 ```ts
 model.run("border.configure", {
     border: "border_left",
@@ -601,6 +637,8 @@ Close a popout window layout: its tabs move back into the main layout's active t
 | --- | --- | --- | --- |
 | `tabs` | `string[]` | yes | the tabs moved back into the main layout |
 
+**Errors**: `not_found`, besides those every command can return.
+
 ```ts
 model.run("window.close", {
     window: "window-1"
@@ -629,6 +667,8 @@ It may run as a step of a continuous gesture: `model.run(…, { transient: true 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `window` | `string` | yes | the window's id |
+
+**Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("window.configure", {
@@ -662,6 +702,8 @@ Change the layout defaults: the default behaviour of tabs, tabsets and borders, 
 
 No fields.
 
+**Errors**: only those every command can return.
+
 ```ts
 model.run("layout.configure", {
     defaults: {
@@ -692,6 +734,8 @@ Replace the whole layout with a JSON v1 document (a saved layout, an undo step, 
 | --- | --- | --- | --- |
 | `added` | `string[]` | yes | ids only in the new layout |
 | `removed` | `string[]` | yes | ids only in the old layout |
+
+**Errors**: only those every command can return.
 
 ```ts
 model.run("layout.load", {
@@ -740,6 +784,8 @@ It may run as a step of a continuous gesture: `model.run(…, { transient: true 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `results` | `JSON[]` | yes | each command's value, in order |
+
+**Errors**: those of the commands it runs (the first failure, at its path in `commands`); nothing applies unless all succeed.
 
 ```ts
 model.run("batch", {

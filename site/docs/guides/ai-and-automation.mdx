@@ -10,7 +10,7 @@ call and knows no provider:
 
 1. **describe**: `model.commands()` lists every command with its description and schemas, ready
    to become tool definitions;
-2. **run**: `model.dispatch(input)` takes a command as untrusted JSON, validates it, and answers
+2. **run**: `model.dispatch(input, { meta })` takes a command as untrusted JSON, validates it, and answers
    with a result or a structured error, never an exception;
 3. **guard**: a middleware (`model.use`) decides what an assistant may do, and `model.can` asks
    before acting;

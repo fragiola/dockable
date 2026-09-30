@@ -337,6 +337,7 @@ describe("the core reference", () => {
             expect(section, `${info.name}: a model.run example`).toContain(
                 `model.run("${info.name}"`,
             );
+            expect(section, `${info.name}: its errors`).toContain("**Errors**");
         }
     });
 

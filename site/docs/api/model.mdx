@@ -242,7 +242,7 @@ on these.
 
 ## `ModelHandle`
 
-The part of a model that does not depend on its registry: `dispatch(input)`, `commands()` and
+The part of a model that does not depend on its registry: `dispatch(input, options?)`, `commands()` and
 `toJSON()`. Every `Model<T>` is a `ModelHandle`. APIs that join models of different registries
 take one: a [drag group](/docs/api/drag-group)'s transfers name their `from` and `to` models as
 `ModelHandle`s; compare them with your own models by reference (`===`).

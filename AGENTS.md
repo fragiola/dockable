@@ -57,7 +57,7 @@ Do not "fix" these.
 11. **The core has zero runtime dependencies** and never imports `react`,
     `react-dom` or React types. A guard test enforces it.
 12. **App policy stays in the app.** The packages ship no undo/redo, no translations and no
-    persistence. They expose the model, its actions and its change events; the docs examples
+    persistence. They expose the model, its commands, its middleware and its events; the examples
     show how to build those features (`examples/react/src/examples/_kit/undo.ts` is copyable code,
     not part of a package).
 
@@ -66,7 +66,7 @@ Do not "fix" these.
 | command | does |
 |---|---|
 | `pnpm install` | install dependencies |
-| `pnpm check` | Biome lint + format + assist (non-mutating) |
+| `pnpm check` | Biome lint + format + assist (non-mutating), then builds the core and checks that `site/docs/api/commands.mdx` matches the registry (`check:commands`) |
 | `pnpm check:fix` | Biome check with auto-fix |
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit) |
 | `pnpm test` | Vitest: `core` (node), `react` (jsdom), `playground`, `examples-react`, `site` |
