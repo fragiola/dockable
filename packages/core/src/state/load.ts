@@ -16,7 +16,12 @@ import {
     type AnyWindow,
     NodeIndex,
 } from "./tree";
-import { type LayoutDefaults, MAIN_LAYOUT } from "./types";
+import {
+    type DockableTypes,
+    type LayoutDefaults,
+    type LayoutState,
+    MAIN_LAYOUT,
+} from "./types";
 
 /** Thrown by `createModel` for an invalid layout document: every problem, each with a JSON path. */
 export class LayoutValidationError extends Error {
@@ -426,6 +431,7 @@ export function validateLayout<J = LayoutJson>(
 
 /** A state as a layout document (a writable copy). */
 export function stateToJson(state: AnyState): LayoutJson {
+    // the state is JSON-shaped already: a copy, with the version, and without the empty parts
     const json: Record<string, unknown> = { version: 1 };
     if (Object.keys(state.defaults).length > 0) {
         json.defaults = cloneJson(state.defaults);
@@ -444,4 +450,16 @@ export function stateToJson(state: AnyState): LayoutJson {
         json.windows = cloneJson(state.windows);
     }
     return json as unknown as LayoutJson;
+}
+
+/**
+ * A state as a layout document (a writable copy), like `model.toJSON()` for the current state:
+ * for a state kept from before (`event.before`, an undo step), to load it back with `layout.load`.
+ */
+export function toLayoutJson<T extends DockableTypes>(
+    state: LayoutState<T>,
+): LayoutJson<T> {
+    return stateToJson(
+        state as unknown as AnyState,
+    ) as unknown as LayoutJson<T>;
 }

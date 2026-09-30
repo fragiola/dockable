@@ -134,7 +134,11 @@ export type {
     TabsetJson,
     WindowJson,
 } from "./state/json";
-export { LayoutValidationError, validateLayout } from "./state/load";
+export {
+    LayoutValidationError,
+    toLayoutJson,
+    validateLayout,
+} from "./state/load";
 export {
     createModel,
     type Model,

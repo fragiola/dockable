@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { LayoutJson } from "../../src/state/json";
-import { LayoutValidationError, validateLayout } from "../../src/state/load";
+import {
+    LayoutValidationError,
+    toLayoutJson,
+    validateLayout,
+} from "../../src/state/load";
 import { createModel } from "../../src/state/model";
 import type { AnyTypes } from "../../src/state/types";
 import { render, setup, tab, tabsets } from "./harness";
@@ -371,5 +375,18 @@ describe("validating JSON v1", () => {
                 { path: "/root", message: "is required" },
             ]);
         }
+    });
+});
+
+describe("toLayoutJson", () => {
+    it("turns a kept state back into a document layout.load takes", () => {
+        const model = createModel(tabsets(["One", "Two"], ["Three"]));
+        const before = model.state;
+        const one = model.tabs()[0]?.id ?? "";
+        model.run("tab.close", { tab: one });
+        const json = toLayoutJson(before);
+        expect(json.version).toBe(1);
+        expect(model.run("layout.load", { layout: json }).ok).toBe(true);
+        expect(model.toJSON()).toEqual(json);
     });
 });
