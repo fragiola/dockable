@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const CI = Boolean(process.env.CI);
+// the playground's port (vite.config.ts reads the same variable)
+const PORT = Number(process.env.PLAYGROUND_PORT ?? 5173);
 
 export default defineConfig({
     testDir: "e2e",
@@ -12,7 +14,7 @@ export default defineConfig({
     workers: CI ? 1 : 4,
     reporter: CI ? [["line"], ["html", { open: "never" }]] : "line",
     use: {
-        baseURL: "http://localhost:5173",
+        baseURL: `http://localhost:${PORT}`,
         trace: "on-first-retry",
     },
     projects: [
@@ -21,7 +23,7 @@ export default defineConfig({
     ],
     webServer: {
         command: "pnpm dev",
-        url: "http://localhost:5173",
+        url: `http://localhost:${PORT}`,
         reuseExistingServer: !CI,
     },
 });

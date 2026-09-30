@@ -1,0 +1,8 @@
+/* The examples' stylesheet stack is examples/react's: the Fragiola base and palettes, the five
+   example themes, and the `@source` lines that reach the examples and the vendored Fragiola UI.
+   Imported, not re-listed. */
+@import "../../../examples/react/src/embed/styles.css";
+
+/* The shell. e2e/shell.spec.ts checks computed colours, so a class that compiled to nothing
+   fails there instead of silently. */
+@source "./";

@@ -18,7 +18,7 @@ Requires Node ≥ 24 and pnpm 11.
 
 ```sh
 pnpm install
-pnpm dev        # playground on http://localhost:5173
+pnpm dev        # playground on http://localhost:5173: every example live
 pnpm check      # lint + format
 pnpm typecheck
 pnpm test       # unit and component tests
