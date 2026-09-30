@@ -283,11 +283,8 @@ export interface RunOptions {
     meta?: Readonly<Record<string, unknown>>;
 }
 
-/** What a middleware sees. */
-export interface CommandContext<T extends DockableTypes = AnyTypes> {
-    readonly command: CommandName;
-    /** the validated payload; assign a new object to rewrite it (it is validated again) */
-    payload: PayloadOf<T, CommandName>;
+/** What a middleware sees of any command. */
+export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
     /** `model.can`: nothing will be committed; do not cause side effects */
     readonly dryRun: boolean;
     readonly transient: boolean;
@@ -301,6 +298,18 @@ export interface CommandContext<T extends DockableTypes = AnyTypes> {
     /** a node's parent as the command sees it */
     parentOf(id: string): ParentNode<T> | undefined;
 }
+
+/**
+ * What a middleware sees: a union discriminated by `command`, so checking the command narrows the
+ * payload (`if (ctx.command === "tab.close") ctx.payload.tab`).
+ */
+export type CommandContext<T extends DockableTypes = AnyTypes> = {
+    [C in CommandName]: CommandContextBase<T> & {
+        readonly command: C;
+        /** the validated payload; assign a new object to rewrite it (it is validated again) */
+        payload: PayloadOf<T, C>;
+    };
+}[CommandName];
 
 /**
  * Runs around every command, engine-issued or not: veto (return an error without calling

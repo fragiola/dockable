@@ -621,7 +621,8 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         }
 
         const validated = payload;
-        const context: CommandContext<T> = {
+        // the command was looked up by name and the payload validated against its schema
+        const context = {
             command: command as CommandName,
             payload: payload as PayloadOf<T, CommandName>,
             dryRun,
@@ -636,7 +637,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
                     ? undefined
                     : (draft.get(parent) as ParentNode<T> | undefined);
             },
-        };
+        } as CommandContext<T>;
 
         const reduceContext: ReduceContext = {
             draft,

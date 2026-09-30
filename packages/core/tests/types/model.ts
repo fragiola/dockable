@@ -151,3 +151,23 @@ export function json(): void {
     };
     use(init);
 }
+
+// middleware: checking the command narrows the payload
+export function middlewareNarrowing() {
+    const model = createModel<Types>();
+    model.use((ctx, next) => {
+        if (ctx.command === "tab.close") {
+            const tab: string = ctx.payload.tab;
+            void tab;
+        } else if (ctx.command === "tab.add") {
+            if (ctx.payload.component === "editor") {
+                const path: string = ctx.payload.data.path;
+                void path;
+            }
+        } else if (ctx.command === "tab.move") {
+            // @ts-expect-error: a move has no component
+            ctx.payload.component;
+        }
+        return next();
+    });
+}

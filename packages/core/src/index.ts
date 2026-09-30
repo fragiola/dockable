@@ -4,6 +4,7 @@ export type {
     BatchStep,
     BorderConfigurePayload,
     CommandContext,
+    CommandContextBase,
     CommandError,
     CommandErrorCode,
     CommandEvent,
