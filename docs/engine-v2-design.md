@@ -1216,6 +1216,7 @@ class LayoutEngine<T extends DockableTypes = AnyTypes> {
     registerDropZone(element: Element, options: DropZoneOptions<T>): () => void;
     // derived view data
     path(id: string): string; minMax(id: string): SizeLimits; splitterSize(): number;
+    tabButtonId(tabId: string): string; tabPanelId(tabId: string): string; // DOM ids, page-unique
     edgeBands(): readonly { location: BorderLocation; rect: Rect }[];
     getHiddenTabs(containerId): readonly string[]; subscribeOverflow(listener): () => void;
     isPanelVisible(tabId): boolean; shouldRender(tab, renderOnDemand): boolean;
@@ -1240,7 +1241,12 @@ delegated to the main engine.
 
 Options: `model`, `layoutId`, `main`, `measure`, `realtimeResize`, `tabDragSpeed`, `popout`
 (`popoutURL`, `supportsPopout`, `title`, `onPopoutOpen`, `onPopoutClose`, `mirrorRoot`,
-`openWindow`), `onExternalDrag`, `dragGroup`.
+`openWindow`), `onExternalDrag`, `dragGroup`, `idScope`.
+
+`idScope` keeps a layout's DOM ids (`aria-controls`, `aria-labelledby`) and its popout window names
+apart from another layout's on the page: default ids (`tab-1`, `window-1`) are the same in every
+model. It defaults to a page-unique `d<n>-`; the React adapter passes `useId()`, so server and
+client agree. Popout engines share their main engine's scope.
 
 ### 8.4 Drag and drop
 
@@ -1281,7 +1287,11 @@ non-transient command. ARIA and keyboard behaviour are unchanged.
 - The `"float"` close policy is removed. Style mirroring, root-attribute mirroring and the load
   sequence are unchanged.
 - The popout content root keeps `data-dockable-popout`; a window layout's path is
-  `/sublayout<n>`, `n` being its 1-based position in `state.windows`.
+  `/sublayout<n>`, `n` being the lowest number free when the window is first seen, kept while it
+  is open (closing one window never renames another's elements).
+- The window's screen rect is recorded with a transient `window.configure` on `resize` and by a
+  poll (`WINDOW_RECT_POLL_INTERVAL_MS`: a window that only moves fires no event), only when it
+  changed. The engines do not redraw for it.
 
 ## 9. Tidy and selection rules
 
