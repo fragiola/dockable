@@ -69,31 +69,45 @@ const EMPTY: LayoutJson<Types> = {
 
 /**
  * The drop rules, as middleware: KPIs only into the centre of the KPI strip, and nothing else into
- * it (nor beside it). They guard the commands that place a tab (`tab.add` from the palette,
- * `tab.move` inside the layout) or a tabset (`tabset.move`), from a drag or from code alike; a
- * drag asks them with `model.can` on every hover, so a refused target shows no drop indicator.
+ * it (nor beside it); a tabset that holds KPIs may be docked elsewhere, never merged into another
+ * tabset. They guard the commands that place a tab (`tab.add` from the palette, `tab.move` inside
+ * the layout) or a tabset (`tabset.move`), from a drag or from code alike; a drag asks them with
+ * `model.can` on every hover, so a refused target shows no drop indicator.
  */
 const dropRules: Middleware<Types> = (ctx, next) => {
-    const payload = ctx.payload;
-    if (
-        (ctx.command !== "tab.add" &&
-            ctx.command !== "tab.move" &&
-            ctx.command !== "tabset.move") ||
-        !("to" in payload)
-    ) {
+    // the command narrows the payload
+    if (ctx.command === "tabset.move") {
+        const { tabset, to, location = "center" } = ctx.payload;
+        const moved = ctx.get(tabset);
+        const carriesKpis =
+            moved?.type === "tabset" &&
+            moved.children.some((tab) => isKpi(tab.component));
+        if (carriesKpis) {
+            return location === "center" && to !== "kpis"
+                ? veto("KPIs go in the KPI strip")
+                : next();
+        }
+        return to === "kpis" ? veto("The KPI strip takes KPIs only") : next();
+    }
+    let placed: {
+        component: string | undefined;
+        to: string;
+        location?: string;
+    };
+    if (ctx.command === "tab.add") {
+        placed = ctx.payload;
+    } else if (ctx.command === "tab.move") {
+        const moved = ctx.get(ctx.payload.tab);
+        placed = {
+            ...ctx.payload,
+            component: moved?.type === "tab" ? moved.component : undefined,
+        };
+    } else {
         return next();
     }
-    // the component placed: a new tab's, or the moved tab's (a tabset has none)
-    const moved = "tab" in payload ? ctx.get(payload.tab) : undefined;
-    const component =
-        "component" in payload
-            ? payload.component
-            : moved?.type === "tab"
-              ? moved.component
-              : undefined;
-    const intoKpis = payload.to === "kpis";
-    if (component !== undefined && isKpi(component)) {
-        return intoKpis && (payload.location ?? "center") === "center"
+    const intoKpis = placed.to === "kpis";
+    if (placed.component !== undefined && isKpi(placed.component)) {
+        return intoKpis && (placed.location ?? "center") === "center"
             ? next()
             : veto("KPIs go in the KPI strip");
     }

@@ -248,6 +248,38 @@ describe("UndoManager", () => {
         expect(model(undo).get("t1")).not.toBeUndefined();
     });
 
+    it("names each step by the command that made it", () => {
+        const undo = new UndoManager(fresh());
+        model(undo).run("tab.close", { tab: "t1" });
+        model(undo).run("batch", {
+            commands: [
+                { command: "tab.select", payload: { tab: "t2" } },
+                { command: "tab.close", payload: { tab: "t2" } },
+            ],
+        });
+        expect(undo.getSnapshot().undoSteps).toEqual([
+            { command: "tab.close", commands: ["tab.close"] },
+            { command: "batch", commands: ["tab.select", "tab.close"] },
+        ]);
+        undo.undo();
+        expect(undo.getSnapshot().undoSteps).toHaveLength(1);
+        expect(undo.getSnapshot().redoSteps).toEqual([
+            { command: "batch", commands: ["tab.select", "tab.close"] },
+        ]);
+    });
+
+    it("starts no gesture for transient commands that change nothing", () => {
+        const undo = new UndoManager(fresh());
+        const row = model(undo).state.root.id;
+        model(undo).run(
+            "row.resize",
+            { row, weights: [100, 100] },
+            { transient: true },
+        );
+        model(undo).run("row.resize", { row, weights: [100, 100] });
+        expect(undo.undoCount).toBe(0);
+    });
+
     it("setModel replaces the model and resets the history by default", () => {
         const undo = new UndoManager(fresh());
 

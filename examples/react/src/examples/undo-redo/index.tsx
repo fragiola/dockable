@@ -1,7 +1,6 @@
 "use client";
 
 import {
-    type CommandEvent,
     type CommandName,
     createModel,
     type LayoutJson,
@@ -74,17 +73,6 @@ function describe(command: CommandName): string {
 }
 
 /** A command (or a batch of only such commands) that makes no undo step: the manager's rule. */
-function isIgnored(event: CommandEvent<Types>): boolean {
-    const commands =
-        event.command === "batch"
-            ? (event.commands ?? []).map((step) => step.command)
-            : [event.command];
-    return (
-        commands.length > 0 &&
-        commands.every((command) => IGNORED.includes(command))
-    );
-}
-
 let added = 0;
 
 /** Add a tab to this tabset, and close its selected tab: two undoable edits. */
@@ -165,52 +153,9 @@ export default function UndoRedo() {
         undo.getSnapshot,
         undo.getSnapshot,
     );
-    // the names of the steps: done (undoable) and undone (redoable), newest last
-    const [history, setHistory] = useState({
-        done: [] as string[],
-        undone: [] as string[],
-    });
-
-    // a commit that the manager records as a step, by the same rule it uses: not an undo or a
-    // redo (`meta.undo`), not ignored, not a transient step of a drag in progress (its last,
-    // non-transient command ends the gesture and names the step)
-    useEffect(() => {
-        let gesture = false;
-        return model.subscribe((event) => {
-            if (event.meta?.undo === true || isIgnored(event)) {
-                return;
-            }
-            if (event.transient) {
-                gesture = true;
-                return;
-            }
-            if (event.before === event.after && !gesture) {
-                return; // a command that changed nothing
-            }
-            gesture = false;
-            setHistory((h) => ({
-                done: [...h.done, describe(event.command)],
-                undone: [],
-            }));
-        });
-    }, [model]);
-
-    const doUndo = () => {
-        if (!undo.canUndo) return;
-        undo.undo();
-        setHistory((h) => ({
-            done: h.done.slice(0, -1),
-            undone: [...h.undone, ...h.done.slice(-1)],
-        }));
-    };
-    const doRedo = () => {
-        if (!undo.canRedo) return;
-        undo.redo();
-        setHistory((h) => ({
-            done: [...h.done, ...h.undone.slice(-1)],
-            undone: h.undone.slice(0, -1),
-        }));
-    };
+    // the names of the steps come from the manager's own steps: the command that made each one
+    const doUndo = () => undo.undo();
+    const doRedo = () => undo.redo();
 
     // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes; text fields keep their own undo
     const keys = useRef({ doUndo, doRedo });
@@ -264,21 +209,22 @@ export default function UndoRedo() {
                     aria-label="History"
                     className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-xs"
                 >
-                    {history.done.length + history.undone.length === 0 ? (
+                    {snapshot.undoCount + snapshot.redoCount === 0 ? (
                         <li className="text-palette-accent/85">
                             Move, resize, add or close tabs: each edit is a
                             step.
                         </li>
                     ) : null}
                     {[
-                        ...history.done.map((name) => ({
-                            name,
+                        ...snapshot.undoSteps.map((step) => ({
+                            name: describe(step.command),
                             undone: false,
                         })),
                         // undone steps, oldest first, after the done ones
-                        ...[...history.undone]
-                            .reverse()
-                            .map((name) => ({ name, undone: true })),
+                        ...[...snapshot.redoSteps].reverse().map((step) => ({
+                            name: describe(step.command),
+                            undone: true,
+                        })),
                     ].map((step, index) => (
                         <li
                             // biome-ignore lint/suspicious/noArrayIndexKey: a list of steps in order

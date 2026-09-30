@@ -5,13 +5,14 @@
 // Adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/useUndo.ts, rewritten as
 // a framework-agnostic class over the command bus. Copyright (c) 2017 Caplin Systems Ltd. MIT
 // licence.
-import type {
-    AnyTypes,
-    CommandEvent,
-    CommandName,
-    DockableTypes,
-    LayoutJson,
-    Model,
+import {
+    type AnyTypes,
+    type CommandEvent,
+    type CommandName,
+    type DockableTypes,
+    type LayoutState,
+    type Model,
+    toLayoutJson,
 } from "@fragiola/dockable";
 
 /** Commands that don't create an undo step by default (a window's screen rect is no step either). */
@@ -31,6 +32,14 @@ export interface UndoOptions {
     ignoreCommands?: readonly CommandName[];
 }
 
+/** A step of the history: what made it, for a label ("Close", "Move"). */
+export interface UndoStep {
+    /** the command that made the step (a gesture's last one; `batch` for a batch) */
+    readonly command: CommandName;
+    /** a batch's commands, flattened; the command itself otherwise */
+    readonly commands: readonly CommandName[];
+}
+
 /** The state of an {@link UndoManager}. The same object is returned until something changes. */
 export interface UndoSnapshot<T extends DockableTypes = AnyTypes> {
     /** the current model */
@@ -43,13 +52,24 @@ export interface UndoSnapshot<T extends DockableTypes = AnyTypes> {
     readonly undoCount: number;
     /** the number of redo steps available */
     readonly redoCount: number;
+    /** the steps undo goes back through, oldest first (the last one is undone next) */
+    readonly undoSteps: readonly UndoStep[];
+    /** the steps redo goes forward through, the next one last */
+    readonly redoSteps: readonly UndoStep[];
+}
+
+/** A step and the state it goes back to (immutable: kept as is until it is loaded). */
+interface Entry<T extends DockableTypes> {
+    readonly step: UndoStep;
+    readonly state: LayoutState<T>;
 }
 
 /**
  * Undo/redo for a {@link Model}. It listens to the model's commits (`model.subscribe`) and keeps
- * the layout as it was before each step (a whole drag gesture, its transient commands included,
- * is one step). Undo and redo restore a layout in place with `layout.load`: the model stays the
- * same, and so does the content of every tab that is still there.
+ * the state from before each step (a whole drag gesture, its transient commands included, is one
+ * step). States are immutable, so keeping one costs nothing; undo and redo turn one back into a
+ * document (`toLayoutJson`) and restore it in place with `layout.load`: the model stays the same,
+ * and so does the content of every tab that is still there.
  *
  * ```ts
  * const undo = new UndoManager(createModel<Types>(json));
@@ -62,10 +82,10 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
     private model: Model<T> | null;
     private readonly maxBufferSize: number;
     private readonly ignoreCommands: readonly CommandName[];
-    private undoBuffer: LayoutJson<T>[] = [];
-    private redoBuffer: LayoutJson<T>[] = [];
-    /** the layout after the last recorded commit: what the next step goes back to */
-    private last: LayoutJson<T> | null = null;
+    private undoBuffer: Entry<T>[] = [];
+    private redoBuffer: Entry<T>[] = [];
+    /** the state after the last recorded commit: what the next step goes back to */
+    private last: LayoutState<T> | null = null;
     /** a gesture (transient commands) is in progress since `last` */
     private adjusting = false;
     private unsubscribeModel: (() => void) | undefined;
@@ -152,34 +172,45 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
     }
 
     private readonly onCommit = (event: CommandEvent<T>) => {
-        const model = this.model;
-        if (!model || event.meta?.undo === true) {
+        if (!this.model || event.meta?.undo === true) {
             return; // an undo or a redo
         }
         if (event.before === event.after && !this.adjusting) {
             return; // a command that changed nothing (a gesture's last one still ends its step)
         }
         if (this.ignored(event)) {
-            // an ignored change is part of the layout the next step goes back to, unless a gesture
+            // an ignored change is part of the state the next step goes back to, unless a gesture
             // is in progress (its step goes back to before the gesture)
             if (!this.adjusting) {
-                this.last = model.toJSON();
+                this.last = event.after;
             }
             return;
         }
         if (event.transient) {
-            this.adjusting = true; // the gesture's final, non-transient command records the step
+            // the gesture's final, non-transient command records the step (a transient command
+            // that changed nothing, at a splitter's bound, starts none)
+            if (event.before !== event.after) {
+                this.adjusting = true;
+            }
             return;
         }
         if (this.last) {
-            this.undoBuffer.push(this.last);
+            this.undoBuffer.push({
+                step: {
+                    command: event.command,
+                    commands: event.commands?.map((step) => step.command) ?? [
+                        event.command,
+                    ],
+                },
+                state: this.last,
+            });
             if (this.undoBuffer.length > this.maxBufferSize) {
                 this.undoBuffer.shift();
             }
         }
         this.redoBuffer = [];
         this.adjusting = false;
-        this.last = model.toJSON();
+        this.last = event.after;
         this.notify();
     };
 
@@ -195,26 +226,26 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
         );
     }
 
-    private swap(from: LayoutJson<T>[], to: LayoutJson<T>[]) {
+    private swap(from: Entry<T>[], to: Entry<T>[]) {
         const model = this.model;
-        const layout = from.pop();
-        if (!model || layout === undefined) {
+        const entry = from.pop();
+        if (!model || entry === undefined) {
             return;
         }
-        const current = model.toJSON();
+        const current = model.state;
         // in place: the model and the content of every tab it keeps stay mounted
         const loaded = model.run(
             "layout.load",
-            { layout },
+            { layout: toLayoutJson(entry.state) },
             { meta: UNDO_META },
         );
         if (!loaded.ok) {
-            from.push(layout); // refused (a middleware vetoed layout.load): the step stays
+            from.push(entry); // refused (a middleware vetoed layout.load): the step stays
             return;
         }
-        to.push(current);
+        to.push({ step: entry.step, state: current });
         this.adjusting = false;
-        this.last = model.toJSON();
+        this.last = model.state;
         this.notify();
     }
 
@@ -225,7 +256,7 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
         this.unsubscribeModel?.();
         this.unsubscribeModel = undefined;
         this.model = model;
-        this.last = model ? model.toJSON() : null;
+        this.last = model ? model.state : null;
         this.adjusting = false;
         if (model && !this.disposed) {
             this.unsubscribeModel = model.subscribe(this.onCommit);
@@ -236,7 +267,7 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
         this.undoBuffer = [];
         this.redoBuffer = [];
         this.adjusting = false;
-        this.last = this.model ? this.model.toJSON() : null;
+        this.last = this.model ? this.model.state : null;
     }
 
     private createSnapshot(): UndoSnapshot<T> {
@@ -246,6 +277,8 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
             canRedo: this.canRedo,
             undoCount: this.undoCount,
             redoCount: this.redoCount,
+            undoSteps: this.undoBuffer.map((entry) => entry.step),
+            redoSteps: this.redoBuffer.map((entry) => entry.step),
         };
     }
 
@@ -255,7 +288,9 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
         if (
             prev.model === next.model &&
             prev.undoCount === next.undoCount &&
-            prev.redoCount === next.redoCount
+            prev.redoCount === next.redoCount &&
+            prev.undoSteps.at(-1) === next.undoSteps.at(-1) &&
+            prev.redoSteps.at(-1) === next.redoSteps.at(-1)
         ) {
             return;
         }

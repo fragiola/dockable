@@ -31,7 +31,7 @@ const SAMPLES = [
             payload: {
                 component: "note",
                 data: { name: "Draft", text: "Added from JSON." },
-                to: "right",
+                to: "left",
             },
         },
     },
@@ -50,12 +50,38 @@ interface LogEntry {
     transient: boolean;
 }
 
+/** Every commit, newest first: a gesture's transient steps and its last command are one line. */
+function useCommandLog<T extends DockableTypes>(model: Model<T>): LogEntry[] {
+    const [log, setLog] = useState<LogEntry[]>([]);
+    useEffect(() => {
+        let next = 0;
+        return model.subscribe((event) => {
+            setLog((entries) => {
+                const entry: LogEntry = {
+                    id: next++,
+                    command: event.command,
+                    payload: JSON.stringify(event.payload),
+                    transient: event.transient,
+                };
+                const [latest, ...rest] = entries;
+                // a drag's steps (and the command that ends it) replace its line
+                return latest?.transient && latest.command === entry.command
+                    ? [entry, ...rest]
+                    : [entry, ...entries].slice(0, 20);
+            });
+        });
+    }, [model]);
+    return log;
+}
+
 export function CommandConsole<T extends DockableTypes = AnyTypes>({
     model,
 }: {
     model: Model<T>;
 }) {
     const [view, setView] = useState<View>("console");
+    // the log lives here, so it keeps every change while the other views are shown
+    const log = useCommandLog(model);
     return (
         <section
             aria-label="Command console"
@@ -85,7 +111,7 @@ export function CommandConsole<T extends DockableTypes = AnyTypes>({
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
                 {view === "console" ? (
-                    <ConsoleView model={model} />
+                    <ConsoleView model={model} log={log} />
                 ) : view === "commands" ? (
                     <CommandList model={model} />
                 ) : (
@@ -96,28 +122,20 @@ export function CommandConsole<T extends DockableTypes = AnyTypes>({
     );
 }
 
-function ConsoleView<T extends DockableTypes>({ model }: { model: Model<T> }) {
+function ConsoleView<T extends DockableTypes>({
+    model,
+    log,
+}: {
+    model: Model<T>;
+    /** every commit, from the console or from the layout itself */
+    log: readonly LogEntry[];
+}) {
     const [input, setInput] = useState(() =>
         JSON.stringify(SAMPLES[0].input, null, 2),
     );
     const [result, setResult] = useState<CommandResult<unknown> | null>(null);
     const [parseError, setParseError] = useState<string | null>(null);
-    const [log, setLog] = useState<LogEntry[]>([]);
     const inputId = useId();
-
-    // every commit, from the console or from the layout itself
-    useEffect(() => {
-        let next = 0;
-        return model.subscribe((event) => {
-            const entry: LogEntry = {
-                id: next++,
-                command: event.command,
-                payload: JSON.stringify(event.payload),
-                transient: event.transient,
-            };
-            setLog((entries) => [entry, ...entries].slice(0, 20));
-        });
-    }, [model]);
 
     const run = () => {
         let parsed: unknown;
@@ -183,7 +201,7 @@ function ConsoleView<T extends DockableTypes>({ model }: { model: Model<T> }) {
                         issues={[]}
                     />
                 ) : result === null ? null : result.ok ? (
-                    <div className="palette-success rounded-md border border-palette-line bg-palette-soft p-2">
+                    <div className="palette-green rounded-md border border-palette-line bg-palette-soft p-2">
                         <p className="text-xs font-semibold">ok</p>
                         <pre className="font-mono text-xs whitespace-pre-wrap">
                             {JSON.stringify(result.value, null, 2)}

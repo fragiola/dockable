@@ -133,10 +133,14 @@ export default function IdeWorkbench() {
         [model],
     );
 
-    // every change is saved, and re-renders what reads the model outside the layout
+    // every change is saved (a drag's transient steps once, at its end), and re-renders what
+    // reads the model outside the layout
     useEffect(
         () =>
-            model.subscribe(() => {
+            model.subscribe((event) => {
+                if (event.transient) {
+                    return;
+                }
                 saveLayout(model);
                 setRevision((n) => n + 1); // the explorer and status bar read the model
             }),

@@ -99,24 +99,30 @@ const inIncidentRegion = (node: Node<Types> | undefined) =>
     node?.type === "tab" && isIncidentTab(node);
 
 /**
- * The locked region, as middleware: a move into (or beside) the incident tabset is allowed only
- * for incident tabs, and incident tabs cannot leave it. It vetoes the command itself, so it holds
- * for every move, dragged or not; a drag asks the same question (`model.can`) while hovering, so
- * a refused target shows no drop indicator.
+ * The locked region, as middleware: incident tabs stay in the incident tabset (they move only
+ * into its centre: an edge would split them off into a new tabset), nothing else goes into it or
+ * beside it, and the incident tabset may be docked elsewhere but never merged into another one.
+ * It vetoes the command itself, so it holds for every move, dragged or not; a drag asks the same
+ * question (`model.can`) while hovering, so a refused target shows no drop indicator.
  */
 const lockIncidentRegion: Middleware<Types> = (ctx, next) => {
-    // a moved tab (`tab.move`) or tabset (`tabset.move`): the command narrows the payload
-    const moved =
-        ctx.command === "tab.move"
-            ? { node: ctx.get(ctx.payload.tab), to: ctx.payload.to }
-            : ctx.command === "tabset.move"
-              ? { node: ctx.get(ctx.payload.tabset), to: ctx.payload.to }
-              : undefined;
-    if (
-        moved &&
-        (moved.to === INCIDENT_TABSET) !== inIncidentRegion(moved.node)
-    ) {
-        return veto("Only incident tabs belong in the incident region");
+    const refuse = () =>
+        veto("Only incident tabs belong in the incident region");
+    // the command narrows the payload
+    if (ctx.command === "tab.move") {
+        const { tab, to, location = "center" } = ctx.payload;
+        const intoRegion = to === INCIDENT_TABSET && location === "center";
+        if (inIncidentRegion(ctx.get(tab))) {
+            return intoRegion ? next() : refuse();
+        }
+        return to === INCIDENT_TABSET ? refuse() : next();
+    }
+    if (ctx.command === "tabset.move") {
+        const { tabset, to, location = "center" } = ctx.payload;
+        if (tabset === INCIDENT_TABSET) {
+            return location === "center" ? refuse() : next();
+        }
+        return to === INCIDENT_TABSET ? refuse() : next();
     }
     return next();
 };
