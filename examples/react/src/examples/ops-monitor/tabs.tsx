@@ -1,12 +1,13 @@
 "use client";
 
-import type { TabNode, TabSetNode } from "@fragiola/dockable";
+import type { ComponentOf, TabOf, TabsetNode } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import {
     Activity,
     BookOpen,
     LayoutDashboard,
     Lock,
+    type LucideIcon,
     ScrollText,
 } from "lucide-react";
 import { useRef } from "react";
@@ -14,16 +15,16 @@ import { Tooltip } from "#/components/ui/tooltip";
 import { cn } from "#/lib/cn";
 import * as styles from "../_kit/styles";
 import { usePopupTheme } from "../_kit/theme";
-import { LEVEL_PALETTE, type ServiceConfig } from "./panels";
+import { LEVEL_PALETTE, type Types } from "./panels";
 
-// The console's tabsets. A service tab reads the status its panel wrote into its config and
+// The console's tabsets. A service tab reads the status its panel wrote into its data and
 // shows it three ways: `data-status` (for any stylesheet), a palette (colour) and a badge
 // (the number of open alerts). The pinned overview tab is an icon. The incident tabset is
 // locked: a lock with a tooltip says so, and `data-locked` lets styles mark it.
 
 export const INCIDENT_TABSET = "incident";
 
-const ICONS: Record<string, typeof Activity> = {
+const ICONS: Record<ComponentOf<Types>, LucideIcon> = {
     overview: LayoutDashboard,
     service: Activity,
     events: ScrollText,
@@ -31,13 +32,13 @@ const ICONS: Record<string, typeof Activity> = {
     timeline: ScrollText,
 };
 
-function MonitorTab({ tab }: { tab: TabNode }) {
-    const config = tab.getConfig() as ServiceConfig | undefined;
-    const status =
-        tab.getComponent() === "service" ? config?.status : undefined;
+function MonitorTab({ tab }: { tab: TabOf<Types> }) {
+    // only a service tab has a status: `tab.data` narrows on `tab.component`
+    const service = tab.component === "service" ? tab.data : undefined;
+    const status = service?.status;
     const palette = status ? LEVEL_PALETTE[status] : "";
-    const alerts = config?.alerts ?? 0;
-    const Icon = ICONS[tab.getComponent() ?? ""] ?? Activity;
+    const alerts = service?.alerts ?? 0;
+    const Icon = ICONS[tab.component];
     return (
         // The tab's own surface stays the theme's (selected, hover, active). The status colours
         // its icon, a line on top and a badge; `data-status` drives what shows.
@@ -60,9 +61,9 @@ function MonitorTab({ tab }: { tab: TabNode }) {
             {/* a pinned tab is only its icon; the name stays for screen readers */}
             <span
                 data-tab-label
-                className={cn(styles.tabLabel, tab.isPinned() && "sr-only")}
+                className={cn(styles.tabLabel, tab.pinned && "sr-only")}
             >
-                {tab.getName()}
+                {tab.data.name}
             </span>
             {alerts > 0 ? (
                 <span className="sr-only">{`${alerts} open ${alerts === 1 ? "alert" : "alerts"}`}</span>
@@ -96,8 +97,8 @@ function MonitorTab({ tab }: { tab: TabNode }) {
     );
 }
 
-export function MonitorTabSet({ node }: { node: TabSetNode }) {
-    const locked = node.getId() === INCIDENT_TABSET;
+export function MonitorTabSet({ node }: { node: TabsetNode<Types> }) {
+    const locked = node.id === INCIDENT_TABSET;
     const header = useRef<HTMLDivElement | null>(null);
     const popupTheme = usePopupTheme(header);
     return (
@@ -108,7 +109,7 @@ export function MonitorTabSet({ node }: { node: TabSetNode }) {
             className={cn(styles.tabset, "data-locked:border-dashed")}
         >
             <div ref={header} className={styles.tabsetHeader}>
-                <Dockable.TabList
+                <Dockable.TabList<Types>
                     data-kit-tablist=""
                     aria-label={locked ? "Incident" : "Monitors"}
                     className={styles.tabList}

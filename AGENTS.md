@@ -1,7 +1,7 @@
 # Dockable
 
 A **headless** layout manager for dockable panels: tabs, tabsets, splitters,
-borders, float and popout windows. It ships behaviour, accessibility and
+borders and popout windows. It ships behaviour, accessibility and
 composable primitives. It ships **no CSS, no icons, no rendered menus and no
 text**. Styling belongs 100% to the consuming developer; the package never
 assumes Tailwind, shadcn, daisy or anything else.
@@ -11,7 +11,7 @@ This repo is the first of a family (Angular and Vue adapters will follow), so
 
 | package | name | contains | depends on |
 |---|---|---|---|
-| `packages/core` | `@fragiola/dockable` | model, actions, JSON serialization, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | DOM only |
+| `packages/core` | `@fragiola/dockable` | the typed model and its command bus, JSON v1 and its JSON Schemas, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | DOM only |
 | `packages/react` | `@fragiola/dockable-react` | composable primitives over the core | peer `react`, `react-dom` (^19) |
 | `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | both packages, `examples/react` |
 
@@ -23,7 +23,7 @@ Do not "fix" these.
    `flexGrow` proportional to `weight`. Content panels are `position: absolute`,
    positioned imperatively by the core over the measured content area. User
    content lives in a **moveable element** re-parented with `appendChild`, so it
-   survives moves between tabsets, floats and popouts. The **only inline style a
+   survives moves between tabsets, borders and popouts. The **only inline style a
    primitive applies is structural**: `position`, `inset`/`left`/`top`/`width`/
    `height`, `display: none`, flex sizing and indicator position. Nothing cosmetic.
    **Maximize (deviation from FlexLayout):** FlexLayout portals the maximized tabset over the
@@ -38,11 +38,11 @@ Do not "fix" these.
    `data-maximized`, `data-orientation`, `data-dragging`, `data-drop-location`,
    `data-pinned`, …) and ARIA. Boolean `data-*` are present or absent, never
    `"false"`.
-5. **Menus:** the package provides items and actions, never a rendered menu.
+5. **Menus:** the package provides commands and their `model.can` answers, never a rendered
+   menu.
 6. **Buttons and icons:** each button is a primitive that takes `children`.
-7. **The model is the source of truth.** Every change goes through
-   `model.doAction(Actions.x)` (via the engine, interceptable by `onAction`).
-   Nodes are never mutated directly.
+7. **The model is the source of truth.** Every change is a command (`model.run` /
+   `model.dispatch`) through the middleware chain (`model.use`); nodes are immutable.
 8. **No translation in the model (D3).** Names are returned raw. The i18n keys
    survive only as the `DockableLabel` key enum with no default strings.
    Accessible names come from the consumer (`aria-label`/children, or
@@ -57,7 +57,7 @@ Do not "fix" these.
 11. **The core has zero runtime dependencies** and never imports `react`,
     `react-dom` or React types. A guard test enforces it.
 12. **App policy stays in the app.** The packages ship no undo/redo, no translations and no
-    persistence. They expose the model, its actions and its change events; the docs examples
+    persistence. They expose the model, its commands, its middleware and its events; the examples
     show how to build those features (`examples/react/src/examples/_kit/undo.ts` is copyable code,
     not part of a package).
 
@@ -66,7 +66,7 @@ Do not "fix" these.
 | command | does |
 |---|---|
 | `pnpm install` | install dependencies |
-| `pnpm check` | Biome lint + format + assist (non-mutating) |
+| `pnpm check` | Biome lint + format + assist (non-mutating), then builds the core and checks that `site/docs/api/commands.mdx` matches the registry (`check:commands`) |
 | `pnpm check:fix` | Biome check with auto-fix |
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit) |
 | `pnpm test` | Vitest: `core` (node), `react` (jsdom), `playground`, `examples-react`, `site` |
@@ -141,10 +141,10 @@ It shows three things, which are not interchangeable:
   them.
 
 **The Inspector** (`src/inspector/`, app code, never in a package): a scenario calls
-`useInspector(model)` and the toolbar offers a panel with the actions the model applies
-(`model.addChangeListener`, engine and direct `doAction` alike), `model.toJson()` after the last
-one, and every `[data-layout-path]` element of the stage with its `data-*`/ARIA attributes, live
-during a drag. Examples do not call it.
+`useInspector(model)` and the toolbar offers a panel with every command the model commits
+(`model.subscribe`, engine-issued and direct alike: name, payload, result, transient), `model.toJSON()`
+after the last one, and every `[data-layout-path]` element of the stage with its `data-*`/ARIA
+attributes, live during a drag. Examples do not call it.
 
 ## Provenance: FlexLayout
 
@@ -152,12 +152,13 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 (`flexlayout-react` 0.11.0, MIT, © 2017 Caplin Systems Ltd), checked out at
 `../FlexLayout`. **`../FlexLayout` is read-only: never modify it.**
 
-- Every copied or ported file keeps a header naming FlexLayout, Caplin Systems
-  Ltd and the MIT licence.
+- The model is Dockable's own (`src/state`, `src/commands`, `src/schema`). The ported
+  algorithms (tidy, selection, docking, drop resolution, splitter math, the engine, drag and
+  drop, popouts, keyboard, labels, paths) keep a header naming FlexLayout, Caplin Systems Ltd
+  and the MIT licence; `packages/core/tests/guard.test.ts` lists them.
 - The root `LICENSE` carries Caplin's full notice; each package ships a copy.
-- The model (`src/model/`) is reused almost entirely; the view is rewritten as
-  primitives. `tests-playwright/` is the behaviour specification, ported
-  gradually.
+- FlexLayout's tests and `tests-playwright/` remain the behaviour reference, ported gradually;
+  the view is rewritten as primitives.
 - The `data-layout-path` scheme (`/r1/ts0`, `/ts0/tb1`, `/ts0/t0`, `/s0`, …) is
   kept. Every primitive emits it; e2e selectors use it, never class names.
 
@@ -169,6 +170,22 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 - Pin dependencies to exact versions published at least 7 days ago.
 - Commits are gitmoji-conventional: `✨ feat(core): …`, `🐛 fix(react): …`,
   `✅ test(core): …`, `🔧 chore: …`, `📝 docs: …`.
+
+## Type safety
+
+- **No `any` in public types.** A guard test checks the core's exported declarations, and
+  `pnpm build` checks every package's emitted `.d.ts` (`scripts/check-dts.ts`).
+- **Data is typed by the registry.** An app declares `Types` (`{ tabs: { editor: {…} } }`) and
+  `createModel<Types>`; `tab.data` narrows on `tab.component`, and `tab.add`/`tab.update`
+  payloads are checked against it. Parts that hand nodes to a children function take the
+  registry as a type argument (`<Dockable.Panels<Types>>`). No casts on node data or kinds, in
+  the packages or the examples.
+- **Schemas and types are tested together.** Every command's payload and result schema, and the
+  layout schema, is checked equal to its TypeScript type (`packages/core/tests/types/schemas.ts`).
+- **Type fixtures** go in `tests/types/` (checked by `tsc`, not run): `@ts-expect-error` marks
+  what must not compile.
+- `site/docs/api/commands.mdx` is generated from the registry
+  (`packages/core/scripts/generate-command-docs.ts`); `pnpm check` fails when it drifts.
 
 ## The primitive contract (`@fragiola/dockable-react`)
 
@@ -217,7 +234,9 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
 - **Stacking is the consumer's.** Panels are portalled into the root after its other
   children, so an absolutely positioned `DropIndicator` needs a `z-index` to paint above them
   (the playground gives it one).
-- **Drops dispatch `Actions.moveNode`** (or `dockFloatToLayout`) through `onAction`.
+- **Drops run commands:** `tab.move` / `tabset.move` (or `tab.add` for a new tab) through the
+  model's middleware. A drag carries `DRAG_TYPE` (`application/x-dockable`); refusals come from
+  `model.can` during the hover (the outline hides, `data-drop-refused` shows).
 - **No text in drag images.** The drag image is an element the adapter provides (the dragged
   `Dockable.Tab` by default); with none, the browser default is used.
 - `data-dragging` marks the dragged `Tab` and the `Root` while a drag of the layout is active.
@@ -232,9 +251,8 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
 - **React only portals** into the content root once it is ready (`Dockable.Popout`), and the
   moveable elements are re-parented across documents with `appendChild` (never cloned), so the
   content keeps its state.
-- **Close policy (deviation from FlexLayout).** FlexLayout's `Actions.closePopout` turns a closed
-  popout into a float. Floats are a later slice, so the default policy here is `"dock"`: closing
-  the window moves its tabs into the main layout's active tabset (else its first). The
-  `"float"` policy (FlexLayout parity) exists and is tested; the float slice flips the default.
+- **Close policy (deviation from FlexLayout).** FlexLayout turns a closed popout into a float.
+  Floats are not built, so the only policy is `"dock"`: closing the window runs `window.close`,
+  which moves its tabs into the main layout's active tabset (else its first).
 - Nothing names or titles the window unless the consumer passes a title.
 - The host page (`popoutURL`, default `popout.html`) receives the layout id as `?id=`.

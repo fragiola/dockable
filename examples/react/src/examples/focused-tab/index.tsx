@@ -1,24 +1,27 @@
 "use client";
 
-import { type IJsonModel, Model } from "@fragiola/dockable";
+import { createModel, type LayoutJson } from "@fragiola/dockable";
 import { useState } from "react";
 import { Card } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+// What the layout holds: one component, named in its data.
+type Types = { tabs: { card: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    // the active tabset when the layout loads (the layout's, by id)
+    active: "editors",
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
+                id: "editors",
                 weight: 50,
-                // the active tabset when the layout loads
-                active: true,
                 children: [
-                    { type: "tab", name: "Editor", component: "card" },
-                    { type: "tab", name: "Preview", component: "card" },
+                    { component: "card", data: { name: "Editor" } },
+                    { component: "card", data: { name: "Preview" } },
                 ],
             },
             {
@@ -28,19 +31,15 @@ const json: IJsonModel = {
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", name: "Outline", component: "card" },
-                            { type: "tab", name: "Search", component: "card" },
+                            { component: "card", data: { name: "Outline" } },
+                            { component: "card", data: { name: "Search" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            {
-                                type: "tab",
-                                name: "Problems",
-                                component: "card",
-                            },
-                            { type: "tab", name: "Output", component: "card" },
+                            { component: "card", data: { name: "Problems" } },
+                            { component: "card", data: { name: "Output" } },
                         ],
                     },
                 ],
@@ -72,7 +71,7 @@ const tabset =
     "transition-colors duration-(--dk-motion) data-active:border-palette-ring";
 
 export default function FocusedTab() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}

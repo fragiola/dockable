@@ -1,0 +1,313 @@
+---
+title: AI assistants and automation
+description: Hand the layout's commands to an AI assistant as tools, run its calls as untrusted JSON, and keep a middleware as the permission boundary.
+---
+
+Every change to a layout is a named command with a description and a JSON Schema. That is what a
+tool-calling assistant needs to drive it, and what a script, a macro recorder, a remote control or
+a test needs too. The model provides the four pieces; the package has no SDK, makes no network
+call and knows no provider:
+
+1. **describe**: `model.commands()` lists every command with its description and schemas, ready
+   to become tool definitions;
+2. **run**: `model.dispatch(input, { meta })` takes a command as untrusted JSON, validates it, and answers
+   with a result or a structured error, never an exception;
+3. **guard**: a middleware (`model.use`) decides what an assistant may do, and `model.can` asks
+   before acting;
+4. **report**: the result goes back to the assistant, and `model.subscribe` tells it what changed
+   in the meantime.
+
+<Example id="command-console" />
+
+The [`command-console`](/examples/command-console) example is a console beside a layout: it lists
+the commands, runs one typed as JSON, shows its result or its error, logs every change, and shows
+the commands as tool definitions. Everything below is plain code over the model; adapt it to the
+API you call.
+
+## Commands as tool definitions
+
+`model.commands()` returns a `CommandInfo` per command:
+
+| field | holds |
+| --- | --- |
+| `name` | the command's name (`"tab.move"`) |
+| `description` | what it does, written for an assistant choosing a tool |
+| `payloadSchema` | the JSON Schema of its payload, self-contained (no outside references) |
+| `resultSchema` | the JSON Schema of its result value |
+| `transient` | whether it may run as a step of a continuous gesture (a splitter drag) |
+
+Most tool-calling APIs take a name, a description and an input schema, so a command maps onto a
+tool one to one. Tool names are usually restricted to letters, digits, `_` and `-`, so the dots
+go:
+
+```ts
+import type { CommandInfo, CommandName, JsonSchema } from "@fragiola/dockable";
+
+/** The provider-neutral shape: rename the fields to what your API expects. */
+interface ToolDefinition {
+    name: string;
+    description: string;
+    input_schema: JsonSchema;
+}
+
+const toolName = (command: string) => command.replaceAll(".", "_"); // tab.move → tab_move
+
+/** What the assistant may call: a choice of your app. */
+const EXPOSED = new Set<CommandName>([
+    "tab.select", "tab.move", "tab.add", "tab.update", "tab.close",
+    "tabset.maximize", "row.resize", "batch",
+]);
+
+function toTools(commands: readonly CommandInfo[]): ToolDefinition[] {
+    return commands
+        .filter((command) => EXPOSED.has(command.name))
+        .map((command) => ({
+            name: toolName(command.name),
+            description: command.description,
+            input_schema: command.payloadSchema,
+        }));
+}
+
+const tools = toTools(model.commands());
+// and back: the command a tool call names
+const commandOf = new Map(model.commands().map((command) => [toolName(command.name), command.name]));
+```
+
+`tab_select`, for example, becomes:
+
+```json
+{
+    "name": "tab_select",
+    "description": "Select a tab, making it visible. In a tabset the tabset also becomes the active one; in a border the border's panel opens. Selecting the selected tab changes nothing.",
+    "input_schema": {
+        "type": "object",
+        "properties": { "tab": { "type": "string", "minLength": 1, "description": "the tab's id" } },
+        "required": ["tab"],
+        "additionalProperties": false
+    }
+}
+```
+
+Expose only what the assistant should reach for: `layout.load` replaces the whole layout, and
+`window.configure` only records a window's position. Filtering the tools is a convenience, not a
+safeguard; the middleware below is.
+
+### What the assistant needs to know
+
+The commands name nodes by id, so give the assistant the layout with its ids. `model.toJSON()` is
+the whole document; a summary of your own is smaller:
+
+```ts
+function describeLayout(model: Model<Types>) {
+    return {
+        active: model.activeTabset()?.id,
+        tabsets: model.tabsets().map((tabset) => ({
+            id: tabset.id,
+            selected: model.selectedTab(tabset.id)?.id,
+            tabs: tabset.children.map((tab) => ({ id: tab.id, component: tab.component, name: tab.data.name })),
+        })),
+    };
+}
+```
+
+A tab's `data` is your app's (see [Typed data](/docs/concepts/typed-data)): the `tab.add` and
+`tab.update` schemas accept any `data`. Tell the assistant what each component's data looks like
+(in its instructions or the tool description), and register the same shapes with `dataSchemas`
+so a wrong one is refused:
+
+```ts
+const model = createModel<Types>(json, {
+    dataSchemas: {
+        note: {
+            type: "object",
+            properties: { name: { type: "string", minLength: 1 }, text: { type: "string" } },
+            required: ["name", "text"],
+            additionalProperties: false,
+        },
+    },
+});
+```
+
+## Running a call
+
+What an assistant sends is untrusted JSON: it can name a command that does not exist, miss a
+field, or use the wrong type. `model.dispatch` takes exactly that, `unknown`, as
+`{ command, payload }` (plus an optional `transient`), and checks everything before anything
+changes:
+
+- the envelope: an object, a string `command`, an object `payload`, no other keys;
+- the command's name: `unknown_command` at `/command` otherwise;
+- the payload, against the command's schema (and a registered `data` schema): `invalid_payload`
+  with every problem found;
+- then the layout's own rules (`not_found`, `refused`) and the middleware (`vetoed`).
+
+It never throws on bad input. Every answer is a `CommandResult`: `{ ok: true, value }` with the
+command's result, or `{ ok: false, error }` with a `code`, a `message`, a JSON pointer `path`
+into the input, and for a schema failure the `issues`:
+
+```ts
+model.dispatch({ command: "tab.move", payload: { tab: 3 } });
+```
+
+```json
+{
+    "ok": false,
+    "error": {
+        "code": "invalid_payload",
+        "message": "is required",
+        "path": "/payload/to",
+        "issues": [
+            { "path": "/payload/to", "message": "is required" },
+            { "path": "/payload/tab", "message": "must be a string" }
+        ]
+    }
+}
+```
+
+Send it back as the tool's result, as it is: the path and the issues are what an assistant needs
+to correct its call on the next turn. A tool call becomes a dispatch in two lines:
+
+```ts
+function runToolCall(call: { name: string; input: unknown }) {
+    const command = commandOf.get(call.name) ?? call.name; // an unknown name fails in dispatch
+    return model.dispatch({ command, payload: call.input });
+}
+```
+
+`dispatch` is the same bus as `model.run`: the typed calls of your UI, the engine's drags and the
+assistant's JSON all go through one middleware chain and reach the same listeners. The full list
+of error codes is in [The command bus](/docs/api/command-bus); every command's payload, result and
+errors in [Commands](/docs/api/commands).
+
+## The permission boundary
+
+A middleware sees every command before it applies, whoever issued it, and can veto it. That makes
+it the place to decide what an assistant may do: not the tool list, not the prompt.
+
+To tell the assistant's commands from the user's, mark them with `meta`. `dispatch` takes it as
+its second argument (`DispatchOptions`), from your code: it is never read from the untrusted input,
+and an input that carries a `meta` key is refused (`invalid_payload` at `/meta`), so an assistant
+cannot pass itself off as the user.
+
+```ts
+import type { CommandResult } from "@fragiola/dockable";
+
+const ASSISTANT = { source: "assistant" } as const;
+
+function runAssistantCall(call: { name: string; input: unknown }): CommandResult<unknown> {
+    const command = commandOf.get(call.name);
+    if (!command || !EXPOSED.has(command)) {
+        return { ok: false, error: { code: "unknown_command", message: `no tool named ${call.name}` } };
+    }
+    // validated by the bus: a wrong payload is an invalid_payload result, never an exception
+    return model.dispatch({ command, payload: call.input }, { meta: ASSISTANT });
+}
+```
+
+The middleware reads `ctx.meta` and lets everything else through:
+
+```ts
+import { type Middleware, veto } from "@fragiola/dockable";
+
+const assistantPolicy: Middleware<Types> = (ctx, next) => {
+    if (ctx.meta?.source !== "assistant") return next(); // the user's drags, keys and buttons
+    switch (ctx.command) {
+        case "tab.select":
+        case "tab.move":
+        case "tab.add":
+        case "tab.update":
+        case "tabset.maximize":
+        case "row.resize":
+        case "batch": // each command inside it passes this middleware too, with the same meta
+            return next();
+        case "tab.close": {
+            const tab = ctx.get(ctx.payload.tab);
+            if (tab?.type === "tab" && tab.component === "editor" && tab.data.dirty) {
+                return veto(`"${tab.data.name}" has unsaved changes: ask the user to close it.`);
+            }
+            return next();
+        }
+        default:
+            return veto(`The assistant may not run ${ctx.command}.`);
+    }
+};
+
+model.use(assistantPolicy);
+```
+
+- Checking `ctx.command` narrows `ctx.payload`, and `ctx.get` returns typed nodes, so the rule
+  reads `tab.data` without a cast.
+- A veto is a result like any other (`code: "vetoed"` and your message), so the assistant learns
+  why, and can tell the user.
+- A batch cannot slip past it: the batch itself and every command inside it run the chain, and
+  one veto cancels the whole batch.
+- The model's own rules still apply underneath: a pinned tab, a tab with `enableClose: false`, or
+  a tabset with `enableDrop: false` refuses the assistant exactly as it refuses a drag.
+
+### Asking before acting
+
+`model.can` runs the same checks, middleware included (with `ctx.dryRun` set), and commits
+nothing. Use it to answer "could this work?" before a command runs: to confirm a destructive step
+with the user first, or to check a whole plan. A `batch` is atomic, so a plan of several commands
+is one question:
+
+```ts
+const plan = {
+    commands: [
+        { command: "tab.select", payload: { tab: "todo" } },
+        { command: "tab.close", payload: { tab: "code" } },
+    ],
+} satisfies PayloadOf<Types, "batch">;
+
+const answer = model.can("batch", plan, { meta: ASSISTANT });
+if (!answer.ok) {
+    // tell the assistant why, before anything happened
+} else if (await confirmWithUser(plan)) {
+    model.run("batch", plan, { meta: ASSISTANT });
+}
+```
+
+A middleware must not cause side effects while `ctx.dryRun` is true: it runs on every `can`,
+including the ones a drag asks on every pointer move.
+
+## Reporting back
+
+The result of each call is the first report: send the `value` (the new tab's id for `tab.add`,
+the closed tabs for `tabset.close`) or the error. The user keeps working between the assistant's
+turns, though, so tell it what changed. `model.subscribe` receives one event per commit, with the
+command, its payload and result, `transient` and `meta`:
+
+```ts
+const changes: string[] = [];
+
+model.subscribe((event) => {
+    if (event.transient) return; // a splitter still moving: its last command follows
+    const who = event.meta?.source === "assistant" ? "assistant" : "user";
+    changes.push(`${who}: ${event.command} ${JSON.stringify(event.payload)}`);
+});
+
+// before the assistant's next turn: send the changes (then clear them) and a fresh summary
+```
+
+```text
+user: tab.select {"tab":"todo"}
+assistant: tab.move {"tab":"readme","to":"right"}
+```
+
+`event.before` and `event.after` are the whole state before and after the command, when a diff of
+your own says more than the command does.
+
+## Beyond assistants
+
+The same pieces serve any automation that speaks JSON:
+
+- **scripts and macros**: record the events of `model.subscribe` (`command` and `payload`), replay
+  them with `dispatch`;
+- **remote control and collaboration**: send commands over your own channel and `dispatch` them on
+  the other side, where the same middleware applies;
+- **tests**: drive a model in Node with the same commands, see
+  [Testing your layout](/docs/guides/testing).
+
+For the bus itself (the order of middleware, batches, re-entrancy), see
+[The model and commands](/docs/concepts/model-and-commands) and
+[The command bus](/docs/api/command-bus).

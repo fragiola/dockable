@@ -1,40 +1,48 @@
 ---
 title: Menus
-description: The package provides the actions and the label keys; you render the menu with your own components.
+description: The package provides the commands, model.can and the label keys; you render every menu with your own components.
 ---
 
 Dockable renders **no menus**. A tab context menu, a tabset "more" menu or an overflow menu is a
-component you write, whose items dispatch actions. This page lists the items a layout usually
-offers and the action behind each.
+component you write, whose items run commands. `model.can` tells each item whether its command
+would apply (the layout's rules and your middleware included), so an item is disabled exactly when
+running it would be refused. This page lists the items a layout usually offers and the command
+behind each.
 
 <Example id="tab-context-menu" />
 
 ## A tab context menu
 
-Attach the menu to the `Tab` with `onContextMenu` (props are forwarded), or wrap the tab in your
-menu library's trigger with `render`. With Fragiola UI's `ContextMenu` (Base UI):
+Attach the menu to the `Tab` with `onContextMenu` (props are forwarded), or make the tab your menu
+library's trigger with `render`. With Fragiola UI's `ContextMenu` (Base UI):
 
 ```tsx
-import { Actions, type TabNode } from "@fragiola/dockable";
+import { DockableLabel, type TabOf } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import { ContextMenu } from "#/components/ui/context-menu";
 
-function TabWithMenu({ tab }: { tab: TabNode }) {
-    const { engine } = useDockable();
+type Types = { tabs: { card: { name: string } } };
+
+function TabWithMenu({ tab }: { tab: TabOf<Types> }) {
+    const { model, run, getLabel } = useDockable<Types>();
+    const pinned = tab.pinned === true;
     return (
         <ContextMenu.Root>
-            <ContextMenu.Trigger render={<Dockable.Tab node={tab} />}>
-                {tab.getName()}
-            </ContextMenu.Trigger>
+            <Dockable.Tab node={tab} render={<ContextMenu.Trigger />}>
+                {tab.data.name}
+            </Dockable.Tab>
             <ContextMenu.Content>
                 <ContextMenu.Item
-                    disabled={!tab.isCloseable()}
-                    onClick={() => engine.doAction(Actions.deleteTab(tab.getId()))}
+                    disabled={!model.can("tab.close", { tab: tab.id }).ok}
+                    onClick={() => run("tab.close", { tab: tab.id })}
                 >
-                    Close
+                    {getLabel?.(DockableLabel.Close_Tab)}
                 </ContextMenu.Item>
-                <ContextMenu.Item onClick={() => engine.doAction(Actions.setTabPinned(tab.getId(), !tab.isPinned()))}>
-                    {tab.isPinned() ? "Unpin" : "Pin"}
+                <ContextMenu.Item
+                    disabled={!model.can("tab.pin", { tab: tab.id, value: !pinned }).ok}
+                    onClick={() => run("tab.pin", { tab: tab.id, value: !pinned })}
+                >
+                    {getLabel?.(pinned ? DockableLabel.Menu_Unpin : DockableLabel.Menu_Pin)}
                 </ContextMenu.Item>
             </ContextMenu.Content>
         </ContextMenu.Root>
@@ -43,24 +51,46 @@ function TabWithMenu({ tab }: { tab: TabNode }) {
 ```
 
 Read the component's source for its exact parts; the pattern (a trigger rendering the
-`Dockable.Tab`, items dispatching actions) is the same with any menu library. Make sure the
-trigger forwards the ref and props to the tab element, or wrap the tab in the trigger instead.
+`Dockable.Tab`, items running commands, `model.can` deciding what is enabled) is the same with any
+menu library. Make sure the trigger forwards the ref and props to the tab element, or wrap the tab
+in the trigger instead.
 
 ## The usual items
 
-| item | action | show or enable when | label key |
-| --- | --- | --- | --- |
-| Close | `Actions.deleteTab(tab.getId())` | `tab.isCloseable()` | `Close_Tab` |
-| Close others | `Actions.group(others.map((t) => Actions.deleteTab(t.getId())))` | other closeable tabs exist | `Menu_Close_Others` |
-| Close to the right | `Actions.group(right.map(…))` | closeable tabs after it | `Menu_Close_Right` |
-| Close all | `Actions.group(all.map(…))` | closeable tabs exist | `Menu_Close_All` |
-| Rename | start your rename UI, then `Actions.renameTab(id, text)` | `tab.isEnableRename()` | `Menu_Rename` |
-| Pin / Unpin | `Actions.setTabPinned(id, !tab.isPinned())` | `tab.isEnablePin()` | `Menu_Pin`, `Menu_Unpin` |
-| Pop out | `Actions.popoutTab(id, "window")` | `tab.isEnablePopout()` and `mainEngine.isSupportsPopout()` | `Menu_Popout` |
-| Maximize / Restore | `Actions.maximizeToggle(tabset.getId())` | `tabset.isEnableMaximize()` | `Menu_Maximize`, `Menu_Restore` |
+`parent` is `model.parentOf(tab.id)`: the tab's tabset, or its border.
 
-Group the "close several" items with `Actions.group`, so they are one undo step and one
-`onModelChange`. Filter with `isCloseable()`: pinned tabs are not closeable.
+| item | command | enable when | label key |
+| --- | --- | --- | --- |
+| Close | `tab.close` `{ tab }` | `model.can("tab.close", …)` | `Close_Tab` |
+| Close others | `batch` of `tab.close`, one per other closable tab | at least one | `Menu_Close_Others` |
+| Close to the right | `batch` of `tab.close` for the closable tabs after it | at least one | `Menu_Close_Right` |
+| Close all | `tabset.close` `{ tabset }`, or a `batch` of `tab.close` | `model.can("tabset.close", …)` | `Menu_Close_All` |
+| Rename | start your rename UI, then `tab.update` with the new data | your own rule (in `data`), and `model.can("tab.update", …)` | `Menu_Rename` |
+| Pin / Unpin | `tab.pin` `{ tab, value }` | `model.can("tab.pin", …)` (refused in a border) | `Menu_Pin`, `Menu_Unpin` |
+| Pop out | `tab.popout` `{ tab }` | `engine.isSupportsPopout()` and `model.can("tab.popout", …)` | `Menu_Popout` |
+| Pop out the tabset | `tabset.popout` `{ tabset }` | as Pop out, with `tabset.popout` | `Menu_Popout_Tabset` |
+| Maximize / Restore | `tabset.maximize` `{ tabset, value }` | `model.can("tabset.maximize", …)` | `Menu_Maximize`, `Menu_Restore` |
+| Overlay / Docked (a border) | `border.configure` `{ border, mode }` | always | `Menu_Overlay`, `Menu_Split` |
+
+"Several closes" are one `batch`: one change event, one undo step, and atomic (if one command
+fails, none applies). Filter the tabs with `model.can` first, so a pinned or unclosable tab does
+not make the whole batch fail:
+
+```ts
+import type { BatchEntry, TabOf } from "@fragiola/dockable";
+
+const parent = model.parentOf(tab.id);
+const siblings = parent && parent.type !== "row" ? parent.children : [];
+const others = siblings.filter((t) => t.id !== tab.id && model.can("tab.close", { tab: t.id }).ok);
+
+run("batch", {
+    commands: others.map((t): BatchEntry<Types> => ({ command: "tab.close", payload: { tab: t.id } })),
+});
+```
+
+`tab.popout` from a menu opens the window at a default place; `engine.popout(tab.id)` (the engine
+from `useDockable`) runs the same command with the tab's current screen rect, so the window opens
+where the tab was. See [Popouts](/docs/guides/popouts).
 
 The **label keys** are members of `DockableLabel`. They have no text in the package; resolving
 them through the same `getLabel` you give `Dockable.Root` keeps every string of the layout in one

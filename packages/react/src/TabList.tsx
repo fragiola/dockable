@@ -2,9 +2,10 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import {
-    BorderNode,
+    type AnyTypes,
+    type DockableTypes,
     getTabStripPath,
-    type TabNode,
+    type TabOf,
     toAriaKeyShortcuts,
 } from "@fragiola/dockable";
 import * as React from "react";
@@ -33,9 +34,13 @@ export interface TabListState {
     hiddenCount: number;
 }
 
-export interface TabListProps extends DivPrimitiveProps<TabListState> {
-    /** renders a tab button (a `Dockable.Tab`) */
-    children: (tab: TabNode) => React.ReactNode;
+export interface TabListProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<TabListState> {
+    /**
+     * renders a tab button (a `Dockable.Tab`); pass the model's registry as the type argument
+     * (`<Dockable.TabList<Types>>`) and `tab.data` narrows on `tab.component`
+     */
+    children: (tab: TabOf<T>) => React.ReactNode;
     /**
      * the direction the tabs are laid out in, for arrow key navigation; default horizontal
      * (vertical in a left or right border)
@@ -53,12 +58,15 @@ export interface TabListProps extends DivPrimitiveProps<TabListState> {
  * The tab strip (`role="tablist"`) of a tabset or a border. Calls the child function per tab.
  * Arrow keys along the orientation, Home and End move focus between tabs; Enter or Space selects.
  */
-export function TabList(props: TabListProps) {
-    const tabset = useTabContainer("TabList");
-    const border = tabset instanceof BorderNode;
+export function TabList<T extends DockableTypes = AnyTypes>(
+    props: TabListProps<T>,
+) {
+    const tabset = useTabContainer<T>("TabList");
+    const border = tabset.type === "border";
     const {
         children,
-        orientation = border && tabset.isHorizontal()
+        orientation = border &&
+        (tabset.location === "left" || tabset.location === "right")
             ? "vertical"
             : "horizontal",
         overflow = true,
@@ -66,17 +74,18 @@ export function TabList(props: TabListProps) {
     } = props;
     const { keyMap } = useDockableContext("TabList");
     const { engine } = useLayoutContext("TabList");
+    const id = tabset.id;
     const vertical = orientation === "vertical";
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
             // a border's strip is measured as a whole by Dockable.Border
             if (!border) {
-                engine.registerMeasurable(tabset, "tabstrip", element);
+                engine.registerMeasurable(id, "tabstrip", element);
             }
             // the tabs that do not fit in the list are hidden (tab overflow)
-            engine.registerTabList(tabset, overflow ? element : null, vertical);
+            engine.registerTabList(id, overflow ? element : null, vertical);
         },
-        [engine, tabset, border, vertical, overflow],
+        [engine, id, border, vertical, overflow],
     );
     const tabOverflow = useTabOverflow(tabset);
 
@@ -88,7 +97,7 @@ export function TabList(props: TabListProps) {
             .filter(Boolean)
             .join(" ") || undefined;
 
-    const drop = useTabSetDropState(engine, tabset.getId());
+    const drop = useTabSetDropState(engine, id);
     const dropIndex = drop.strip ? drop.index : undefined;
     const state: TabListState = {
         orientation,
@@ -97,11 +106,9 @@ export function TabList(props: TabListProps) {
         overflowing: tabOverflow.overflowing,
         hiddenCount: tabOverflow.hidden.length,
     };
-    const tabs = tabset
-        .getTabNodes()
-        .map((tab) => (
-            <React.Fragment key={tab.getId()}>{children(tab)}</React.Fragment>
-        ));
+    const tabs = tabset.children.map((tab) => (
+        <React.Fragment key={tab.id}>{children(tab)}</React.Fragment>
+    ));
     const listContext = React.useMemo(() => ({ orientation }), [orientation]);
 
     const element = useRenderElement("div", rest, {
@@ -112,7 +119,7 @@ export function TabList(props: TabListProps) {
             "aria-orientation": orientation,
             "aria-keyshortcuts": keyShortcuts,
             ...dataAttributes({
-                "layout-path": getTabStripPath(tabset),
+                "layout-path": getTabStripPath(engine.path(id)),
                 orientation,
                 "drop-target": state.dropTarget,
                 "drop-index": dropIndex,

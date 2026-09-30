@@ -1,6 +1,6 @@
 ---
 title: Splitters
-description: Style splitters as hairlines or wide bars, give them a bigger grab area, and resize with the keyboard.
+description: Style splitters as hairlines or wide bars, give them a bigger grab area, resize with the keyboard, and see the commands a drag runs.
 ---
 
 `Dockable.Row` inserts a `Dockable.Splitter` between every two children. The default splitter is
@@ -47,8 +47,8 @@ A splitter renders its children, so a grip is an element inside it:
 
 ## Hairline splitters with a wide grab area
 
-A 1px line is hard to grab. Keep the element 1px (the engine measures it, so the split maths is
-exact) and put the grab area in a centred `::after`, VS Code style:
+A 1px line is hard to grab. Keep the element 1px (the engine measures it, so the split math is
+exact) and put the grab area in a centered `::after`, VS Code style:
 
 ```tsx
 const splitterClassName = [
@@ -79,8 +79,10 @@ absolutely positioned in the root and would otherwise cover it). This is gap 9 i
 recursion, and to the row inside `Dockable.Popout` (gap 6):
 
 ```tsx
-function renderNode(child: TabSetNode | RowNode): ReactNode {
-    if (child instanceof TabSetNode) return <MyTabSet node={child} />;
+import type { RowNode, TabsetNode } from "@fragiola/dockable";
+
+function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
+    if (child.type === "tabset") return <MyTabSet node={child} />;
     return (
         <Dockable.Row node={child} renderSplitter={renderSplitter}>
             {renderNode}
@@ -94,21 +96,50 @@ Or skip `renderSplitter` and style the default splitter with a stylesheet:
 
 ## Live or preview resizing
 
-By default a drag resizes live: the row's weights change on every pointer move (as
-`adjustWeights` actions marked **adjusting**, collapsed into one undo step).
+A splitter changes the layout with a command, like everything else: `row.resize` with the row's
+new `weights` (one per child), or `border.resize` with a border's new `size` in px. Both go
+through the model's middleware and reach `model.subscribe`.
+
+By default a drag resizes live: the command runs on every pointer move, marked
+**transient** (`{ transient: true }`), and once more without the mark on release. The engine
+applies a transient `row.resize` by writing `flex-grow` directly, without a React render, so a
+drag stays cheap. A listener sees `event.transient`: an undo history merges a gesture's transient
+steps and its final command into one step, and a save-on-change can wait for the non-transient
+one:
+
+```ts
+model.subscribe((event) => {
+    if (event.transient) return; // a splitter is still moving
+    save(model.toJSON());
+});
+```
+
 `realtimeResize={false}` on `Dockable.Root` previews instead: the splitter moves with a
-structural `transform` while `data-dragging` is set, and the weights change once, on release.
+structural `transform` while `data-dragging` is set, and a single, non-transient command runs on
+release.
 
 ```tsx
 <Dockable.Root model={model} realtimeResize={false}>
 ```
 
-Style the preview through `data-dragging` (for example a stronger colour while it floats).
+Style the preview through `data-dragging` (for example a stronger color while it moves).
+
+The same commands resize from code. Weights are relative, so `[1, 2]` gives the second child
+twice the first's share, and a border's size is clamped to its `minSize` and `maxSize`:
+
+```ts
+model.run("row.resize", { row: "main-row", weights: [30, 70] });
+model.run("border.resize", { border: "border_left", size: 280 });
+```
+
+`row.resize` needs one weight per child (`invalid_payload` otherwise); the root row's id is
+`model.root()?.id`.
 
 ## Keyboard
 
 A splitter is focusable (`tabIndex={0}`). The arrow keys along its axis move it by 10px:
-Left/Right for a vertical bar, Up/Down for a horizontal one. Its ARIA value is the position
+Left/Right for a vertical bar, Up/Down for a horizontal one; each press runs one `row.resize` (or
+`border.resize`). Its ARIA value is the position
 within the row (0–100) with an `aria-valuetext` like `"40%"`. Name it with `getLabel`
 (`DockableLabel.Splitter`, see [Accessible names](/docs/getting-started/accessible-names)).
 
@@ -119,5 +150,6 @@ maximized, every row splitter is hidden (`display: none`, structural).
 
 ## Reference
 
-[`Dockable.Splitter`](/docs/api/splitter), [`useSplitter`](/docs/api/hooks#usesplitter),
-[`Dockable.Row`](/docs/api/row).
+[`Dockable.Splitter`](/docs/api/splitter), [`useSplitter`](/docs/api/hooks),
+[`Dockable.Row`](/docs/api/row), and the `row.resize` and `border.resize` entries of
+[Commands](/docs/api/commands).

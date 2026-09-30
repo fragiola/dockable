@@ -1,40 +1,45 @@
 import {
-    type Action,
-    Actions,
-    type IJsonModel,
-    Model,
-    type TabSetNode,
+    createModel,
+    type LayoutJson,
+    type Model,
+    type TabJson,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Dockable, type TabOverflowTriggerState, useTabOverflow } from "../src";
+import { recordCommands, type Types } from "./layout";
 
 // jsdom measures a tab list as 100px and a tab as 30px (tests/setup.ts): 3 of 4 tabs fit
-const json: IJsonModel = {
-    global: {},
-    layout: {
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 id: "ts0",
-                children: ["a", "b", "c", "d"].map((id) => ({
-                    type: "tab" as const,
-                    id,
-                    name: id.toUpperCase(),
-                })),
+                children: ["a", "b", "c", "d"].map(
+                    (id): TabJson<Types> => ({
+                        id,
+                        component: "test",
+                        data: { name: id.toUpperCase() },
+                    }),
+                ),
             },
         ],
     },
 };
 
-function Menu({ tabset }: { tabset: TabSetNode }) {
+const load = (): Model<Types> => createModel<Types>(structuredClone(json));
+
+function Menu({ tabset }: { tabset: TabsetNode<Types> }) {
     const { hidden } = useTabOverflow(tabset);
     return (
         <ul data-testid="menu">
             {hidden.map((tab) => (
-                <li key={tab.getId()}>{tab.getName()}</li>
+                <li key={tab.id}>{tab.data.name}</li>
             ))}
         </ul>
     );
@@ -43,23 +48,20 @@ function Menu({ tabset }: { tabset: TabSetNode }) {
 function OverflowLayout({
     model,
     trigger,
-    onAction,
 }: {
-    model: Model;
-    trigger?: (tabset: TabSetNode) => React.ReactNode;
-    onAction?: (action: Action) => Action | undefined;
+    model: Model<Types>;
+    trigger?: (tabset: TabsetNode<Types>) => React.ReactNode;
 }) {
     return (
-        <Dockable.Root model={model} onAction={onAction}>
-            <Dockable.Row>
-                {(child) => {
-                    const tabset = child as TabSetNode;
-                    return (
+        <Dockable.Root model={model}>
+            <Dockable.Row<Types>>
+                {(tabset) =>
+                    tabset.type === "tabset" ? (
                         <Dockable.TabSet node={tabset}>
-                            <Dockable.TabList>
+                            <Dockable.TabList<Types>>
                                 {(tab) => (
                                     <Dockable.Tab node={tab}>
-                                        {tab.getName()}
+                                        {tab.data.name}
                                     </Dockable.Tab>
                                 )}
                             </Dockable.TabList>
@@ -73,8 +75,36 @@ function OverflowLayout({
                             <Menu tabset={tabset} />
                             <Dockable.TabSetContent />
                         </Dockable.TabSet>
-                    );
-                }}
+                    ) : null
+                }
+            </Dockable.Row>
+        </Dockable.Root>
+    );
+}
+
+/** A tabset with a bare tab list and a trigger, for the variants below. */
+function BareLayout({
+    model,
+    overflow,
+    getLabel,
+}: {
+    model: Model<Types>;
+    overflow?: boolean;
+    getLabel?: (key: string) => string;
+}) {
+    return (
+        <Dockable.Root model={model} getLabel={getLabel}>
+            <Dockable.Row<Types>>
+                {(tabset) =>
+                    tabset.type === "tabset" ? (
+                        <Dockable.TabSet node={tabset}>
+                            <Dockable.TabList<Types> overflow={overflow}>
+                                {(tab) => <Dockable.Tab node={tab} />}
+                            </Dockable.TabList>
+                            <Dockable.TabOverflowTrigger data-testid="trigger" />
+                        </Dockable.TabSet>
+                    ) : null
+                }
             </Dockable.Row>
         </Dockable.Root>
     );
@@ -83,14 +113,22 @@ function OverflowLayout({
 const path = (value: string) =>
     document.querySelector<HTMLElement>(`[data-layout-path="${value}"]`);
 
+const element = (value: string): HTMLElement => {
+    const found = path(value);
+    if (!found) {
+        throw new Error(`no element at ${value}`);
+    }
+    return found;
+};
+
 describe("tab overflow", () => {
     it("hides the tabs that do not fit, and shows the trigger with the hidden ones", () => {
-        render(<OverflowLayout model={Model.fromJson(json)} />);
+        render(<OverflowLayout model={load()} />);
         expect(path("/ts0/tabstrip")).toHaveAttribute("data-overflowing", "");
-        const hiddenTab = path("/ts0/tb3") as HTMLElement;
+        const hiddenTab = element("/ts0/tb3");
         expect(hiddenTab).toHaveAttribute("data-overflow-hidden", "");
         expect(hiddenTab.style.display).toBe("none");
-        const visibleTab = path("/ts0/tb0") as HTMLElement;
+        const visibleTab = element("/ts0/tb0");
         expect(visibleTab).not.toHaveAttribute("data-overflow-hidden");
         expect(visibleTab.style.display).toBe("");
         const trigger = screen.getByTestId("trigger");
@@ -104,11 +142,10 @@ describe("tab overflow", () => {
     });
 
     it("brings a tab selected from the menu into the strip, hiding another in its place", () => {
-        const model = Model.fromJson(json);
-        const onAction = vi.fn((action: Action) => action);
-        render(<OverflowLayout model={model} onAction={onAction} />);
+        const model = load();
+        render(<OverflowLayout model={model} />);
         act(() => {
-            model.doAction(Actions.selectTab("d"));
+            model.run("tab.select", { tab: "d" });
         });
         expect(path("/ts0/tb3")).not.toHaveAttribute("data-overflow-hidden");
         expect(path("/ts0/tb2")).toHaveAttribute("data-overflow-hidden", "");
@@ -116,27 +153,25 @@ describe("tab overflow", () => {
     });
 
     it("selects a hidden tab reached with the arrow keys, which brings it into the strip", () => {
-        const onAction = vi.fn((action: Action) => action);
-        render(
-            <OverflowLayout model={Model.fromJson(json)} onAction={onAction} />,
-        );
-        const tab2 = path("/ts0/tb2") as HTMLElement;
+        const model = load();
+        const commands = recordCommands(model);
+        render(<OverflowLayout model={model} />);
+        const tab2 = element("/ts0/tb2");
         tab2.focus();
         fireEvent.keyDown(tab2, { key: "ArrowRight" });
-        expect(onAction).toHaveBeenLastCalledWith(
-            expect.objectContaining({
-                type: Actions.SELECT_TAB,
-                data: expect.objectContaining({ tabNode: "d" }),
-            }),
-        );
+        expect(commands.at(-1)).toEqual({
+            command: "tab.select",
+            payload: { tab: "d" },
+            transient: false,
+        });
         expect(path("/ts0/tb3")).not.toHaveAttribute("data-overflow-hidden");
     });
 
     it("renders no trigger, and no data-overflowing, when every tab fits", () => {
-        const model = Model.fromJson(json);
+        const model = load();
         render(<OverflowLayout model={model} />);
         act(() => {
-            model.doAction(Actions.deleteTab("d"));
+            model.run("tab.close", { tab: "d" });
         });
         expect(path("/ts0/tabstrip")).not.toHaveAttribute("data-overflowing");
         expect(screen.queryByTestId("trigger")).toBeNull();
@@ -146,20 +181,7 @@ describe("tab overflow", () => {
 
 describe("TabList overflow={false}", () => {
     it("keeps every tab, for a strip that wraps or scrolls", () => {
-        render(
-            <Dockable.Root model={Model.fromJson(json)}>
-                <Dockable.Row>
-                    {(child) => (
-                        <Dockable.TabSet node={child as TabSetNode}>
-                            <Dockable.TabList overflow={false}>
-                                {(tab) => <Dockable.Tab node={tab} />}
-                            </Dockable.TabList>
-                            <Dockable.TabOverflowTrigger data-testid="trigger" />
-                        </Dockable.TabSet>
-                    )}
-                </Dockable.Row>
-            </Dockable.Root>,
-        );
+        render(<BareLayout model={load()} overflow={false} />);
         expect(path("/ts0/tabstrip")).not.toHaveAttribute("data-overflowing");
         expect(path("/ts0/tb3")).not.toHaveAttribute("data-overflow-hidden");
         expect(screen.queryByTestId("trigger")).toBeNull();
@@ -173,7 +195,7 @@ describe("Dockable.TabOverflowTrigger follows the primitive contract", () => {
         let seen: TabOverflowTriggerState | undefined;
         render(
             <OverflowLayout
-                model={Model.fromJson(json)}
+                model={load()}
                 trigger={() => (
                     <Dockable.TabOverflowTrigger
                         ref={ref}
@@ -199,7 +221,7 @@ describe("Dockable.TabOverflowTrigger follows the primitive contract", () => {
         expect(trigger).toHaveClass("more", "more-1");
         expect(trigger).toHaveAttribute("aria-haspopup", "menu");
         expect(trigger.style.opacity).toBe("1");
-        expect(seen?.hidden.map((tab) => tab.getId())).toEqual(["d"]);
+        expect(seen?.hidden.map((tab) => tab.id)).toEqual(["d"]);
         fireEvent.click(trigger);
         expect(onClick).toHaveBeenCalled();
     });
@@ -207,7 +229,7 @@ describe("Dockable.TabOverflowTrigger follows the primitive contract", () => {
     it("merges an element render prop and renders no text of its own", () => {
         render(
             <OverflowLayout
-                model={Model.fromJson(json)}
+                model={load()}
                 trigger={() => (
                     <Dockable.TabOverflowTrigger
                         data-testid="trigger"
@@ -224,21 +246,7 @@ describe("Dockable.TabOverflowTrigger follows the primitive contract", () => {
 
     it("names itself through getLabel", () => {
         render(
-            <Dockable.Root
-                model={Model.fromJson(json)}
-                getLabel={(key) => `label:${key}`}
-            >
-                <Dockable.Row>
-                    {(child) => (
-                        <Dockable.TabSet node={child as TabSetNode}>
-                            <Dockable.TabList>
-                                {(tab) => <Dockable.Tab node={tab} />}
-                            </Dockable.TabList>
-                            <Dockable.TabOverflowTrigger data-testid="trigger" />
-                        </Dockable.TabSet>
-                    )}
-                </Dockable.Row>
-            </Dockable.Root>,
+            <BareLayout model={load()} getLabel={(key) => `label:${key}`} />,
         );
         expect(screen.getByTestId("trigger")).toHaveAttribute(
             "aria-label",

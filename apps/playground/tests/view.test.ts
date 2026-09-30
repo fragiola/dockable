@@ -28,7 +28,7 @@ describe("the view in the URL", () => {
                 inspect: false,
             },
             {
-                item: { kind: "scenario", id: "api/actions" },
+                item: { kind: "scenario", id: "api/commands" },
                 theme: "dark",
                 code: false,
                 inspect: true,

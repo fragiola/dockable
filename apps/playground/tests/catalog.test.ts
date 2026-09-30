@@ -107,8 +107,8 @@ describe("paths", () => {
         expect(repositoryPath("../../../examples/react/src/x.ts")).toBe(
             "examples/react/src/x.ts",
         );
-        expect(repositoryPath("./scenarios/api/actions.tsx")).toBe(
-            "apps/playground/src/scenarios/api/actions.tsx",
+        expect(repositoryPath("./scenarios/api/commands.tsx")).toBe(
+            "apps/playground/src/scenarios/api/commands.tsx",
         );
     });
 });

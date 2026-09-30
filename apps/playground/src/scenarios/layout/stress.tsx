@@ -1,12 +1,11 @@
 import {
-    Actions,
-    type IJsonModel,
-    type IJsonRowNode,
-    type IJsonTabSetNode,
-    Model,
-    type TabSetNode,
+    createModel,
+    type LayoutJson,
+    type RowJson,
+    type TabsetJson,
+    type TabsetNode,
 } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { useDockable, useModelState } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { PanelBody } from "#/examples/_kit/card";
 import { DockLayout } from "#/examples/_kit/layout";
@@ -16,11 +15,13 @@ import * as styles from "#/examples/_kit/styles";
 // sizes, and a maximize button on every tabset (text arrows: this app has no icon package). For geometry (splitter limits, nested weights,
 // maximize), a crowded strip, and hot reload with many panels mounted.
 
+type Types = { tabs: { body: { name: string } } };
+
 const TABS_PER_TABSET = 8;
 
 let tabsetCount = 0;
 
-function tabset(weight = 1): IJsonTabSetNode {
+function tabset(weight = 1): TabsetJson<Types> {
     tabsetCount += 1;
     const n = tabsetCount;
     return {
@@ -29,26 +30,24 @@ function tabset(weight = 1): IJsonTabSetNode {
         minWidth: 80,
         minHeight: 60,
         children: Array.from({ length: TABS_PER_TABSET }, (_, i) => ({
-            type: "tab",
-            name: `T${n}.${i + 1}`,
             component: "body",
+            data: { name: `T${n}.${i + 1}` },
         })),
     };
 }
 
 function row(
     weight: number,
-    children: (IJsonRowNode | IJsonTabSetNode)[],
-): IJsonRowNode {
+    children: (RowJson<Types> | TabsetJson<Types>)[],
+): RowJson<Types> {
     return { type: "row", weight, children };
 }
 
-function layout(): IJsonModel {
+function layout(): LayoutJson<Types> {
     tabsetCount = 0;
     return {
-        global: {},
-        borders: [],
-        layout: {
+        version: 1,
+        root: {
             type: "row",
             children: [
                 row(30, [tabset(), row(1, [tabset(), tabset()]), tabset()]),
@@ -62,9 +61,11 @@ function layout(): IJsonModel {
     };
 }
 
-function MaximizeButton({ tabset }: { tabset: TabSetNode }) {
-    const { engine, layoutId } = useDockable();
-    const maximized = tabset.isMaximized();
+function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { run, layoutId } = useDockable<Types>();
+    const maximized = useModelState<Types, boolean>(
+        (_state, model) => model.maximizedTabset(layoutId)?.id === tabset.id,
+    );
     return (
         <button
             type="button"
@@ -72,9 +73,7 @@ function MaximizeButton({ tabset }: { tabset: TabSetNode }) {
             aria-pressed={maximized}
             className={styles.iconButton}
             onClick={() =>
-                engine.doAction(
-                    Actions.maximizeToggle(tabset.getId(), layoutId),
-                )
+                run("tabset.maximize", { tabset: tabset.id, value: !maximized })
             }
         >
             {maximized ? "⤡" : "⤢"}
@@ -82,16 +81,22 @@ function MaximizeButton({ tabset }: { tabset: TabSetNode }) {
     );
 }
 
+/** where a tab sits: its tabset's id and its own */
+function TabPlace({ id }: { id: string }) {
+    const parent = useModelState<Types, string>(
+        (_state, model) => model.parentOf(id)?.id ?? "",
+    );
+    return <p className="text-palette-accent/85">{`${parent} · ${id}`}</p>;
+}
+
 export default function Stress() {
-    const [model] = useState(() => Model.fromJson(layout()));
+    const [model] = useState(() => createModel<Types>(layout()));
     return (
         <DockLayout
             model={model}
             renderContent={(tab) => (
-                <PanelBody title={tab.getName()}>
-                    <p className="text-palette-accent/85">
-                        {`${tab.getParent()?.getId() ?? ""} · ${tab.getId()}`}
-                    </p>
+                <PanelBody title={tab.data.name}>
+                    <TabPlace id={tab.id} />
                 </PanelBody>
             )}
             renderActions={(node) => <MaximizeButton tabset={node} />}

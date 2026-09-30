@@ -1,13 +1,11 @@
 "use client";
 
 import {
-    type Action,
-    Actions,
+    type BatchEntry,
+    createModel,
     DockableLabel,
-    type IJsonModel,
-    Model,
-    type TabNode,
-    TabSetNode,
+    type LayoutJson,
+    type TabOf,
 } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import { useRef, useState } from "react";
@@ -20,42 +18,40 @@ import { RenameField } from "../_kit/rename-field";
 import * as styles from "../_kit/styles";
 import { useStageTheme } from "../_kit/theme";
 
-// A Fragiola ContextMenu on every tab. The package provides the actions and the state to decide
-// what is available; the menu (and its text) is the consumer's. The tab IS the menu's trigger:
-// `render` puts the Dockable.Tab's props onto ContextMenu.Trigger's element.
+// A Fragiola ContextMenu on every tab. The package provides the commands and `model.can`, which
+// says whether a command would apply; the menu (and its text) is the consumer's. The tab IS the
+// menu's trigger: `render` puts the Dockable.Tab's props onto ContextMenu.Trigger's element.
 
-const json: IJsonModel = {
-    global: {
-        tabEnableRename: true,
-        tabEnablePin: true,
-        tabEnablePopout: true,
-    },
-    borders: [],
-    layout: {
+type Types = { tabs: { card: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    // every tab may pop out (the built-in default is false)
+    defaults: { tab: { enablePopout: true } },
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { type: "tab", name: "Overview", component: "card" },
+                    { component: "card", data: { name: "Overview" } },
                     {
-                        type: "tab",
-                        name: "Settings",
                         component: "card",
-                        // not closable: Close is disabled in its menu
+                        data: { name: "Settings" },
+                        // not closable: `tab.close` refuses it, so Close is disabled in its menu
                         enableClose: false,
                     },
-                    { type: "tab", name: "Activity", component: "card" },
-                    { type: "tab", name: "Reports", component: "card" },
+                    { component: "card", data: { name: "Activity" } },
+                    { component: "card", data: { name: "Reports" } },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
                 children: [
-                    { type: "tab", name: "Inbox", component: "card" },
-                    { type: "tab", name: "Drafts", component: "card" },
+                    { component: "card", data: { name: "Inbox" } },
+                    { component: "card", data: { name: "Drafts" } },
                 ],
             },
         ],
@@ -67,36 +63,54 @@ function MenuTab({
     editing,
     setEditing,
 }: {
-    tab: TabNode;
+    tab: TabOf<Types>;
     editing: boolean;
     setEditing: (id: string | null) => void;
 }) {
-    const { engine } = useDockable();
+    const { model, run, engine, layoutId } = useDockable<Types>();
     const [themeRef, theme] = useStageTheme();
     // Rename opens the inline field once the menu has closed and handed focus back to the tab
     const renameOnClose = useRef(false);
 
-    const tabset = tab.getTabContainer();
-    const siblings = tabset.getTabNodes();
-    const right = siblings.slice(siblings.indexOf(tab) + 1);
-    const closable = (nodes: TabNode[]) => nodes.filter((t) => t.isCloseable());
-    const others = closable(siblings.filter((t) => t !== tab));
+    // a tab lives in a tabset or a border; maximize is a tabset's
+    const parent = model.parentOf(tab.id);
+    const tabset = parent?.type === "tabset" ? parent : undefined;
+    const siblings = parent && parent.type !== "row" ? parent.children : [];
+    const right = siblings.slice(
+        siblings.findIndex((t) => t.id === tab.id) + 1,
+    );
+    // what a command would do, asked without applying it (middleware included)
+    const closable = (tabs: readonly TabOf<Types>[]) =>
+        tabs.filter((t) => model.can("tab.close", { tab: t.id }).ok);
+    const others = closable(siblings.filter((t) => t.id !== tab.id));
     const toTheRight = closable(right);
-    // a tab can live in a border too; maximize is a tabset's
-    const maximizable =
-        tabset instanceof TabSetNode && tabset.isEnableMaximize();
-    const maximized = tabset instanceof TabSetNode && tabset.isMaximized();
-    const run = (action: Action) => engine.doAction(action);
-    // several closes are one action (and one undo step)
-    const closeAll = (nodes: TabNode[]) =>
-        run(Actions.group(nodes.map((t) => Actions.deleteTab(t.getId()))));
+    const pinned = tab.pinned === true;
+    const maximized =
+        tabset !== undefined &&
+        model.maximizedTabset(layoutId)?.id === tabset.id;
+    const rename = (name: string) =>
+        run("tab.update", {
+            tab: tab.id,
+            component: tab.component,
+            data: { ...tab.data, name },
+        });
+    // several closes are one command (one change event, one undo step): all apply or none
+    const closeAll = (tabs: readonly TabOf<Types>[]) =>
+        run("batch", {
+            commands: tabs.map(
+                (t): BatchEntry<Types> => ({
+                    command: "tab.close",
+                    payload: { tab: t.id },
+                }),
+            ),
+        });
 
     return (
         <ContextMenu.Root
             onOpenChangeComplete={(open) => {
                 if (!open && renameOnClose.current) {
                     renameOnClose.current = false;
-                    setEditing(tab.getId());
+                    setEditing(tab.id);
                 }
             }}
         >
@@ -112,9 +126,9 @@ function MenuTab({
                 <TabParts tab={tab}>
                     {editing ? (
                         <RenameField
-                            name={tab.getName()}
+                            name={tab.data.name}
                             onCommit={(name) => {
-                                run(Actions.renameTab(tab.getId(), name));
+                                rename(name);
                                 setEditing(null);
                             }}
                             onCancel={() => setEditing(null)}
@@ -124,8 +138,8 @@ function MenuTab({
             </Dockable.Tab>
             <ContextMenu.Content data-example-theme={theme}>
                 <ContextMenu.Item
-                    disabled={!tab.isCloseable()}
-                    onClick={() => run(Actions.deleteTab(tab.getId()))}
+                    disabled={!model.can("tab.close", { tab: tab.id }).ok}
+                    onClick={() => run("tab.close", { tab: tab.id })}
                 >
                     {label(DockableLabel.Close_Tab)}
                 </ContextMenu.Item>
@@ -143,7 +157,14 @@ function MenuTab({
                 </ContextMenu.Item>
                 <ContextMenu.Separator />
                 <ContextMenu.Item
-                    disabled={!tab.isEnableRename()}
+                    // renaming is `tab.update` (the name is the tab's data): a middleware may veto it
+                    disabled={
+                        !model.can("tab.update", {
+                            tab: tab.id,
+                            component: tab.component,
+                            data: tab.data,
+                        }).ok
+                    }
                     onClick={() => {
                         renameOnClose.current = true;
                     }}
@@ -151,27 +172,37 @@ function MenuTab({
                     {label(DockableLabel.Menu_Rename)}
                 </ContextMenu.Item>
                 <ContextMenu.Item
-                    disabled={!tab.isEnablePin()}
+                    // refused for a tab in a border (only a tabset has a pinned run)
+                    disabled={
+                        !model.can("tab.pin", { tab: tab.id, value: !pinned })
+                            .ok
+                    }
                     onClick={() =>
-                        run(Actions.setTabPinned(tab.getId(), !tab.isPinned()))
+                        run("tab.pin", { tab: tab.id, value: !pinned })
                     }
                 >
                     {label(
-                        tab.isPinned()
+                        pinned
                             ? DockableLabel.Menu_Unpin
                             : DockableLabel.Menu_Pin,
                     )}
                 </ContextMenu.Item>
                 <ContextMenu.Item
-                    disabled={!maximizable}
-                    onClick={() =>
-                        run(
-                            Actions.maximizeToggle(
-                                tabset.getId(),
-                                tab.getLayoutId(),
-                            ),
-                        )
+                    disabled={
+                        !tabset ||
+                        !model.can("tabset.maximize", {
+                            tabset: tabset.id,
+                            value: !maximized,
+                        }).ok
                     }
+                    onClick={() => {
+                        if (tabset) {
+                            run("tabset.maximize", {
+                                tabset: tabset.id,
+                                value: !maximized,
+                            });
+                        }
+                    }}
                 >
                     {label(
                         maximized
@@ -180,12 +211,13 @@ function MenuTab({
                     )}
                 </ContextMenu.Item>
                 <ContextMenu.Item
+                    // refused when the tab does not allow popouts, is pinned or already in a
+                    // window; whether the page can open windows at all is the engine's to say
                     disabled={
-                        !tab.isEnablePopout() ||
                         !engine.isSupportsPopout() ||
-                        tab.isPoppedOut()
+                        !model.can("tab.popout", { tab: tab.id }).ok
                     }
-                    onClick={() => run(Actions.popoutTab(tab.getId()))}
+                    onClick={() => run("tab.popout", { tab: tab.id })}
                 >
                     {label(DockableLabel.Menu_Popout)}
                 </ContextMenu.Item>
@@ -195,15 +227,15 @@ function MenuTab({
 }
 
 export default function TabContextMenu() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     const [editing, setEditing] = useState<string | null>(null);
     return (
         <DockLayout
             model={model}
-            renderTabSet={withTabElement((tab) => (
+            renderTabSet={withTabElement<Types>((tab) => (
                 <MenuTab
                     tab={tab}
-                    editing={editing === tab.getId()}
+                    editing={editing === tab.id}
                     setEditing={setEditing}
                 />
             ))}

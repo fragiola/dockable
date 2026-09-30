@@ -1,16 +1,12 @@
 "use client";
 
 import {
-    type Action,
-    Actions,
-    DockLocation,
-    type IJsonModel,
-    Model,
-    type OnModelChange,
-    type TabNode,
-    type TabSetNode,
+    type CommandName,
+    createModel,
+    type LayoutJson,
+    type TabsetNode,
 } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { useDockable, useModelState } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "#/lib/cn";
@@ -19,30 +15,33 @@ import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { UndoManager } from "../_kit/undo";
 
-// Undo and redo with the examples' UndoManager (`_kit/undo.ts`: the package ships no undo). It owns the current model: it records a snapshot
-// before every action and swaps in a new model on undo/redo (`Model.fromJson(json, current)`, so
-// mounted content is kept). A splitter drag, many "adjusting" actions, is a single step.
+// Undo and redo with the examples' UndoManager (`_kit/undo.ts`: the package ships no undo). It
+// listens to the model's commits (`model.subscribe`) and keeps the layout as it was before each
+// step; undo and redo load it back into the same model (`layout.load`), so mounted content is
+// kept. A splitter drag, many transient `row.resize` commands, is a single step.
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+// What the layout holds: demo cards and the live JSON, each named in its data.
+type Types = { tabs: { card: { name: string }; json: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { type: "tab", name: "Layout JSON", component: "json" },
-                    { type: "tab", name: "Welcome", component: "card" },
+                    { component: "json", data: { name: "Layout JSON" } },
+                    { component: "card", data: { name: "Welcome" } },
                 ],
             },
             {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { type: "tab", name: "Notes", component: "card" },
-                    { type: "tab", name: "Tasks", component: "card" },
+                    { component: "card", data: { name: "Notes" } },
+                    { component: "card", data: { name: "Tasks" } },
                 ],
             },
         ],
@@ -50,34 +49,39 @@ const json: IJsonModel = {
 };
 
 // selecting a tab or a tabset is navigation, not an edit: it makes no undo step
-const IGNORED = [Actions.SET_ACTIVE_TABSET, Actions.SELECT_TAB];
+const IGNORED: readonly CommandName[] = ["tabset.activate", "tab.select"];
 
-/** A short name for an action, for the history list. */
-function describe(action: Action): string {
-    switch (action.type) {
-        case Actions.ADD_TAB:
+/** A short name for a command, for the history list. */
+function describe(command: CommandName): string {
+    switch (command) {
+        case "tab.add":
             return "Add tab";
-        case Actions.DELETE_TAB:
+        case "tab.close":
             return "Close tab";
-        case Actions.MOVE_NODE:
+        case "tab.move":
+        case "tabset.move":
             return "Move";
-        case Actions.ADJUST_WEIGHTS:
+        case "row.resize":
             return "Resize";
-        case Actions.MAXIMIZE_TOGGLE:
+        case "tabset.maximize":
             return "Maximize";
-        case Actions.RENAME_TAB:
+        case "tab.update":
             return "Rename";
         default:
-            return action.type.replace(/^FlexLayout_/, "");
+            return command;
     }
 }
 
+/** A command (or a batch of only such commands) that makes no undo step: the manager's rule. */
 let added = 0;
 
 /** Add a tab to this tabset, and close its selected tab: two undoable edits. */
-function TabsetButtons({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
-    const selected = tabset.getSelectedNode() as TabNode | undefined;
+function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { model, run } = useDockable<Types>();
+    const selected = model.selectedTab(tabset.id);
+    const closeable =
+        selected !== undefined &&
+        model.can("tab.close", { tab: selected.id }).ok;
     return (
         <>
             <button
@@ -86,18 +90,11 @@ function TabsetButtons({ tabset }: { tabset: TabSetNode }) {
                 className={styles.iconButton}
                 onClick={() => {
                     added += 1;
-                    engine.doAction(
-                        Actions.addTab(
-                            {
-                                type: "tab",
-                                name: `Tab ${added}`,
-                                component: "card",
-                            },
-                            tabset.getId(),
-                            DockLocation.CENTER,
-                            -1,
-                        ),
-                    );
+                    run("tab.add", {
+                        component: "card",
+                        data: { name: `Tab ${added}` },
+                        to: tabset.id,
+                    });
                 }}
             >
                 <Plus aria-hidden className="size-3.5" />
@@ -105,11 +102,10 @@ function TabsetButtons({ tabset }: { tabset: TabSetNode }) {
             <button
                 type="button"
                 aria-label="Close selected tab"
-                disabled={!selected?.isCloseable()}
+                disabled={!closeable}
                 className={styles.iconButton}
                 onClick={() =>
-                    selected &&
-                    engine.doAction(Actions.deleteTab(selected.getId()))
+                    selected && run("tab.close", { tab: selected.id })
                 }
             >
                 <X aria-hidden className="size-3.5" />
@@ -119,15 +115,17 @@ function TabsetButtons({ tabset }: { tabset: TabSetNode }) {
 }
 
 /** The layout's JSON, live: undo brings back exactly the previous text. */
-function LayoutJson() {
-    const { model } = useDockable();
+function LayoutJsonPanel() {
+    const text = useModelState((_state, model) =>
+        JSON.stringify(model.toJSON(), null, 2),
+    );
     return (
         <PanelBody title="Layout JSON">
             <pre
                 data-testid="layout-json"
                 className="m-0 overflow-auto rounded-md bg-palette-soft p-2 font-mono text-xs leading-5"
             >
-                {JSON.stringify(model.toJson().layout, null, 2)}
+                {text}
             </pre>
         </PanelBody>
     );
@@ -143,52 +141,21 @@ function isTextField(target: EventTarget | null) {
 }
 
 export default function UndoRedo() {
-    // one manager for the example's lifetime; it is garbage-collected with its model on unmount
-    // (no dispose in an effect cleanup: StrictMode would dispose it and remount the same instance)
+    // one model and one manager for the example's lifetime: undo and redo load a layout into the
+    // same model, so nothing is swapped (and nothing is disposed in an effect cleanup: StrictMode
+    // would dispose it and remount the same instance)
+    const [model] = useState(() => createModel<Types>(json));
     const [undo] = useState(
-        () =>
-            new UndoManager(Model.fromJson(json), {
-                ignoreActionTypes: IGNORED,
-            }),
+        () => new UndoManager(model, { ignoreCommands: IGNORED }),
     );
     const snapshot = useSyncExternalStore(
         undo.subscribe,
         undo.getSnapshot,
         undo.getSnapshot,
     );
-    // the names of the steps: done (undoable) and undone (redoable), newest last
-    const [history, setHistory] = useState({
-        done: [] as string[],
-        undone: [] as string[],
-    });
-
-    // an action that the manager recorded as a step: the same rule it uses (not ignored, not a
-    // step of a drag in progress)
-    const onModelChange: OnModelChange = (_model, action) => {
-        if (!action.isAdjusting() && !IGNORED.includes(action.type)) {
-            setHistory((h) => ({
-                done: [...h.done, describe(action)],
-                undone: [],
-            }));
-        }
-    };
-
-    const doUndo = () => {
-        if (!undo.canUndo) return;
-        undo.undo();
-        setHistory((h) => ({
-            done: h.done.slice(0, -1),
-            undone: [...h.undone, ...h.done.slice(-1)],
-        }));
-    };
-    const doRedo = () => {
-        if (!undo.canRedo) return;
-        undo.redo();
-        setHistory((h) => ({
-            done: [...h.done, ...h.undone.slice(-1)],
-            undone: h.undone.slice(0, -1),
-        }));
-    };
+    // the names of the steps come from the manager's own steps: the command that made each one
+    const doUndo = () => undo.undo();
+    const doRedo = () => undo.redo();
 
     // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes; text fields keep their own undo
     const keys = useRef({ doUndo, doRedo });
@@ -215,10 +182,6 @@ export default function UndoRedo() {
         return () => document.removeEventListener("keydown", onKeyDown);
     }, []);
 
-    const model = snapshot.model;
-    if (!model) {
-        return null;
-    }
     return (
         <>
             <div className={styles.toolbar}>
@@ -246,21 +209,22 @@ export default function UndoRedo() {
                     aria-label="History"
                     className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-xs"
                 >
-                    {history.done.length + history.undone.length === 0 ? (
+                    {snapshot.undoCount + snapshot.redoCount === 0 ? (
                         <li className="text-palette-accent/85">
                             Move, resize, add or close tabs: each edit is a
                             step.
                         </li>
                     ) : null}
                     {[
-                        ...history.done.map((name) => ({
-                            name,
+                        ...snapshot.undoSteps.map((step) => ({
+                            name: describe(step.command),
                             undone: false,
                         })),
                         // undone steps, oldest first, after the done ones
-                        ...[...history.undone]
-                            .reverse()
-                            .map((name) => ({ name, undone: true })),
+                        ...[...snapshot.redoSteps].reverse().map((step) => ({
+                            name: describe(step.command),
+                            undone: true,
+                        })),
                     ].map((step, index) => (
                         <li
                             // biome-ignore lint/suspicious/noArrayIndexKey: a list of steps in order
@@ -277,13 +241,12 @@ export default function UndoRedo() {
                 </ol>
             </div>
             <DockLayout
-                // a new model after each undo/redo: Root builds a new engine for it
+                // the same model throughout: undo and redo change its state, not the model
                 model={model}
-                onModelChange={onModelChange}
                 renderActions={(tabset) => <TabsetButtons tabset={tabset} />}
                 renderContent={(tab) =>
-                    tab.getComponent() === "json" ? (
-                        <LayoutJson />
+                    tab.component === "json" ? (
+                        <LayoutJsonPanel />
                     ) : (
                         <Card tab={tab} />
                     )

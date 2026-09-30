@@ -10,6 +10,8 @@ export default {
         "Dockable.DragGroup",
         "onTransfer",
         "group.transfer",
+        "tab.add",
+        "ModelHandle",
         "app-built undo",
     ],
     docs: "/docs/guides/cross-layout-drag",

@@ -3,17 +3,19 @@ import type { ExampleMeta } from "../meta-types";
 export default {
     title: "Tab context menu",
     description:
-        "A Fragiola ContextMenu on every tab: close, close others, close to the right, rename, pin, maximize and pop out. Unavailable items are disabled from the model's own flags.",
+        "A Fragiola ContextMenu on every tab: close, close others, close to the right, rename, pin, maximize and pop out. Each item is a command, disabled when model.can says it would be refused.",
     level: "intermediate",
     order: 3,
     features: [
         "ContextMenu",
         "render prop",
-        "Actions.deleteTab",
-        "Actions.renameTab",
-        "Actions.setTabPinned",
-        "Actions.maximizeToggle",
-        "Actions.popoutTab",
+        "model.can",
+        "batch",
+        "tab.close",
+        "tab.update",
+        "tab.pin",
+        "tabset.maximize",
+        "tab.popout",
     ],
     docs: "/docs/guides/menus",
 } satisfies ExampleMeta;

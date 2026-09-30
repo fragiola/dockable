@@ -112,8 +112,9 @@ export interface DragGroupProps {
 
 /**
  * Layouts of different models that exchange tabs by drag and drop. Wrap the `Dockable.Root`s in
- * it: a tab dragged from one drops into another (each root's `onAction` can veto), and its
- * content keeps its state. Renders no element of its own.
+ * it: a tab dragged from one drops into another (a `tab.add` in the target model and a `tab.close`
+ * in the source, each through its model's middleware, which can veto), and its content keeps its
+ * state. Renders no element of its own.
  */
 export function DragGroup(props: DragGroupProps) {
     const { children, onTransfer } = props;

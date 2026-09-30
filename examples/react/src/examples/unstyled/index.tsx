@@ -1,11 +1,12 @@
 "use client";
 
 import {
-    type IJsonModel,
-    Model,
-    RowNode,
-    type TabNode,
-    TabSetNode,
+    createModel,
+    type LayoutJson,
+    type Model,
+    type RowNode,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { type ReactNode, useId, useState } from "react";
@@ -15,18 +16,20 @@ import { getLabel } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+// What the layout holds: one component, named in its data.
+type Types = { tabs: { card: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { type: "tab", name: "Welcome", component: "card" },
-                    { type: "tab", name: "Notes", component: "card" },
+                    { component: "card", data: { name: "Welcome" } },
+                    { component: "card", data: { name: "Notes" } },
                 ],
             },
             {
@@ -36,17 +39,13 @@ const json: IJsonModel = {
                     {
                         type: "tabset",
                         children: [
-                            {
-                                type: "tab",
-                                name: "Inspector",
-                                component: "card",
-                            },
+                            { component: "card", data: { name: "Inspector" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", name: "Output", component: "card" },
+                            { component: "card", data: { name: "Output" } },
                         ],
                     },
                 ],
@@ -58,33 +57,31 @@ const json: IJsonModel = {
 /**
  * The whole recursion with no class names at all. Every primitive renders a plain `div` and
  * sets only structural inline styles (flex sizing, `position`, geometry, `display: none`);
- * what you see is the browser's default rendering of that markup.
+ * what you see is the browser's default rendering of that markup. The children functions take
+ * the registry as a type argument (`Dockable.TabList<Types>`), so `tab.data` is typed.
  */
-function renderNode(child: TabSetNode | RowNode): ReactNode {
-    if (child instanceof TabSetNode) {
+function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
+    if (child.type === "tabset") {
         return (
             <Dockable.TabSet node={child}>
-                <Dockable.TabList aria-label={child.getName() ?? "Tabs"}>
+                <Dockable.TabList<Types> aria-label="Tabs">
                     {(tab) => (
-                        <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>
+                        <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
                     )}
                 </Dockable.TabList>
                 <Dockable.TabSetContent />
             </Dockable.TabSet>
         );
     }
-    if (child instanceof RowNode) {
-        return <Dockable.Row node={child}>{renderNode}</Dockable.Row>;
-    }
-    return null;
+    return <Dockable.Row<Types> node={child}>{renderNode}</Dockable.Row>;
 }
 
 /** Unstyled content too: a panel renders whatever you give it, styled or not. */
-function PlainContent({ tab }: { tab: TabNode }) {
+function PlainContent({ tab }: { tab: TabOf<Types> }) {
     const [count, setCount] = useState(0);
     return (
         <div>
-            <h2>{tab.getName()}</h2>
+            <h2>{tab.data.name}</h2>
             <button type="button" onClick={() => setCount((c) => c + 1)}>
                 {`Count: ${count}`}
             </button>
@@ -92,7 +89,7 @@ function PlainContent({ tab }: { tab: TabNode }) {
     );
 }
 
-function Unstyled({ model }: { model: Model }) {
+function Unstyled({ model }: { model: Model<Types> }) {
     return (
         // The stage's theme sets an inherited font, colour and background. `all: initial`
         // on this wrapper cuts that inheritance, so the layout below shows what the browser
@@ -118,8 +115,8 @@ function Unstyled({ model }: { model: Model }) {
                 // Root is `position: relative`; it only needs a size to lay out in.
                 style={{ flex: 1 }}
             >
-                <Dockable.Row>{renderNode}</Dockable.Row>
-                <Dockable.Panels>
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab}>
                             <PlainContent tab={tab} />
@@ -134,7 +131,7 @@ function Unstyled({ model }: { model: Model }) {
 export default function UnstyledExample() {
     // One model for both modes: switching remounts the view (a new engine for a new Root),
     // and the layout comes back exactly as you left it, because the model is the layout.
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     const [kit, setKit] = useState(false);
     const labelId = useId();
     return (

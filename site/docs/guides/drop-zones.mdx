@@ -1,6 +1,6 @@
 ---
 title: Drop zones and drop feedback
-description: Custom places to drop a tab, and the data that tells you where a drag would land.
+description: Custom places to drop a tab outside the layout, and the data that tells you where a drag would land and whether it may.
 ---
 
 A drag of the layout tells you, as data, where it would land and whether it may: the targeted
@@ -16,27 +16,43 @@ page:
 <Example id="drop-zones" />
 
 ```tsx
-import { Actions, LayoutEngine, TabNode } from "@fragiola/dockable";
+import type { DragSubject } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 
 <Dockable.DropZone
-    model={model}
-    // take closable tabs only
-    accepts={(node) => node instanceof TabNode && node.isEnableClose()}
-    onDrop={(node) => LayoutEngine.of(model)?.doAction(Actions.deleteTab(node.getId()))}
+    model={model} // Model<Types>: the zone's drags are typed by the same registry
+    // take tabs the model would close (not pinned, enableClose, no middleware veto)
+    accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tab: drag.tab.id }).ok}
+    onDrop={(drag) => {
+        if (drag.kind === "tab") model.run("tab.close", { tab: drag.tab.id });
+    }}
     className="opacity-50 data-drop-active:opacity-100 data-drop-over:bg-palette-base"
 >
     Close
 </Dockable.DropZone>
 ```
 
+`accepts` and `onDrop` receive a `DragSubject<Types>`, a union discriminated by `kind`:
+
+| `kind` | field | the drag is |
+| --- | --- | --- |
+| `"tab"` | `tab: TabOf<Types>` | a tab of the layout (its `data` narrows on `tab.component`) |
+| `"tabset"` | `tabset: TabsetNode<Types>` | a whole tabset of the layout |
+| `"new"` | `tab: TabInitOf<Types>` | a tab not created yet: a `Dockable.DragSource`, or a foreign drag accepted by `onExternalDrag` |
+
+Without `accepts`, a zone takes every drag of its model.
+
 - **`data-drop-active`** is on the zone while a drag it would take is in progress: arm it, or show
   it only then.
 - **`data-drop-over`** is on it while the pointer is over it. The layout hides its outline
   meanwhile, since the drop will not land in it.
-- **`onDrop`** receives the dragged node. Nothing moves by itself: dispatch the action the zone
-  stands for (close, move, pop out, open in another view…). Go through the engine so `onAction`
-  sees it.
+- **`onDrop`** receives the drag. Nothing moves by itself: run the command the zone stands for
+  (`tab.close`, `tab.move`, `tab.popout`, or something of your app's) with `model.run`, so the
+  model's middleware sees it. Asking `model.can` in `accepts` makes the zone arm only for drags
+  its command would take.
+
+A zone lives anywhere in the page, outside `Dockable.Root` too: it needs only the model. The
+`useDropZone({ model, accepts, onDrop })` hook is the same thing for an element of your own.
 
 ## Where the drag would land
 
@@ -64,9 +80,11 @@ tabset changes, so tabsets do not re-render on every pointer move.
 
 ## Refused drops
 
-A rule refuses a target when [`onAllowDrop`](/docs/guides/restricting-drops) returns false, or when
-the target's attributes (`enableDrop`, `enableDivide`) allow neither a merge nor a split. Over a
-refused target:
+Every candidate target is the command the drop would run (`tab.move`, `tabset.move`, or `tab.add`
+for a new tab), and the layout asks the model with `model.can`. A target is refused when the
+model refuses that command: a node flag (`enableDrop`, `enableDivide`, a pinned tab) or a
+middleware veto (see [Restricting drops](/docs/guides/restricting-drops)). Over a refused
+target:
 
 - the outline hides (`DropIndicator` is not visible) and the browser shows its "not allowed"
   cursor;
@@ -74,7 +92,9 @@ refused target:
 - the refusing tabset gets **`data-drop-refused`** too.
 
 ```tsx
-<Dockable.Root model={model} onAllowDrop={allowDrop}>
+model.use(lockedRegions); // a middleware that vetoes some moves
+
+<Dockable.Root model={model}>
     {/* … */}
     <div className="hidden in-data-drop-refused:block">Not allowed here</div>
 </Dockable.Root>

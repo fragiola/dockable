@@ -2,19 +2,21 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import {
-    Actions,
-    getTabButtonId,
-    getTabPanelId,
-    getTabPanelPath,
-    isTabPanelVisible,
+    type AnyTypes,
+    type DockableTypes,
+    MAIN_LAYOUT,
     matchesKey,
-    type TabNode,
-    TabSetNode,
+    type TabOf,
     toAriaKeyShortcuts,
 } from "@fragiola/dockable";
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { DockableContext, LayoutContext, useDockableContext } from "./context";
+import {
+    DockableContext,
+    LayoutContext,
+    ModelContext,
+    useDockableContext,
+} from "./context";
 import { DragGroupContext } from "./DragGroup";
 import {
     type DivPrimitiveProps,
@@ -29,10 +31,19 @@ export interface PanelState {
     visible: boolean;
 }
 
-export interface PanelProps extends DivPrimitiveProps<PanelState> {
-    node: TabNode;
+export interface PanelProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<PanelState> {
+    node: TabOf<T>;
     /** the tab's content */
     children?: React.ReactNode;
+    /** the content element scrolls its overflow (default `true`); `false` clips it */
+    scrollable?: boolean | undefined;
+    /**
+     * remount the content when the tab moves to another window (default `false`: the same
+     * content moves, keeping its state). For content bound to its document (an iframe, a canvas
+     * context).
+     */
+    remountInWindow?: boolean | undefined;
 }
 
 /** style keys the engine owns on a panel: a consumer style never sets them */
@@ -84,10 +95,25 @@ function keyOfMoveable(element: HTMLElement): string {
  * `Dockable.Panels`), so moving a tab to another tabset or another window re-parents DOM without
  * remounting the content.
  */
-export function Panel(props: PanelProps) {
-    const { node, children, style, ...rest } = props;
-    const { engine: mainEngine, layers, keyMap } = useDockableContext("Panel");
-    const layoutId = node.getLayoutId();
+export function Panel<T extends DockableTypes = AnyTypes>(
+    props: PanelProps<T>,
+) {
+    const {
+        node,
+        children,
+        style,
+        scrollable = true,
+        remountInWindow = false,
+        ...rest
+    } = props;
+    const {
+        engine: mainEngine,
+        model,
+        layers,
+        keyMap,
+    } = useDockableContext("Panel");
+    const id = node.id;
+    const layoutId = model.layoutOf(id) ?? MAIN_LAYOUT;
     const layer = layers.get(layoutId);
     const layoutEngine = layer?.engine ?? mainEngine;
 
@@ -95,8 +121,8 @@ export function Panel(props: PanelProps) {
         null,
     );
     const lastPanel = React.useRef<HTMLElement | null>(null);
-    const latestNode = React.useRef(node);
-    latestNode.current = node;
+    const latest = React.useRef({ id, remountInWindow });
+    latest.current = { id, remountInWindow };
 
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
@@ -104,43 +130,49 @@ export function Panel(props: PanelProps) {
                 lastPanel.current = element;
             }
             setPanelElement(element);
-            layoutEngine.registerTabPanel(node, element);
+            layoutEngine.registerTabPanel(id, element);
         },
-        [layoutEngine, node],
+        [layoutEngine, id],
     );
 
     // move the content into the current panel element; with no panel element (the layout's layer
     // is not mounted yet) park it, so it stays in the document
     React.useLayoutEffect(() => {
         if (panelElement) {
-            mainEngine.attachMoveable(node, panelElement);
+            mainEngine.attachMoveable(id, panelElement, { scrollable });
         } else if (lastPanel.current) {
-            mainEngine.releaseMoveable(node, lastPanel.current);
+            mainEngine.releaseMoveable(id, lastPanel.current, {
+                remountInWindow,
+            });
         }
-    }, [mainEngine, node, panelElement]);
+    }, [mainEngine, id, panelElement, scrollable, remountInWindow]);
 
     // on unmount only: park the content so its DOM survives
     React.useLayoutEffect(
         () => () => {
             mainEngine.releaseMoveable(
-                latestNode.current,
+                latest.current.id,
                 lastPanel.current ?? undefined,
+                { remountInWindow: latest.current.remountInWindow },
             );
         },
         [mainEngine],
     );
 
-    const selected = node.isSelected();
+    const container = model.parentOf(id);
+    const selected =
+        container !== undefined && model.selectedTab(container.id)?.id === id;
     // the engine's own rule, so the state always matches what it displays
-    const visible = isTabPanelVisible(node);
+    const visible = mainEngine.isPanelVisible(id);
     const state: PanelState = { selected, visible };
 
     const onPointerDown = () => {
-        const tabset = node.getTabContainer(); // the tabset, also for a tab inside a group
-        if (tabset instanceof TabSetNode && !tabset.isActive()) {
-            layoutEngine.doAction(
-                Actions.setActiveTabset(tabset.getId(), layoutId),
-            );
+        const tabset = model.parentOf(id);
+        if (
+            tabset?.type === "tabset" &&
+            model.activeTabset(layoutId)?.id !== tabset.id
+        ) {
+            layoutEngine.run("tabset.activate", { tabset: tabset.id });
         }
     };
 
@@ -149,7 +181,7 @@ export function Panel(props: PanelProps) {
     const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
         if (!event.defaultPrevented && matchesKey(event, focusToggleKey)) {
             const button = event.currentTarget.ownerDocument.getElementById(
-                getTabButtonId(node),
+                mainEngine.tabButtonId(id),
             );
             if (button) {
                 button.focus();
@@ -170,13 +202,13 @@ export function Panel(props: PanelProps) {
             state,
             ref,
             props: {
-                id: getTabPanelId(node),
+                id: mainEngine.tabPanelId(id),
                 role: "tabpanel",
-                "aria-labelledby": getTabButtonId(node),
+                "aria-labelledby": mainEngine.tabButtonId(id),
                 "aria-keyshortcuts": toAriaKeyShortcuts(focusToggleKey),
                 tabIndex: -1,
                 ...dataAttributes({
-                    "layout-path": getTabPanelPath(node),
+                    "layout-path": mainEngine.engineOf(id).path(id),
                     selected,
                     visible,
                 }),
@@ -189,36 +221,33 @@ export function Panel(props: PanelProps) {
         },
     );
 
-    const moveable = mainEngine.getMoveableElement(node);
-    // with enableWindowReMount the content is keyed by its window, so it remounts when it changes
-    // window; while a new window is still opening (no id yet) the last window's key is kept, so
-    // the move remounts once
-    const lastWindowId = React.useRef("");
-    const windowId = node.getLayout().getWindowId() ?? lastWindowId.current;
-    lastWindowId.current = windowId;
-    const contentKey =
-        node.getId() + (node.isEnableWindowReMount() ? windowId : "");
+    const moveable = mainEngine.getMoveableElement(id);
+    // with remountInWindow the content is keyed by its layout, so it remounts when it changes
+    // window
+    const windowKey = remountInWindow ? `:${layoutId}` : "";
+    const contentKey = id + windowKey;
 
     // in a drag group, the content renders in the group's host, so it survives the tab moving to
     // another root; the panel hands over its context along with it. The host keys it by the
     // moveable element, which a transferred tab adopts: two models' tabs may share an id
     const dragGroup = React.useContext(DragGroupContext);
-    const groupKey =
-        keyOfMoveable(moveable) +
-        (node.isEnableWindowReMount() ? windowId : "");
+    const groupKey = keyOfMoveable(moveable) + windowKey;
     const dockable = React.useContext(DockableContext);
     const layout = React.useContext(LayoutContext);
+    const modelContext = React.useContext(ModelContext);
     const owner = React.useRef({}).current;
     React.useLayoutEffect(() => {
         dragGroup?.registry.set(
             groupKey,
             owner,
             moveable,
-            <DockableContext.Provider value={dockable}>
-                <LayoutContext.Provider value={layout}>
-                    {children}
-                </LayoutContext.Provider>
-            </DockableContext.Provider>,
+            <ModelContext.Provider value={modelContext}>
+                <DockableContext.Provider value={dockable}>
+                    <LayoutContext.Provider value={layout}>
+                        {children}
+                    </LayoutContext.Provider>
+                </DockableContext.Provider>
+            </ModelContext.Provider>,
         );
     });
     React.useLayoutEffect(

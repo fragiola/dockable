@@ -1,4 +1,4 @@
-import { type IJsonModel, Model, type TabNode } from "@fragiola/dockable";
+import { createModel, type LayoutJson } from "@fragiola/dockable";
 import { Dockable, type DropIndicatorState } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { PanelBody } from "#/examples/_kit/card";
@@ -12,18 +12,19 @@ import { cn } from "#/lib/cn";
 // `display: none` when hidden); every transition is the consumer's CSS, so this is where they are
 // tuned. Each layout has its own model: a drag stays inside its layout.
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+type Types = { tabs: { body: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 55,
                 children: [
-                    { type: "tab", name: "Alpha", component: "body" },
-                    { type: "tab", name: "Beta", component: "body" },
+                    { component: "body", data: { name: "Alpha" } },
+                    { component: "body", data: { name: "Beta" } },
                 ],
             },
             {
@@ -33,13 +34,13 @@ const json: IJsonModel = {
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", name: "Gamma", component: "body" },
+                            { component: "body", data: { name: "Gamma" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", name: "Delta", component: "body" },
+                            { component: "body", data: { name: "Delta" } },
                         ],
                     },
                 ],
@@ -75,8 +76,8 @@ function look(state: DropIndicatorState) {
 }
 
 function MotionLayout({ name, motion }: { name: string; motion: string }) {
-    const [model] = useState(() => Model.fromJson(json));
-    const { renderNode, renderSplitter } = createRenderNode();
+    const [model] = useState(() => createModel<Types>(json));
+    const { renderNode, renderSplitter } = createRenderNode<Types>();
     return (
         <section aria-label={name} className="flex min-h-0 flex-col gap-1">
             <h2 className="flex items-baseline gap-2 px-1 text-sm font-semibold">
@@ -91,13 +92,13 @@ function MotionLayout({ name, motion }: { name: string; motion: string }) {
                     getLabel={getLabel}
                     className={styles.root}
                 >
-                    <Dockable.Row renderSplitter={renderSplitter}>
+                    <Dockable.Row<Types> renderSplitter={renderSplitter}>
                         {renderNode}
                     </Dockable.Row>
-                    <Dockable.Panels>
-                        {(tab: TabNode) => (
+                    <Dockable.Panels<Types>>
+                        {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                <PanelBody title={tab.getName()} />
+                                <PanelBody title={tab.data.name} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>

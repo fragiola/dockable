@@ -1,8 +1,14 @@
 // Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/TabSet.tsx (sizing, activation on pointer down);
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
-import type { BorderNode, TabSetNode } from "@fragiola/dockable";
+import type {
+    AnyTypes,
+    DockableTypes,
+    TabContainer,
+    TabsetNode,
+} from "@fragiola/dockable";
 import * as React from "react";
+import { typedModel, useDockableContext, useLayoutContext } from "./context";
 import { type TabSetState, useTabSet } from "./hooks";
 import {
     type DivPrimitiveProps,
@@ -12,16 +18,20 @@ import {
 
 export type { TabSetState };
 
-export const TabSetContext = React.createContext<TabSetNode | null>(null);
+/** The id of the enclosing tabset. */
+export const TabSetContext = React.createContext<string | null>(null);
 
-/** The tab container (a tabset or a border) of the parts inside it: `TabList`, `Tab`. */
-export const TabContainerContext = React.createContext<
-    TabSetNode | BorderNode | null
->(null);
+/** The id of the tab container (a tabset or a border) of the parts inside it: `TabList`, `Tab`. */
+export const TabContainerContext = React.createContext<string | null>(null);
 
-export function useTabContainer(part: string): TabSetNode | BorderNode {
-    const container = React.useContext(TabContainerContext);
-    if (!container) {
+export function useTabContainer<T extends DockableTypes = AnyTypes>(
+    part: string,
+): TabContainer<T> {
+    const id = React.useContext(TabContainerContext);
+    const { model } = useDockableContext(part);
+    // the container of the registry the part's caller declares (`<Dockable.TabList<Types>>`)
+    const container = id === null ? undefined : typedModel<T>(model).get(id);
+    if (container?.type !== "tabset" && container?.type !== "border") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet or Dockable.Border`,
         );
@@ -29,9 +39,11 @@ export function useTabContainer(part: string): TabSetNode | BorderNode {
     return container;
 }
 
-export function useTabSetNode(part: string): TabSetNode {
-    const tabset = React.useContext(TabSetContext);
-    if (!tabset) {
+export function useTabSetNode(part: string): TabsetNode {
+    const id = React.useContext(TabSetContext);
+    const { model } = useDockableContext(part);
+    const tabset = id === null ? undefined : model.get(id);
+    if (tabset?.type !== "tabset") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet`,
         );
@@ -39,8 +51,9 @@ export function useTabSetNode(part: string): TabSetNode {
     return tabset;
 }
 
-export interface TabSetProps extends DivPrimitiveProps<TabSetState> {
-    node: TabSetNode;
+export interface TabSetProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<TabSetState> {
+    node: TabsetNode<T>;
     children?: React.ReactNode;
 }
 
@@ -48,16 +61,20 @@ export interface TabSetProps extends DivPrimitiveProps<TabSetState> {
  * A tabset: a flex item of its row, sized by its weight. Pressing inside it makes it the active
  * tabset. Place a `Dockable.TabList` and a `Dockable.TabSetContent` inside.
  */
-export function TabSet(props: TabSetProps) {
+export function TabSet<T extends DockableTypes = AnyTypes>(
+    props: TabSetProps<T>,
+) {
     const { node, children, ...rest } = props;
+    const { engine } = useLayoutContext("TabSet");
     const { state, ref, onPointerDown } = useTabSet(node);
+    const range = engine.minMax(node.id);
 
     const element = useRenderElement("div", rest, {
         state,
         ref,
         props: {
             ...dataAttributes({
-                "layout-path": node.getPath(),
+                "layout-path": engine.path(node.id),
                 active: state.active,
                 maximized: state.maximized,
                 empty: state.empty,
@@ -73,17 +90,17 @@ export function TabSet(props: TabSetProps) {
             flexDirection: "column",
             flexBasis: 0,
             // NOTE: flex-grow cannot have values < 1 otherwise it will not fill the parent
-            flexGrow: Math.max(1, node.getWeight() * 1000),
-            minWidth: node.getMinWidth(),
-            minHeight: node.getMinHeight(),
-            maxWidth: node.getMaxWidth(),
-            maxHeight: node.getMaxHeight(),
+            flexGrow: Math.max(1, node.weight * 1000),
+            minWidth: range.minWidth,
+            minHeight: range.minHeight,
+            maxWidth: range.maxWidth,
+            maxHeight: range.maxHeight,
             overflow: "hidden",
         },
     });
     return (
-        <TabSetContext.Provider value={node}>
-            <TabContainerContext.Provider value={node}>
+        <TabSetContext.Provider value={node.id}>
+            <TabContainerContext.Provider value={node.id}>
                 {element}
             </TabContainerContext.Provider>
         </TabSetContext.Provider>

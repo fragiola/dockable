@@ -2,336 +2,440 @@
 // and src/view/layout/LayoutInternal.tsx (the measure-and-position cycle, moveable element
 // handling and the observers that drive them), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+//
+// The engine reads the model's immutable state, keeps every piece of view state (rects, moveable
+// elements, scroll, "rendered") keyed by node id, and changes the layout only through commands.
+import type {
+    BatchEntry,
+    CommandEvent,
+    CommandResult,
+} from "../commands/types";
 import {
     DragDropManager,
-    type IDropZoneOptions,
+    type DropZoneOptions,
     type OnExternalDrag,
 } from "../dnd/DragDropManager";
 import type { DragGroup } from "../dnd/DragGroup";
+import { type EdgeBand, edgeBands, type Orientation } from "../geometry/dock";
+import {
+    contains,
+    EMPTY_RECT,
+    equalsWhenRounded,
+    positionElement,
+    type Rect,
+    relativeTo,
+    toRect,
+} from "../geometry/rect";
 import { type IKeyEventLike, matchesKey } from "../keyboard/keymap";
-import { type Action, Actions } from "../model/Actions";
-import { BorderNode } from "../model/BorderNode";
-import { DockLocation } from "../model/DockLocation";
-import type { DropInfo } from "../model/DropInfo";
-import type { ILayoutType } from "../model/IJsonModel";
-import { Model, type ModelChangeListener } from "../model/Model";
-import type { ModelLayout } from "../model/ModelLayout";
-import type { Node } from "../model/Node";
-import { type IRectLike, Rect } from "../model/Rect";
-import { RowNode } from "../model/RowNode";
-import type { TabGroupNode } from "../model/TabGroupNode";
-import type { TabNode } from "../model/TabNode";
-import { TabSetNode } from "../model/TabSetNode";
-import { randomUUID } from "../model/Utils";
 import { computeTabOverflow } from "../overflow/tabOverflow";
-import { getTabButtonId, getTabPanelId } from "../paths";
-import { type IPopoutOptions, PopoutManager } from "../popout/PopoutManager";
+import {
+    computePaths,
+    getTabButtonId,
+    getTabPanelId,
+    windowPath,
+} from "../paths";
+import { PopoutManager, type PopoutOptions } from "../popout/PopoutManager";
+import { type SizeRange, sizeRanges } from "../split/split";
+import { resolveBorder, resolveLayout } from "../state/defaults";
+import type { Model } from "../state/model";
+import type { AnyBorder, AnyRow, AnyState } from "../state/tree";
+import {
+    type AnyTypes,
+    type DockableTypes,
+    MAIN_LAYOUT,
+    type Node,
+} from "../state/types";
 
-/** The kinds of element whose geometry feeds the model. */
+/** The kinds of element whose geometry the engine measures. */
 export type MeasurableKind =
     | "row"
     | "tabset"
     | "tabstrip"
     | "tabsetcontent"
     | "tabbutton"
-    | "grouppill"
-    | "groupendmarker"
     | "borderheader"
     | "bordercontent";
 
 /** Measures an element in viewport coordinates. Defaults to `getBoundingClientRect`. */
-export type MeasureFunction = (element: HTMLElement) => IRectLike;
+export type MeasureFunction = (element: HTMLElement) => Rect;
 
-/**
- * Intercepts every action dispatched through the engine. Return the action (or a replacement)
- * to apply it, or `undefined` to veto it.
- */
-export type OnAction = (action: Action) => Action | undefined;
-
-/** Called after the model applied an action. */
-export type OnModelChange = (model: Model, action: Action) => void;
-
-export interface ILayoutEngineOptions {
-    model: Model;
+export interface LayoutEngineOptions<T extends DockableTypes = AnyTypes> {
+    model: Model<T>;
     /** the layout this engine drives; defaults to the main layout */
-    layoutId?: string;
-    onAction?: OnAction;
-    onModelChange?: OnModelChange;
-    /** the main layout's engine, for engines of popout sub-layouts */
-    mainEngine?: LayoutEngine;
+    layoutId?: string | undefined;
+    /** the main layout's engine, for the engines of popout windows */
+    main?: LayoutEngine<T> | undefined;
     /** injectable element measurement (tests pass fixed rects) */
-    measure?: MeasureFunction;
+    measure?: MeasureFunction | undefined;
     /** true (default) to resize live while a splitter is dragged; false to preview and commit on release */
-    realtimeResize?: boolean;
+    realtimeResize?: boolean | undefined;
     /** seconds a view may take to animate the drop outline (exposed as data; default 0.3) */
-    tabDragSpeed?: number;
+    tabDragSpeed?: number | undefined;
     /** popout windows (main engine only) */
-    popout?: IPopoutOptions;
+    popout?: PopoutOptions<T> | undefined;
     /** accepts foreign drags (files, links, other libraries) as new tabs (main engine only) */
-    onExternalDrag?: OnExternalDrag;
-    /**
-     * decides whether a drag may drop at a target, like `model.setOnAllowDrop`, which it sets while
-     * given (main engine only). Removing it restores the model's previous rule.
-     */
-    onAllowDrop?: OnAllowDrop;
-    /**
-     * a group of layouts of other models this layout exchanges tabs with by drag and drop (main
-     * engine only). Without one, drags never cross models.
-     */
+    onExternalDrag?: OnExternalDrag<T> | undefined;
+    /** layouts of other models this layout exchanges tabs with by drag and drop (main engine only) */
     dragGroup?: DragGroup | undefined;
+    /**
+     * What keeps this layout's DOM ids and window names apart from another layout's on the page
+     * (their models may share node ids). Defaults to a page-unique `d<n>-`; an adapter may pass a
+     * stable one (React's `useId`) so server and client agree. Main engine only.
+     */
+    idScope?: string | undefined;
 }
 
-/** Whether `dragNode` may be dropped as `dropInfo` describes. */
-export type OnAllowDrop = (dragNode: Node, dropInfo: DropInfo) => boolean;
+/** Options of the engine an adapter may change on every render. */
+export type LayoutEngineSettings<T extends DockableTypes = AnyTypes> = Pick<
+    LayoutEngineOptions<T>,
+    | "realtimeResize"
+    | "tabDragSpeed"
+    | "popout"
+    | "onExternalDrag"
+    | "dragGroup"
+>;
+
+/** How a panel hosts its content (a view option, not layout state). */
+export interface MoveableOptions {
+    /** the content scrolls inside its panel (default true); false clips it */
+    scrollable?: boolean | undefined;
+    /** the content is remounted when it moves to another window, so it is not parked (default false) */
+    remountInWindow?: boolean | undefined;
+}
 
 /** Attribute that marks the element hosting a tab's content. */
 export const MOVEABLE_ATTRIBUTE = "data-dockable-moveable";
 /** Attribute that marks the hidden element parking moveables whose panel is gone. */
 export const MOVEABLES_HOME_ATTRIBUTE = "data-dockable-moveables-home";
-/** Attribute that marks a float window's container, used to measure float sub-layouts. */
-export const FLOAT_ATTRIBUTE = "data-dockable-float";
+/**
+ * Marks an element that belongs to an open overlay border (its wrapper, splitter, toolbar): a
+ * press on it does not close the overlay.
+ */
+export const OVERLAY_ATTRIBUTE = "data-dockable-overlay";
 
 const defaultMeasure: MeasureFunction = (element) =>
     element.getBoundingClientRect();
 
+const NO_TABS: readonly string[] = Object.freeze([]);
+
+/** The view state every engine of a model shares (owned by the main engine). */
+class SharedView {
+    readonly moveables = new Map<string, HTMLElement>();
+    readonly scroll = new Map<string, { top: number; left: number }>();
+    readonly rendered = new Set<string>();
+    readonly splitters = new Map<HTMLElement, () => boolean>();
+    readonly listeners = new Set<() => void>();
+    moveablesHome: HTMLElement | null = null;
+    /** each open window layout's number in its paths (`/sublayout<n>`), kept while it is open */
+    readonly windowNumbers = new Map<string, number>();
+    idScope = "";
+    splitterSize = 8;
+    splitterDragging = false;
+    revision = 0;
+}
+
+let scopes = 0;
+
+/** the element that hosts each moveable's scroll tracking, and the tab it currently hosts */
+const scrollTracking = new WeakMap<
+    HTMLElement,
+    { tab: string; view: SharedView }
+>();
+
 /**
- * The framework-agnostic layout engine for one {@link ModelLayout}. It implements the model's
- * layout-controller contract (`ILayoutController`), measures the elements an adapter registers and writes their rects
- * into the model, positions tab panels over their tabset's content area (structural style only),
- * owns the moveable elements that host tab content, dispatches actions through `onAction`, and
- * tells adapters when to re-render through a revision counter.
+ * The framework-agnostic engine of one layout (the main layout or a popout window's). It measures
+ * the elements an adapter registers, positions tab panels over their tabset's content area
+ * (structural style only), owns the moveable elements that host tab content, and runs commands
+ * on the model. Adapters re-render when {@link getSnapshot} changes.
  *
  * The adapter's side of the cycle:
- * 1. call {@link prepare} before rendering a layout (computes paths and min/max sizes);
+ * 1. call {@link prepare} before rendering a layout (computes paths and size ranges);
  * 2. render the structure, registering elements with {@link registerMeasurable},
  *    {@link registerTabPanel} and {@link registerSplitter};
  * 3. call {@link sync} after every commit (a layout effect in React);
  * 4. re-render when the revision from {@link subscribe}/{@link getSnapshot} changes.
- *
- * The engine never renders geometry through the adapter: panel positions are written directly,
- * so a resize or splitter drag does not require a re-render.
  */
-export class LayoutEngine {
-    // WeakMap so closed popout windows can be garbage collected
-    private static windowIds: WeakMap<Window, string> = new WeakMap();
-
-    private readonly model: Model;
-    private readonly layoutId: string;
-    private readonly mainEngine: LayoutEngine;
+export class LayoutEngine<T extends DockableTypes = AnyTypes> {
+    readonly model: Model<T>;
+    readonly layoutId: string;
+    readonly main: LayoutEngine<T>;
+    private readonly shared: SharedView;
     private readonly measureElement: MeasureFunction;
-    private onActionHandler: OnAction | undefined;
-    private onModelChangeHandler: OnModelChange | undefined;
     private realtimeResize: boolean;
     private tabDragSpeed: number;
-    private onExternalDragHandler: OnExternalDrag | undefined;
-    private onAllowDropHandler: OnAllowDrop | undefined;
+    private onExternalDragHandler: OnExternalDrag<T> | undefined;
     private dragGroup: DragGroup | undefined;
     private leaveDragGroup: (() => void) | undefined;
-    // the model's rule before this engine installed its own, restored when the option goes away
-    private previousAllowDrop: OnAllowDrop | undefined;
-    private readonly allowDrop: OnAllowDrop = (dragNode, dropInfo) =>
-        this.onAllowDropHandler?.(dragNode, dropInfo) ?? true;
-    private readonly dragDropManager: DragDropManager;
-    private readonly popoutManager: PopoutManager | undefined;
+    private readonly dragDropManager: DragDropManager<T>;
+    private readonly popoutManager: PopoutManager<T> | undefined;
 
     private layoutRef: HTMLElement | null = null;
-    private moveablesHome: HTMLElement | null = null;
     private currentDocument: Document | undefined;
     private currentWindow: Window | undefined;
     private cachedLayoutDomRect: Rect | undefined;
     private reLayout = false;
-    private lastRect: Rect = Rect.empty();
-    // measurables: geometry measured into the model; tabPanels: positioned from those rects
-    private readonly measurables: Map<
+    private lastRect: Rect = EMPTY_RECT;
+    /** measured elements and their last rects, by `kind:id` */
+    private readonly measurables = new Map<
         string,
-        { kind: MeasurableKind; node: Node; element: HTMLElement }
-    > = new Map();
-    private readonly tabPanels: Map<
-        string,
-        { node: TabNode; element: HTMLElement }
-    > = new Map();
-    private readonly splitters: Map<HTMLElement, () => boolean> = new Map();
-    // watches the root and the measured elements so css-driven geometry changes (e.g. a font-size
-    // or theme change altering the tabstrip height without resizing the layout root) re-measure
+        { kind: MeasurableKind; id: string; element: HTMLElement }
+    >();
+    private readonly rects = new Map<string, Rect>();
+    private readonly tabPanels = new Map<string, HTMLElement>();
     private geometryResizeObserver: ResizeObserver | undefined;
-    /** tab overflow: the tab lists and triggers per tab container, and what each hides */
     private readonly tabLists = new Map<
         string,
-        {
-            container: TabSetNode | BorderNode;
-            element: HTMLElement;
-            vertical: boolean;
-        }
+        { element: HTMLElement; vertical: boolean }
     >();
     private readonly overflowTriggers = new Map<string, HTMLElement>();
-    /** each tab's natural size along its strip, kept while it is hidden so it can come back */
     private readonly naturalTabSizes = new Map<string, number>();
-    /** the space each container's trigger took the last time it showed */
     private readonly triggerSpace = new Map<string, number>();
     private readonly hiddenTabs = new Map<string, readonly string[]>();
     private readonly overflowListeners = new Set<() => void>();
     private healFrame: number | undefined;
-    private splitterDragging = false;
-    private revision = 0;
-    private contentRevision = 0;
-    private readonly listeners = new Set<() => void>();
-    private readonly modelListener: ModelChangeListener = {
-        onAfterAction: (action) => this.onModelChange(action),
-    };
     private readonly teardown: (() => void)[] = [];
+    // derived per state
+    private pathsFor: AnyState | undefined;
+    private paths = new Map<string, string>();
+    private rangesKey = "";
+    private ranges = new Map<string, SizeRange>();
 
-    /**
-     * The engine driving `model`'s main layout, once a view has created it (e.g. a mounted
-     * `Dockable.Root`). UI outside the layout (a sidebar of drag sources, a toolbar) uses it to
-     * dispatch through `onAction` or to start a drag.
-     */
-    static of(model: Model): LayoutEngine | undefined {
-        const controller = model.getMainLayout().getController();
-        return controller instanceof LayoutEngine ? controller : undefined;
-    }
-
-    constructor(options: ILayoutEngineOptions) {
+    constructor(options: LayoutEngineOptions<T>) {
         this.model = options.model;
-        this.layoutId = options.layoutId ?? Model.MAIN_LAYOUT_ID;
-        this.mainEngine = options.mainEngine ?? this;
+        this.layoutId = options.layoutId ?? MAIN_LAYOUT;
+        this.main = options.main ?? this;
+        this.shared = this.main === this ? new SharedView() : this.main.shared;
+        if (this.main === this) {
+            this.shared.idScope = options.idScope ?? `d${++scopes}-`;
+        }
         this.measureElement = options.measure ?? defaultMeasure;
-        this.onActionHandler = options.onAction;
-        this.onModelChangeHandler = options.onModelChange;
         this.realtimeResize = options.realtimeResize ?? true;
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
         this.onExternalDragHandler = options.onExternalDrag;
-        this.dragDropManager = new DragDropManager(this);
-        this.setOnAllowDrop(options.onAllowDrop);
+        this.dragDropManager = new DragDropManager<T>(this);
         this.setDragGroup(options.dragGroup);
-        if (this.mainEngine === this) {
-            this.popoutManager = new PopoutManager(this);
+        if (this.main === this) {
+            this.popoutManager = new PopoutManager<T>(this);
             this.popoutManager.setOptions(options.popout ?? {});
         }
-        this.getLayout().setController(this);
     }
+
+    /** @internal the engine of a popout window's layout (it shares this main engine's view state) */
+    createPopoutEngine(layoutId: string): LayoutEngine<T> {
+        return new LayoutEngine<T>({
+            model: this.model,
+            layoutId,
+            main: this,
+            measure: this.measureElement,
+        });
+    }
+
+    /** runs a command on the model (the adapters' way to change the layout) */
+    readonly run: Model<T>["run"] = (command, payload, options) =>
+        this.model.run(command, payload, options);
 
     // *********************************************************************************
     // Adapter contract
     // *********************************************************************************
 
-    /** Updates the callbacks and options an adapter passes on every render. */
-    setOptions(
-        options: Pick<
-            ILayoutEngineOptions,
-            | "onAction"
-            | "onModelChange"
-            | "realtimeResize"
-            | "tabDragSpeed"
-            | "popout"
-            | "onExternalDrag"
-            | "onAllowDrop"
-            | "dragGroup"
-        >,
-    ) {
-        this.setOnAllowDrop(options.onAllowDrop);
+    /** Updates the options an adapter passes on every render. */
+    setOptions(options: LayoutEngineSettings<T>) {
         this.setDragGroup(options.dragGroup);
         this.popoutManager?.setOptions(options.popout ?? {});
-        this.onActionHandler = options.onAction;
-        this.onModelChangeHandler = options.onModelChange;
         this.realtimeResize = options.realtimeResize ?? true;
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
         this.onExternalDragHandler = options.onExternalDrag;
     }
 
-    /**
-     * Installs (or removes) the engine's drop rule on the model. Only the main engine does: popout
-     * layouts share the model and its rule.
-     */
-    private setOnAllowDrop(handler: OnAllowDrop | undefined) {
-        if (this.mainEngine !== this) {
-            return;
-        }
-        const installed = this.model.getOnAllowDrop() === this.allowDrop;
-        if (handler) {
-            if (!installed) {
-                this.previousAllowDrop = this.model.getOnAllowDrop();
-                this.model.setOnAllowDrop(this.allowDrop);
-            }
-        } else if (installed) {
-            this.model.setOnAllowDrop(this.previousAllowDrop);
-            this.previousAllowDrop = undefined;
-        }
-        this.onAllowDropHandler = handler;
-    }
-
     /** Joins (or leaves) a drag group. Only the main engine joins: popouts share its model. */
     private setDragGroup(group: DragGroup | undefined) {
-        if (this.mainEngine !== this || group === this.dragGroup) {
+        if (this.main !== this || group === this.dragGroup) {
             return;
         }
         this.leaveDragGroup?.();
         this.dragGroup = group;
-        this.leaveDragGroup = group?.join(this);
+        this.leaveDragGroup = group?.join(
+            this as unknown as LayoutEngine<AnyTypes>,
+        );
     }
 
     /** The drag group this layout exchanges tabs in (the main engine's), if any. */
     getDragGroup(): DragGroup | undefined {
-        return this.mainEngine.dragGroup;
+        return this.main.dragGroup;
+    }
+
+    /** The handler that accepts foreign drags (set on the main engine). */
+    getOnExternalDrag(): OnExternalDrag<T> | undefined {
+        return this.main.onExternalDragHandler;
     }
 
     /**
      * Makes `element` a drop zone for this model's drags: while a drag the zone accepts is over it,
-     * the layouts show no outline, and a drop calls `options.onDrop` with the dragged node instead
-     * of moving anything. The element can be anywhere in the document, inside or outside a layout
-     * root. Returns the function that unregisters it.
+     * the layouts show no outline, and a drop calls `options.onDrop` instead of moving anything.
+     * Returns the function that unregisters it.
      */
-    registerDropZone(element: Element, options: IDropZoneOptions): () => void {
+    registerDropZone(
+        element: Element,
+        options: DropZoneOptions<T>,
+    ): () => void {
         return DragDropManager.registerDropZone(this.model, element, options);
-    }
-
-    /** The handler that accepts foreign drags (set on the main engine). */
-    getOnExternalDrag(): OnExternalDrag | undefined {
-        return this.onExternalDragHandler;
     }
 
     /** Calls `listener` when adapters should re-render. Returns the unsubscribe function. */
     subscribe = (listener: () => void): (() => void) => {
-        if (this.mainEngine !== this) {
-            return this.mainEngine.subscribe(listener);
-        }
-        this.listeners.add(listener);
+        this.shared.listeners.add(listener);
         return () => {
-            this.listeners.delete(listener);
+            this.shared.listeners.delete(listener);
         };
     };
 
     /** The render revision: a number that changes whenever adapters should re-render. */
-    getSnapshot = (): number => {
-        return this.mainEngine === this
-            ? this.revision
-            : this.mainEngine.getSnapshot();
-    };
+    getSnapshot = (): number => this.shared.revision;
 
-    /** A revision that only changes when tab content should re-render too. */
-    getContentRevision(): number {
-        return this.mainEngine === this
-            ? this.contentRevision
-            : this.mainEngine.getContentRevision();
+    /**
+     * Prepares the layout for rendering: the `data-layout-path` of every node and the size ranges
+     * rows and tabsets are rendered with. Call before rendering the layout.
+     */
+    prepare() {
+        this.cachedLayoutDomRect = undefined;
+        this.derived();
     }
 
     /**
-     * Prepares the layout for rendering: computes the `data-layout-path` of every node and the
-     * min/max sizes rows and tabsets are rendered with. Call before rendering the layout.
+     * A window layout's number in its paths: the lowest one free when it is first seen, then kept
+     * while it is open, so closing one window never renames another's elements.
      */
-    prepare(path = "") {
-        const rootRow = this.model.getRootRow(this.layoutId);
-        if (!rootRow) {
+    private windowNumber(state: AnyState, layoutId: string): number {
+        const numbers = this.shared.windowNumbers;
+        for (const id of [...numbers.keys()]) {
+            if (!state.windows.some((w) => w.id === id)) {
+                numbers.delete(id);
+            }
+        }
+        let number = numbers.get(layoutId);
+        if (number === undefined) {
+            const used = new Set(numbers.values());
+            number = 1;
+            while (used.has(number)) {
+                number++;
+            }
+            numbers.set(layoutId, number);
+        }
+        return number;
+    }
+
+    /** The DOM id of a tab's button in this layout (unique on the page, see `idScope`). */
+    tabButtonId(tabId: string): string {
+        return getTabButtonId(tabId, this.shared.idScope);
+    }
+
+    /** The DOM id of a tab's panel in this layout (unique on the page, see `idScope`). */
+    tabPanelId(tabId: string): string {
+        return getTabPanelId(tabId, this.shared.idScope);
+    }
+
+    /** @internal the page-unique scope of this layout's DOM ids and window names */
+    get idScope(): string {
+        return this.shared.idScope;
+    }
+
+    private derived() {
+        const state = this.model.state as unknown as AnyState;
+        const root = this.rootRow(state);
+        if (!root) {
             return;
         }
-        // the adapter may have created (and discarded) other engines for this layout, e.g. under
-        // React StrictMode: the engine that renders is the model's controller
-        this.getLayout().setController(this);
-        this.cachedLayoutDomRect = undefined;
-        rootRow.calcMinMaxSize();
-        rootRow.setPaths(path);
-        if (this.isMainLayout()) {
-            this.model.getBorderSet().setPaths();
+        if (this.pathsFor !== state) {
+            this.pathsFor = state;
+            const prefix =
+                this.layoutId === MAIN_LAYOUT
+                    ? ""
+                    : windowPath(this.windowNumber(state, this.layoutId));
+            this.paths = computePaths(
+                root,
+                prefix,
+                this.layoutId === MAIN_LAYOUT ? state.borders : [],
+            );
         }
+        const strips = new Map<string, number>();
+        let key = `${this.shared.splitterSize}`;
+        for (const [measured, rect] of this.rects) {
+            if (measured.startsWith("tabstrip:")) {
+                strips.set(measured.slice(9), rect.height);
+                key += `|${measured}:${Math.round(rect.height)}`;
+            }
+        }
+        const stateKey = `${key}#${this.revisionOf(state)}`;
+        if (stateKey !== this.rangesKey) {
+            this.rangesKey = stateKey;
+            this.ranges = sizeRanges(
+                state.defaults,
+                root,
+                resolveLayout(state.defaults).rootOrientation,
+                this.shared.splitterSize,
+                (id) => strips.get(id) ?? 0,
+            );
+        }
+    }
+
+    private readonly stateIds = new WeakMap<object, number>();
+    private nextStateId = 0;
+    private revisionOf(state: AnyState): number {
+        let id = this.stateIds.get(state);
+        if (id === undefined) {
+            id = this.nextStateId++;
+            this.stateIds.set(state, id);
+        }
+        return id;
+    }
+
+    private rootRow(state: AnyState): AnyRow | undefined {
+        if (this.layoutId === MAIN_LAYOUT) {
+            return state.root;
+        }
+        return state.windows.find((w) => w.id === this.layoutId)?.root;
+    }
+
+    /** The `data-layout-path` of a node of this layout (the root row's is the layout's prefix). */
+    path(id: string): string {
+        this.derived();
+        return this.paths.get(id) ?? "";
+    }
+
+    /** The size range of a row or tabset of this layout (its flex min/max). */
+    minMax(id: string): SizeRange {
+        this.derived();
+        return (
+            this.ranges.get(id) ?? {
+                minWidth: 0,
+                minHeight: 0,
+                maxWidth: 99999,
+                maxHeight: 99999,
+            }
+        );
+    }
+
+    /** The orientation of a row of this layout. */
+    rowOrientation(rowId: string): Orientation {
+        let orientation = resolveLayout(this.state().defaults).rootOrientation;
+        for (
+            let parent = this.model.parentOf(rowId);
+            parent !== undefined;
+            parent = this.model.parentOf(parent.id)
+        ) {
+            orientation =
+                orientation === "horizontal" ? "vertical" : "horizontal";
+        }
+        return orientation;
+    }
+
+    /** The measured splitter thickness (shared by every layout of the model). */
+    splitterSize(): number {
+        return this.shared.splitterSize;
+    }
+
+    private state(): AnyState {
+        return this.model.state as unknown as AnyState;
     }
 
     /**
@@ -347,13 +451,11 @@ export class LayoutEngine {
         this.layoutRef = element;
         const doc = element.ownerDocument;
         const win = doc.defaultView ?? undefined;
-        this.setCurrentWindow(doc, win);
-
-        this.getLayout().setController(this);
+        this.currentDocument = doc;
+        this.currentWindow = win;
 
         if (this.isMainLayout()) {
-            // reuse a home left behind by a previous engine of the same root (a model swap keeps
-            // the parked moveables, whose content is still rendered into them)
+            // reuse a home left behind by a previous engine of the same root
             let home = Array.from(element.children).find((child) =>
                 child.hasAttribute(MOVEABLES_HOME_ATTRIBUTE),
             ) as HTMLElement | undefined;
@@ -364,51 +466,28 @@ export class LayoutEngine {
                 home.style.display = "none";
                 element.appendChild(home);
             }
-            this.moveablesHome = home;
+            const parked = home;
+            this.shared.moveablesHome = parked;
             this.teardown.push(() => {
-                // keep parked content alive: its React portal still points at the moveable
-                if (home.childNodes.length === 0) {
-                    home.remove();
+                // keep parked content alive: its portal still points at the moveable
+                if (parked.childNodes.length === 0) {
+                    parked.remove();
                 }
-                if (this.moveablesHome === home) {
-                    this.moveablesHome = null;
+                if (this.shared.moveablesHome === parked) {
+                    this.shared.moveablesHome = null;
                 }
             });
-        }
-
-        const layout = this.getLayout();
-        layout.setToExportRectFunction((r: Rect, type: ILayoutType) =>
-            type === "window" ? this.getScreenRect(r) : this.getRelativeRect(r),
-        );
-
-        if (this.isMainLayout()) {
-            this.model.addChangeListener(this.modelListener);
-            this.teardown.push(() =>
-                this.model.removeChangeListener(this.modelListener),
+            const unsubscribe = this.model.subscribe((event) =>
+                this.onModelEvent(event as unknown as CommandEvent),
             );
+            this.teardown.push(unsubscribe);
         }
 
         // native drag listeners on the root (not framework events), so the same code path works
         // when the root lives in a popout document
-        const dnd = this.dragDropManager;
-        const onDragEnter = (event: DragEvent) => dnd.onDragEnterRaw(event);
-        const onDragLeave = (event: DragEvent) => dnd.onDragLeaveRaw(event);
-        const onDragOver = (event: DragEvent) => dnd.onDragOver(event);
-        const onDrop = (event: DragEvent) => dnd.onDrop(event);
-        element.addEventListener("dragenter", onDragEnter);
-        element.addEventListener("dragleave", onDragLeave);
-        element.addEventListener("dragover", onDragOver);
-        element.addEventListener("drop", onDrop);
-        this.teardown.push(() => {
-            element.removeEventListener("dragenter", onDragEnter);
-            element.removeEventListener("dragleave", onDragLeave);
-            element.removeEventListener("dragover", onDragOver);
-            element.removeEventListener("drop", onDrop);
-            dnd.clearDragLocal();
-        });
+        this.teardown.push(this.dragDropManager.attach(element));
 
         if (win) {
-            // re-measure before paint to keep panels in sync with flex-resized rows
             if (win.ResizeObserver) {
                 const observer = new win.ResizeObserver(() => {
                     this.updateRect();
@@ -421,16 +500,14 @@ export class LayoutEngine {
                     observer.disconnect();
                 });
             }
-
             const resizeListener = () => this.updateRect();
             win.addEventListener("resize", resizeListener);
             this.teardown.push(() =>
                 win.removeEventListener("resize", resizeListener),
             );
-
             if (this.isMainLayout()) {
-                // a hidden page may have skipped measure passes: redraw every layout when it shows
-                const visibilityChange = () => this.redrawLayout();
+                // a hidden page may have skipped measure passes: redraw when it shows
+                const visibilityChange = () => this.redraw();
                 doc.addEventListener("visibilitychange", visibilityChange);
                 this.teardown.push(() =>
                     doc.removeEventListener(
@@ -442,7 +519,10 @@ export class LayoutEngine {
         }
 
         this.updateRect();
-        this.popoutManager?.openPending();
+        if (this.popoutManager) {
+            this.popoutManager.attach();
+            this.teardown.push(() => this.popoutManager?.detach());
+        }
     }
 
     /** Detaches the root element and releases every observer and listener. */
@@ -457,33 +537,149 @@ export class LayoutEngine {
 
     /** Detaches and forgets everything. The engine must not be used afterwards. */
     dispose() {
-        this.setOnAllowDrop(undefined);
         this.setDragGroup(undefined);
         this.detachRoot();
         this.dragDropManager.dispose();
         this.popoutManager?.dispose();
         this.measurables.clear();
+        this.rects.clear();
         this.tabPanels.clear();
-        this.splitters.clear();
-        this.listeners.clear();
         this.tabLists.clear();
         this.overflowTriggers.clear();
         this.overflowListeners.clear();
-        const layout = this.model.getLayouts().get(this.layoutId);
-        if (layout?.getController() === this) {
-            layout.setController(undefined);
+        if (this.main === this) {
+            this.shared.listeners.clear();
         }
     }
 
     /**
-     * Runs the measure-and-position cycle: measures every registered element into the model,
-     * positions the tab panels and discovers the splitter size. Call after every commit.
+     * Runs the measure-and-position cycle: measures every registered element, positions the tab
+     * panels and discovers the splitter size. Call after every commit.
      */
     sync() {
         const changed = this.applyMeasuredGeometry();
         if (changed) {
-            // post-paint heal: re-measure after css settles (fonts, transitions) to fix jitter
+            // post-paint heal: re-measure after css settles (fonts, transitions)
             this.scheduleHeal();
+        }
+    }
+
+    // *********************************************************************************
+    // Model events
+    // *********************************************************************************
+
+    private onModelEvent(event: CommandEvent) {
+        if (event.command === "window.configure") {
+            return; // only a window's screen rect changed: nothing draws it
+        }
+        this.forgetRemoved();
+        if (event.transient && event.command === "row.resize") {
+            if (
+                this.applyTransientWeights(
+                    event.payload as { row: string; weights: number[] },
+                )
+            ) {
+                return;
+            }
+        } else if (event.transient && event.command === "border.resize") {
+            if (
+                this.applyTransientBorderSize(
+                    event.payload as { border: string },
+                )
+            ) {
+                return;
+            }
+        }
+        this.popoutManager?.sync();
+        this.redraw();
+    }
+
+    /** drops the view state of tabs no longer in the model (a closed tab's moveable is released) */
+    private forgetRemoved() {
+        const shared = this.shared;
+        for (const id of [...shared.moveables.keys()]) {
+            if (this.model.get(id)?.type !== "tab") {
+                shared.moveables.delete(id);
+            }
+        }
+        for (const id of [...shared.rendered]) {
+            if (this.model.get(id)?.type !== "tab") {
+                shared.rendered.delete(id);
+                shared.scroll.delete(id);
+            }
+        }
+    }
+
+    /** the engine of the layout a node is in (a popout's, or this main one) */
+    engineOf(id: string): LayoutEngine<T> {
+        const layout = this.model.layoutOf(id);
+        if (layout === undefined || layout === MAIN_LAYOUT) {
+            return this.main;
+        }
+        return this.main.popoutManager?.getLayoutEngine(layout) ?? this.main;
+    }
+
+    private applyTransientWeights(payload: {
+        row: string;
+        weights: number[];
+    }): boolean {
+        const row = this.model.get(payload.row);
+        if (row?.type !== "row") {
+            return false;
+        }
+        const engine = this.engineOf(row.id);
+        for (const [i, child] of row.children.entries()) {
+            const weight = payload.weights[i];
+            const element = engine.measurables.get(
+                `${child.type}:${child.id}`,
+            )?.element;
+            if (weight === undefined || !element) {
+                return false; // not registered: fall back to the re-render path
+            }
+            // NOTE: flex-grow cannot have values < 1 otherwise it will not fill the parent
+            element.style.flexGrow = String(Math.max(1, weight * 1000));
+        }
+        engine.applyMeasuredGeometry();
+        return true;
+    }
+
+    private applyTransientBorderSize(payload: { border: string }): boolean {
+        const border = this.model.get(payload.border);
+        if (border?.type !== "border") {
+            return false;
+        }
+        const resolved = resolveBorder(
+            this.state().defaults,
+            border as unknown as AnyBorder,
+        );
+        if (resolved.mode === "overlay") {
+            return false; // an overlay's placement depends on the other open overlays
+        }
+        const element = this.measurables.get(
+            `bordercontent:${border.id}`,
+        )?.element;
+        if (!element) {
+            return false;
+        }
+        if (border.location === "left" || border.location === "right") {
+            element.style.width = `${resolved.size}px`;
+            element.style.minWidth = `${resolved.minSize}px`;
+            element.style.maxWidth = `${resolved.maxSize}px`;
+        } else {
+            element.style.height = `${resolved.size}px`;
+            element.style.minHeight = `${resolved.minSize}px`;
+            element.style.maxHeight = `${resolved.maxSize}px`;
+        }
+        this.applyMeasuredGeometry();
+        return true;
+    }
+
+    /** asks adapters to re-render */
+    redraw() {
+        const shared = this.shared;
+        shared.revision++;
+        for (const listener of [...shared.listeners]) {
+            listener();
         }
     }
 
@@ -491,35 +687,23 @@ export class LayoutEngine {
     // Registration
     // *********************************************************************************
 
-    /** Registers (or, with `null`, unregisters) an element whose geometry feeds the model. */
+    /** Registers (or, with `null`, unregisters) an element whose geometry the engine measures. */
     registerMeasurable(
-        node: Node,
+        id: string,
         kind: MeasurableKind,
         element: HTMLElement | null,
     ) {
-        const key = `${kind}:${node.getId()}`;
+        const key = `${kind}:${id}`;
         const prev = this.measurables.get(key);
         if (element) {
-            this.measurables.set(key, { kind, node, element });
+            this.measurables.set(key, { kind, id, element });
         } else {
             this.measurables.delete(key);
-            // an unmounted group element must not leave a stale rect behind (e.g. the split pill's
-            // end marker disappears when the model switches to the underline tab group type), or
-            // the group's line geometry keeps hit-testing at the ghost position
-            if (kind === "grouppill") {
-                (node as TabGroupNode).setPillRect(Rect.empty());
-            } else if (kind === "groupendmarker") {
-                (node as TabGroupNode).setEndMarkerRect(Rect.empty());
-            } else if (kind === "borderheader") {
-                // an auto-hide border unmounts its strip: its ghost must not take drops
-                (node as BorderNode).setTabHeaderRect(Rect.empty());
-            } else if (kind === "bordercontent") {
-                (node as BorderNode).setContentRect(Rect.empty());
+            // an unmounted border strip or panel area must not leave a ghost that takes drops
+            if (kind === "borderheader" || kind === "bordercontent") {
+                this.rects.delete(key);
             }
         }
-        // css-driven geometry changes (e.g. a font-size or theme change) do not resize the layout
-        // root, so also watch the measured elements and re-measure when they resize; tab buttons
-        // too, since a tab that grows (a web font, a badge) can make its strip overflow
         if (prev?.element !== element) {
             if (prev) {
                 this.geometryResizeObserver?.unobserve(prev.element);
@@ -536,45 +720,39 @@ export class LayoutEngine {
      * them through {@link getHiddenTabs}. `vertical` is the direction the tabs run.
      */
     registerTabList(
-        container: TabSetNode | BorderNode,
+        containerId: string,
         element: HTMLElement | null,
         vertical = false,
     ) {
-        const id = container.getId();
-        const prev = this.tabLists.get(id);
+        const prev = this.tabLists.get(containerId);
         if (prev && prev.element !== element) {
             this.geometryResizeObserver?.unobserve(prev.element);
         }
         if (element) {
-            this.tabLists.set(id, { container, element, vertical });
+            this.tabLists.set(containerId, { element, vertical });
             if (prev?.element !== element) {
                 this.geometryResizeObserver?.observe(element);
             }
         } else {
-            this.tabLists.delete(id);
-            this.setHiddenTabs(id, []);
+            this.tabLists.delete(containerId);
+            this.setHiddenTabs(containerId, []);
         }
     }
 
     /**
-     * Registers (or unregisters) the overflow trigger of a tab container: the element that opens the
-     * consumer's menu of hidden tabs, rendered next to the tab list while tabs are hidden. The space
-     * it takes is reserved in the strip.
+     * Registers (or unregisters) the overflow trigger of a tab container: the element that opens
+     * the consumer's menu of hidden tabs. The space it takes is reserved in the strip.
      */
-    registerOverflowTrigger(
-        container: TabSetNode | BorderNode,
-        element: HTMLElement | null,
-    ) {
-        const id = container.getId();
-        const prev = this.overflowTriggers.get(id);
+    registerOverflowTrigger(containerId: string, element: HTMLElement | null) {
+        const prev = this.overflowTriggers.get(containerId);
         if (prev && prev !== element) {
             this.geometryResizeObserver?.unobserve(prev);
         }
         if (element) {
-            this.overflowTriggers.set(id, element);
+            this.overflowTriggers.set(containerId, element);
             this.geometryResizeObserver?.observe(element);
         } else {
-            this.overflowTriggers.delete(id);
+            this.overflowTriggers.delete(containerId);
         }
     }
 
@@ -610,11 +788,12 @@ export class LayoutEngine {
     private updateTabOverflow() {
         let changed = false;
         for (const [id, list] of this.tabLists) {
-            const { container, element, vertical } = list;
-            if (!container.getParent() && !(container instanceof BorderNode)) {
-                continue; // the tabset left the model (it is being removed)
+            const container = this.model.get(id);
+            if (container?.type !== "tabset" && container?.type !== "border") {
+                continue; // the container left the model
             }
-            const tabs = container.getTabNodes();
+            const { element, vertical } = list;
+            const tabs = container.children;
             const hidden = new Set(this.getHiddenTabs(id));
             const listRect = this.measureElement(element);
             const view = element.ownerDocument.defaultView;
@@ -642,19 +821,18 @@ export class LayoutEngine {
             }
             const sizes = tabs.map((tab) => {
                 const button = this.measurables.get(
-                    `tabbutton:${tab.getId()}`,
+                    `tabbutton:${tab.id}`,
                 )?.element;
-                if (button && !hidden.has(tab.getId())) {
+                if (button && !hidden.has(tab.id)) {
                     const r = this.measureElement(button);
                     const size = vertical ? r.height : r.width;
                     if (size > 0) {
-                        this.naturalTabSizes.set(tab.getId(), size);
+                        this.naturalTabSizes.set(tab.id, size);
                     }
                 }
-                return this.naturalTabSizes.get(tab.getId()) ?? 0;
+                return this.naturalTabSizes.get(tab.id) ?? 0;
             });
-            // the space the trigger takes while it shows: its size, its margins and the gap before
-            // it in its flex container. The list gives up that much (whatever sits between them)
+            // the space the trigger takes while it shows: its size, its margins and the gap before it
             const trigger = this.overflowTriggers.get(id);
             let taken = 0;
             if (trigger) {
@@ -681,19 +859,14 @@ export class LayoutEngine {
                     this.triggerSpace.set(id, taken);
                 }
             }
-            const selected = container.getSelectedNode();
             const result = computeTabOverflow({
                 available: inner + taken,
                 sizes,
                 gap,
-                selectedIndex: selected
-                    ? tabs.indexOf(selected as TabNode)
-                    : -1,
+                selectedIndex: container.selected,
                 reserve: this.triggerSpace.get(id) ?? 0,
             });
-            const next = result.hidden.map(
-                (index) => tabs[index]?.getId() ?? "",
-            );
+            const next = result.hidden.map((index) => tabs[index]?.id ?? "");
             changed = this.setHiddenTabs(id, next) || changed;
         }
         if (changed) {
@@ -704,17 +877,17 @@ export class LayoutEngine {
     }
 
     /** Registers (or unregisters) the element a tab's content panel is positioned with. */
-    registerTabPanel(node: TabNode, element: HTMLElement | null) {
+    registerTabPanel(tabId: string, element: HTMLElement | null) {
         if (element) {
-            this.tabPanels.set(node.getId(), { node, element });
+            this.tabPanels.set(tabId, element);
         } else {
-            this.tabPanels.delete(node.getId());
+            this.tabPanels.delete(tabId);
         }
     }
 
     /**
      * Registers (or unregisters) a splitter element. Its thickness (width while `isHorizontal()`,
-     * i.e. the splitter sits between side by side children; height otherwise) becomes the model's
+     * i.e. the splitter sits between side by side children; height otherwise) becomes the
      * splitter size. The orientation is read at every measure pass, since a row can flip it.
      */
     registerSplitter(
@@ -722,23 +895,23 @@ export class LayoutEngine {
         isHorizontal: () => boolean,
         register = true,
     ) {
-        const main = this.mainEngine;
+        const splitters = this.shared.splitters;
         if (register) {
-            if (!main.splitters.has(element)) {
+            if (!splitters.has(element)) {
                 this.geometryResizeObserver?.observe(element);
             }
-            main.splitters.set(element, isHorizontal);
-        } else if (main.splitters.delete(element)) {
+            splitters.set(element, isHorizontal);
+        } else if (splitters.delete(element)) {
             this.geometryResizeObserver?.unobserve(element);
         }
     }
 
-    /** @internal the measured and positioned elements (tests and debugging) */
+    /** @internal the registered elements (tests and debugging) */
     getRegistrations() {
         return {
             measurables: this.measurables,
             tabPanels: this.tabPanels,
-            splitters: this.mainEngine.splitters,
+            splitters: this.shared.splitters,
         };
     }
 
@@ -746,149 +919,95 @@ export class LayoutEngine {
     // Measure and position
     // *********************************************************************************
 
-    /** batch-measure all registered elements and write rects into the model; returns true on change */
+    /** A measured rect of a node of this layout, relative to the layout root. */
+    rect(kind: MeasurableKind, id: string): Rect | undefined {
+        return this.rects.get(`${kind}:${id}`);
+    }
+
+    /** The content area a tab's panel is positioned over (its tabset's, or its border's). */
+    contentRect(containerId: string): Rect | undefined {
+        const container = this.model.get(containerId);
+        if (container?.type === "border") {
+            return this.rect("bordercontent", containerId);
+        }
+        return this.rect("tabsetcontent", containerId);
+    }
+
+    /** @internal measures every registered element; returns true on change */
     syncLayoutMetrics(): boolean {
-        // invalidate cached origin (page may scroll between passes); per-pass caching is preserved
         this.cachedLayoutDomRect = undefined;
         let changed = false;
-        for (const { kind, node, element } of this.measurables.values()) {
+        for (const [key, { kind, element }] of this.measurables) {
             if (!element.isConnected) {
                 continue;
             }
             const rect = this.getBoundingClientRect(element);
-            switch (kind) {
-                case "row":
-                case "tabset":
-                    if (!rect.equalsWhenRounded(node.getRect())) {
-                        (node as RowNode | TabSetNode).setRect(rect);
-                        changed = true;
-                    }
-                    break;
-                case "tabstrip":
-                    if (
-                        !rect.equalsWhenRounded(
-                            (node as TabSetNode).getTabStripRect(),
-                        )
-                    ) {
-                        (node as TabSetNode).setTabStripRect(rect);
-                        changed = true;
-                    }
-                    break;
-                case "tabsetcontent": {
-                    const tabsetNode = node as TabSetNode;
-                    if (
-                        !Number.isNaN(rect.x) &&
-                        !tabsetNode.getContentRect().equalsWhenRounded(rect)
-                    ) {
-                        const hadSize =
-                            tabsetNode.getContentRect().width > 0 &&
-                            tabsetNode.getContentRect().height > 0;
-                        tabsetNode.setContentRect(rect);
-                        changed = true;
-                        if (!hadSize && rect.width > 0 && rect.height > 0) {
-                            // the tab content render is gated on a non empty rect, so the first time a
-                            // content area gains a size a re-render is needed to mount the content;
-                            // recurring geometry changes are applied imperatively in positionTabPanels
-                            this.reLayout = true;
-                        }
-                    }
-                    break;
+            const previous = this.rects.get(key);
+            if (kind === "tabsetcontent" || kind === "bordercontent") {
+                if (
+                    Number.isNaN(rect.x) ||
+                    (kind === "bordercontent" && rect.width <= 0)
+                ) {
+                    continue;
                 }
-                case "tabbutton":
-                    if (
-                        !rect.equalsWhenRounded((node as TabNode).getTabRect())
-                    ) {
-                        (node as TabNode).setTabRect(rect);
-                        changed = true;
-                    }
-                    break;
-                case "grouppill":
-                    if (
-                        !rect.equalsWhenRounded(
-                            (node as TabGroupNode).getPillRect(),
-                        )
-                    ) {
-                        (node as TabGroupNode).setPillRect(rect);
-                        changed = true;
-                    }
-                    break;
-                case "groupendmarker":
-                    if (
-                        !rect.equalsWhenRounded(
-                            (node as TabGroupNode).getEndMarkerRect(),
-                        )
-                    ) {
-                        (node as TabGroupNode).setEndMarkerRect(rect);
-                        changed = true;
-                    }
-                    break;
-                case "borderheader":
-                    // note: BorderNode.getRect() returns the tab header rect
-                    if (
-                        !rect.equalsWhenRounded((node as BorderNode).getRect())
-                    ) {
-                        (node as BorderNode).setTabHeaderRect(rect);
-                        changed = true;
-                    }
-                    break;
-                case "bordercontent": {
-                    const borderNode = node as BorderNode;
-                    if (
-                        !Number.isNaN(rect.x) &&
-                        rect.width > 0 &&
-                        !borderNode.getContentRect().equalsWhenRounded(rect)
-                    ) {
-                        const hadSize =
-                            borderNode.getContentRect().width > 0 &&
-                            borderNode.getContentRect().height > 0;
-                        borderNode.setContentRect(rect);
-                        changed = true;
-                        if (!hadSize && rect.height > 0) {
-                            this.reLayout = true;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        // a group's drop region spans its pill plus (when open) its tabs, which are measured in
-        // the same pass above, so reconcile each group's rect after all child rects are current
-        for (const { kind, node } of this.measurables.values()) {
-            if (kind === "grouppill") {
-                const group = node as TabGroupNode;
-                const region = group.getDropRegion();
-                if (!region.equalsWhenRounded(group.getRect())) {
-                    group.setRect(region);
+                if (!equalsWhenRounded(previous, rect)) {
+                    const hadSize =
+                        !!previous && previous.width > 0 && previous.height > 0;
+                    this.rects.set(key, rect);
                     changed = true;
+                    if (!hadSize && rect.width > 0 && rect.height > 0) {
+                        // the content render waits for a sized content area: the first time one
+                        // gets a size, re-render to mount the content
+                        this.reLayout = true;
+                    }
                 }
+            } else if (!equalsWhenRounded(previous, rect)) {
+                this.rects.set(key, rect);
+                changed = true;
             }
         }
         return changed;
     }
 
+    /** Whether a tab's panel is shown: selected, and not hidden by a maximize or a hidden border. */
+    isPanelVisible(tabId: string): boolean {
+        const container = this.model.parentOf(tabId);
+        if (container?.type !== "tabset" && container?.type !== "border") {
+            return false;
+        }
+        if (container.children[container.selected]?.id !== tabId) {
+            return false;
+        }
+        if (container.type === "tabset") {
+            const layout = this.model.layoutOf(container.id);
+            const maximized =
+                layout === undefined
+                    ? undefined
+                    : this.model.maximizedTabset(layout);
+            return maximized === undefined || maximized.id === container.id;
+        }
+        return container.show !== false;
+    }
+
     /**
-     * Positions the tab panels over their parent's content area and sets their visibility. Writes
-     * only structural style: `position`, `left`, `top`, `width`, `height` and `display`.
+     * Positions the tab panels over their container's content area and shows only the visible
+     * ones. Writes only structural style: `position`, `left`, `top`, `width`, `height`, `display`.
      */
     positionTabPanels() {
-        for (const { node, element } of this.tabPanels.values()) {
-            if (!node.getParent()) {
-                continue; // the tab left the tree (it is being deleted)
+        for (const [tabId, element] of this.tabPanels) {
+            const container = this.model.parentOf(tabId);
+            if (!container) {
+                continue; // the tab left the tree (it is being closed)
             }
-            const rect = node.getTabContainer().getContentRect();
-            const visible = isTabPanelVisible(node);
-
-            rect.positionElement(element);
-            element.style.display = visible ? "" : "none";
-
-            node.setRect(rect); // fires the resize event to user code when changed
-            node.setVisible(visible); // fires the visibility event to user code when changed
+            const rect = this.contentRect(container.id) ?? EMPTY_RECT;
+            positionElement(element, rect);
+            element.style.display = this.isPanelVisible(tabId) ? "" : "none";
         }
     }
 
-    /** measures the splitter thickness and feeds it to the model; returns true on change */
+    /** measures the splitter thickness; returns true on change */
     private syncSplitterSize(): boolean {
-        for (const [element, isHorizontal] of this.mainEngine.splitters) {
+        for (const [element, isHorizontal] of this.shared.splitters) {
             if (!element.isConnected) {
                 continue;
             }
@@ -897,8 +1016,8 @@ export class LayoutEngine {
             if (size <= 0) {
                 continue; // hidden (e.g. while a tabset is maximized)
             }
-            if (Math.abs(size - (this.model.getSplitterSize() ?? 0)) > 0.5) {
-                this.model.setSplitterSize(size);
+            if (Math.abs(size - this.shared.splitterSize) > 0.5) {
+                this.shared.splitterSize = size;
                 return true;
             }
             return false;
@@ -906,7 +1025,6 @@ export class LayoutEngine {
         return false;
     }
 
-    // re-measure, reposition panels, and mount any newly sized content areas
     private applyMeasuredGeometry(): boolean {
         const changed = this.syncLayoutMetrics();
         this.positionTabPanels();
@@ -914,7 +1032,7 @@ export class LayoutEngine {
         const splitterSizeChanged = this.syncSplitterSize();
         if (splitterSizeChanged || this.reLayout) {
             this.reLayout = false;
-            this.redrawLayout();
+            this.redraw();
         }
         return changed;
     }
@@ -940,15 +1058,13 @@ export class LayoutEngine {
         }
     }
 
-    /** sets the ResizeObserver that watches the measured elements; observes any already
-     *  registered elements (e.g. those registered before this observer was created) */
     private setGeometryResizeObserver(observer: ResizeObserver | undefined) {
         this.geometryResizeObserver = observer;
         if (observer) {
             for (const { element } of this.measurables.values()) {
                 observer.observe(element);
             }
-            for (const element of this.mainEngine.splitters.keys()) {
+            for (const element of this.shared.splitters.keys()) {
                 observer.observe(element);
             }
             for (const { element } of this.tabLists.values()) {
@@ -962,220 +1078,114 @@ export class LayoutEngine {
 
     /** re-measures the layout root; a changed size relayouts */
     updateRect = () => {
-        let element = this.layoutRef;
+        const element = this.layoutRef;
         if (!element) {
             return;
         }
-        const layout = this.getLayout();
-        const isFloat = !layout.isMainLayout() && layout.getType() === "float";
-        if (isFloat) {
-            const floatWindow = element.closest<HTMLElement>(
-                `[${FLOAT_ATTRIBUTE}]`,
-            );
-            if (floatWindow) {
-                element = floatWindow;
-            }
-        }
-
-        let rect = Rect.fromDomRect(this.measureElement(element));
-        if (isFloat) {
-            rect = rect.relativeTo(this.mainEngine.getDomRect());
-        }
-
+        const rect = toRect(this.measureElement(element));
         if (
-            !rect.equalsWhenRounded(this.lastRect) &&
+            !equalsWhenRounded(rect, this.lastRect) &&
             rect.width !== 0 &&
             rect.height !== 0
         ) {
             this.lastRect = rect;
-            layout.setRect(rect);
-            this.redrawLayout();
+            this.redraw();
         }
     };
 
     // *********************************************************************************
-    // Actions and model changes
+    // Moveable elements and rendering
     // *********************************************************************************
 
-    /** Dispatches an action through `onAction`, which may replace or veto it. */
-    doAction(action: Action): Node | undefined {
-        const outcome = this.interceptAction(action);
-        return outcome !== undefined ? this.model.doAction(outcome) : undefined;
-    }
-
     /**
-     * Runs `onAction` on an action without applying it: returns the action to apply (the same one,
-     * or the handler's replacement), or `undefined` when the handler vetoed it. `doAction` is
-     * `interceptAction` followed by `model.doAction`.
+     * The element that hosts a tab's content: `<div data-dockable-moveable>` in the main layout's
+     * document, created on first use and kept (by tab id) for as long as the tab exists, so moving
+     * a tab, or loading a layout that keeps its id, never remounts its content.
      */
-    interceptAction(action: Action): Action | undefined {
-        const onAction = this.mainEngine.onActionHandler;
-        return onAction !== undefined ? onAction(action) : action;
-    }
-
-    private onModelChange(action: Action) {
-        if (
-            action.isAdjusting() &&
-            (action.type === Actions.ADJUST_WEIGHTS ||
-                action.type === Actions.ADJUST_BORDER_SPLIT)
-        ) {
-            if (action.type === Actions.ADJUST_WEIGHTS) {
-                this.applyAdjustingWeights(action);
-            } else {
-                this.applyAdjustingBorderSplit(action);
-            }
-            this.onModelChangeHandler?.(this.model, action);
-            return;
-        }
-
-        this.redrawLayout();
-        this.onModelChangeHandler?.(this.model, action);
-    }
-
-    /** the engine that owns the node's layout (sub-layout rows are registered there) */
-    private engineFor(node: Node): LayoutEngine {
-        const controller = node.getLayout().getController();
-        return controller instanceof LayoutEngine ? controller : this;
-    }
-
-    private applyAdjustingWeights(action: Action) {
-        const row = this.model.getNodeById(action.data.nodeId);
-        if (!(row instanceof RowNode)) {
-            this.redrawLayout();
-            return;
-        }
-        const engine = this.engineFor(row);
-        const weights = action.data.weights as number[] | undefined;
-        const children = row.getChildren();
-        for (const [i, child] of children.entries()) {
-            const weight = weights?.[i];
-            // the same guard as Model.applyAdjustWeights: a weight the model ignores must not be
-            // previewed either
-            if (
-                typeof weight !== "number" ||
-                !Number.isFinite(weight) ||
-                weight <= 0
-            ) {
-                continue;
-            }
-            const kind: MeasurableKind =
-                child instanceof RowNode ? "row" : "tabset";
-            const element = engine.measurables.get(
-                `${kind}:${child.getId()}`,
-            )?.element;
-            if (!element) {
-                // not registered: fall back to the re-render path
-                this.redrawLayout();
-                return;
-            }
-            // NOTE: flex-grow cannot have values < 1 otherwise it will not fill the parent
-            element.style.flexGrow = String(Math.max(1, weight * 1000));
-        }
-
-        engine.applyMeasuredGeometry();
-    }
-
-    private applyAdjustingBorderSplit(action: Action) {
-        const borderNode = this.model.getNodeById(action.data.node);
-        if (!(borderNode instanceof BorderNode) || borderNode.isOverlay()) {
-            // overlay borders need a full re-render (their position depends on other open borders)
-            this.redrawLayout();
-            return;
-        }
-
-        const element = this.measurables.get(
-            `bordercontent:${borderNode.getId()}`,
-        )?.element;
+    getMoveableElement(tabId: string): HTMLElement {
+        const shared = this.shared;
+        let element = shared.moveables.get(tabId);
         if (!element) {
-            this.redrawLayout();
-            return;
+            const doc =
+                this.main.currentDocument ??
+                this.main.layoutRef?.ownerDocument ??
+                this.layoutRef?.ownerDocument;
+            if (!doc) {
+                throw new Error(
+                    "LayoutEngine.getMoveableElement: attach a root element first",
+                );
+            }
+            element = doc.createElement("div");
+            element.setAttribute(MOVEABLE_ATTRIBUTE, "");
+            element.style.width = "100%";
+            element.style.height = "100%";
+            shared.moveables.set(tabId, element);
         }
-
-        const size = borderNode.getSize();
-        if (borderNode.isHorizontal()) {
-            element.style.width = `${size}px`;
-            element.style.minWidth = `${borderNode.getMinSize()}px`;
-            element.style.maxWidth = `${borderNode.getMaxSize()}px`;
-        } else {
-            element.style.height = `${size}px`;
-            element.style.minHeight = `${borderNode.getMinSize()}px`;
-            element.style.maxHeight = `${borderNode.getMaxSize()}px`;
-        }
-
-        this.applyMeasuredGeometry();
-    }
-
-    /** asks adapters to re-render the layout structure */
-    redrawLayout() {
-        const main = this.mainEngine;
-        main.revision++;
-        for (const listener of [...main.listeners]) {
-            listener();
-        }
-    }
-
-    /** asks adapters to re-render the layout structure and the tab content */
-    redrawLayoutAndTabContent() {
-        this.mainEngine.contentRevision++;
-        this.redrawLayout();
-    }
-
-    // *********************************************************************************
-    // Moveable elements
-    // *********************************************************************************
-
-    /**
-     * Creates the element that hosts a tab's content: `<div data-dockable-moveable>` in the main
-     * layout's document, with structural sizing only. Called by the model, lazily.
-     */
-    createMoveableElement(): HTMLElement {
-        const main = this.mainEngine;
-        const doc =
-            main.currentDocument ??
-            main.layoutRef?.ownerDocument ??
-            this.layoutRef?.ownerDocument;
-        if (!doc) {
-            throw new Error(
-                "LayoutEngine.createMoveableElement: attach a root element first",
-            );
-        }
-        const element = doc.createElement("div");
-        element.setAttribute(MOVEABLE_ATTRIBUTE, "");
-        element.style.width = "100%";
-        element.style.height = "100%";
         return element;
     }
 
-    /** The element hosting the tab's content, created on first use. */
-    getMoveableElement(tab: TabNode): HTMLElement {
-        return tab.getMoveableElement();
+    /** @internal hands a tab's moveable element over (a drag group transfer); undefined if none */
+    takeMoveable(tabId: string): HTMLElement | undefined {
+        const element = this.shared.moveables.get(tabId);
+        this.shared.moveables.delete(tabId);
+        this.shared.rendered.delete(tabId);
+        return element;
+    }
+
+    /** @internal adopts another model's moveable element for a tab (a drag group transfer) */
+    adoptMoveable(tabId: string, element: HTMLElement | undefined) {
+        if (element) {
+            this.shared.moveables.set(tabId, element);
+            this.shared.rendered.add(tabId);
+        }
     }
 
     /**
-     * Moves the tab's moveable element into `panel` (its current container). The same element is
+     * Moves the tab's moveable element into `panel` (its current panel). The same element is
      * re-parented, never cloned, so content state survives moves between panels and documents.
      */
-    attachMoveable(tab: TabNode, panel: HTMLElement) {
-        const element = tab.getMoveableElement();
-        element.style.overflow = tab.isEnableScrollbars() ? "auto" : "hidden";
+    attachMoveable(
+        tabId: string,
+        panel: HTMLElement,
+        options: MoveableOptions = {},
+    ) {
+        const element = this.getMoveableElement(tabId);
+        element.style.overflow =
+            options.scrollable === false ? "hidden" : "auto";
         if (element.parentElement !== panel) {
             // appendChild adopts the node into the panel's document; identity is what preserves
             // the content's state, so the element is never imported or cloned
             panel.appendChild(element);
-            tab.restoreScrollPosition();
+            this.restoreScroll(tabId, element);
         }
         // keep the scroll position, so it can be restored after a move. One listener per element
-        // for its whole life: the element outlives engines (and models, through Model.fromJson's
-        // view state adoption), so the listener reads the element's current tab
-        const scroll = scrollTracking.get(element);
-        if (scroll) {
-            scroll.tab = tab;
+        // for its whole life: the element outlives engines, so the listener reads its current tab
+        const tracking = scrollTracking.get(element);
+        if (tracking) {
+            tracking.tab = tabId;
+            tracking.view = this.shared;
         } else {
-            const tracking = { tab };
-            element.addEventListener("scroll", () =>
-                tracking.tab.saveScrollPosition(),
-            );
-            scrollTracking.set(element, tracking);
+            const state = { tab: tabId, view: this.shared };
+            element.addEventListener("scroll", () => {
+                state.view.scroll.set(state.tab, {
+                    top: element.scrollTop,
+                    left: element.scrollLeft,
+                });
+            });
+            scrollTracking.set(element, state);
+        }
+    }
+
+    private restoreScroll(tabId: string, element: HTMLElement) {
+        const scroll = this.shared.scroll.get(tabId);
+        // the frame callback comes from the element's own window, so a tab restored inside a
+        // popout schedules on the popout's frame loop
+        const view = element.ownerDocument.defaultView;
+        if (view && scroll && (scroll.top || scroll.left)) {
+            view.requestAnimationFrame(() => {
+                element.scrollTop = scroll.top;
+                element.scrollLeft = scroll.left;
+            });
         }
     }
 
@@ -1184,69 +1194,99 @@ export class LayoutEngine {
      * the content's DOM (and the framework state rendered into it) is never destroyed by
      * unmounting a panel. A later {@link attachMoveable} moves the same element into a new panel.
      */
-    releaseMoveable(tab: TabNode, panel?: HTMLElement) {
-        const element = tab.getMoveableElement();
+    releaseMoveable(
+        tabId: string,
+        panel?: HTMLElement,
+        options: MoveableOptions = {},
+    ) {
+        const element = this.shared.moveables.get(tabId);
+        if (!element) {
+            return; // the tab is gone: nothing to park
+        }
         if (panel !== undefined && element.parentElement !== panel) {
             return; // already attached elsewhere
         }
-        const home = this.mainEngine.moveablesHome;
-        if (
-            home &&
-            this.model.getNodeById(tab.getId()) &&
-            !tab.isEnableWindowReMount()
-        ) {
-            home.appendChild(element); // keep element parented, so it stays in the document
+        const home = this.shared.moveablesHome;
+        if (home && this.model.get(tabId) && options.remountInWindow !== true) {
+            home.appendChild(element); // keep it parented, so it stays in the document
         }
-        tab.setVisible(false);
     }
 
     /** the hidden element moveables are parked in (main layout only) */
     getMoveablesHome(): HTMLElement | null {
-        return this.mainEngine.moveablesHome;
-    }
-
-    // *********************************************************************************
-    // Keyboard focus
-    // *********************************************************************************
-
-    /** The overlay borders that are showing with an open panel. */
-    private openOverlayBorders(): BorderNode[] {
-        return this.model
-            .getBorderSet()
-            .getBorders()
-            .filter(
-                (border) =>
-                    border.isShowing() &&
-                    border.isOverlay() &&
-                    border.getSelected() !== -1,
-            );
+        return this.shared.moveablesHome;
     }
 
     /**
-     * Closes an overlay border's panel (deselects its tab, through `onAction`). When focus was in
+     * Whether a tab's content should be rendered: once rendered it stays rendered (its state is
+     * kept); before that, when its container's content area has a size and it is selected (or
+     * `renderOnDemand` is off). Marks it rendered.
+     */
+    shouldRender(tabId: string, renderOnDemand = true): boolean {
+        const shared = this.shared;
+        if (shared.rendered.has(tabId)) {
+            return true;
+        }
+        const container = this.model.parentOf(tabId);
+        if (container?.type !== "tabset" && container?.type !== "border") {
+            return false;
+        }
+        const selected = container.children[container.selected]?.id === tabId;
+        if (!selected && renderOnDemand) {
+            return false;
+        }
+        const rect = this.engineOf(tabId).contentRect(container.id);
+        if (!rect || rect.width <= 0 || rect.height <= 0) {
+            return false;
+        }
+        shared.rendered.add(tabId);
+        return true;
+    }
+
+    // *********************************************************************************
+    // Overlay borders and keyboard focus
+    // *********************************************************************************
+
+    private openOverlayBorders(): AnyBorder[] {
+        const state = this.state();
+        return state.borders.filter((border) => {
+            const resolved = resolveBorder(state.defaults, border);
+            return (
+                resolved.show &&
+                resolved.mode === "overlay" &&
+                border.selected !== -1
+            );
+        });
+    }
+
+    /**
+     * Closes an overlay border's panel (`border.configure` with `open: false`). When focus was in
      * the panel, it goes back to the tab button.
      */
-    closeOverlayBorder(border: BorderNode): void {
-        const tab = border.getSelectedNode();
+    closeOverlayBorder(borderId: string): void {
+        const border = this.model.get(borderId);
+        if (border?.type !== "border") {
+            return;
+        }
+        const tab = border.children[border.selected];
         if (!tab) {
             return;
         }
         const doc = this.currentDocument;
-        const panel = doc?.getElementById(getTabPanelId(tab));
+        const panel = doc?.getElementById(this.tabPanelId(tab.id));
         const refocus =
             doc?.activeElement != null && panel?.contains(doc.activeElement);
-        this.doAction(Actions.selectTab(tab.getId())); // selecting the selected border tab closes it
+        this.run("border.configure", { border: borderId, open: false });
         if (refocus) {
-            doc?.getElementById(getTabButtonId(tab))?.focus();
+            doc?.getElementById(this.tabButtonId(tab.id))?.focus();
         }
     }
 
     /**
      * Ported from FlexLayout's LayoutController.onOverlayBorderPointerDown. Call it on every
-     * `pointerdown` of the document (capture phase: splitters and buttons stop propagation). A press
-     * in the main layout's area (not on a border strip) outside an open overlay panel closes that
-     * panel. Presses inside an overlay (its panel, splitter, anything marked
-     * `data-dockable-overlay`) keep it open. Returns true when a panel closed.
+     * `pointerdown` of the document (capture phase). A press in the main layout's area (not on a
+     * border strip) outside an open overlay panel closes that panel. Presses inside an overlay
+     * (anything marked `data-dockable-overlay`) keep it open. Returns true when a panel closed.
      */
     handleOverlayPointerDown(event: {
         target: EventTarget | null;
@@ -1264,14 +1304,15 @@ export class LayoutEngine {
         const root = this.getFreshDomRect();
         const x = event.clientX - root.x;
         const y = event.clientY - root.y;
-        const main = this.model.getRootRow(Model.MAIN_LAYOUT_ID)?.getRect();
-        if (!main?.contains(x, y)) {
+        const main = this.rect("row", this.state().root.id);
+        if (!main || !contains(main, x, y)) {
             return false; // a border strip, or outside the layout
         }
         let closed = false;
         for (const border of open) {
-            if (!border.getContentRect().contains(x, y)) {
-                this.closeOverlayBorder(border);
+            const content = this.rect("bordercontent", border.id);
+            if (!content || !contains(content, x, y)) {
+                this.closeOverlayBorder(border.id);
                 closed = true;
             }
         }
@@ -1280,9 +1321,9 @@ export class LayoutEngine {
 
     /**
      * Ported from FlexLayout's LayoutController.onOverlayBorderKeyDown. Call it on every `keydown`
-     * of the document with the close key (`keyMap.closeOverlayBorder`, "Escape" by default): with
-     * focus in an open overlay panel or on its tab button, the key closes the panel and focus goes
-     * to the tab button. Returns true (and prevents the default) when a panel closed.
+     * with the close key: with focus in an open overlay panel or on its tab button, the key closes
+     * the panel and focus goes to the tab button. Returns true (and prevents the default) when a
+     * panel closed.
      */
     handleOverlayKeyDown(
         event: IKeyEventLike & { preventDefault(): void },
@@ -1294,14 +1335,14 @@ export class LayoutEngine {
             return false;
         }
         for (const border of this.openOverlayBorders()) {
-            const tab = border.getSelectedNode();
+            const tab = border.children[border.selected];
             if (!tab) {
                 continue;
             }
-            const button = doc.getElementById(getTabButtonId(tab));
-            const panel = doc.getElementById(getTabPanelId(tab));
+            const button = doc.getElementById(this.tabButtonId(tab.id));
+            const panel = doc.getElementById(this.tabPanelId(tab.id));
             if (active === button || panel?.contains(active)) {
-                this.closeOverlayBorder(border);
+                this.closeOverlayBorder(border.id);
                 button?.focus();
                 event.preventDefault();
                 return true;
@@ -1312,9 +1353,8 @@ export class LayoutEngine {
 
     /**
      * Moves focus to the selected tab button of the next/previous tabset in this layout
-     * (wrapping), starting from the tabset containing focus (its strip or its selected tab's
-     * panel) and falling back to the active tabset; the target also becomes the active tabset.
-     * Returns true when focus moved.
+     * (wrapping), starting from the tabset containing focus and falling back to the active one;
+     * the target becomes the active tabset. Returns true when focus moved.
      */
     focusAdjacentTabset(delta: number): boolean {
         const doc = this.currentDocument;
@@ -1322,8 +1362,7 @@ export class LayoutEngine {
         if (!doc || !active || !this.layoutRef?.contains(active)) {
             return false;
         }
-        // leave text editing contexts alone (inputs and editors in tab content, where modified
-        // arrow keys typically navigate within the text)
+        // leave text editing contexts alone
         const tag = active.tagName;
         if (
             tag === "INPUT" ||
@@ -1333,94 +1372,102 @@ export class LayoutEngine {
         ) {
             return false;
         }
-        if (this.model.getMaximizedTabset(this.layoutId) !== undefined) {
+        if (this.model.maximizedTabset(this.layoutId) !== undefined) {
             return false; // only the maximized tabset is visible
         }
-        const tabsets: TabSetNode[] = [];
-        this.model.visitLayoutNodes(this.layoutId, (node) => {
-            if (
-                node instanceof TabSetNode &&
-                node.getSelectedNode() !== undefined
-            ) {
-                tabsets.push(node);
-            }
-        });
+        const tabsets = this.model
+            .tabsets(this.layoutId)
+            .filter((tabset) => tabset.children[tabset.selected] !== undefined);
         if (tabsets.length < 2) {
             return false;
         }
-        const containsFocus = (tabset: TabSetNode) => {
+        const containsFocus = (tabset: (typeof tabsets)[number]) => {
             if (
                 this.measurables
-                    .get(`tabset:${tabset.getId()}`)
+                    .get(`tabset:${tabset.id}`)
                     ?.element.contains(active)
             ) {
-                return true; // focus in the tabstrip
+                return true; // focus in the tab strip
             }
-            const selected = tabset.getSelectedNode();
+            const selected = tabset.children[tabset.selected];
             return (
                 !!selected &&
-                !!this.tabPanels.get(selected.getId())?.element.contains(active)
+                !!this.tabPanels.get(selected.id)?.contains(active)
             );
         };
         let index = tabsets.findIndex(containsFocus);
         if (index === -1) {
-            const activeTabset = this.model.getActiveTabset(this.layoutId);
-            index =
-                activeTabset !== undefined ? tabsets.indexOf(activeTabset) : 0;
+            const activeTabset = this.model.activeTabset(this.layoutId);
+            index = activeTabset
+                ? tabsets.findIndex((t) => t.id === activeTabset.id)
+                : 0;
             if (index === -1) {
                 index = 0;
             }
         }
         const target =
             tabsets[(index + delta + tabsets.length) % tabsets.length];
-        const selected = target?.getSelectedNode();
+        const selected = target?.children[target.selected];
         if (!target || !selected) {
             return false;
         }
-        this.measurables.get(`tabbutton:${selected.getId()}`)?.element.focus();
-        this.doAction(Actions.setActiveTabset(target.getId(), this.layoutId));
+        this.measurables.get(`tabbutton:${selected.id}`)?.element.focus();
+        this.run("tabset.activate", { tabset: target.id });
         return true;
     }
 
     // *********************************************************************************
-    // Splitter state
+    // Splitters and drag state
     // *********************************************************************************
 
     isRealtimeResize() {
-        return this.mainEngine.realtimeResize;
+        return this.main.realtimeResize;
     }
 
     /** true while any splitter of the model is being dragged */
     isSplitterDragging() {
-        return this.mainEngine.splitterDragging;
+        return this.shared.splitterDragging;
     }
 
     setSplitterDragging(dragging: boolean) {
-        this.mainEngine.splitterDragging = dragging;
+        this.shared.splitterDragging = dragging;
     }
 
-    // *********************************************************************************
-    // Geometry
-    // *********************************************************************************
+    /** the drag-and-drop state machine of this layout */
+    getDragDropManager(): DragDropManager<T> {
+        return this.dragDropManager;
+    }
 
-    /** an element's rect relative to the layout root */
-    getBoundingClientRect(element: HTMLElement): Rect {
-        const layoutRect = this.getDomRect();
-        return Rect.fromDomRect(this.measureElement(element)).relativeTo(
-            layoutRect,
+    /** seconds a view may take to animate the drop outline */
+    getTabDragSpeed(): number {
+        return this.main.tabDragSpeed;
+    }
+
+    /**
+     * The edge drop bands of this layout's root row, relative to the layout root: where a drop docks
+     * to an edge, and where an edge indicator goes. Empty when edge docking is off.
+     */
+    edgeBands(): EdgeBand[] {
+        const settings = resolveLayout(this.state().defaults);
+        const root = this.rootRow(this.state());
+        const rect = root ? this.rect("row", root.id) : undefined;
+        if (!settings.edgeDock || !rect) {
+            return [];
+        }
+        return edgeBands(
+            rect,
+            settings.edgeDockMargin,
+            settings.edgeDockLength,
         );
     }
 
-    /** the layout root's rect in viewport coordinates */
-    /** the layout root's rect in viewport coordinates, measured now (not the per-pass cache) */
-    getFreshDomRect(): Rect {
-        this.cachedLayoutDomRect = undefined;
-        return this.getDomRect();
-    }
+    // *********************************************************************************
+    // Popouts
+    // *********************************************************************************
 
     /** the popout windows of the model (owned by the main engine) */
-    getPopoutManager(): PopoutManager {
-        const manager = this.mainEngine.popoutManager;
+    getPopoutManager(): PopoutManager<T> {
+        const manager = this.main.popoutManager;
         if (!manager) {
             throw new Error(
                 "LayoutEngine: the main engine has no popout manager",
@@ -1434,81 +1481,138 @@ export class LayoutEngine {
         return this.getPopoutManager().isSupportsPopout();
     }
 
-    /** Whether `node` lives in a popout window's layout. */
-    isInWindow(node: TabNode | TabSetNode): boolean {
-        const layoutId = node.getLayoutId();
-        // the main layout reports the "window" type too: it is the main window's layout
-        return (
-            layoutId !== Model.MAIN_LAYOUT_ID &&
-            this.model.getLayouts().get(layoutId)?.getType() === "window"
-        );
+    /** Whether a node (a tab or a tabset) lives in a popout window's layout. */
+    isInWindow(id: string): boolean {
+        const layout = this.model.layoutOf(id);
+        return layout !== undefined && layout !== MAIN_LAYOUT;
     }
 
     /**
-     * Whether `node` (a tab, or a whole tabset) can be popped out into a window now: popouts are
-     * supported, it is not in a window already, and it (every tab of it) enables popout.
+     * Whether a node (a tab, or a whole tabset) can be popped out into a window now: popouts are
+     * supported and the model accepts it (`model.can`).
      */
-    canPopout(node: TabNode | TabSetNode): boolean {
-        if (!this.isSupportsPopout() || this.isInWindow(node)) {
+    canPopout(id: string): boolean {
+        if (!this.isSupportsPopout()) {
             return false;
         }
-        if (node instanceof TabSetNode) {
-            return node.getChildren().length > 0 && node.isAllowedInWindow();
+        const node = this.model.get(id);
+        if (node?.type === "tab") {
+            return this.model.can("tab.popout", { tab: id }).ok;
         }
-        return node.isAllowedInWindow();
+        if (node?.type === "tabset") {
+            return this.model.can("tabset.popout", { tabset: id }).ok;
+        }
+        return false;
     }
 
-    /** Pops `node` (a tab, or a whole tabset) out into a window, through `onAction`. */
-    popout(node: TabNode | TabSetNode): Node | undefined {
-        return this.doAction(
-            node instanceof TabSetNode
-                ? Actions.popoutTabset(node.getId(), "window")
-                : Actions.popoutTab(node.getId(), "window"),
-        );
+    /** Pops a node (a tab, or a whole tabset) out into a window, at its place on screen. */
+    popout(id: string): CommandResult<{ window: string }> {
+        const node = this.model.get(id);
+        const engine = this.engineOf(id);
+        if (node?.type === "tabset") {
+            const rect = engine.rect("tabset", id);
+            return this.run("tabset.popout", {
+                tabset: id,
+                ...(rect ? { rect: engine.getScreenRect(rect) } : {}),
+            });
+        }
+        const container = this.model.parentOf(id);
+        const rect = container ? engine.contentRect(container.id) : undefined;
+        return this.run("tab.popout", {
+            tab: id,
+            ...(rect ? { rect: engine.getScreenRect(rect) } : {}),
+        });
     }
 
     /**
-     * Moves `node` (a tab, or every tab of a tabset) from a window back into the main layout: into
-     * its active tabset, else its first one, else a new tabset. Emptying a window closes it.
+     * Docks a node (a tab, or a tabset) of a window back into the main layout's active tabset (its
+     * first one otherwise). When it is all its window holds, the window closes (`window.close`);
+     * otherwise its tabs move (`tab.move`).
      */
-    dockBack(node: TabNode | TabSetNode): Node | undefined {
-        const tabs = node instanceof TabSetNode ? node.getChildren() : [node];
-        return dockTabs(
-            this,
-            tabs.map((tab) => tab.getId()),
+    dockBack(id: string): CommandResult<unknown> {
+        const layout = this.model.layoutOf(id);
+        if (layout === undefined || layout === MAIN_LAYOUT) {
+            return {
+                ok: false,
+                error: {
+                    code: "refused",
+                    message: `"${id}" is not in a window`,
+                },
+            };
+        }
+        const node = this.model.get(id);
+        const tabs =
+            node?.type === "tabset" ? node.children.map((t) => t.id) : [id];
+        const all = this.model.tabs(layout).map((t) => t.id);
+        if (all.length === tabs.length) {
+            return this.run("window.close", { window: layout });
+        }
+        const target = this.model.activeTabset() ?? this.model.tabsets()[0];
+        if (!target) {
+            return this.run("window.close", { window: layout });
+        }
+        // a pinned tab may not leave its tabset: it is unpinned for the move and pinned again
+        const commands: BatchEntry<T>[] = [];
+        for (const tab of tabs) {
+            const node = this.model.get(tab);
+            const pinned = node?.type === "tab" && node.pinned === true;
+            if (pinned) {
+                commands.push({
+                    command: "tab.pin",
+                    payload: { tab, value: false },
+                });
+            }
+            commands.push({
+                command: "tab.move",
+                payload: { tab, to: target.id, index: -1 },
+            });
+            if (pinned) {
+                commands.push({
+                    command: "tab.pin",
+                    payload: { tab, value: true },
+                });
+            }
+        }
+        return this.run("batch", { commands });
+    }
+
+    // *********************************************************************************
+    // Geometry
+    // *********************************************************************************
+
+    /** an element's rect relative to the layout root */
+    getBoundingClientRect(element: HTMLElement): Rect {
+        return relativeTo(
+            toRect(this.measureElement(element)),
+            this.getDomRect(),
         );
     }
 
-    /** the drag-and-drop state machine of this layout */
-    getDragDropManager(): DragDropManager {
-        return this.dragDropManager;
+    /** the layout root's rect in viewport coordinates, measured now (not the per-pass cache) */
+    getFreshDomRect(): Rect {
+        this.cachedLayoutDomRect = undefined;
+        return this.getDomRect();
     }
 
-    /** seconds a view may take to animate the drop outline */
-    getTabDragSpeed(): number {
-        return this.mainEngine.tabDragSpeed;
-    }
-
+    /** the layout root's rect in viewport coordinates */
     getDomRect(): Rect {
         if (this.cachedLayoutDomRect !== undefined) {
             return this.cachedLayoutDomRect;
         }
-        // get fresh rect on demand (page may have scrolled)
         if (this.layoutRef) {
-            this.cachedLayoutDomRect = Rect.fromDomRect(
+            this.cachedLayoutDomRect = toRect(
                 this.measureElement(this.layoutRef),
             );
             return this.cachedLayoutDomRect;
         }
-        return Rect.empty();
+        return EMPTY_RECT;
     }
 
     /** a layout-relative rect in screen coordinates (for opening popout windows) */
     getScreenRect(inRect: Rect): Rect {
-        const rect = inRect.clone();
         const win = this.currentWindow;
         if (!win) {
-            return rect;
+            return inRect;
         }
         const layoutRect = this.getDomRect();
         // measure window chrome; fall back to typical sizes under zoom
@@ -1522,59 +1626,30 @@ export class LayoutEngine {
             measuredNavWidth >= 0 && measuredNavWidth <= 100
                 ? measuredNavWidth
                 : 2;
-        rect.x =
-            win.screenX + win.scrollX + navWidth / 2 + layoutRect.x + rect.x;
-        rect.y =
-            win.screenY +
-            win.scrollY +
-            (navHeight - navWidth / 2) +
-            layoutRect.y +
-            rect.y;
-        rect.height += navHeight;
-        rect.width += navWidth;
-        return rect;
-    }
-
-    /** a sub-layout-relative rect relative to the main layout */
-    getRelativeRect(inRect: Rect): Rect {
-        const rect = inRect.clone();
-        const layout = this.getLayout();
-        if (!layout.isMainLayout()) {
-            const layoutRect = layout.getRect();
-            rect.x += layoutRect.x;
-            rect.y += layoutRect.y;
-        }
-        return rect;
+        return {
+            x:
+                win.screenX +
+                win.scrollX +
+                navWidth / 2 +
+                layoutRect.x +
+                inRect.x,
+            y:
+                win.screenY +
+                win.scrollY +
+                (navHeight - navWidth / 2) +
+                layoutRect.y +
+                inRect.y,
+            width: inRect.width + navWidth,
+            height: inRect.height + navHeight,
+        };
     }
 
     // *********************************************************************************
-    // ILayoutController and accessors
+    // Accessors
     // *********************************************************************************
-
-    getModel(): Model {
-        return this.model;
-    }
-
-    getLayoutId(): string {
-        return this.layoutId;
-    }
-
-    getLayout(): ModelLayout {
-        const layout = this.model.getLayouts().get(this.layoutId);
-        if (!layout) {
-            throw new Error(
-                `LayoutEngine: the model has no layout "${this.layoutId}"`,
-            );
-        }
-        return layout;
-    }
 
     isMainLayout(): boolean {
-        return this.mainEngine === this;
-    }
-
-    getMainEngine(): LayoutEngine {
-        return this.mainEngine;
+        return this.main === this;
     }
 
     getLayoutRef(): HTMLElement | null {
@@ -1589,90 +1664,15 @@ export class LayoutEngine {
         return this.currentWindow;
     }
 
-    getWindowId(): string | undefined {
-        return this.currentWindow
-            ? LayoutEngine.windowIds.get(this.currentWindow)
-            : undefined;
-    }
-
-    private setCurrentWindow(doc: Document, win: Window | undefined) {
-        this.currentDocument = doc;
-        this.currentWindow = win;
-        if (win && !LayoutEngine.windowIds.has(win)) {
-            LayoutEngine.windowIds.set(win, randomUUID());
-        }
+    /** a node of the model, typed by its registry */
+    node(id: string): Node<T> | undefined {
+        return this.model.get(id);
     }
 }
 
-/**
- * Whether a tab's panel is shown: the tab is selected, and neither hidden by another tabset of its
- * layout being maximized nor by its border being hidden. Adapters use it for their visibility
- * state, so it always matches what the engine displays.
- */
-export function isTabPanelVisible(tab: TabNode): boolean {
-    if (!tab.getParent() || !tab.isSelected()) {
-        return false;
-    }
-    const container = tab.getTabContainer();
-    if (container instanceof TabSetNode) {
-        const maximized = tab
-            .getModel()
-            .getMaximizedTabset(container.getLayoutId());
-        return maximized === undefined || container.isMaximized();
-    }
-    return !(container instanceof BorderNode) || container.isShowing();
-}
-
-/**
- * Marks an element that belongs to an open overlay border (its wrapper, splitter, toolbar): a
- * press on it does not close the overlay.
- */
-export const OVERLAY_ATTRIBUTE = "data-dockable-overlay";
-
-const NO_TABS: readonly string[] = Object.freeze([]);
-
-/** the scroll listener installed on each moveable element, and the tab it currently hosts */
-const scrollTracking = new WeakMap<HTMLElement, { tab: TabNode }>();
-
-/** Creates a {@link LayoutEngine} for a layout of `model` (the main layout by default). */
-export function createLayoutEngine(
-    options: ILayoutEngineOptions,
-): LayoutEngine {
-    return new LayoutEngine(options);
-}
-
-/**
- * Moves the tabs `tabIds` into the main layout's dock target ({@link dockTargetOf}), as one
- * (grouped) action through `onAction`.
- */
-export function dockTabs(
-    engine: LayoutEngine,
-    tabIds: readonly string[],
-): Node | undefined {
-    const target = dockTargetOf(engine.getModel());
-    const moves = tabIds.map((id) =>
-        Actions.moveNode(id, target.getId(), DockLocation.CENTER, -1),
-    );
-    if (moves.length === 0) {
-        return undefined;
-    }
-    return engine.doAction(
-        moves.length === 1 && moves[0] ? moves[0] : Actions.group(moves),
-    );
-}
-
-/** Where tabs docked back from a window go: the main layout's active tabset, else its first. The
- * model always keeps a tabset in the main layout, so the root row is only a type-level fallback. */
-export function dockTargetOf(model: Model): TabSetNode | RowNode {
-    const active = model.getActiveTabset(Model.MAIN_LAYOUT_ID);
-    if (active) {
-        return active;
-    }
-    let first: TabSetNode | undefined;
-    model.visitLayoutNodes(Model.MAIN_LAYOUT_ID, (node) => {
-        if (!first && node instanceof TabSetNode) {
-            first = node;
-        }
-    });
-    return first ?? (model.getRootRow() as RowNode);
+/** Creates a {@link LayoutEngine} for a layout of a model (the main layout by default). */
+export function createLayoutEngine<T extends DockableTypes = AnyTypes>(
+    options: LayoutEngineOptions<T>,
+): LayoutEngine<T> {
+    return new LayoutEngine<T>(options);
 }

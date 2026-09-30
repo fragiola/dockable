@@ -1,30 +1,37 @@
 ---
 title: Dockable.TabSet
-description: A tabset - a flex item of its row, sized by its weight. Pressing inside it makes it active.
+description: A tabset is a flex item of its row, sized by its weight. Pressing anywhere inside it makes it the active tabset.
 ---
 
 "A tabset: a flex item of its row, sized by its weight. Pressing inside it makes it the active
 tabset. Place a `Dockable.TabList` and a `Dockable.TabSetContent` inside."
 
 ```tsx
-<Dockable.TabSet node={tabset} className="tabset">
-    <Dockable.TabList aria-label={tabset.getName() ?? "Tabs"}>
-        {(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}
-    </Dockable.TabList>
-    <Dockable.TabSetContent />
-</Dockable.TabSet>
+function MyTabSet({ node }: { node: TabsetNode<Types> }) {
+    return (
+        <Dockable.TabSet node={node} className="tabset">
+            <Dockable.TabList<Types> aria-label={node.data?.name ?? "Tabs"}>
+                {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
+            </Dockable.TabList>
+            <Dockable.TabSetContent />
+        </Dockable.TabSet>
+    );
+}
 ```
+
+A tabset's name is not part of the model: when it has one, it is the app's text, kept in the
+tabset's typed `data` (`Types["tabset"]`) as above.
 
 The tabset is a structural flex column, so child order is visual order: put `TabSetContent`
 first for a strip at the bottom.
 
 ## Props
 
-`TabSetProps` extends the [common primitive props](/docs/api/root#common-props).
+`TabSetProps<T>` extends the [common primitive props](/docs/api/root#common-props).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `node` | `TabSetNode` | required | the tabset to render |
+| `node` | `TabsetNode<T>` | required | the tabset to render |
 | `children` | `ReactNode` | none | the tab strip, the content area, and anything else (a header, buttons) |
 
 ## State
@@ -33,20 +40,20 @@ first for a strip at the bottom.
 
 | field | type | description |
 | --- | --- | --- |
-| `active` | `boolean` | the tabset is the model's active tabset |
+| `active` | `boolean` | the tabset is its layout's active tabset (`model.activeTabset(layout)`) |
 | `maximized` | `boolean` | the tabset is maximized |
 | `hidden` | `boolean` | another tabset of the layout is maximized, so this one is hidden |
 | `empty` | `boolean` | the tabset has no tabs |
-| `dropTarget` | `boolean` | the current drag would drop into or beside this tabset (its content, strip or a group) |
-| `dropLocation` | `"center" \| "top" \| "bottom" \| "left" \| "right" \| undefined` | while it is the drop target: where the drag would dock relative to it |
-| `dropRefused` | `boolean` | the current drag is over this tabset, but a drop rule refuses it |
+| `dropTarget` | `boolean` | the current drag would drop into or beside this tabset (its content or its strip) |
+| `dropLocation` | `DropLocation \| undefined`: `"center" \| "top" \| "bottom" \| "left" \| "right"` | while it is the drop target: where the drag would dock relative to it |
+| `dropRefused` | `boolean` | the current drag is over this tabset, but a drop rule (or a middleware veto) refuses it |
 
 ## Data attributes
 
 | attribute | when |
 | --- | --- |
 | `data-layout-path` | the tabset's path: `/ts0`, `/r1/ts0`, … |
-| `data-active` | the model's active tabset |
+| `data-active` | its layout's active tabset |
 | `data-maximized` | maximized |
 | `data-empty` | no tabs |
 | `data-drop-target` | the current drag would drop into or beside this tabset |
@@ -56,12 +63,13 @@ first for a strip at the bottom.
 ## Structural style
 
 `display: flex` (or `none` while `hidden`), `flex-direction: column`, `flex-basis: 0`,
-`flex-grow` from the weight, `min-*`/`max-*` from the model, `overflow: hidden`.
+`flex-grow` from the weight, `min-*`/`max-*` from the engine (`engine.minMax(id)`),
+`overflow: hidden`.
 
 ## Behaviour
 
-A primary-button press anywhere inside it (without modifiers) dispatches
-`Actions.setActiveTabset` when it is not already active.
+A primary-button press anywhere inside it (without modifiers) runs
+`tabset.activate` when it is not already active, through the model's middleware.
 
 ## Children context
 

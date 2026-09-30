@@ -1,38 +1,51 @@
 ---
 title: Dockable.DropZone
-description: A place, inside or outside the layout, where a drag of the layout can be dropped for you to handle.
+description: A place, inside or outside the layout, where a drag of the layout can be dropped for you to handle with a command.
 ---
 
 "A place, inside or outside the layout, where a drag of the layout can be dropped for you to
 handle: a trash can that closes the tab, an "open to the right" pad, a region of the page. While a
-drag it takes is over it, the layout shows no outline, and a drop calls `onDrop` with the dragged
-node instead of moving it."
+drag it takes is over it, the layout shows no outline, and a drop calls `onDrop` with what is
+dragged instead of moving it."
 
 ```tsx
 <Dockable.DropZone
     model={model}
-    accepts={(node) => node instanceof TabNode && node.isEnableClose()}
-    onDrop={(node) => LayoutEngine.of(model)?.doAction(Actions.deleteTab(node.getId()))}
+    accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tab: drag.tab.id }).ok}
+    onDrop={(drag) => {
+        if (drag.kind === "tab") model.run("tab.close", { tab: drag.tab.id });
+    }}
     className="opacity-50 data-drop-active:opacity-100 data-drop-over:bg-red-600"
 >
     Trash
 </Dockable.DropZone>
 ```
 
-Nothing moves by itself: `onDrop` receives the node, and the zone dispatches the action it stands
-for. Dispatch through the engine (`LayoutEngine.of(model)`, or `useDockable().engine` inside the
-root) so `onAction` sees it.
+Nothing moves by itself: `onDrop` receives what is dragged, and the zone runs the command it
+stands for. `model.run` goes through the model's middleware, like every command of the layout.
+
+## What is dragged
+
+`accepts` and `onDrop` receive a `DragSubject<T>`, a union discriminated by `kind`:
+
+| `kind` | fields | what is dragged |
+| --- | --- | --- |
+| `"tab"` | `tab: TabOf<T>` | a tab of the layout |
+| `"tabset"` | `tabset: TabsetNode<T>` | a whole tabset of the layout |
+| `"new"` | `tab: TabInitOf<T>` | a new tab that is not in the model yet: a [`Dockable.DragSource`](/docs/api/drag-source), or a foreign drag accepted by `onExternalDrag` |
+
+`T` is inferred from `model: Model<T>`, so `drag.tab.data` narrows on `drag.tab.component`.
 
 ## Props
 
-`DropZoneProps` extends the [common primitive props](/docs/api/root#common-props) (its `onDrop`
+`DropZoneProps<T>` extends the [common primitive props](/docs/api/root#common-props) (its `onDrop`
 replaces the element's native drop handler).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `model` | `Model` | required | the model whose drags the zone takes |
-| `accepts` | `(dragNode: Node) => boolean` | every drag of the model | whether the zone takes this drag |
-| `onDrop` | `(dragNode: Node, event: DragEvent) => void` | required | called when the drag is dropped on the zone, with the dragged node. Nothing is moved: dispatch the action you want (e.g. `Actions.deleteTab`) |
+| `model` | `Model<T>` | required | the model whose drags the zone takes |
+| `accepts` | `(drag: DragSubject<T>) => boolean` | every drag of the model | whether the zone takes this drag |
+| `onDrop` | `(drag: DragSubject<T>, event: DragEventLike) => void` | required | called when the drag is dropped on the zone, with what is dragged (`{ kind: "tab", tab }`, `{ kind: "tabset", tabset }`, `{ kind: "new", tab }`). Nothing is moved: run the command you want (`tab.close`) |
 | `children` | `ReactNode` | none | the zone's content; the primitive renders no text of its own |
 
 ## State
@@ -57,8 +70,7 @@ replaces the element's native drop handler).
 - A zone can sit anywhere in the page's document: beside the layout, above it, or inside
   `Dockable.Root` as an overlay. It does not work across windows (a zone in the main document does
   not take a drag inside a popout).
-- For a new-tab drag (a [`Dockable.DragSource`](/docs/api/drag-source) or a file dragged from the
-  OS), the node is a temporary tab that is not in the model yet.
+- A zone for a new-tab drag can create the tab itself: `model.run("tab.add", { ...drag.tab, to })`.
 - `useDropZone({ model, accepts, onDrop })` is the lower layer ([hooks](/docs/api/hooks#usedropzone)),
-  and the core's `engine.registerDropZone(element, { accepts, onDrop, onOverChange })` the one
-  under it, for other frameworks.
+  and the core's `engine.registerDropZone(element, options)` (`DropZoneOptions<T>`: `accepts`,
+  `onDrop`, `onOverChange`) the one under it, for other frameworks.

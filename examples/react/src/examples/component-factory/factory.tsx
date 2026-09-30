@@ -1,6 +1,6 @@
 "use client";
 
-import type { TabNode } from "@fragiola/dockable";
+import type { TabInit, TabNode } from "@fragiola/dockable";
 import { type ReactNode, useState } from "react";
 import { Input } from "#/components/atoms/fields";
 import { cn } from "#/lib/cn";
@@ -9,23 +9,43 @@ import { ChartPanel } from "../_kit/charts";
 import { ORDERS, TablePanel } from "../_kit/data";
 import * as styles from "../_kit/styles";
 
-// The factory: a tab's `component` picks what renders, and its `config` parameterises it. Both
-// are plain JSON, so a saved layout restores the same content.
+// The factory: a tab's `component` picks what renders, and its `data` parameterises it. Both
+// are plain JSON, so a saved layout restores the same content. The registry below types each
+// component's data, so every renderer reads its own data with no cast.
 
-export interface ChartConfig {
+export interface ChartData {
+    name: string;
     kind: "line" | "bar" | "area";
     seed: number;
 }
-export interface TableConfig {
+export interface TableData {
+    name: string;
     status?: string;
 }
-export interface MarkdownConfig {
+export interface MarkdownData {
+    name: string;
     text: string;
 }
-export interface FormConfig {
+export interface ContactFormData {
     name: string;
-    email: string;
+    /** the form's initial values */
+    values: { name: string; email: string };
 }
+
+/** What the layout holds: each tab component and the type of its data. */
+export type Types = {
+    tabs: {
+        chart: ChartData;
+        table: TableData;
+        markdown: MarkdownData;
+        form: ContactFormData;
+    };
+};
+
+export type Kind = keyof Types["tabs"];
+
+/** A tab of component `K`, with that component's data. */
+export type TabOfKind<K extends Kind> = TabNode<K, Types["tabs"][K]>;
 
 /** A tiny markdown subset (headings, list items, paragraphs): enough for the demo. */
 function Markdown({ text }: { text: string }) {
@@ -60,7 +80,7 @@ function Markdown({ text }: { text: string }) {
     );
 }
 
-function ContactForm({ config }: { config: FormConfig }) {
+function ContactForm({ values }: { values: ContactFormData["values"] }) {
     const [sent, setSent] = useState(false);
     return (
         <PanelBody title="Contact">
@@ -73,12 +93,12 @@ function ContactForm({ config }: { config: FormConfig }) {
             >
                 <Input.Template.Simple
                     label="Name"
-                    defaultValue={config.name}
+                    defaultValue={values.name}
                 />
                 <Input.Template.Simple
                     label="Email"
                     type="email"
-                    defaultValue={config.email}
+                    defaultValue={values.email}
                 />
                 <div className="flex items-center gap-3">
                     <button
@@ -99,20 +119,19 @@ function ContactForm({ config }: { config: FormConfig }) {
     );
 }
 
-/** component name → how to render a tab of that component */
-export const FACTORY: Record<string, (tab: TabNode) => ReactNode> = {
-    chart: (tab) => {
-        const config = tab.getConfig() as ChartConfig;
-        return (
-            <ChartPanel
-                kind={config.kind}
-                seed={config.seed}
-                className="h-full"
-            />
-        );
-    },
+/** component name → how to render a tab of that component (each gets its own typed tab) */
+export const FACTORY: {
+    [K in Kind]: (tab: TabOfKind<K>) => ReactNode;
+} = {
+    chart: (tab) => (
+        <ChartPanel
+            kind={tab.data.kind}
+            seed={tab.data.seed}
+            className="h-full"
+        />
+    ),
     table: (tab) => {
-        const { status } = (tab.getConfig() ?? {}) as TableConfig;
+        const { status } = tab.data;
         return (
             <TablePanel
                 rows={
@@ -123,29 +142,45 @@ export const FACTORY: Record<string, (tab: TabNode) => ReactNode> = {
             />
         );
     },
-    markdown: (tab) => (
-        <Markdown text={(tab.getConfig() as MarkdownConfig).text} />
-    ),
-    form: (tab) => <ContactForm config={tab.getConfig() as FormConfig} />,
+    markdown: (tab) => <Markdown text={tab.data.text} />,
+    form: (tab) => <ContactForm values={tab.data.values} />,
 };
 
-/** The JSON of a new tab of each kind, for the "Add" menu. */
-export const TEMPLATES = {
+/**
+ * Renders a tab through the factory. Generic over the component, so `FACTORY[tab.component]` is
+ * the renderer of that very component and takes the tab as it is.
+ */
+export function renderFactory<K extends Kind>(tab: TabOfKind<K>): ReactNode {
+    const create: ((tab: TabOfKind<K>) => ReactNode) | undefined =
+        FACTORY[tab.component];
+    return create ? (
+        create(tab)
+    ) : (
+        // a stored layout may name a component this build does not know
+        <PanelBody title={tab.data.name}>
+            <p className="text-palette-accent/85">
+                {`No component named "${tab.component}".`}
+            </p>
+        </PanelBody>
+    );
+}
+
+/** A new tab of each kind, for the "Add" menu: a `tab.add` init with its typed data. */
+export const TEMPLATES: { [K in Kind]: TabInit<K, Types["tabs"][K]> } = {
     chart: {
-        name: "Chart",
-        config: { kind: "bar", seed: 23 } satisfies ChartConfig,
+        component: "chart",
+        data: { name: "Chart", kind: "bar", seed: 23 },
     },
-    table: { name: "Orders", config: {} satisfies TableConfig },
+    table: { component: "table", data: { name: "Orders" } },
     markdown: {
-        name: "Notes.md",
-        config: {
-            text: "# Notes\nCreated from the Add menu.\n- component: markdown\n- config: { text }",
-        } satisfies MarkdownConfig,
+        component: "markdown",
+        data: {
+            name: "Notes.md",
+            text: "# Notes\nCreated from the Add menu.\n- component: markdown\n- data: { text }",
+        },
     },
     form: {
-        name: "Contact",
-        config: { name: "", email: "" } satisfies FormConfig,
+        component: "form",
+        data: { name: "Contact", values: { name: "", email: "" } },
     },
-} as const;
-
-export type Kind = keyof typeof TEMPLATES;
+};

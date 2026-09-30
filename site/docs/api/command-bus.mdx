@@ -1,0 +1,440 @@
+---
+title: The command bus
+description: How the model applies commands. Run them typed or as untrusted JSON, dry-run them, wrap them in middleware, batch them and listen to every commit.
+---
+
+Every change to a layout is a command that goes through the model's bus. The bus validates the
+payload, runs the middleware chain, applies the command to a draft of the state and commits it,
+then tells every listener. The engine and the primitives use the same bus as your code: a drag,
+a splitter or a close button issues a command like any other, so a middleware sees them all.
+
+```ts
+import { createModel, veto } from "@fragiola/dockable";
+
+type Types = {
+    tabs: {
+        editor: { name: string; path: string; dirty: boolean };
+        log: { name: string };
+    };
+};
+
+const model = createModel<Types>(json);
+
+model.use((ctx, next) =>
+    ctx.command === "tabset.close" && ctx.payload.tabset === "console"
+        ? veto("The console stays open.")
+        : next(),
+);
+model.subscribe((event) => console.log(event.command, event.result));
+
+const result = model.run("tab.add", {
+    component: "editor",
+    data: { name: "a.ts", path: "/a.ts", dirty: false },
+    to: "editors",
+});
+if (!result.ok) console.warn(result.error.code, result.error.message);
+```
+
+The commands themselves (every name, payload and result) are on [Commands](/docs/api/commands).
+The model's queries are on [Model](/docs/api/model), and why every change is a command is in
+[The model and commands](/docs/concepts/model-and-commands).
+
+`run`, `dispatch`, `can`, `use` and `subscribe` are bound to the model, so they can be passed
+around on their own (`const { run } = model`).
+
+## Running commands
+
+| member | returns | description |
+| --- | --- | --- |
+| `run(command, payload, options?)` | `CommandResult<ResultOf<T, C>>` | runs a command, typed by the registry `T`; commits and emits on success |
+| `dispatch(input, options?)` | `CommandResult<unknown>` | runs a command given as untrusted JSON `{ command, payload, transient? }`, validated first; `options.meta` (`DispatchOptions`) is the app's |
+| `can(command, payload, options?)` | `CommandResult<ResultOf<T, C>>` | what `run` would return, without committing or emitting anything |
+
+None of them throws on bad input: an unknown name, a malformed payload, a missing node or a
+refusal is an `{ ok: false, error }` result.
+
+### `run`
+
+```ts
+run<C extends CommandName>(
+    command: C,
+    payload: PayloadOf<T, C>,
+    options?: RunOptions,
+): CommandResult<ResultOf<T, C>>;
+```
+
+The payload type follows the command name, and a tab's `data` follows its `component`, so the
+compiler checks both against your registry ([Typed data](/docs/concepts/typed-data)). The value of
+a successful result is typed too:
+
+```ts
+const added = model.run("tab.add", {
+    component: "log",
+    data: { name: "Build" },
+    to: "tools",
+    select: true,
+});
+if (added.ok) {
+    model.run("tab.pin", { tab: added.value.tab, value: true });
+}
+```
+
+The payload is still validated at run time, so a call from plain JavaScript (or with a cast) gets
+`invalid_payload` rather than a broken state.
+
+### `dispatch`
+
+```ts
+dispatch(input: unknown, options?: DispatchOptions): CommandResult<unknown>;
+```
+
+For input you did not type yourself: a saved file, a message from another window or a server, an
+assistant's tool call. `dispatch` checks the envelope before the payload:
+
+| input | error |
+| --- | --- |
+| not an object | `invalid_payload` at `""` |
+| `command` missing or not a string | `invalid_payload` at `/command` |
+| `command` is not a command | `unknown_command` at `/command` |
+| `payload` missing or not an object | `invalid_payload` at `/payload` |
+| `transient` present and not a boolean | `invalid_payload` at `/transient` |
+| any other key | `invalid_payload` at that key (`/meta`, …) |
+
+Then it runs the command as `run` does. The paths of the payload's own problems start with
+`/payload`, so they point into the input you passed:
+
+```ts
+const result = model.dispatch(JSON.parse(message));
+// { ok: false, error: { code: "not_found", message: 'no tab "zz"', path: "/payload/tab" } }
+```
+
+`dispatch` takes an optional second argument, `DispatchOptions` (`{ meta }`): the app's meta for
+middleware and listeners (`{ source: "assistant" }`, say). It is never read from the input: an
+input with a `meta` key is refused at `/meta`.
+
+### `can`
+
+```ts
+can<C extends CommandName>(
+    command: C,
+    payload: PayloadOf<T, C>,
+    options?: RunOptions,
+): CommandResult<ResultOf<T, C>>;
+```
+
+A dry run: the lookup, the validation, the middleware and the command's rules all run, on a draft
+that is thrown away. It returns the result the command would have and commits and emits nothing
+(a generated id in its value is only indicative: the real run may generate another one). Middleware sees `ctx.dryRun` set to
+`true` and must not cause side effects then.
+
+The engine asks `can` on every `dragover`: a drop target is refused exactly when the command the
+drop would run is refused, whether by a node flag or by your middleware
+([Restricting drops](/docs/guides/restricting-drops)). Use it the same way to enable a menu item:
+
+```ts
+const closable = model.can("tab.close", { tab: tab.id }).ok;
+```
+
+### `RunOptions`
+
+The third argument of `run` and `can`.
+
+| field | type | description |
+| --- | --- | --- |
+| `transient` | `boolean` | a step of a continuous gesture (a splitter drag): the event is marked `transient: true`, so an undo stack can merge the steps. Only `row.resize`, `border.resize`, `window.configure` and a batch of those accept it; any other command returns `invalid_payload` at `/transient` (inside a transient batch: at that step's `/commands/<i>/command`) |
+| `meta` | `Readonly<Record<string, unknown>>` | free-form information, passed to every middleware (`ctx.meta`) and listener (`event.meta`); a drag group marks the commands of a transfer with it, the undo kit its own loads |
+
+## Results and errors
+
+### `CommandResult`
+
+```ts
+type CommandResult<R> =
+    | { readonly ok: true; readonly value: R }
+    | { readonly ok: false; readonly error: CommandError };
+```
+
+`ResultOf<T, C>` is the value type of command `C` (`{ tab: string }` for `tab.add`, the closed tab
+ids for `tabset.close`, …).
+
+### `CommandError`
+
+| field | type | description |
+| --- | --- | --- |
+| `code` | `CommandErrorCode` | why the command did not apply (below) |
+| `message` | `string` | a readable explanation, in English, for logs and developers (not for your UI: map `code` to your own text) |
+| `path` | `string` | a JSON pointer (RFC 6901) into the payload, or into the input of `dispatch`; absent when the error is not about a field |
+| `issues` | `readonly ValidationIssue[]` | every schema problem, for `invalid_payload`; each has a `path` and a `message` |
+
+### `CommandErrorCode`
+
+Every code the bus returns. [Commands](/docs/api/commands) lists which ones each command's rules
+return.
+
+| code | returned when |
+| --- | --- |
+| `unknown_command` | the name is not a command. From `dispatch` the path is `/command`; inside a batch, `/commands/<i>/command` |
+| `invalid_payload` | the payload does not match the command's JSON Schema (the first problem's path, and all of them in `issues`); a registered data schema rejects a tab's `data` (`tab.add`, `tab.update`, `layout.load`); a `layout.load` document is invalid (every issue, under `/layout`); a command-specific shape check fails (`row.resize` without one weight per child); `transient: true` on a command that cannot be transient; the `dispatch` envelope is malformed; or a middleware rewrote the payload into an invalid one |
+| `not_found` | a node or window the payload names does not exist, or is not of the kind the command needs (a tab id given as `tabset`) |
+| `refused` | a rule of the layout forbids it: a permission flag resolves to false (`enableClose`, `enableDrag`, `enableDrop`, `enableDivide`, `enableMaximize`, `enablePopout`), the tab is pinned, the target refuses the drop, the id is already in use, the tabset is the only one of its layout, the border has no tab to open |
+| `vetoed` | a middleware returned an error without calling `next()` (usually `veto(message)`), or returned `undefined` without calling it |
+| `queued` | the command was issued from a middleware while another command was running: it has not run yet and will run after that command commits (see [Re-entrancy](#re-entrancy)) |
+| `middleware_error` | a middleware threw; the message is the thrown error's message, and nothing is committed |
+
+## Middleware
+
+```ts
+use(middleware: Middleware<T>): () => void;
+
+type Middleware<T> = (
+    ctx: CommandContext<T>,
+    next: () => CommandResult<unknown>,
+) => CommandResult<unknown> | undefined;
+```
+
+`model.use` adds a middleware and returns the function that removes it. A middleware runs around
+every command, whoever issues it: your code, the engine (drags, splitters, keyboard), a
+`dispatch` from JSON, a `can` dry run. It can do three things:
+
+- **Veto:** return an error without calling `next()`. `veto(message?)` builds it:
+  `{ ok: false, error: { code: "vetoed", message } }` (the default message is "vetoed by a
+  middleware").
+- **Rewrite:** assign a new object to `ctx.payload`, then call `next()`. The new payload is
+  validated again before the command runs.
+- **Observe:** call `next()`, look at its result, and return it.
+
+```ts
+import { type Middleware, veto } from "@fragiola/dockable";
+
+// veto: tabs of the "console" tabset stay where they are
+const lockConsole: Middleware<Types> = (ctx, next) => {
+    if (ctx.command === "tab.move" && ctx.parentOf(ctx.payload.tab)?.id === "console") {
+        return veto("Console tabs cannot move.");
+    }
+    return next();
+};
+
+// rewrite: new editors always open in the "editors" tabset
+const editorsHome: Middleware<Types> = (ctx, next) => {
+    if (ctx.command === "tab.add" && ctx.payload.component === "editor") {
+        ctx.payload = { ...ctx.payload, to: "editors", location: "center" };
+    }
+    return next();
+};
+
+// observe: log what was refused, but not the drag probes
+const logRefusals: Middleware<Types> = (ctx, next) => {
+    const result = next();
+    if (!result.ok && !ctx.dryRun) {
+        console.info(ctx.command, result.error.code, result.error.message);
+    }
+    return result;
+};
+
+const removers = [lockConsole, editorsHome, logRefusals].map(model.use);
+// later: removers.forEach((remove) => remove());
+```
+
+The rules:
+
+- **Order.** The first middleware added is the outermost: it runs first, its `next()` runs the
+  second one, and the last one's `next()` runs the command. After the command, results travel back
+  in the reverse order.
+- **`undefined`** passes on the result of `next()` when the middleware called it, and is a veto
+  (`vetoed`) when it did not.
+- **`next()` twice** runs the rest of the chain once; the second call returns the same result.
+- **Throwing** returns `middleware_error`; nothing is committed.
+- **Synchronous.** A middleware cannot wait for a promise: the drop probe asks `can` on every
+  `dragover`. To ask the user first, veto, then run the command again once they confirm.
+- **Batches.** A `batch` runs the chain once as `batch`, then once for each command inside it
+  with `ctx.inBatch` set, so a batch cannot get around a veto. A nested batch is flattened: only
+  its commands run the chain.
+- **Dry runs.** During `can` (`ctx.dryRun`), the same chain runs and must have no side effects.
+
+### `CommandContext`
+
+What a middleware receives. `CommandContext<T>` is a union discriminated by `command`: once you
+check `ctx.command`, `ctx.payload` is that command's payload (`PayloadOf<T, C>`), typed by your
+registry. The fields every command shares are `CommandContextBase<T>`.
+
+| field | type | description |
+| --- | --- | --- |
+| `command` | `CommandName` | the command being run |
+| `payload` | `PayloadOf<T, C>` | the validated payload; assign a new object to rewrite it (it is validated again) |
+| `dryRun` | `boolean` | `true` inside `model.can`: nothing will be committed, cause no side effects |
+| `transient` | `boolean` | the command runs as a step of a gesture (`RunOptions.transient`) |
+| `inBatch` | `boolean` | the command runs inside a `batch` (the batch itself runs with `false`) |
+| `meta` | `Readonly<Record<string, unknown>> \| undefined` | the caller's `RunOptions.meta` (a batch passes its own to its commands) |
+| `state` | `LayoutState<T>` | the committed state the command applies to |
+| `get(id)` | `Node<T> \| undefined` | a node as the command sees it: inside a batch, after the batch's earlier commands |
+| `parentOf(id)` | `ParentNode<T> \| undefined` | a node's parent as the command sees it |
+
+Read nodes with `ctx.get` rather than `ctx.state` when the middleware may run inside a batch: a
+tab the batch added a step earlier is in the draft, not yet in the committed state.
+
+## Batches
+
+`batch` is a command whose payload is a list of commands. They run in order, on one draft, as one
+atomic step:
+
+```ts
+const result = model.run("batch", {
+    commands: [
+        { command: "tab.close", payload: { tab: "log" } },
+        { command: "tabset.maximize", payload: { tabset: "editors", value: true } },
+    ],
+});
+// result.value.results: each command's value, in order
+```
+
+- **Atomic.** The first command that fails stops the batch: nothing is committed and no event is
+  emitted. The error is that command's, its path prefixed with `/commands/<i>/payload` (or
+  `/commands/<i>/command` for an unknown name).
+- **One event.** A successful batch emits a single event, whose `commands` lists every command it
+  ran (`BatchStep`: `command`, `payload`, `result`), flattened.
+- **Flattened.** A `batch` inside a batch contributes its commands, in place; its results are
+  part of the outer `results`.
+- **Middleware.** Every command inside it passes the chain with `ctx.inBatch` (see above).
+- **Transient.** A batch may run with `transient: true` when every command in it is
+  transient-capable.
+
+Each entry is a `BatchEntry<T>`: `{ command, payload }` with the payload typed by the command.
+
+## Events
+
+```ts
+subscribe(listener: CommandListener<T>): () => void;
+
+type CommandListener<T> = (event: CommandEvent<T>) => void;
+```
+
+`model.subscribe` adds a listener and returns the function that removes it. Every successful
+commit delivers one `CommandEvent<T>` to every listener, including a command that changed nothing
+(then `before === after`). Failed commands and dry runs emit nothing.
+
+```ts
+const unsubscribe = model.subscribe((event) => {
+    if (event.before !== event.after && !event.transient) {
+        localStorage.setItem("layout", JSON.stringify(model.toJSON()));
+    }
+});
+```
+
+| field | type | description |
+| --- | --- | --- |
+| `command` | `CommandName` | the command that committed (`batch` for a batch) |
+| `payload` | `unknown` | the payload it ran with, after any middleware rewrite |
+| `result` | `unknown` | the command's value |
+| `before` | `LayoutState<T>` | the state before the commit |
+| `after` | `LayoutState<T>` | the state after it (the new `model.state`) |
+| `transient` | `boolean` | the command ran as a step of a gesture; an undo stack merges these |
+| `meta` | `Readonly<Record<string, unknown>> \| undefined` | the caller's `RunOptions.meta` |
+| `commands` | `readonly BatchStep[]` | for a batch only: the commands it ran, flattened, each with its `command`, `payload` and `result` |
+
+States are immutable and structurally shared, so `before` and `after` can be kept for free and
+compared by reference, node by node. [Undo and redo](/docs/guides/undo-redo) keeps `before` and
+loads it back with `toLayoutJson` and `layout.load`.
+
+A listener that throws does not stop the others: every listener runs, then the first error is
+rethrown from the `run` that committed (the commit stands).
+
+## Discovering commands
+
+```ts
+commands(): readonly CommandInfo[];
+```
+
+`model.commands()` lists every command with what an assistant, a command palette or a protocol
+needs to call it:
+
+| field | type | description |
+| --- | --- | --- |
+| `name` | `CommandName` | the command's name (`tab.add`, `batch`, …) |
+| `description` | `string` | what it does, written for a model choosing a tool |
+| `payloadSchema` | `JsonSchema` | the JSON Schema its payload is validated against |
+| `resultSchema` | `JsonSchema` | the JSON Schema of its value |
+| `transient` | `boolean` | whether it may run as a step of a gesture |
+
+```ts
+const tools = model.commands().map((info) => ({
+    name: info.name.replace(".", "_"),
+    description: info.description,
+    input_schema: info.payloadSchema,
+}));
+// an assistant's tool call comes back as JSON: dispatch validates it
+model.dispatch({ command: "tab.select", payload: call.input });
+```
+
+[AI and automation](/docs/guides/ai-and-automation) builds on this, and the command-console
+example lists the schemas and runs commands typed by hand:
+
+<Example id="command-console" />
+
+## Re-entrancy
+
+Code that reacts to a command may run another one. The bus keeps commits in order:
+
+- **From a listener**, `run` and `dispatch` execute immediately (the previous commit is complete).
+  Their event is delivered after the events still being delivered, so every listener sees every
+  commit, in commit order.
+- **From a middleware**, while a command is in flight, `run` and `dispatch` do not run: they
+  return `{ ok: false, error: { code: "queued" } }` at once, and the command executes after the
+  current one commits (or fails). Its own result is not returned to anyone; subscribe to see it.
+- **`can`** runs immediately from anywhere: it commits nothing.
+- An exception thrown by a command itself (a bug, not a refusal) is rethrown by `run` once the
+  chain has unwound; nothing is committed.
+
+## Types
+
+Everything on this page is exported from `@fragiola/dockable`.
+
+| name | description |
+| --- | --- |
+| `CommandMap<T>` | every command's `payload` and `result` type, typed by the registry `T` |
+| `CommandName` | the name of a command: `keyof CommandMap` |
+| `PayloadOf<T, C>` | the payload of command `C` |
+| `ResultOf<T, C>` | the value of command `C` |
+| `BatchEntry<T>` | one entry of a batch: `{ command, payload }`, the payload typed by the command |
+| `BatchStep` | one command of a committed batch, as its event reports it: `command`, `payload`, `result` |
+| `RunOptions` | `transient` and `meta` |
+| `CommandResult<R>` | `{ ok: true, value }` or `{ ok: false, error }` |
+| `CommandError` | `code`, `message`, `path`, `issues` |
+| `CommandErrorCode` | the union of the error codes above |
+| `Middleware<T>` | `(ctx, next) => CommandResult \| undefined` |
+| `CommandContext<T>` | what a middleware receives, narrowed by `command` |
+| `CommandContextBase<T>` | the fields of `CommandContext<T>` shared by every command |
+| `CommandListener<T>` | `(event: CommandEvent<T>) => void` |
+| `CommandEvent<T>` | what a listener receives, one per commit |
+| `CommandInfo` | a command as `model.commands()` describes it |
+| `veto(message?)` | the vetoed result a middleware returns |
+| `Placement` | where `tab.add`, `tab.move` and `tabset.move` put a tab or tabset (below) |
+| `Nullable<P>` | every field of `P` optional and nullable: `null` removes the node's own value, so the defaults apply |
+| `LayoutDefaultsPatch` | the payload field of `layout.configure` (below) |
+
+The payload type of each command (`TabAddPayload<T>`, `TabMovePayload`, …) is named on
+[Commands](/docs/api/commands).
+
+### `Placement`
+
+| field | type | description |
+| --- | --- | --- |
+| `to` | `string` | a tabset, a row, a border, or a layout id (`MAIN_LAYOUT` or a window id: that layout's root row) |
+| `location` | `DockLocation` | `"center"` (default) goes into the target; an edge (`"top"`, `"bottom"`, `"left"`, `"right"`) of a tabset splits it; an edge of a root row docks beside the layout's edge |
+| `index` | `number` | for a center drop: the insertion index among the target's tabs; `-1` (default) appends |
+| `select` | `boolean` | whether the tab is selected in its new place; default: the target's auto-select rule |
+
+### `LayoutDefaultsPatch`
+
+The `defaults` of `layout.configure`: `{ tab?, tabset?, border?, layout? }`, each a patch of that
+part of the [layout defaults](/docs/api/json-model#defaults). Fields are merged into the current
+defaults; a `null` field removes it, and a `null` part removes the whole part.
+
+```ts
+model.run("layout.configure", {
+    defaults: {
+        tab: { enablePopout: true, minWidth: 120 },
+        border: { size: null }, // borders without their own size: the built-in 200
+        layout: null, // every layout setting back to its built-in value
+    },
+});
+```

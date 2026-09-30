@@ -1,31 +1,31 @@
 "use client";
 
 import {
-    Actions,
-    DockLocation,
-    type IJsonModel,
-    Model,
-    type TabNode,
-    type TabSetNode,
+    createModel,
+    type LayoutJson,
+    type TabsetNode,
 } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import { Plus } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import {
+    type ReactNode,
+    useEffect,
+    useState,
+    useSyncExternalStore,
+} from "react";
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
-import { PanelBody } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { useStageTheme } from "../_kit/theme";
-import { FACTORY, type Kind, TEMPLATES } from "./factory";
+import { type Kind, renderFactory, TEMPLATES, type Types } from "./factory";
 
 // Tabs whose `component` field selects their content (see factory.tsx). Content renders on
-// demand (`enableRenderOnDemand`, on by default): a tab's content mounts the first time it is
-// shown and then stays mounted. The toolbar counts the mounted contents.
+// demand (`renderOnDemand`, on by default): a tab's content mounts the first time it is shown and
+// then stays mounted. The toolbar counts the mounted contents.
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
@@ -33,17 +33,13 @@ const json: IJsonModel = {
                 weight: 55,
                 children: [
                     {
-                        type: "tab",
-                        component: "chart",
                         ...TEMPLATES.chart,
-                        name: "Revenue",
+                        data: { ...TEMPLATES.chart.data, name: "Revenue" },
                     },
-                    { type: "tab", component: "table", ...TEMPLATES.table },
+                    TEMPLATES.table,
                     {
-                        type: "tab",
                         component: "table",
-                        name: "Pending",
-                        config: { status: "Pending" },
+                        data: { name: "Pending", status: "Pending" },
                     },
                 ],
             },
@@ -52,14 +48,13 @@ const json: IJsonModel = {
                 weight: 45,
                 children: [
                     {
-                        type: "tab",
                         component: "markdown",
-                        name: "README.md",
-                        config: {
-                            text: "# Component factory\nEach tab names a component and carries a config.\n- chart, table, markdown, form\n- add more with the + menu",
+                        data: {
+                            name: "README.md",
+                            text: "# Component factory\nEach tab names a component and carries its data.\n- chart, table, markdown, form\n- add more with the + menu",
                         },
                     },
-                    { type: "tab", component: "form", ...TEMPLATES.form },
+                    TEMPLATES.form,
                 ],
             },
         ],
@@ -73,9 +68,9 @@ const KINDS: { kind: Kind; title: string }[] = [
     { kind: "form", title: "Form" },
 ];
 
-/** The "Add" menu of a tabset: a new tab of any kind, with its own config. */
-function AddMenu({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
+/** The "Add" menu of a tabset: a new tab of any kind, with its own data. */
+function AddMenu({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { run } = useDockable<Types>();
     const [themeRef, theme] = useStageTheme();
     return (
         <DropdownMenu.Root>
@@ -91,19 +86,11 @@ function AddMenu({ tabset }: { tabset: TabSetNode }) {
                     <DropdownMenu.Item
                         key={kind}
                         onClick={() =>
-                            engine.doAction(
-                                Actions.addTab(
-                                    {
-                                        type: "tab",
-                                        component: kind,
-                                        ...TEMPLATES[kind],
-                                    },
-                                    tabset.getId(),
-                                    DockLocation.CENTER,
-                                    -1,
-                                    true, // select it: its content mounts now
-                                ),
-                            )
+                            run("tab.add", {
+                                ...TEMPLATES[kind],
+                                to: tabset.id,
+                                select: true, // select it: its content mounts now
+                            })
                         }
                     >
                         {title}
@@ -128,30 +115,18 @@ function Mounted({
     return children;
 }
 
-function renderFactory(tab: TabNode) {
-    const create = FACTORY[tab.getComponent() ?? ""];
-    return create ? (
-        create(tab)
-    ) : (
-        <PanelBody title={tab.getName()}>
-            <p className="text-palette-accent/85">
-                {`No component named "${tab.getComponent()}".`}
-            </p>
-        </PanelBody>
-    );
-}
-
 export default function ComponentFactory() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     const [mounted, setMounted] = useState<ReadonlySet<string>>(new Set());
     const [onMount] = useState(
         () => (id: string) =>
             setMounted((set) => (set.has(id) ? set : new Set(set).add(id))),
     );
-    let total = 0;
-    model.visitNodes((node) => {
-        if (node.getType() === "tab") total += 1;
-    });
+    // this component is outside Dockable.Root: it follows the model through `subscribe`
+    const total = useSyncExternalStore(
+        model.subscribe,
+        () => model.tabs().length,
+    );
     return (
         <>
             <div className={styles.toolbar}>
@@ -167,7 +142,7 @@ export default function ComponentFactory() {
                 model={model}
                 renderActions={(tabset) => <AddMenu tabset={tabset} />}
                 renderContent={(tab) => (
-                    <Mounted id={tab.getId()} onMount={onMount}>
+                    <Mounted id={tab.id} onMount={onMount}>
                         {renderFactory(tab)}
                     </Mounted>
                 )}

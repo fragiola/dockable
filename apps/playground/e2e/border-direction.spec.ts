@@ -15,12 +15,10 @@ const open = async (page: Page) => {
 
 const setDirection = (page: Page, direction: "up" | "down") =>
     page.evaluate((value) => {
-        const dockable = window.__dockable;
-        dockable?.model.doAction(
-            dockable.Actions.updateModelAttributes({
-                borderLeftTabDirection: value,
-            }),
-        );
+        window.__dockable?.model.run("border.configure", {
+            border: "border_left",
+            data: { tabDirection: value },
+        });
     }, direction);
 
 const firstTabOnTop = async (page: Page) => {

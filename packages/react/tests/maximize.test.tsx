@@ -1,20 +1,21 @@
-import { Actions, type IJsonModel, Model } from "@fragiola/dockable";
+import { createModel, type LayoutJson } from "@fragiola/dockable";
 import { act, render } from "@testing-library/react";
 import * as React from "react";
 import { describe, expect, it } from "vitest";
-import { Layout } from "./layout";
+import { Layout, type Types } from "./layout";
 
 // root row: ts0 | nested row r1 (ts1 above ts2)
-const json: IJsonModel = {
-    global: {},
-    layout: {
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
+        id: "row",
         children: [
             {
                 type: "tabset",
                 id: "ts0",
                 weight: 60,
-                children: [{ type: "tab", id: "a", name: "A" }],
+                children: [{ id: "a", component: "test", data: { name: "A" } }],
             },
             {
                 type: "row",
@@ -24,12 +25,16 @@ const json: IJsonModel = {
                     {
                         type: "tabset",
                         id: "ts1",
-                        children: [{ type: "tab", id: "b", name: "B" }],
+                        children: [
+                            { id: "b", component: "test", data: { name: "B" } },
+                        ],
                     },
                     {
                         type: "tabset",
                         id: "ts2",
-                        children: [{ type: "tab", id: "c", name: "C" }],
+                        children: [
+                            { id: "c", component: "test", data: { name: "C" } },
+                        ],
                     },
                 ],
             },
@@ -39,31 +44,36 @@ const json: IJsonModel = {
 
 const path = (value: string) =>
     document.querySelector<HTMLElement>(`[data-layout-path="${value}"]`);
+const mustPath = (value: string) => {
+    const element = path(value);
+    if (!element) throw new Error(`no element at ${value}`);
+    return element;
+};
 
 describe("maximize", () => {
     it("hides the sibling nested row of a maximized top-level tabset, and restores it", () => {
-        const model = Model.fromJson(structuredClone(json));
+        const model = createModel<Types>(structuredClone(json));
         render(<Layout model={model} />);
-        const row = path("/r1") as HTMLElement;
+        const row = mustPath("/r1");
         expect(row.style.display).toBe("flex");
         act(() => {
-            model.doAction(Actions.maximizeToggle("ts0"));
+            model.run("tabset.maximize", { tabset: "ts0", value: true });
         });
         expect(row.style.display).toBe("none");
         expect(path("/ts0")?.style.display).toBe("flex");
         expect(path("/row")?.style.display).toBe("flex"); // the root row never hides
         act(() => {
-            model.doAction(Actions.maximizeToggle("ts0"));
+            model.run("tabset.maximize", { tabset: "ts0", value: false });
         });
         expect(row.style.display).toBe("flex");
         expect(path("/r1/ts0")?.style.display).toBe("flex");
     });
 
     it("keeps the ancestor rows of a maximized nested tabset", () => {
-        const model = Model.fromJson(structuredClone(json));
+        const model = createModel<Types>(structuredClone(json));
         render(<Layout model={model} />);
         act(() => {
-            model.doAction(Actions.maximizeToggle("ts2"));
+            model.run("tabset.maximize", { tabset: "ts2", value: true });
         });
         expect(path("/r1")?.style.display).toBe("flex");
         expect(path("/r1/ts1")?.style.display).toBe("flex");

@@ -2,8 +2,9 @@
 // src/view/BorderTab.tsx and src/view/layout/BorderContainer.tsx (which borders show, the frame's
 // nesting, the content area's size, split and overlay placement); the markup and class names are
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
-import type { BorderNode } from "@fragiola/dockable";
+import type { AnyTypes, BorderNode, DockableTypes } from "@fragiola/dockable";
 import type * as React from "react";
+import { useLayoutContext } from "./context";
 import { type BorderState, useBorder } from "./hooks";
 import { TabContainerContext } from "./TabSet";
 import {
@@ -26,8 +27,14 @@ export function borderAttributes(state: BorderState) {
     };
 }
 
-export interface BorderProps extends DivPrimitiveProps<BorderState> {
-    node: BorderNode;
+export interface BorderProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<BorderState> {
+    node: BorderNode<T>;
+    /**
+     * a left border's tab direction, exposed as `data-tab-direction` for your styles (rotating the
+     * labels is yours): `"up"` (default) or `"down"`
+     */
+    tabDirection?: "up" | "down" | undefined;
     /** the strip's content: a `Dockable.TabList`, and any buttons */
     children?: React.ReactNode;
 }
@@ -40,15 +47,18 @@ export interface BorderProps extends DivPrimitiveProps<BorderState> {
  * The strip is only structural flex: rotating the tab labels of a side border (`writing-mode`, a
  * transform) is styling, and yours.
  */
-export function Border(props: BorderProps) {
-    const { node, children, ...rest } = props;
-    const { state, ref } = useBorder(node);
+export function Border<T extends DockableTypes = AnyTypes>(
+    props: BorderProps<T>,
+) {
+    const { node, tabDirection, children, ...rest } = props;
+    const { engine } = useLayoutContext("Border");
+    const { state, ref } = useBorder(node, { tabDirection });
     const element = useRenderElement("div", rest, {
         state,
         ref,
         props: {
             ...dataAttributes({
-                "layout-path": node.getPath(),
+                "layout-path": engine.path(node.id),
                 ...borderAttributes(state),
                 "tab-direction": state.tabDirection,
                 "drop-target": state.dropTarget,
@@ -62,7 +72,7 @@ export function Border(props: BorderProps) {
         },
     });
     return (
-        <TabContainerContext.Provider value={node}>
+        <TabContainerContext.Provider value={node.id}>
             {element}
         </TabContainerContext.Provider>
     );

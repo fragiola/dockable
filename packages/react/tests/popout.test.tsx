@@ -1,16 +1,24 @@
 import {
-    Actions,
-    DockLocation,
-    type IJsonModel,
-    Model,
+    createModel,
+    type LayoutJson,
+    MAIN_LAYOUT,
+    type Model,
     POPOUT_ATTRIBUTE,
-    type TabNode,
+    type TabOf,
+    windowPath,
 } from "@fragiola/dockable";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Dockable } from "../src";
-import { mounts, renderNode, renderPanel, twoTabsets } from "./layout";
+import {
+    Counter,
+    mounts,
+    renderNode,
+    renderPanel,
+    type Types,
+    twoTabsets,
+} from "./layout";
 
 const loads = new WeakMap<Window, Promise<void>>();
 
@@ -18,7 +26,8 @@ const loads = new WeakMap<Window, Promise<void>>();
 function fakePopout() {
     const iframe = document.createElement("iframe");
     document.body.appendChild(iframe);
-    const win = iframe.contentWindow as Window;
+    const win = iframe.contentWindow;
+    if (!win) throw new Error("no iframe window");
     loads.set(
         win,
         new Promise((resolve) =>
@@ -38,6 +47,14 @@ function fakePopout() {
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+/** the fixture layout, with popouts allowed on every tab */
+const popoutJson = (): LayoutJson<Types> => ({
+    ...structuredClone(twoTabsets),
+    defaults: { tab: { enablePopout: true } },
+});
+
+const popoutModel = () => createModel<Types>(popoutJson());
+
 let opened: Window[] = [];
 
 beforeEach(() => {
@@ -54,70 +71,82 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-function App({ model }: { model: Model }) {
+function App({
+    model,
+    panel = renderPanel,
+}: {
+    model: Model<Types>;
+    panel?: (tab: TabOf<Types>) => React.ReactNode;
+}) {
     return (
         <Dockable.Root model={model} supportsPopout data-testid="root">
-            <Dockable.Row>{renderNode}</Dockable.Row>
-            <Dockable.Panels>{renderPanel}</Dockable.Panels>
-            <Dockable.Popout data-testid="popout">
-                {() => <Dockable.Row>{renderNode}</Dockable.Row>}
+            <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+            <Dockable.Panels<Types>>{panel}</Dockable.Panels>
+            <Dockable.Popout<Types> data-testid="popout">
+                {() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}
             </Dockable.Popout>
         </Dockable.Root>
     );
 }
 
-async function popOut(model: Model, tabId: string) {
+/** runs `tab.popout`, returns the window layout's id */
+function popoutTab(model: Model<Types>, tab: string): string {
+    let layoutId = "";
     act(() => {
-        model.doAction(Actions.popoutTab(tabId, "window"));
+        const result = model.run("tab.popout", { tab });
+        if (!result.ok) throw new Error(result.error.message);
+        layoutId = result.value.window;
     });
+    return layoutId;
+}
+
+async function popOut(model: Model<Types>, tab: string) {
+    const layoutId = popoutTab(model, tab);
     const win = opened.at(-1);
     if (!win) throw new Error("no window opened");
     await act(async () => {
         await loads.get(win);
         await tick();
     });
-    return win;
+    return { win, layoutId };
 }
 
 describe("Dockable.Popout", () => {
     it("opens a window per window layout and renders nothing until it is ready", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = popoutModel();
         render(<App model={model} />);
-        act(() => {
-            model.doAction(Actions.popoutTab("t2", "window"));
-        });
+        popoutTab(model, "t2");
         expect(window.open).toHaveBeenCalledTimes(1);
-        const win = opened[0] as Window;
-        expect(win.document.querySelector(`[${POPOUT_ATTRIBUTE}]`)).toBeNull();
+        const win = opened[0];
+        expect(win?.document.querySelector(`[${POPOUT_ATTRIBUTE}]`)).toBeNull();
         expect(screen.queryByTestId("popout")).toBeNull();
     });
 
     it("portals the window layout into the popout document once ready", async () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = popoutModel();
         render(<App model={model} />);
-        const win = await popOut(model, "t2");
+        const { win, layoutId } = await popOut(model, "t2");
 
+        expect(model.layoutOf("t2")).toBe(layoutId);
         const root = win.document.querySelector(`[${POPOUT_ATTRIBUTE}]`);
+        expect(root?.getAttribute(POPOUT_ATTRIBUTE)).toBe(layoutId);
         const popout = root?.querySelector<HTMLElement>(
             '[data-testid="popout"]',
         );
         expect(popout).toBeTruthy();
         expect(popout?.style.position).toBe("absolute");
-        const path = model
-            .getLayouts()
-            .get((model.getNodeById("t2") as TabNode).getLayoutId())
-            ?.getPath();
-        expect(popout?.getAttribute("data-layout-path")).toBe(path);
+        expect(popout?.getAttribute("data-layout-path")).toBe(windowPath(1));
         // the popout renders its own tab list, and the tab's panel lives in the popout document
         expect(win.document.querySelector('[role="tablist"]')).toBeTruthy();
-        expect(win.document.getElementById("dockable-tab-t2")).toBeTruthy();
+        const tabs = [...win.document.querySelectorAll('[role="tab"]')];
+        expect(tabs.map((tab) => tab.textContent)).toEqual(["Three"]);
         expect(
             win.document.querySelector('[data-testid="content-t2"]'),
         ).toBeTruthy();
     });
 
     it("keeps the content's state when a tab moves into the popout and back (no remount)", async () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = popoutModel();
         render(<App model={model} />);
         fireEvent.click(screen.getByTestId("inc-t2"));
         fireEvent.change(screen.getByTestId("input-t2"), {
@@ -125,43 +154,57 @@ describe("Dockable.Popout", () => {
         });
         const content = screen.getByTestId("content-t2");
 
-        const win = await popOut(model, "t2");
+        const { win } = await popOut(model, "t2");
         expect(win.document.contains(content)).toBe(true);
         expect(content.querySelector("button")?.textContent).toBe("count 1");
 
         // dock back: move the tab into the main layout
         act(() => {
-            model.doAction(
-                Actions.moveNode("t2", "ts0", DockLocation.CENTER, -1),
-            );
+            model.run("tab.move", { tab: "t2", to: "ts0", index: -1 });
         });
         await act(async () => {
             await tick();
         });
+        expect(model.layoutOf("t2")).toBe(MAIN_LAYOUT);
         expect(document.contains(content)).toBe(true);
         expect(screen.getByTestId("inc-t2").textContent).toBe("count 1");
-        expect((screen.getByTestId("input-t2") as HTMLInputElement).value).toBe(
-            "kept",
-        );
+        expect(screen.getByTestId("input-t2")).toHaveValue("kept");
         expect(mounts.get("t2")).toBe(1);
+        expect(model.state.windows).toHaveLength(0);
         expect(win.close).toHaveBeenCalled(); // the emptied window layout is gone
     });
 
-    it("remounts the content on a window change only with enableWindowReMount", async () => {
-        const json: IJsonModel = structuredClone(twoTabsets);
-        const tabset = json.layout.children?.[1] as {
-            children: { enableWindowReMount?: boolean }[];
-        };
-        if (tabset.children[0]) tabset.children[0].enableWindowReMount = true;
-        const model = Model.fromJson(json);
-        render(<App model={model} />);
+    it("remounts the content on a window change only with remountInWindow", async () => {
+        const model = popoutModel();
+        render(
+            <App
+                model={model}
+                panel={(tab) => (
+                    <Dockable.Panel
+                        node={tab}
+                        remountInWindow={tab.id === "t2"}
+                    >
+                        <Counter id={tab.id} />
+                    </Dockable.Panel>
+                )}
+            />,
+        );
+        expect(mounts.get("t0")).toBe(1);
         expect(mounts.get("t2")).toBe(1);
         await popOut(model, "t2");
         expect(mounts.get("t2")).toBe(2);
     });
 
+    it("keeps the content mounted on a window change without remountInWindow", async () => {
+        const model = popoutModel();
+        render(<App model={model} />);
+        expect(mounts.get("t2")).toBe(1);
+        await popOut(model, "t2");
+        expect(mounts.get("t2")).toBe(1);
+    });
+
     it("opens exactly one window under StrictMode", async () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = popoutModel();
         render(
             <React.StrictMode>
                 <App model={model} />
@@ -178,23 +221,23 @@ describe("Dockable.Popout", () => {
     it("passes onOpen, onClose and title through to the window", async () => {
         const onOpen = vi.fn();
         const onClose = vi.fn();
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = popoutModel();
         render(
             <Dockable.Root model={model} supportsPopout>
-                <Dockable.Row>{renderNode}</Dockable.Row>
-                <Dockable.Panels>{renderPanel}</Dockable.Panels>
-                <Dockable.Popout
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
+                <Dockable.Popout<Types>
                     title={() => "Popped"}
                     onOpen={onOpen}
                     onClose={onClose}
                 >
-                    {() => <Dockable.Row>{renderNode}</Dockable.Row>}
+                    {() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}
                 </Dockable.Popout>
             </Dockable.Root>,
         );
-        const win = await popOut(model, "t2");
+        const { win, layoutId } = await popOut(model, "t2");
         expect(onOpen).toHaveBeenCalledWith(
-            expect.anything(),
+            expect.objectContaining({ id: layoutId }),
             win,
             win.document,
         );
@@ -202,31 +245,99 @@ describe("Dockable.Popout", () => {
         act(() => {
             win.dispatchEvent(new Event("beforeunload"));
         });
-        expect(onClose).toHaveBeenCalled();
-        // the default close policy docks the tab back
-        expect((model.getNodeById("t2") as TabNode).getLayoutId()).toBe(
-            Model.MAIN_LAYOUT_ID,
+        expect(onClose).toHaveBeenCalledWith(
+            expect.objectContaining({ id: layoutId }),
+            win,
+            win.document,
+        );
+        // closing the window docks the tab back
+        expect(model.layoutOf("t2")).toBe(MAIN_LAYOUT);
+        expect(model.state.windows).toHaveLength(0);
+    });
+
+    it("calls the root's onPopoutOpen and onPopoutClose with the window layout", async () => {
+        const onPopoutOpen = vi.fn();
+        const onPopoutClose = vi.fn();
+        const model = popoutModel();
+        render(
+            <Dockable.Root
+                model={model}
+                supportsPopout
+                onPopoutOpen={onPopoutOpen}
+                onPopoutClose={onPopoutClose}
+            >
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
+                <Dockable.Popout<Types>>
+                    {() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}
+                </Dockable.Popout>
+            </Dockable.Root>,
+        );
+        const { win, layoutId } = await popOut(model, "t2");
+        expect(onPopoutOpen).toHaveBeenCalledWith(
+            expect.objectContaining({ id: layoutId }),
+            win,
+            win.document,
+        );
+        act(() => {
+            win.dispatchEvent(new Event("beforeunload"));
+        });
+        expect(onPopoutClose).toHaveBeenCalledWith(
+            expect.objectContaining({ id: layoutId }),
+            win,
+            win.document,
         );
     });
 
+    it("opens the window through the root's openWindow", () => {
+        const win = fakePopout();
+        const openWindow = vi.fn(() => win);
+        const model = popoutModel();
+        render(
+            <Dockable.Root model={model} supportsPopout openWindow={openWindow}>
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
+                <Dockable.Popout<Types>>
+                    {() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}
+                </Dockable.Popout>
+            </Dockable.Root>,
+        );
+        const layoutId = popoutTab(model, "t2");
+        expect(openWindow).toHaveBeenCalledWith(
+            `popout.html?id=${encodeURIComponent(layoutId)}`,
+            expect.stringMatching(new RegExp(`^dockable-.*${layoutId}$`)),
+            expect.stringContaining("width="),
+        );
+        expect(window.open).not.toHaveBeenCalled();
+    });
+
     it("opens the window of a window layout already in the model at mount", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
-        model.doAction(Actions.popoutTab("t2", "window"));
+        const model = popoutModel();
+        model.run("tab.popout", { tab: "t2" });
         render(<App model={model} />);
         expect(window.open).toHaveBeenCalledTimes(1);
     });
 
     it("marks tabs that can be popped out", () => {
-        const model = Model.fromJson({
-            global: {},
-            layout: {
+        const model = createModel<Types>({
+            version: 1,
+            root: {
                 type: "row",
                 children: [
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", name: "A", enablePopout: true },
-                            { type: "tab", name: "B", enablePopout: false },
+                            {
+                                component: "test",
+                                data: { name: "A" },
+                                enablePopout: true,
+                            },
+                            {
+                                component: "test",
+                                data: { name: "B" },
+                                enablePopout: false,
+                            },
+                            { component: "test", data: { name: "C" } },
                         ],
                     },
                 ],
@@ -238,6 +349,10 @@ describe("Dockable.Popout", () => {
         ).toHaveAttribute("data-popout-enabled", "");
         expect(
             document.querySelector('[data-layout-path="/ts0/tb1"]'),
+        ).not.toHaveAttribute("data-popout-enabled");
+        // popouts are opt-in: a tab without enablePopout (and no default) cannot pop out
+        expect(
+            document.querySelector('[data-layout-path="/ts0/tb2"]'),
         ).not.toHaveAttribute("data-popout-enabled");
     });
 });

@@ -1,69 +1,82 @@
 import type { LayoutEngine } from "../engine/LayoutEngine";
-import { Actions } from "../model/Actions";
-import type { DockLocation } from "../model/DockLocation";
-import type { IJsonTabNode } from "../model/IJsonModel";
-import type { Model } from "../model/Model";
-import { TabNode } from "../model/TabNode";
+import type { DockLocation } from "../geometry/dock";
+import type { TabInit } from "../state/json";
+import type { Model, ModelHandle } from "../state/model";
+import type { AnyTypes } from "../state/types";
 
 /** Where a transferred tab was, or where it went. */
-export interface ITransferEnd {
-    model: Model;
+export interface TransferEnd {
+    /** the model (compare it with yours: `transfer.from.model === a`) */
+    model: ModelHandle;
     /** the layout the tab was (or is now) in */
     layoutId: string;
     /** its tabset (or border), when it has one */
     tabsetId: string | undefined;
-    /** its position among the tabset's children */
+    /** its position among the tabset's tabs */
     index: number;
 }
 
 /** A tab that moved from one model to another. */
-export interface ITransfer {
-    /** the tab in the target model (the same id as before) */
-    tab: TabNode;
-    /** its JSON, as it left the source model */
-    json: IJsonTabNode;
-    from: ITransferEnd;
-    to: ITransferEnd;
+export interface Transfer {
+    /** the tab's id in the target model (its old id, unless that was taken there) */
+    tab: string;
+    /** its id in the source model */
+    previousId: string;
+    /** its fields, as it left the source model */
+    init: TabInit;
+    from: TransferEnd;
+    to: TransferEnd;
 }
 
-export type TransferListener = (transfer: ITransfer) => void;
+export type TransferListener = (transfer: Transfer) => void;
 
-/** `userData` of the add and delete actions of a transfer, so `onAction` can tell them apart. */
-export interface ITransferUserData {
+/** `meta` of the `tab.add` and `tab.close` of a transfer, so middleware can tell them apart. */
+export interface TransferMeta {
     transfer: {
         tabId: string;
-        from: Model;
-        to: Model;
+        from: ModelHandle;
+        to: ModelHandle;
     };
 }
 
-function endOf(tab: TabNode): ITransferEnd {
-    const parent = tab.getParent();
+/** What `transfer` takes. */
+export interface TransferRequest {
+    /** the tab's id in `from` */
+    tab: string;
+    from: ModelHandle;
+    to: ModelHandle;
+    /** a tabset, row, border or layout of `to` */
+    target: string;
+    location?: DockLocation | undefined;
+    index?: number | undefined;
+}
+
+function endOf(model: Model<AnyTypes>, tab: string): TransferEnd {
+    const parent = model.parentOf(tab);
     return {
-        model: tab.getModel(),
-        layoutId: tab.getLayoutId(),
-        tabsetId: parent?.getId(),
-        index: parent ? parent.getChildren().indexOf(tab) : -1,
+        model,
+        layoutId: model.layoutOf(tab) ?? "",
+        tabsetId: parent?.id,
+        index: parent
+            ? parent.children.findIndex((child) => child.id === tab)
+            : -1,
     };
 }
 
 /**
  * Layouts of different models that exchange tabs by drag and drop. Each layout's main engine joins
- * the group (the engine's `dragGroup` option); a tab dragged from one member drops into another,
- * and its content is kept (the new tab adopts the old one's moveable element).
+ * the group; a tab dragged from one member drops into another, and its content is kept (the new tab
+ * adopts the old one's moveable element).
  *
- * A transfer asks the target's `onAction` (an `addTab`), then the source's (a `deleteTab`); if either
- * vetoes (or replaces its action with another kind of action), nothing changes; the target's
- * `onAction` may so see an add that the source then refuses. Both actions carry
- * {@link ITransferUserData}. Listeners registered with
- * {@link onTransfer} receive where the tab came from and where it went: what an app's undo needs.
+ * A transfer is a `tab.add` in the target model and a `tab.close` in the source, each through its
+ * own model's middleware (marked with {@link TransferMeta}); when either refuses, nothing changes.
  */
 export class DragGroup {
-    private readonly engines = new Set<LayoutEngine>();
+    private readonly engines = new Set<LayoutEngine<AnyTypes>>();
     private readonly listeners = new Set<TransferListener>();
 
     /** @internal adds a main engine to the group; returns the function that removes it */
-    join(engine: LayoutEngine): () => void {
+    join(engine: LayoutEngine<AnyTypes>): () => void {
         this.engines.add(engine);
         return () => {
             this.engines.delete(engine);
@@ -71,14 +84,14 @@ export class DragGroup {
     }
 
     /** Whether `engine` (a main engine) belongs to the group. */
-    has(engine: LayoutEngine): boolean {
+    has(engine: LayoutEngine<AnyTypes>): boolean {
         return this.engines.has(engine);
     }
 
     /** The main engine of `model` in this group, if it joined. */
-    engineOf(model: Model): LayoutEngine | undefined {
+    engineOf(model: ModelHandle): LayoutEngine<AnyTypes> | undefined {
         for (const engine of this.engines) {
-            if (engine.getModel() === model) {
+            if (engine.model === model) {
                 return engine;
             }
         }
@@ -94,82 +107,99 @@ export class DragGroup {
     }
 
     /**
-     * Moves the tab `tabId` from the model `from` into `to`, next to (or into) the node `toNodeId`,
-     * as a drop would. Both models' main engines must be in the group. Returns the new tab, or
-     * `undefined` when it could not happen (a veto, an unknown tab or target, an id already used in
-     * `to`).
+     * Moves a tab from one model into another, next to (or into) `target`, as a drop would. Both
+     * models' main engines must be in the group. Returns the new tab's id, or undefined when it
+     * could not happen (a refusal, an unknown tab or target).
      */
-    transfer(
-        tabId: string,
-        from: Model,
-        to: Model,
-        toNodeId: string,
-        location: DockLocation,
-        index: number,
-    ): TabNode | undefined {
-        const source = this.engineOf(from);
-        const target = this.engineOf(to);
-        const tab = from.getNodeById(tabId);
-        if (!source || !target || !(tab instanceof TabNode)) {
+    transfer(request: TransferRequest): string | undefined {
+        const source = this.engineOf(request.from);
+        const target = this.engineOf(request.to);
+        if (!source || !target || !source.model.get(request.tab)) {
             return undefined;
         }
-        return this.transferTab(source, target, tab, toNodeId, location, index);
+        return this.transferTab(
+            source,
+            target,
+            request.tab,
+            request.target,
+            request.location ?? "center",
+            request.index ?? -1,
+        );
     }
 
     /**
-     * @internal the transfer itself: `targetEngine` is the target layout's engine (the main one, or
+     * @internal the transfer itself: `targetEngine` is the target layout's engine (the main one or
      * a popout's), `sourceEngine` the source model's main engine.
      */
     transferTab(
-        sourceEngine: LayoutEngine,
-        targetEngine: LayoutEngine,
-        tab: TabNode,
-        toNodeId: string,
+        sourceEngine: LayoutEngine<AnyTypes>,
+        targetEngine: LayoutEngine<AnyTypes>,
+        tabId: string,
+        to: string,
         location: DockLocation,
         index: number,
-    ): TabNode | undefined {
-        const source = sourceEngine.getModel();
-        const target = targetEngine.getModel();
-        if (source === target || target.getNodeById(tab.getId())) {
-            return undefined; // not a transfer, or its id is taken in the target model
+    ): string | undefined {
+        const source = sourceEngine.model as unknown as Model<AnyTypes>;
+        const target = targetEngine.model as unknown as Model<AnyTypes>;
+        const tab = source.get(tabId);
+        if (source === target || tab?.type !== "tab") {
+            return undefined;
         }
-        const json = tab.toJson() as IJsonTabNode;
-        const userData: ITransferUserData = {
-            transfer: { tabId: tab.getId(), from: source, to: target },
+        const { type: _type, ...init } = tab;
+        const fields: TabInit = target.get(tabId)
+            ? { ...init, id: undefined }
+            : init;
+        const meta: TransferMeta = {
+            transfer: { tabId, from: source, to: target },
         };
-        const add = targetEngine.interceptAction(
-            Actions.addTab(json, toNodeId, location, index).setUserData(
-                userData,
-            ),
+        const add = { ...fields, to, location, index };
+        // both sides must accept before anything changes
+        if (
+            !target.can("tab.add", add, { meta: { ...meta } }).ok ||
+            !source.can("tab.close", { tab: tabId }, { meta: { ...meta } }).ok
+        ) {
+            return undefined;
+        }
+        const from = endOf(source, tabId);
+        // the content moves with the tab: take its element before the source forgets it
+        const moveable = sourceEngine.main.takeMoveable(tabId);
+        const added = target.run("tab.add", add, { meta: { ...meta } });
+        if (!added.ok) {
+            sourceEngine.main.adoptMoveable(tabId, moveable);
+            return undefined;
+        }
+        targetEngine.main.adoptMoveable(added.value.tab, moveable);
+        const closed = source.run(
+            "tab.close",
+            { tab: tabId },
+            { meta: { ...meta } },
         );
-        // a replacement must still add a tab (and the other, still delete it): anything else
-        // would add without removing, so it counts as a veto
-        if (add?.type !== Actions.ADD_TAB) {
+        if (!closed.ok) {
+            // the source refused after all (its answer changed since the dry run): undo the add,
+            // and the content goes back with the tab
+            const back = targetEngine.main.takeMoveable(added.value.tab);
+            const undone = target.run(
+                "tab.close",
+                { tab: added.value.tab },
+                { meta: { ...meta } },
+            );
+            if (undone.ok) {
+                sourceEngine.main.adoptMoveable(tabId, back);
+            } else {
+                targetEngine.main.adoptMoveable(added.value.tab, back);
+            }
             return undefined;
         }
-        const remove = sourceEngine.interceptAction(
-            Actions.deleteTab(tab.getId()).setUserData(userData),
-        );
-        if (remove?.type !== Actions.DELETE_TAB) {
-            return undefined;
-        }
-        const from = endOf(tab);
-        const added = target.doAction(add);
-        if (!(added instanceof TabNode)) {
-            return undefined;
-        }
-        // the content moves with it: the new tab re-parents the old tab's element
-        added.adoptViewState(tab);
-        source.doAction(remove);
-        const transfer: ITransfer = {
-            tab: added,
-            json,
+        const transfer: Transfer = {
+            tab: added.value.tab,
+            previousId: tabId,
+            init: fields,
             from,
-            to: endOf(added),
+            to: endOf(target, added.value.tab),
         };
         for (const listener of [...this.listeners]) {
             listener(transfer);
         }
-        return added;
+        return added.value.tab;
     }
 }

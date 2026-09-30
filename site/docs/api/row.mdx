@@ -1,14 +1,14 @@
 ---
 title: Dockable.Row
-description: A row (or column) of the layout - flex sized by weight, with splitters between children.
+description: A row (or column) of the layout, flex sized by the weights of its children, with a splitter between each pair.
 ---
 
 "A row (or column) of the layout. Lays its children out with flex, sized by their weights, calls
 the child function per child and inserts a splitter between children."
 
 ```tsx
-function renderNode(child: TabSetNode | RowNode): ReactNode {
-    if (child instanceof TabSetNode) return <MyTabSet node={child} />;
+function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
+    if (child.type === "tabset") return <MyTabSet node={child} />;
     return (
         <Dockable.Row node={child} renderSplitter={renderSplitter}>
             {renderNode}
@@ -16,26 +16,32 @@ function renderNode(child: TabSetNode | RowNode): ReactNode {
     );
 }
 
-// the root row: no `node`
-<Dockable.Row renderSplitter={renderSplitter}>{renderNode}</Dockable.Row>
+// the root row: no `node`, so pass the registry as the type argument
+<Dockable.Row<Types> renderSplitter={renderSplitter}>{renderNode}</Dockable.Row>
 ```
+
+Nodes are plain objects: a child is told apart by its `type` (`"tabset"` or `"row"`), and
+TypeScript narrows on it.
 
 ## Props
 
-`RowProps` extends the [common primitive props](/docs/api/root#common-props).
+`RowProps<T>` extends the [common primitive props](/docs/api/root#common-props).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `node` | `RowNode` | the layout's root row | the row to render; defaults to the root row of the enclosing layout |
-| `children` | `(child: TabSetNode \| RowNode) => ReactNode` | required | renders a child: a tabset or a nested row |
-| `renderSplitter` | `(props: RowSplitterProps) => ReactNode` | `<Dockable.Splitter />` | renders the splitter between two children (defaults to `<Dockable.Splitter />`) |
+| `node` | `RowNode<T>` | the layout's root row | the row to render; defaults to the root row of the enclosing layout (then pass the model's registry as the type argument: `<Dockable.Row<Types>>`) |
+| `children` | `(child: TabsetNode<T> \| RowNode<T>) => ReactNode` | required | renders a child: a tabset or a nested row |
+| `renderSplitter` | `(props: RowSplitterProps<T>) => ReactNode` | `<Dockable.Splitter />` | renders the splitter between two children (defaults to `<Dockable.Splitter />`) |
 | `splitter` | `boolean` | `true` | `false` renders no splitters |
 
-`RowSplitterProps`, the argument of `renderSplitter`:
+With a `node`, `T` is inferred from it. With none, the row reads the root row from the model in
+context, which a child cannot type: `<Dockable.Row<Types>>` gives `children` typed nodes.
+
+`RowSplitterProps<T>`, the argument of `renderSplitter`:
 
 | field | type | description |
 | --- | --- | --- |
-| `node` | `RowNode` | the row the splitter resizes |
+| `node` | `RowNode<T>` | the row the splitter resizes |
 | `index` | `number` | the splitter sits before child `index` (1-based) |
 
 Spread it on a `Dockable.Splitter`: `(props) => <Dockable.Splitter {...props} className="…" />`.
@@ -48,7 +54,7 @@ Spread it on a `Dockable.Splitter`: `(props) => <Dockable.Splitter {...props} cl
 | --- | --- | --- |
 | `orientation` | `"horizontal" \| "vertical"` | `"horizontal"`: children side by side; `"vertical"`: stacked |
 | `root` | `boolean` | the layout's root row |
-| `hidden` | `boolean` | a tabset of the layout is maximized outside this row, so the row is hidden (`model.isHiddenByMaximize`) |
+| `hidden` | `boolean` | a tabset of the layout is maximized outside this row, so the row is hidden (`model.isHiddenByMaximize(id)`) |
 
 ## Data attributes
 
@@ -61,13 +67,16 @@ Spread it on a `Dockable.Splitter`: `(props) => <Dockable.Splitter {...props} cl
 ## Structural style
 
 `display: flex` (`none` while a tabset maximized outside the row fills the layout), `flex-direction` (`row` or `column`), `flex-basis: 0`, `flex-grow` from the
-weight (at least 1), `min-width`/`min-height`/`max-width`/`max-height` from the model,
-`overflow: hidden`. The root row adds `position: absolute; inset: 0` to fill the root.
+weight (at least 1), `min-width`/`min-height`/`max-width`/`max-height` from the engine
+(`engine.minMax(id)`, aggregated from the tabsets inside), `overflow: hidden`. The root row adds
+`position: absolute; inset: 0` to fill the root.
 
 ## Notes
 
-- A row nested in a row takes the opposite orientation. The model attribute
-  `rootOrientationVertical` makes the root row a column.
+- A row's orientation is not stored in the model. The root row takes
+  `defaults.layout.rootOrientation` (`"horizontal"` by default; set it with `layout.configure`)
+  and a row nested in a row takes the opposite orientation.
 - A `Row` with no `node` inside `Dockable.Popout` renders the window layout's root row.
+- A splitter drag runs `row.resize` (see [Dockable.Splitter](/docs/api/splitter)).
 - `renderSplitter` applies to this row only: pass it to every row
   ([Limitations](/docs/limitations), gap 6).

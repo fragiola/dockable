@@ -6,6 +6,6 @@ export default {
         "Double-click a tab (or press F2) to rename it inline: Enter confirms, Escape cancels, and an empty name is refused.",
     level: "intermediate",
     order: 4,
-    features: ["Actions.renameTab", "enableRename", "Tab onDoubleClick"],
+    features: ["tab.update", "typed data", "Tab onDoubleClick"],
     docs: "/docs/guides/tabs",
 } satisfies ExampleMeta;

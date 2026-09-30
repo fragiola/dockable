@@ -1,23 +1,22 @@
 "use client";
 
-import { type IJsonModel, Model } from "@fragiola/dockable";
+import { createModel, type LayoutJson } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { Card } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+type Types = { tabs: { card: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 25,
-                children: [
-                    { type: "tab", name: "Explorer", component: "card" },
-                ],
+                children: [{ component: "card", data: { name: "Explorer" } }],
             },
             {
                 type: "row",
@@ -27,23 +26,15 @@ const json: IJsonModel = {
                         type: "tabset",
                         weight: 70,
                         children: [
-                            { type: "tab", name: "main.ts", component: "card" },
-                            {
-                                type: "tab",
-                                name: "utils.ts",
-                                component: "card",
-                            },
+                            { component: "card", data: { name: "main.ts" } },
+                            { component: "card", data: { name: "utils.ts" } },
                         ],
                     },
                     {
                         type: "tabset",
                         weight: 30,
                         children: [
-                            {
-                                type: "tab",
-                                name: "Terminal",
-                                component: "card",
-                            },
+                            { component: "card", data: { name: "Terminal" } },
                         ],
                     },
                 ],
@@ -74,12 +65,12 @@ const hairline = [
     "data-[orientation=horizontal]:after:h-[7px] data-[orientation=horizontal]:after:-translate-y-1/2",
 ].join(" ");
 
-function renderSplitter(props: RowSplitterProps) {
+function renderSplitter(props: RowSplitterProps<Types>) {
     return <Dockable.Splitter {...props} className={hairline} />;
 }
 
 export default function SplitterHairline() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}

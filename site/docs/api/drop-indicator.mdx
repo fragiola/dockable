@@ -1,6 +1,6 @@
 ---
 title: Dockable.DropIndicator
-description: The drop outline of a drag - one element positioned over the drop target, hidden when there is none.
+description: The drop outline of a drag, one element positioned over the drop target and hidden when there is none.
 ---
 
 "The drop outline of a drag: one element, positioned (structurally) over the rect the core
@@ -37,7 +37,7 @@ Give it a `z-index`: the panels are portalled into the root after it and would p
 | `dragging` | `boolean` | a drag is over the layout |
 | `showEdges` | `boolean` | edge docking is available for this drag |
 | `tabDragSpeed` | `number` | seconds a style may take to animate between targets |
-| `refused` | `boolean` | the pointer is over a target that a drop rule refused (the outline is hidden) |
+| `refused` | `boolean` | the pointer is over a target that a drop rule (or a middleware veto) refused (the outline is hidden) |
 
 ## Data attributes and ARIA
 
@@ -59,6 +59,11 @@ indicator under the pointer would take the drag's enter/leave events from the la
 browser cancel the drop."
 
 ## Notes
+
+- The target is the first candidate under the pointer whose command the model accepts: the
+  engine turns each candidate into the command the drop would run (`tab.move`, `tabset.move`, or
+  `tab.add` for a new tab) and asks `model.can`. A middleware that vetoes the command refuses the
+  drop, and the drop itself runs it through `model.run`. See [Restricting drops](/docs/guides/restricting-drops).
 
 - One indicator per layout: inside `Dockable.Popout`, render another one for the window if
   drops inside popouts should show an outline.

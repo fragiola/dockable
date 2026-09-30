@@ -30,8 +30,12 @@
             "collapsible": true,
             "pages": [
                 {
-                    "label": "The model and actions",
-                    "path": "concepts/model-and-actions"
+                    "label": "The model and commands",
+                    "path": "concepts/model-and-commands"
+                },
+                {
+                    "label": "Typed data",
+                    "path": "concepts/typed-data"
                 },
                 {
                     "label": "Geometry",
@@ -138,6 +142,10 @@
                 {
                     "label": "Testing your layout",
                     "path": "guides/testing"
+                },
+                {
+                    "label": "AI and automation",
+                    "path": "guides/ai-and-automation"
                 }
             ]
         },
@@ -240,11 +248,15 @@
                     "path": "api/model"
                 },
                 {
-                    "label": "Actions",
-                    "path": "api/actions"
+                    "label": "The command bus",
+                    "path": "api/command-bus"
                 },
                 {
-                    "label": "IJsonModel",
+                    "label": "Commands",
+                    "path": "api/commands"
+                },
+                {
+                    "label": "Layout JSON",
                     "path": "api/json-model"
                 },
                 {

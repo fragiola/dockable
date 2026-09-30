@@ -1,9 +1,15 @@
 "use client";
 
-import type { TabNode, TabSetNode } from "@fragiola/dockable";
+import type {
+    AnyTypes,
+    DockableTypes,
+    TabOf,
+    TabsetNode,
+} from "@fragiola/dockable";
 import { Dockable, type TabProps } from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
 import { cn } from "#/lib/cn";
+import { tabName } from "./layout";
 import * as styles from "./styles";
 
 /**
@@ -13,12 +19,12 @@ import * as styles from "./styles";
  */
 
 /** A kit-styled `Dockable.Tab` that forwards every prop (handlers, `render`, `ref`, …). */
-export function KitTabButton({
+export function KitTabButton<T extends DockableTypes = AnyTypes>({
     node,
     className,
     children,
     ...rest
-}: Omit<TabProps, "className"> & { className?: string | undefined }) {
+}: Omit<TabProps<T>, "className"> & { className?: string | undefined }) {
     return (
         <Dockable.Tab
             node={node}
@@ -28,7 +34,7 @@ export function KitTabButton({
         >
             {children ?? (
                 <span data-tab-label className={styles.tabLabel}>
-                    {node.getName()}
+                    {tabName(node)}
                 </span>
             )}
             <span
@@ -41,23 +47,23 @@ export function KitTabButton({
 }
 
 /** The strip row: a `Dockable.TabList` calling `children` per tab, and the tabset's buttons. */
-export function KitTabStrip({
+export function KitTabStrip<T extends DockableTypes = AnyTypes>({
     tabset,
     children,
     actions,
     className,
 }: {
-    tabset: TabSetNode;
+    tabset: TabsetNode<T>;
     /** renders a tab: a `Dockable.Tab` (or `KitTabButton`) */
-    children: (tab: TabNode) => ReactNode;
+    children: (tab: TabOf<T>) => ReactNode;
     /** buttons at the end of the strip */
     actions?: ReactNode;
     className?: string | undefined;
 }) {
     return (
         <div className={cn(styles.tabsetHeader, className)}>
-            <Dockable.TabList
-                aria-label={tabset.getName() ?? "Tabs"}
+            <Dockable.TabList<T>
+                aria-label={tabName(tabset) || "Tabs"}
                 data-kit-tablist=""
                 className={styles.tabList}
             >

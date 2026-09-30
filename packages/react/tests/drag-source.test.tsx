@@ -1,58 +1,67 @@
 import {
+    createModel,
+    DRAG_TYPE,
     DragDropManager,
-    type IJsonTabNode,
-    LayoutEngine,
-    Model,
+    type DragEventLike,
+    type ExternalDrag,
+    type NewTabDropped,
+    type TabInitOf,
 } from "@fragiola/dockable";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Dockable } from "../src";
-import { Layout, twoTabsets } from "./layout";
+import { Layout, recordCommands, type Types, twoTabsets } from "./layout";
+
+function freshModel() {
+    return createModel<Types>(structuredClone(twoTabsets));
+}
+
+/** A fake DataTransfer: the types a drag carries, and spies for what the core sets. */
+function fakeDataTransfer(types: string[] = []) {
+    return {
+        types,
+        setData: vi.fn((type: string, _data: string) => {
+            if (!types.includes(type)) types.push(type);
+        }),
+        setDragImage: vi.fn<(image: Element, x: number, y: number) => void>(),
+        effectAllowed: "none",
+        dropEffect: "none",
+    };
+}
 
 // jsdom has no DragEvent: a MouseEvent with a fake dataTransfer carries what the core reads
-function dragEvent(type: string, types: string[] = []) {
+function dragEvent(type: string, dataTransfer = fakeDataTransfer()) {
     const event = new MouseEvent(type, {
         bubbles: true,
         cancelable: true,
         clientX: 10,
         clientY: 10,
     });
-    Object.defineProperty(event, "dataTransfer", {
-        value: {
-            types,
-            setData: vi.fn(),
-            setDragImage: vi.fn(),
-            effectAllowed: "none",
-            dropEffect: "none",
-        },
-    });
+    Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
     return event as unknown as DragEvent;
 }
 
 afterEach(() => {
     if (DragDropManager.getDragState()) {
         act(() => {
-            DragDropManager.getDragState()
-                ?.mainEngine.getDragDropManager()
-                .onDragEnded();
+            DragDropManager.endDrag();
         });
     }
 });
 
-const chart: IJsonTabNode = {
-    type: "tab",
-    name: "Revenue",
-    component: "chart",
+const chart: TabInitOf<Types> = {
+    component: "test",
+    data: { name: "Revenue" },
 };
 
 describe("Dockable.DragSource", () => {
     it("starts an add drag of its tab, marking itself and the root as dragging", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         render(
             <>
                 <Dockable.DragSource
                     model={model}
-                    json={chart}
+                    tab={chart}
                     data-testid="source"
                 >
                     Revenue chart
@@ -60,48 +69,89 @@ describe("Dockable.DragSource", () => {
                 <Layout model={model} />
             </>,
         );
+        const before = model.state;
         const source = screen.getByTestId("source");
         expect(source).toHaveAttribute("draggable", "true");
-        const start = dragEvent("dragstart");
+        const dataTransfer = fakeDataTransfer();
         act(() => {
-            source.dispatchEvent(start);
+            source.dispatchEvent(dragEvent("dragstart", dataTransfer));
         });
         const state = DragDropManager.getDragState();
-        expect(state?.dragSource).toBe("add");
-        expect(state?.dragJson).toEqual(chart);
-        expect(state?.mainEngine).toBe(LayoutEngine.of(model));
-        expect(start.dataTransfer?.setDragImage).toHaveBeenCalledWith(
-            source,
-            10,
-            10,
-        );
+        expect(state?.source).toBe("add");
+        expect(state?.subjectOf(model)).toEqual({ kind: "new", tab: chart });
+        expect(state?.mainEngine.model).toBe(model);
+        expect(dataTransfer.types).toContain(DRAG_TYPE);
+        expect(dataTransfer.effectAllowed).toBe("copy");
+        expect(dataTransfer.setDragImage).toHaveBeenCalledWith(source, 10, 10);
         expect(source).toHaveAttribute("data-dragging", "");
         expect(screen.getByTestId("root")).toHaveAttribute("data-dragging", "");
 
         act(() => {
-            source.dispatchEvent(dragEvent("dragend"));
+            source.dispatchEvent(dragEvent("dragend", dataTransfer));
         });
         expect(DragDropManager.getDragState()).toBeUndefined();
         expect(source).not.toHaveAttribute("data-dragging");
         expect(screen.getByTestId("root")).not.toHaveAttribute("data-dragging");
         // the model was not touched by a drag that was never dropped
-        expect(model.toJson()).toEqual(
-            Model.fromJson(structuredClone(twoTabsets)).toJson(),
-        );
+        expect(model.state).toBe(before);
     });
 
-    it("builds the tab json at each drag start when given a function", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
-        let n = 0;
-        const json = vi.fn(() => ({
-            type: "tab" as const,
-            name: `Chart ${++n}`,
-        }));
+    it("adds its tab where it is dropped, and reports the new tab's id", () => {
+        const model = freshModel();
+        const commands = recordCommands(model);
+        const onDrop = vi.fn<NewTabDropped>();
         render(
             <>
                 <Dockable.DragSource
                     model={model}
-                    json={json}
+                    tab={chart}
+                    onDrop={onDrop}
+                    data-testid="source"
+                />
+                <Layout model={model} />
+            </>,
+        );
+        const root = screen.getByTestId("root");
+        const dataTransfer = fakeDataTransfer();
+        act(() => {
+            screen
+                .getByTestId("source")
+                .dispatchEvent(dragEvent("dragstart", dataTransfer));
+        });
+        act(() => {
+            root.dispatchEvent(dragEvent("dragenter", dataTransfer));
+            root.dispatchEvent(dragEvent("dragover", dataTransfer));
+            root.dispatchEvent(dragEvent("drop", dataTransfer));
+        });
+        expect(commands.map((c) => c.command)).toContain("tab.add");
+        expect(commands.find((c) => c.command === "tab.add")?.payload).toEqual(
+            expect.objectContaining({ component: "test", data: chart.data }),
+        );
+        expect(onDrop).toHaveBeenCalledTimes(1);
+        const id = onDrop.mock.calls[0]?.[0];
+        expect(typeof id).toBe("string");
+        const added = id === undefined ? undefined : model.get(id);
+        expect(added?.type).toBe("tab");
+        expect(added?.type === "tab" ? added.data : undefined).toEqual(
+            chart.data,
+        );
+        expect(DragDropManager.getDragState()).toBeUndefined();
+    });
+
+    it("builds the tab at each drag start when given a function", () => {
+        const model = freshModel();
+        let n = 0;
+        const tab = vi.fn(
+            (): TabInitOf<Types> => ({
+                component: "test",
+                data: { name: `Chart ${++n}` },
+            }),
+        );
+        render(
+            <>
+                <Dockable.DragSource
+                    model={model}
+                    tab={tab}
                     data-testid="source"
                 />
                 <Layout model={model} />
@@ -112,21 +162,23 @@ describe("Dockable.DragSource", () => {
             act(() => {
                 source.dispatchEvent(dragEvent("dragstart"));
             });
-            expect(DragDropManager.getDragState()?.dragJson?.name).toBe(
-                expected,
-            );
+            const subject = DragDropManager.getDragState()?.subjectOf(model);
+            expect(
+                subject?.kind === "new" ? subject.tab.data.name : undefined,
+            ).toBe(expected);
             act(() => {
                 source.dispatchEvent(dragEvent("dragend"));
             });
         }
+        expect(tab).toHaveBeenCalledTimes(2);
     });
 
     it("cancels the drag when disabled, or when no layout of the model is mounted", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         const { rerender } = render(
             <Dockable.DragSource
                 model={model}
-                json={chart}
+                tab={chart}
                 data-testid="source"
             />,
         );
@@ -139,7 +191,7 @@ describe("Dockable.DragSource", () => {
             <>
                 <Dockable.DragSource
                     model={model}
-                    json={chart}
+                    tab={chart}
                     disabled
                     data-testid="source"
                 />
@@ -157,12 +209,12 @@ describe("Dockable.DragSource", () => {
     });
 
     it("renders its children only, and supports render and state functions", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         render(
             <>
                 <Dockable.DragSource
                     model={model}
-                    json={chart}
+                    tab={chart}
                     render={<li />}
                     className={(state) =>
                         state.dragging ? "is-dragging" : "idle"
@@ -183,15 +235,15 @@ describe("Dockable.DragSource", () => {
     });
 
     it("composes the consumer's drag handlers after its own", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         const onDragStart = vi.fn(() => {
-            expect(DragDropManager.getDragState()?.dragSource).toBe("add");
+            expect(DragDropManager.getDragState()?.source).toBe("add");
         });
         render(
             <>
                 <Dockable.DragSource
                     model={model}
-                    json={chart}
+                    tab={chart}
                     onDragStart={onDragStart}
                     data-testid="source"
                 />
@@ -207,18 +259,20 @@ describe("Dockable.DragSource", () => {
 
 describe("Dockable.Root onExternalDrag", () => {
     it("asks on a foreign dragenter and turns an accepted drag into an external drag", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         const onExternalDrag = vi.fn(
-            (event: Pick<DragEvent, "dataTransfer">) =>
+            (event: DragEventLike): ExternalDrag<Types> | undefined =>
                 event.dataTransfer?.types.includes("Files")
-                    ? { json: { type: "tab" as const, name: "file" } }
+                    ? { tab: { component: "test", data: { name: "file" } } }
                     : undefined,
         );
         render(<Layout model={model} onExternalDrag={onExternalDrag} />);
         const root = screen.getByTestId("root");
 
         act(() => {
-            root.dispatchEvent(dragEvent("dragenter", ["text/plain"]));
+            root.dispatchEvent(
+                dragEvent("dragenter", fakeDataTransfer(["text/plain"])),
+            );
         });
         expect(onExternalDrag).toHaveBeenCalledTimes(1);
         expect(DragDropManager.getDragState()).toBeUndefined();
@@ -227,9 +281,16 @@ describe("Dockable.Root onExternalDrag", () => {
         });
 
         act(() => {
-            root.dispatchEvent(dragEvent("dragenter", ["Files"]));
+            root.dispatchEvent(
+                dragEvent("dragenter", fakeDataTransfer(["Files"])),
+            );
         });
-        expect(DragDropManager.getDragState()?.dragSource).toBe("external");
+        const state = DragDropManager.getDragState();
+        expect(state?.source).toBe("external");
+        expect(state?.subjectOf(model)).toEqual({
+            kind: "new",
+            tab: { component: "test", data: { name: "file" } },
+        });
         expect(root).toHaveAttribute("data-dragging", "");
 
         act(() => {
@@ -239,8 +300,22 @@ describe("Dockable.Root onExternalDrag", () => {
         expect(root).not.toHaveAttribute("data-dragging");
     });
 
+    it("never asks about a drag that carries Dockable's type", () => {
+        const model = freshModel();
+        const onExternalDrag = vi.fn(() => undefined);
+        render(<Layout model={model} onExternalDrag={onExternalDrag} />);
+        act(() => {
+            screen
+                .getByTestId("root")
+                .dispatchEvent(
+                    dragEvent("dragenter", fakeDataTransfer([DRAG_TYPE])),
+                );
+        });
+        expect(onExternalDrag).not.toHaveBeenCalled();
+    });
+
     it("uses the latest handler after a re-render", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         const first = vi.fn(() => undefined);
         const second = vi.fn(() => undefined);
         const { rerender } = render(

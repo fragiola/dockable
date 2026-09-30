@@ -1,7 +1,7 @@
 // The `data-layout-path` scheme and DOM id helpers, ported from FlexLayout
 // (https://github.com/caplin/FlexLayout): docs/testing-your-layout.md, src/view/Utils.tsx
-// (domId, tabButtonPath) and src/view/Splitter.tsx. Copyright (c) 2017 Caplin Systems Ltd.
-// MIT licence, see LICENSE.
+// (domId, tabButtonPath) and src/view/Splitter.tsx, and Node.setPaths / BorderSet.setPaths.
+// Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 //
 // Every adapter emits the same values, so e2e selectors work across frameworks:
 //   /r1/ts0      row / tabset
@@ -9,49 +9,85 @@
 //   /ts0/t1      tab panel
 //   /ts0/tabstrip
 //   /s0          splitter after the first child of the root row (/r0/s1 inside a nested row)
-import type { Node } from "./model/Node";
-import type { TabNode } from "./model/TabNode";
+//   /border/left, /border/left/t0, /border/left/tb0
+import type { AnyBorder, AnyRow } from "./state/tree";
 
-/** the path of a row, tabset or tab panel (a tab's own path is its panel path) */
-export function getNodePath(node: Node): string {
-    return node.getPath();
+/**
+ * The path of every node of a layout: rows `/r<i>`, tabsets `/ts<i>` and tabs `/t<i>` by their
+ * index in their parent, under `prefix` (`""` for the main layout, `/sublayout<n>` for a window).
+ * Borders are `/border/<location>` with their tabs below.
+ */
+export function computePaths(
+    root: AnyRow,
+    prefix = "",
+    borders: readonly AnyBorder[] = [],
+): Map<string, string> {
+    const paths = new Map<string, string>();
+    const visit = (row: AnyRow, path: string) => {
+        paths.set(row.id, path);
+        for (const [i, child] of row.children.entries()) {
+            if (child.type === "row") {
+                visit(child, `${path}/r${i}`);
+            } else {
+                const tabsetPath = `${path}/ts${i}`;
+                paths.set(child.id, tabsetPath);
+                for (const [j, tab] of child.children.entries()) {
+                    paths.set(tab.id, `${tabsetPath}/t${j}`);
+                }
+            }
+        }
+    };
+    visit(root, prefix);
+    for (const border of borders) {
+        const path = `/border/${border.location}`;
+        paths.set(border.id, path);
+        for (const [j, tab] of border.children.entries()) {
+            paths.set(tab.id, `${path}/t${j}`);
+        }
+    }
+    return paths;
 }
 
-/** the path of a tab's button: its node path with the trailing tab segment renamed to a
- * tab-button segment (e.g. /ts0/g0/t0 -> /ts0/g0/tb0) */
-export function getTabButtonPath(tab: TabNode): string {
-    return tab.getPath().replace(/\/t(\d+)$/, "/tb$1");
+/** The path of a window layout (`n` is its 1-based position in the state's windows). */
+export function windowPath(n: number): string {
+    return `/sublayout${n}`;
 }
 
-/** the path of a tab's content panel */
-export function getTabPanelPath(tab: TabNode): string {
-    return tab.getPath();
+/** The path of a tab's button: its panel path with the trailing tab segment renamed. */
+export function getTabButtonPath(tabPath: string): string {
+    return tabPath.replace(/\/t(\d+)$/, "/tb$1");
 }
 
-/** the path of a tabset's tab strip */
-export function getTabStripPath(tabset: Node): string {
-    return `${tabset.getPath()}/tabstrip`;
+/** The path of a tabset's tab strip. */
+export function getTabStripPath(tabsetPath: string): string {
+    return `${tabsetPath}/tabstrip`;
 }
 
-/** the path of the splitter before child `index` (1-based: the splitter between children 0 and 1
- * has index 1) of a row or border */
-export function getSplitterPath(node: Node, index: number): string {
-    return `${node.getPath()}/s${index - 1}`;
+/**
+ * The path of the splitter before child `index` (1-based: the splitter between children 0 and 1
+ * has index 1) of a row or border.
+ */
+export function getSplitterPath(nodePath: string, index: number): string {
+    return `${nodePath}/s${index - 1}`;
 }
 
-/** the path of the drop indicator */
+/** The path of the drop indicator. */
 export const DROP_INDICATOR_PATH = "/outline";
 
 function domId(prefix: string, nodeId: string) {
     return prefix + nodeId.replace(/\s/g, "_"); // aria id references cannot contain whitespace
 }
 
-/** the DOM id of a tab's button, referenced by its panel's `aria-labelledby` */
-export function getTabButtonId(tab: TabNode): string {
-    return domId("dockable-tabbutton-", tab.getId());
+/**
+ * The DOM id of a tab's button, referenced by its panel's `aria-labelledby`. `scope` keeps the ids
+ * of two layouts on one page apart (their models may both have a `tab-1`):
+ * `engine.tabButtonId(id)` passes the engine's own.
+ */
+export function getTabButtonId(tabId: string, scope = ""): string {
+    return domId(`dockable-${scope}tabbutton-`, tabId);
 }
 
-/** the DOM id of a tab's panel, referenced by its button's `aria-controls` */
-export function getTabPanelId(tab: TabNode): string {
-    return domId("dockable-tab-", tab.getId());
+/** The DOM id of a tab's panel, referenced by its button's `aria-controls` (see {@link getTabButtonId}). */
+export function getTabPanelId(tabId: string, scope = ""): string {
+    return domId(`dockable-${scope}tab-`, tabId);
 }

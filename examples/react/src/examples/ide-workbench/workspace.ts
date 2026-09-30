@@ -1,24 +1,34 @@
 import {
-    Actions,
-    BorderNode,
-    DockLocation,
-    type IJsonModel,
-    type LayoutEngine,
+    createModel,
+    type JsonSchema,
+    type LayoutJson,
+    LayoutValidationError,
     type Model,
     type Node,
-    TabNode,
-    type TabSetNode,
+    type TabInitOf,
+    type ValidationIssue,
 } from "@fragiola/dockable";
 import { FILES, fileName } from "./files";
 
 // The workbench's state outside the layout: file contents ("disk" and unsaved buffers), the
 // layout JSON with its save/restore, and how a file becomes a tab.
 
-/** What an editor tab keeps in its `config`: the file, and whether it has unsaved changes. */
-export interface EditorConfig {
+/** What an editor tab keeps in its `data`: its name, the file, and whether it has unsaved changes. */
+export interface EditorData {
+    name: string;
     path: string;
     dirty?: boolean;
 }
+
+/** What the layout holds: each tab component and the type of its data. */
+export type Types = {
+    tabs: {
+        editor: EditorData;
+        explorer: { name: string };
+        terminal: { name: string };
+        problems: { name: string };
+    };
+};
 
 /** The saved files and the unsaved edits, per mount of the example. */
 export function createWorkspace() {
@@ -42,75 +52,77 @@ export function createWorkspace() {
 
 export type Workspace = ReturnType<typeof createWorkspace>;
 
-/** The tab id is derived from the path, so "is this file open?" is one `getNodeById`. */
+/** The tab id is derived from the path, so "is this file open?" is one `model.get`. */
 export function tabId(path: string): string {
     return `file:${path}`;
 }
 
-export function editorConfig(node: Node): EditorConfig | undefined {
-    return node instanceof TabNode && node.getComponent() === "editor"
-        ? (node.getConfig() as EditorConfig)
+/** An editor tab's data, narrowed by its component (any other node has none). */
+export function editorData(
+    node: Node<Types> | undefined,
+): EditorData | undefined {
+    return node?.type === "tab" && node.component === "editor"
+        ? node.data
         : undefined;
 }
 
-export function editorTab(path: string, dirty = false) {
+export function editorTab(path: string, dirty = false): TabInitOf<Types> {
     return {
-        type: "tab" as const,
         id: tabId(path),
-        name: fileName(path),
         component: "editor",
-        config: { path, dirty } satisfies EditorConfig,
+        data: { name: fileName(path), path, dirty },
     };
 }
 
-export const defaultLayout: IJsonModel = {
-    global: { tabEnableRename: false, borderSize: 208 },
+// Every tab has an explicit id: resetting the layout (`layout.load`) keeps the content of the tabs
+// whose ids survive, such as the terminal's history.
+export const defaultLayout: LayoutJson<Types> = {
+    version: 1,
+    defaults: { border: { size: 208 } },
     // the explorer on the left and the terminal and problems below are borders: side bars whose
     // selected tab opens a panel beside the editors (click the selected tab to close it)
     borders: [
         {
-            type: "border",
             location: "left",
             selected: 0,
             children: [
                 {
-                    type: "tab",
-                    name: "Explorer",
+                    id: "explorer",
                     component: "explorer",
+                    data: { name: "Explorer" },
                     enableClose: false,
                     enableDrag: false,
                 },
             ],
         },
         {
-            type: "border",
             location: "bottom",
             selected: 0,
             size: 180,
             children: [
                 {
-                    type: "tab",
-                    name: "Terminal",
+                    id: "terminal",
                     component: "terminal",
+                    data: { name: "Terminal" },
                     enableClose: false,
                 },
                 {
-                    type: "tab",
-                    name: "Problems",
+                    id: "problems",
                     component: "problems",
+                    data: { name: "Problems" },
                     enableClose: false,
                 },
             ],
         },
     ],
-    layout: {
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 id: "editors",
                 // the editor area stays when its last file is closed
-                enableDeleteWhenEmpty: false,
+                deleteWhenEmpty: false,
                 children: [
                     editorTab("src/app.ts"),
                     editorTab("src/store.ts"),
@@ -121,63 +133,113 @@ export const defaultLayout: IJsonModel = {
     },
 };
 
-/** Where a file opens: the active tabset, else the first one (borders are not tabsets). */
-function editorTarget(model: Model): TabSetNode | undefined {
-    return model.getActiveTabset() ?? model.getFirstTabSet();
-}
-
-/** Opens a file: selects its tab when it is already open, adds one otherwise. */
-export function openFile(engine: LayoutEngine, model: Model, path: string) {
-    const existing = model.getNodeById(tabId(path));
-    if (existing) {
-        // selecting a border's selected tab would close its panel: only select what is not
-        const openInBorder =
-            existing instanceof TabNode &&
-            existing.getParent() instanceof BorderNode &&
-            existing.isSelected();
-        if (!openInBorder) {
-            engine.doAction(Actions.selectTab(tabId(path)));
-        }
+/**
+ * Opens a file: selects its tab when it is already open (selecting the selected tab changes
+ * nothing, even in a border), adds one to the active tabset otherwise (else the first one).
+ */
+export function openFile(model: Model<Types>, path: string) {
+    const id = tabId(path);
+    if (model.get(id)) {
+        model.run("tab.select", { tab: id });
         return;
     }
-    const target = editorTarget(model);
+    const target = model.activeTabset() ?? model.tabsets()[0];
     if (target) {
-        engine.doAction(
-            Actions.addTab(
-                editorTab(path),
-                target.getId(),
-                DockLocation.CENTER,
-                -1,
-                true,
-            ),
-        );
+        model.run("tab.add", {
+            ...editorTab(path),
+            to: target.id,
+            select: true,
+        });
     }
 }
 
 // ── Save and restore ────────────────────────────────────────────────────────
 
-// v2: the explorer and the bottom panel became borders (a v1 layout has none)
-const STORAGE_KEY = "dockable-docs:ide-workbench:layout:v2";
+// v3: the layout is JSON v1 (`model.toJSON()`); a v2 layout was FlexLayout's format
+const STORAGE_KEY = "dockable-docs:ide-workbench:layout:v3";
 
-/** The layout saved on the last visit, or the default one. Storage may be unavailable. */
-export function loadLayout(): IJsonModel {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            // unsaved edits are not persisted, so a restored tab is never dirty
-            return JSON.parse(saved, (key, value) =>
-                key === "dirty" ? false : value,
-            ) as IJsonModel;
-        }
-    } catch {
-        // private mode or corrupt data: fall back to the default
-    }
-    return defaultLayout;
+const NAMED: JsonSchema = {
+    type: "object",
+    properties: { name: { type: "string" } },
+    required: ["name"],
+};
+
+/**
+ * Each component's data schema: loading (and `tab.add`, `tab.update`) validates `data` with it, so
+ * a stored layout whose editor lost its `path` is reported instead of crashing the editor.
+ */
+const dataSchemas: { [K in keyof Types["tabs"]]: JsonSchema } = {
+    editor: {
+        type: "object",
+        properties: {
+            name: { type: "string" },
+            path: { type: "string", minLength: 1 },
+            dirty: { type: "boolean" },
+        },
+        required: ["name", "path"],
+    },
+    explorer: NAMED,
+    terminal: NAMED,
+    problems: NAMED,
+};
+
+/** Why the stored layout was not restored: a message and, per problem, its JSON path. */
+export interface RestoreProblem {
+    message: string;
+    issues: readonly ValidationIssue[];
 }
 
-export function saveLayout(model: Model) {
+/**
+ * The model, from the layout saved on the last visit or the default one. A stored layout that is
+ * not valid JSON v1 is reported (and the default layout used): `createModel` throws a
+ * `LayoutValidationError` listing every problem with its path. Storage may be unavailable.
+ */
+export function restoreModel(): {
+    model: Model<Types>;
+    problem: RestoreProblem | undefined;
+} {
+    let saved: string | null = null;
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(model.toJson()));
+        saved = localStorage.getItem(STORAGE_KEY);
+    } catch {
+        // private mode or blocked storage: nothing was saved
+    }
+    if (saved) {
+        try {
+            // unsaved edits are not persisted, so a restored tab is never dirty
+            const json = JSON.parse(saved, (key, value) =>
+                key === "dirty" ? false : value,
+            );
+            return {
+                model: createModel<Types>(json, { dataSchemas }),
+                problem: undefined,
+            };
+        } catch (error) {
+            const problem: RestoreProblem =
+                error instanceof LayoutValidationError
+                    ? { message: error.message, issues: error.issues }
+                    : {
+                          message:
+                              error instanceof Error
+                                  ? error.message
+                                  : String(error),
+                          issues: [],
+                      };
+            return {
+                model: createModel<Types>(defaultLayout, { dataSchemas }),
+                problem,
+            };
+        }
+    }
+    return {
+        model: createModel<Types>(defaultLayout, { dataSchemas }),
+        problem: undefined,
+    };
+}
+
+export function saveLayout(model: Model<Types>) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(model.toJSON()));
     } catch {
         // storage full or blocked: the layout just is not remembered
     }

@@ -63,7 +63,7 @@ test("drops into a locked region are refused and change nothing", async ({
     // and its tabs cannot be dragged (enableDrag)
     await expect(path(page, "/ts2/tb0")).toHaveAttribute("draggable", "false");
 
-    // onAction vetoes a move that does not come from a drag
+    // the middleware vetoes a move that does not come from a drag
     await path(page, "/ts1/t0")
         .getByRole("button", { name: "Move to Reference from code" })
         .click();

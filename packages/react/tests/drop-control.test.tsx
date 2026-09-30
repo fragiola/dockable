@@ -1,18 +1,38 @@
 import {
+    createModel,
+    DRAG_TYPE,
     DragDropManager,
-    LayoutEngine,
-    Model,
-    type Node,
-    type TabNode,
+    type DropZoneOptions,
+    type LayoutJson,
+    type Model,
+    veto,
 } from "@fragiola/dockable";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Dockable } from "../src";
-import { Layout, twoTabsets } from "./layout";
+import { Layout, type Types, twoTabsets } from "./layout";
 
 // jsdom measures every element as 100x100 at (0, 0) (tests/setup.ts), so a drag over (50, 50)
 // always has a target: the hit test's first tabset.
 
+function freshModel(json: LayoutJson<Types> = twoTabsets) {
+    return createModel<Types>(structuredClone(json));
+}
+
+/** A fake DataTransfer carrying Dockable's type: the layouts claim only drags that carry it. */
+function fakeDataTransfer(types: string[] = [DRAG_TYPE]) {
+    return {
+        types,
+        setData: vi.fn((type: string, _data: string) => {
+            if (!types.includes(type)) types.push(type);
+        }),
+        setDragImage: vi.fn<(image: Element, x: number, y: number) => void>(),
+        effectAllowed: "none",
+        dropEffect: "none",
+    };
+}
+
+// jsdom has no DragEvent: a MouseEvent with a fake dataTransfer carries what the core reads
 function dragEvent(type: string, x = 50, y = 50) {
     const event = new MouseEvent(type, {
         bubbles: true,
@@ -21,13 +41,7 @@ function dragEvent(type: string, x = 50, y = 50) {
         clientY: y,
     });
     Object.defineProperty(event, "dataTransfer", {
-        value: {
-            types: [],
-            setData: vi.fn(),
-            setDragImage: vi.fn(),
-            effectAllowed: "none",
-            dropEffect: "none",
-        },
+        value: fakeDataTransfer(),
     });
     return event as unknown as DragEvent;
 }
@@ -40,14 +54,10 @@ const path = (p: string) => {
     return element;
 };
 
-function startDrag(model: Model, tabId: string) {
+/** Starts dragging the tab whose button is at `tabPath` (`/ts1/tb0` is t2, `/ts0/tb1` is t1). */
+function startDrag(tabPath: string) {
     act(() => {
-        LayoutEngine.of(model)
-            ?.getDragDropManager()
-            .setDragNode(
-                dragEvent("dragstart", 0, 0),
-                model.getNodeById(tabId) as TabNode,
-            );
+        path(tabPath).dispatchEvent(dragEvent("dragstart", 0, 0));
     });
 }
 
@@ -58,13 +68,15 @@ function over(element: HTMLElement) {
     });
 }
 
+function endDrag() {
+    act(() => {
+        DragDropManager.endDrag();
+    });
+}
+
 afterEach(() => {
     if (DragDropManager.getDragState()) {
-        act(() => {
-            DragDropManager.getDragState()
-                ?.mainEngine.getDragDropManager()
-                .onDragEnded();
-        });
+        endDrag();
     }
 });
 
@@ -77,9 +89,9 @@ const tabsets = () =>
 
 describe("drop target attributes", () => {
     it("mark exactly one tabset during a drag, and none after it", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         render(<Layout model={model} />);
-        startDrag(model, "t2");
+        startDrag("/ts1/tb0");
         over(path("/layout"));
         const targets = tabsets().filter((el) =>
             el.hasAttribute("data-drop-target"),
@@ -115,16 +127,21 @@ describe("refused drops", () => {
         };
     }
 
-    const refuseAll = () => false;
+    /** a middleware that refuses every move */
+    const refuseMoves = (model: Model<Types>) =>
+        model.use((ctx, next) =>
+            ctx.command === "tab.move" ? veto("no moves") : next(),
+        );
 
     it("are shown on the root, the indicator and the refusing tabset", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
+        refuseMoves(model);
         render(
-            <Layout model={model} onAllowDrop={refuseAll}>
+            <Layout model={model}>
                 <Dockable.DropIndicator />
             </Layout>,
         );
-        startDrag(model, "t2");
+        startDrag("/ts1/tb0");
         over(path("/layout"));
         expect(refusedAttributes()).toEqual({
             root: true,
@@ -133,61 +150,70 @@ describe("refused drops", () => {
             refusedTabsets: 1,
             targets: 0,
         });
-        act(() => {
-            DragDropManager.getDragState()
-                ?.mainEngine.getDragDropManager()
-                .onDragEnded();
-        });
+        endDrag();
         expect(path("/layout")).not.toHaveAttribute("data-drop-refused");
     });
 
-    it("look the same whether the rule comes from the Root prop or model.setOnAllowDrop", () => {
-        const viaProp = Model.fromJson(structuredClone(twoTabsets));
+    it("look the same whether a middleware or the layout's own rules refuse", () => {
+        const viaMiddleware = freshModel();
+        refuseMoves(viaMiddleware);
         const first = render(
-            <Layout model={viaProp} onAllowDrop={refuseAll}>
+            <Layout model={viaMiddleware}>
                 <Dockable.DropIndicator />
             </Layout>,
         );
-        startDrag(viaProp, "t2");
+        startDrag("/ts1/tb0");
         over(path("/layout"));
-        const withProp = refusedAttributes();
-        act(() => {
-            DragDropManager.getDragState()
-                ?.mainEngine.getDragDropManager()
-                .onDragEnded();
-        });
+        const withMiddleware = refusedAttributes();
+        expect(withMiddleware.root).toBe(true);
+        endDrag();
         first.unmount();
 
-        const viaModel = Model.fromJson(structuredClone(twoTabsets));
-        viaModel.setOnAllowDrop(refuseAll);
+        // no tabset takes a drop into it or beside it
+        const viaRules = freshModel({
+            ...twoTabsets,
+            defaults: { tabset: { enableDrop: false, enableDivide: false } },
+        });
         render(
-            <Layout model={viaModel}>
+            <Layout model={viaRules}>
                 <Dockable.DropIndicator />
             </Layout>,
         );
-        startDrag(viaModel, "t2");
+        startDrag("/ts1/tb0");
         over(path("/layout"));
-        expect(refusedAttributes()).toEqual(withProp);
+        expect(refusedAttributes()).toEqual(withMiddleware);
     });
 
-    it("restores the model's own rule when the prop is removed", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
-        const own = () => true;
-        model.setOnAllowDrop(own);
-        const { rerender } = render(
-            <Layout model={model} onAllowDrop={refuseAll} />,
+    it("stop once the refusing middleware is removed", () => {
+        const model = freshModel();
+        const remove = refuseMoves(model);
+        render(
+            <Layout model={model}>
+                <Dockable.DropIndicator />
+            </Layout>,
         );
-        expect(model.getOnAllowDrop()).not.toBe(own);
-        rerender(<Layout model={model} />);
-        expect(model.getOnAllowDrop()).toBe(own);
+        startDrag("/ts1/tb0");
+        over(path("/layout"));
+        expect(path("/layout")).toHaveAttribute("data-drop-refused", "");
+        endDrag();
+
+        remove();
+        startDrag("/ts1/tb0");
+        over(path("/layout"));
+        expect(refusedAttributes()).toEqual({
+            root: false,
+            indicator: false,
+            indicatorHidden: false,
+            refusedTabsets: 0,
+            targets: 1,
+        });
     });
 });
 
 describe("Dockable.DropZone", () => {
-    it("takes a drag of its model and hands over the node without moving it", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
-        const before = JSON.stringify(model.toJson());
-        const onDrop = vi.fn();
+    it("takes a drag of its model and hands over what is dragged without moving it", () => {
+        const model = freshModel();
+        const onDrop = vi.fn<DropZoneOptions<Types>["onDrop"]>();
         render(
             <>
                 <Dockable.DropZone
@@ -200,10 +226,11 @@ describe("Dockable.DropZone", () => {
                 <Layout model={model} />
             </>,
         );
+        const before = model.state;
         const zone = screen.getByTestId("trash");
         expect(zone).not.toHaveAttribute("data-drop-active");
 
-        startDrag(model, "t1");
+        startDrag("/ts0/tb1");
         expect(zone).toHaveAttribute("data-drop-active", "");
         expect(zone).not.toHaveAttribute("data-drop-over");
         over(zone);
@@ -213,22 +240,24 @@ describe("Dockable.DropZone", () => {
             zone.dispatchEvent(dragEvent("drop"));
         });
         expect(onDrop).toHaveBeenCalledTimes(1);
-        const dropped = onDrop.mock.calls[0]?.[0] as Node | undefined;
-        expect(dropped?.getId()).toBe("t1");
-        expect(JSON.stringify(model.toJson())).toBe(before);
+        const dropped = onDrop.mock.calls[0]?.[0];
+        expect(dropped?.kind === "tab" ? dropped.tab.id : undefined).toBe("t1");
+        expect(model.state).toBe(before);
         expect(zone).not.toHaveAttribute("data-drop-over");
         expect(zone).not.toHaveAttribute("data-drop-active");
         expect(DragDropManager.getDragState()).toBeUndefined();
     });
 
     it("is inactive for drags it does not accept", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
-        const onDrop = vi.fn();
+        const model = freshModel();
+        const onDrop = vi.fn<DropZoneOptions<Types>["onDrop"]>();
         render(
             <>
                 <Dockable.DropZone
                     model={model}
-                    accepts={(node) => node.getId() !== "t1"}
+                    accepts={(drag) =>
+                        drag.kind !== "tab" || drag.tab.id !== "t1"
+                    }
                     onDrop={onDrop}
                     data-testid="zone"
                 />
@@ -236,7 +265,7 @@ describe("Dockable.DropZone", () => {
             </>,
         );
         const zone = screen.getByTestId("zone");
-        startDrag(model, "t1");
+        startDrag("/ts0/tb1");
         expect(zone).not.toHaveAttribute("data-drop-active");
         over(zone);
         act(() => {
@@ -247,7 +276,7 @@ describe("Dockable.DropZone", () => {
     });
 
     it("supports render, state functions, and renders only its children", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
+        const model = freshModel();
         render(
             <>
                 <Dockable.DropZone
@@ -264,32 +293,7 @@ describe("Dockable.DropZone", () => {
         expect(zone.tagName).toBe("SECTION");
         expect(zone).toHaveClass("idle");
         expect(zone.textContent).toBe("");
-        startDrag(model, "t0");
+        startDrag("/ts0/tb0");
         expect(zone).toHaveClass("armed");
-    });
-});
-
-describe("tab group drops", () => {
-    it("mark the tabset as the target, but not its strip", () => {
-        const model = Model.fromJson(structuredClone(twoTabsets));
-        const { rerender } = render(<Layout model={model} />);
-        const manager = LayoutEngine.of(model)?.getDragDropManager();
-        if (!manager) throw new Error("no engine");
-        const idle = manager.getIndicatorState();
-        // a drop into a group of ts0: the group is the target node, its index counts inside it
-        vi.spyOn(manager, "getIndicatorState").mockReturnValue({
-            ...idle,
-            visible: true,
-            dragging: true,
-            location: "center",
-            index: 0,
-            targetNodeId: "a-group",
-            targetTabSetId: "ts0",
-        });
-        rerender(<Layout model={model} data-rerender="" />);
-        expect(path("/ts0")).toHaveAttribute("data-drop-target", "");
-        expect(path("/ts0/tabstrip")).not.toHaveAttribute("data-drop-target");
-        expect(path("/ts0/tabstrip")).not.toHaveAttribute("data-drop-index");
-        vi.restoreAllMocks();
     });
 });

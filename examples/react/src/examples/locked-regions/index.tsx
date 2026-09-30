@@ -1,16 +1,15 @@
 "use client";
 
 import {
-    type Action,
-    Actions,
-    DockLocation,
-    type DropInfo,
-    type IJsonModel,
-    Model,
-    type Node,
-    RowNode,
-    type TabNode,
-    type TabSetNode,
+    createModel,
+    type LayoutJson,
+    MAIN_LAYOUT,
+    type Middleware,
+    type TabAddPayload,
+    type TabJson,
+    type TabOf,
+    type TabsetNode,
+    veto,
 } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import { Ban, Lock } from "lucide-react";
@@ -21,40 +20,46 @@ import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { useStageTheme } from "../_kit/theme";
 
-// Stop drops into part of the layout, in three layers:
+// Stop drops into part of the layout, in two layers:
 //
-// 1. `onAllowDrop` on `Dockable.Root` (the same rule as `model.setOnAllowDrop`): the core asks it
-//    for every drop target under the pointer. Here the "Reference" tabset takes only tabs whose
-//    `config.region` is "reference" (in its strip, its centre or its sides), and the layout's edge
-//    beside a locked tabset refuses docking. Over a refused target the outline hides, the browser
-//    shows its "not allowed" cursor, and the target tabset and the root get `data-drop-refused`.
-// 2. Model attributes: the "Console" tabset has `enableDrop: false` (nothing merges into it) and
+// 1. A middleware (`model.use`) on the commands that place a tab or tabset: `tab.move`,
+//    `tabset.move` and `tab.add`. Here the "Reference" tabset takes only tabs whose
+//    `data.region` is "reference" (in its strip, its centre or its sides), and the layout's edge
+//    beside a locked tabset refuses docking. It runs for every command, whoever issues it: a
+//    drag asks it on every hover with `model.can` (a dry run, `ctx.dryRun`), so over a refused
+//    target the outline hides, the browser shows its "not allowed" cursor, and the target
+//    tabset and the root get `data-drop-refused`; a drop, or a command run from code, is vetoed
+//    the same way.
+// 2. Node flags: the "Console" tabset has `enableDrop: false` (nothing merges into it) and
 //    `enableDivide: false` (nothing splits it), and its tabs `enableDrag: false`.
-// 3. `onAction` as a safety net: an action that still tries to move a tab into the reference
-//    region (from code, not from a drag) is vetoed by returning `undefined`.
 //
+
+type Types = {
+    tabs: {
+        doc: { name: string; region: string };
+        console: { name: string };
+    };
+    tabset: { name: string };
+};
 
 const REFERENCE = "reference";
 const CONSOLE = "console";
 const LOCKED = new Set([REFERENCE, CONSOLE]);
 
-const doc = (name: string, region: string) => ({
-    type: "tab",
-    name,
+const doc = (name: string, region: string): TabJson<Types> => ({
     component: "doc",
-    config: { region },
+    data: { name, region },
 });
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 id: REFERENCE,
-                name: "Reference",
+                data: { name: "Reference" },
                 weight: 30,
                 children: [
                     doc("Spec", "reference"),
@@ -64,7 +69,7 @@ const json: IJsonModel = {
             {
                 type: "tabset",
                 id: "workspace",
-                name: "Workspace",
+                data: { name: "Workspace" },
                 weight: 45,
                 children: [
                     doc("Draft", "workspace"),
@@ -76,21 +81,19 @@ const json: IJsonModel = {
             {
                 type: "tabset",
                 id: CONSOLE,
-                name: "Console",
+                data: { name: "Console" },
                 weight: 25,
                 enableDrop: false,
                 enableDivide: false,
                 children: [
                     {
-                        type: "tab",
-                        name: "Console",
                         component: "console",
+                        data: { name: "Console" },
                         enableDrag: false,
                     },
                     {
-                        type: "tab",
-                        name: "Output",
                         component: "console",
+                        data: { name: "Output" },
                         enableDrag: false,
                     },
                 ],
@@ -99,44 +102,68 @@ const json: IJsonModel = {
     },
 };
 
-function regionOf(node: Node | undefined) {
-    return (
-        (node as TabNode | undefined)?.getConfig() as
-            | { region?: string }
-            | undefined
-    )?.region;
+/** A tab's region: only documents have one. */
+function regionOf(tab: TabOf<Types> | TabAddPayload<Types> | undefined) {
+    return tab?.component === "doc" ? tab.data.region : undefined;
 }
 
-/** The drop rule. Ids are stable; paths (`/ts0`) change as the layout changes. */
-function allowDrop(dragNode: Node, dropInfo: DropInfo): boolean {
-    const target = dropInfo.node;
-    if (target.getId() === REFERENCE) {
-        return regionOf(dragNode) === REFERENCE;
+/**
+ * The drop rule, as middleware. Ids are stable; paths (`/ts0`) change as the layout changes.
+ * `ctx.payload` is the payload of `ctx.command`: the fields it names tell which one it is.
+ */
+const lockedRegions: Middleware<Types> = (ctx, next) => {
+    if (
+        ctx.command !== "tab.move" &&
+        ctx.command !== "tabset.move" &&
+        ctx.command !== "tab.add"
+    ) {
+        return next();
     }
-    // docking at the layout's edge next to a locked tabset
-    if (dropInfo.kind === "edge" && target instanceof RowNode) {
-        const children = target.getChildren();
+    const payload = ctx.payload;
+    if (!("to" in payload)) {
+        return next();
+    }
+    // what is placed: an existing tab (tab.move), a new tab (tab.add) or a tabset (tabset.move)
+    const moving =
+        "tab" in payload
+            ? ctx.get(payload.tab)
+            : "component" in payload
+              ? payload
+              : undefined;
+    const tab = moving && "component" in moving ? moving : undefined;
+    const name = tab ? `"${tab.data.name}"` : "a tabset";
+
+    if (payload.to === REFERENCE && regionOf(tab) !== REFERENCE) {
+        return veto(`A middleware vetoed moving ${name} into Reference.`);
+    }
+    // docking at the layout's edge next to a locked tabset (`to` is the root row, or the layout)
+    const target =
+        payload.to === MAIN_LAYOUT ? ctx.state.root : ctx.get(payload.to);
+    if (target?.type === "row") {
+        const children = target.children;
         const beside =
-            dropInfo.location === DockLocation.LEFT
+            payload.location === "left"
                 ? children[0]
-                : dropInfo.location === DockLocation.RIGHT
+                : payload.location === "right"
                   ? children[children.length - 1]
                   : undefined;
-        if (beside && LOCKED.has(beside.getId())) {
-            return false;
+        if (beside && LOCKED.has(beside.id)) {
+            return veto(
+                `A middleware vetoed docking ${name} beside a locked tabset.`,
+            );
         }
     }
-    return true;
-}
+    return next();
+};
 
 /** A lock on locked tabsets, with a Fragiola tooltip saying why. */
-function LockBadge({ tabset }: { tabset: TabSetNode }) {
+function LockBadge({ tabset }: { tabset: TabsetNode<Types> }) {
     const [themeRef, theme] = useStageTheme();
-    if (!LOCKED.has(tabset.getId())) {
+    if (!LOCKED.has(tabset.id)) {
         return null;
     }
     const why =
-        tabset.getId() === REFERENCE
+        tabset.id === REFERENCE
             ? "Only reference tabs can be dropped here"
             : "Nothing can be dropped here, and its tabs stay put";
     return (
@@ -154,32 +181,40 @@ function LockBadge({ tabset }: { tabset: TabSetNode }) {
 }
 
 /** The content of a document tab, with a button that tries to break the rule from code. */
-function DocPanel({ tab }: { tab: TabNode }) {
-    const { engine } = useDockable();
-    const region = regionOf(tab);
+function DocPanel({
+    tab,
+    onNotice,
+}: {
+    tab: Extract<TabOf<Types>, { component: "doc" }>;
+    onNotice: (notice: string | undefined) => void;
+}) {
+    const { model, run } = useDockable<Types>();
+    const region = tab.data.region;
+    // a command from code goes through the same middleware: the result says why it was refused
+    const moveToReference = () => {
+        const result = run("tab.move", {
+            tab: tab.id,
+            to: REFERENCE,
+            location: "center",
+            index: -1,
+        });
+        onNotice(result.ok ? undefined : result.error.message);
+    };
     return (
-        <PanelBody title={tab.getName()}>
+        <PanelBody title={tab.data.name}>
             <p className="text-palette-accent/85">
                 {`Region: ${region}. `}
                 {region === REFERENCE
                     ? "This tab may be dropped into Reference."
                     : "Reference refuses this tab: try dragging it there."}
             </p>
-            {region !== REFERENCE && tab.getParent()?.getId() !== REFERENCE ? (
+            {region !== REFERENCE &&
+            model.parentOf(tab.id)?.id !== REFERENCE ? (
                 <div>
                     <button
                         type="button"
                         className={styles.button}
-                        onClick={() =>
-                            engine.doAction(
-                                Actions.moveNode(
-                                    tab.getId(),
-                                    REFERENCE,
-                                    DockLocation.CENTER,
-                                    -1,
-                                ),
-                            )
-                        }
+                        onClick={moveToReference}
                     >
                         Move to Reference from code
                     </button>
@@ -190,25 +225,13 @@ function DocPanel({ tab }: { tab: TabNode }) {
 }
 
 export default function LockedRegions() {
-    const [model] = useState(() => Model.fromJson(json));
+    // the rule is installed once, with the model: it guards every command from the start
+    const [model] = useState(() => {
+        const created = createModel<Types>(json);
+        created.use(lockedRegions);
+        return created;
+    });
     const [notice, setNotice] = useState<string | undefined>(undefined);
-
-    // the safety net: a move into the reference region that the drop rule did not stop
-    const onAction = (action: Action) => {
-        if (
-            action.type === Actions.MOVE_NODE &&
-            action.data.toNode === REFERENCE
-        ) {
-            const node = model.getNodeById(action.data.fromNode as string);
-            if (regionOf(node) !== REFERENCE) {
-                setNotice(
-                    `onAction vetoed moving "${(node as TabNode).getName()}" into Reference.`,
-                );
-                return undefined;
-            }
-        }
-        return action;
-    };
 
     return (
         <>
@@ -223,18 +246,16 @@ export default function LockedRegions() {
             </div>
             <DockLayout
                 model={model}
-                onAction={onAction}
                 renderActions={(tabset) => <LockBadge tabset={tabset} />}
-                rootProps={{ onAllowDrop: allowDrop }}
                 tabsetClassName={(tabset) =>
                     // a tabset refusing the current drag is marked by data-drop-refused
-                    `${LOCKED.has(tabset.getId()) ? "border-dashed" : ""} data-drop-refused:opacity-60`
+                    `${LOCKED.has(tabset.id) ? "border-dashed" : ""} data-drop-refused:opacity-60`
                 }
                 renderContent={(tab) =>
-                    tab.getComponent() === "doc" ? (
-                        <DocPanel tab={tab} />
+                    tab.component === "doc" ? (
+                        <DocPanel tab={tab} onNotice={setNotice} />
                     ) : (
-                        <PanelBody title={tab.getName()}>
+                        <PanelBody title={tab.data.name}>
                             <p className="text-palette-accent/85">
                                 Locked in place: this tab cannot be dragged, and
                                 nothing can be dropped into or beside it.

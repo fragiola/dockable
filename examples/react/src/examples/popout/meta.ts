@@ -8,9 +8,10 @@ export default {
     order: 10,
     features: [
         "Dockable.Popout",
-        "Actions.popoutTab",
+        "Dockable.PopoutTrigger",
+        "tab.popout",
         "popoutURL",
-        "enablePopout",
+        "defaults.tab.enablePopout",
     ],
     docs: "/docs/guides/popouts",
 } satisfies ExampleMeta;

@@ -7,9 +7,9 @@ export default {
     level: "intermediate",
     order: 19,
     features: [
-        "borderType: overlay",
-        "Actions.setBorderType",
-        "enableAutoHide",
+        "mode: overlay",
+        "border.configure",
+        "autoHide",
         "EdgeIndicator",
         "closeOverlayBorder",
     ],

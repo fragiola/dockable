@@ -10,7 +10,9 @@ export default {
         "Dockable.DropZone",
         "data-drop-active",
         "data-drop-over",
-        "Actions.deleteTab",
+        "DragSubject",
+        "tab.close",
+        "model.can",
     ],
     docs: "/docs/guides/drop-zones",
 } satisfies ExampleMeta;

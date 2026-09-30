@@ -1,6 +1,6 @@
 ---
 title: Dockable.Borders
-description: The frame that places the borders (side bars with tabs) around the main layout.
+description: The frame that places the borders, the side bars with tabs, around the main layout and gives each its panel area.
 ---
 
 "The frame that places the borders around the main layout, as FlexLayout does: the top and bottom
@@ -8,32 +8,37 @@ strips span the full width, the left and right strips sit between them, and each
 area sits between its strip and the layout. Renders only structural flex. Place it directly in
 `Dockable.Root` instead of the root `Dockable.Row`, and pass the row as its child."
 
+Pass the model's registry as the type argument (`<Dockable.Borders<Types>>`): `renderBar` and
+`renderContent` then receive typed `BorderNode<Types>` nodes (their `data` is `Types["border"]`).
+
 ```tsx
 <Dockable.Root model={model}>
-    <Dockable.Borders
+    <Dockable.Borders<Types>
         renderBar={(border) => (
             <Dockable.Border node={border} className="bar">
-                <Dockable.TabList>{(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}</Dockable.TabList>
+                <Dockable.TabList<Types> aria-label={`${border.location} panels`}>
+                    {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
+                </Dockable.TabList>
             </Dockable.Border>
         )}
     >
-        <Dockable.Row>{renderNode}</Dockable.Row>
+        <Dockable.Row<Types>>{renderNode}</Dockable.Row>
     </Dockable.Borders>
-    <Dockable.Panels>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
+    <Dockable.Panels<Types>>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
 </Dockable.Root>
 ```
 
-Borders come from the model's `borders` (see [JSON model](/docs/api/json-model)). See the
+Borders come from the model's state (`model.state.borders`, declared in the layout JSON's `borders`; see [JSON model](/docs/api/json-model)). See the
 [Borders guide](/docs/guides/borders).
 
 ## Props
 
-`BordersProps` extends the [common primitive props](/docs/api/root#common-props).
+`BordersProps<T>` extends the [common primitive props](/docs/api/root#common-props).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `renderBar` | `(border: BorderNode) => ReactNode` | required | renders a border's strip: a `Dockable.Border` |
-| `renderContent` | `(border: BorderNode) => ReactNode` | `<Dockable.BorderContent node={border} />` | renders a border's panel area |
+| `renderBar` | `(border: BorderNode<T>) => ReactNode` | required | renders a border's strip: a `Dockable.Border` |
+| `renderContent` | `(border: BorderNode<T>) => ReactNode` | `<Dockable.BorderContent node={border} />` | renders a border's panel area |
 | `children` | `ReactNode` | none | the main layout: a `Dockable.Row` (its root row fills the area left by the borders) |
 
 ## State
@@ -46,9 +51,10 @@ Borders come from the model's `borders` (see [JSON model](/docs/api/json-model))
 
 ## Which borders show
 
-A border shows when its `show` attribute is on and, if it is `enableAutoHide`, when it has tabs or
-a drag reveals it: while a tab is dragged near the edge of the layout that has an empty auto-hide
-border (within `edgeDockMargin`, away from the edge docking bands), that border appears so it can
+A border shows when its resolved `show` is on (`model.resolve(border).show`) and, if it
+`autoHide`s (its own `autoHide`, else `defaults.border.autoHide`), when it has tabs or a drag
+reveals it: while a tab is dragged near the edge of the layout that has an empty auto-hide border
+(within `defaults.layout.edgeDockMargin`, away from the edge docking bands), that border appears so it can
 take the drop. It hides again when the drag ends. Borders only render in the main layout, never
 in a popout window.
 

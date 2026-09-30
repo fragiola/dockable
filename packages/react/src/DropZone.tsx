@@ -1,4 +1,9 @@
-import type { IDropZoneOptions, Model } from "@fragiola/dockable";
+import type {
+    AnyTypes,
+    DockableTypes,
+    DropZoneOptions,
+    Model,
+} from "@fragiola/dockable";
 import type * as React from "react";
 import { useDropZone } from "./hooks";
 import {
@@ -14,18 +19,19 @@ export interface DropZoneState {
     active: boolean;
 }
 
-// `onDrop` is the zone's callback with the dragged node, not the element's native drop handler
-export interface DropZoneProps
+// `onDrop` is the zone's callback with what is dragged, not the element's native drop handler
+export interface DropZoneProps<T extends DockableTypes = AnyTypes>
     extends Omit<DivPrimitiveProps<DropZoneState>, "onDrop"> {
     /** the model whose drags the zone takes */
-    model: Model;
+    model: Model<T>;
     /** whether the zone takes this drag (default: every drag of the model) */
-    accepts?: IDropZoneOptions["accepts"];
+    accepts?: DropZoneOptions<T>["accepts"];
     /**
-     * called when the drag is dropped on the zone, with the dragged node. Nothing is moved:
-     * dispatch the action you want (e.g. `Actions.deleteTab`)
+     * called when the drag is dropped on the zone, with what is dragged (`{ kind: "tab", tab }`,
+     * `{ kind: "tabset", tabset }`, `{ kind: "new", tab }`). Nothing is moved: run the command you
+     * want (`tab.close`)
      */
-    onDrop: IDropZoneOptions["onDrop"];
+    onDrop: DropZoneOptions<T>["onDrop"];
     /** the zone's content; the primitive renders no text of its own */
     children?: React.ReactNode;
 }
@@ -33,10 +39,12 @@ export interface DropZoneProps
 /**
  * A place, inside or outside the layout, where a drag of the layout can be dropped for you to
  * handle: a trash can that closes the tab, an "open to the right" pad, a region of the page. While
- * a drag it takes is over it, the layout shows no outline, and a drop calls `onDrop` with the
- * dragged node instead of moving it.
+ * a drag it takes is over it, the layout shows no outline, and a drop calls `onDrop` with what is
+ * dragged instead of moving it.
  */
-export function DropZone(props: DropZoneProps) {
+export function DropZone<T extends DockableTypes = AnyTypes>(
+    props: DropZoneProps<T>,
+) {
     const { model, accepts, onDrop, children, ...rest } = props;
     const zone = useDropZone({ model, accepts, onDrop });
     const state: DropZoneState = { over: zone.over, active: zone.active };

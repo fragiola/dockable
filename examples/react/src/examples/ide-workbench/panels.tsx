@@ -1,44 +1,46 @@
 "use client";
 
-import { Actions, type TabNode } from "@fragiola/dockable";
+import type { TabNode } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { cn } from "#/lib/cn";
 import { FILE_PATHS, PROBLEMS } from "./files";
-import type { EditorConfig, Workspace } from "./workspace";
+import type { EditorData, Types, Workspace } from "./workspace";
 
 // The content of each kind of tab. Panels are never remounted when their tab moves, so the
 // editor keeps its text, caret and scroll through any drag.
 
 /**
  * A plain-text editor. It reports "modified" to its TAB: the dirty flag goes into the tab's
- * `config` through `Actions.updateNodeAttributes`, and the tab reads it back (`data-dirty`).
+ * `data` through the `tab.update` command, and the tab reads it back (`data-dirty`).
  * The text itself stays in the workspace, outside the model.
  */
 export function EditorPanel({
     tab,
     workspace,
 }: {
-    tab: TabNode;
+    // an editor tab: `tab.data` is typed as the editor's data, no cast
+    tab: TabNode<"editor", EditorData>;
     workspace: Workspace;
 }) {
-    const { engine } = useDockable();
-    const config = tab.getConfig() as EditorConfig;
-    const { path } = config;
+    const { run } = useDockable<Types>();
+    const { id, data } = tab;
+    const { path } = data;
     const [text, setText] = useState(() => workspace.read(path));
     const [, setSaves] = useState(0);
     const dirty = workspace.isDirty(path);
 
     useEffect(() => {
-        if (Boolean(config.dirty) !== dirty) {
-            engine.doAction(
-                Actions.updateNodeAttributes(tab.getId(), {
-                    config: { ...config, dirty },
-                }),
-            );
+        if (Boolean(data.dirty) !== dirty) {
+            // `data` is replaced whole: keep the rest of it
+            run("tab.update", {
+                tab: id,
+                component: "editor",
+                data: { ...data, dirty },
+            });
         }
-    }, [engine, tab, config, dirty]);
+    }, [run, id, data, dirty]);
 
     const save = () => {
         workspace.save(path);

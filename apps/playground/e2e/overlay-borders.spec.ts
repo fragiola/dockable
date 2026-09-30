@@ -1,7 +1,7 @@
 // Ported from FlexLayout (https://github.com/caplin/FlexLayout), tests-playwright/overlay-borders.spec.ts.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 //
-// Not ported: the demo's toolbar toggle button (replaced by dispatching Actions.setBorderType), the
+// Not ported: the demo's toolbar toggle button (replaced by running border.configure with a mode), the
 // maximize button (a FlexLayout view feature), the sub-layout inside an overlay panel (sub-layouts
 // in tabs are not rendered yet) and the context menus (Dockable renders no menus).
 import { expect, type Page, test } from "@playwright/test";
@@ -21,16 +21,13 @@ const setBorderType = (
     type: "split" | "overlay",
 ) =>
     page.evaluate(
-        ([loc, value]) => {
-            const dockable = window.__dockable;
-            dockable?.model.doAction(
-                dockable.Actions.setBorderType(
-                    `border_${loc}`,
-                    value as "split" | "overlay",
-                ),
-            );
+        ([loc, mode]) => {
+            window.__dockable?.model.run("border.configure", {
+                border: `border_${loc}`,
+                mode,
+            });
         },
-        [location, type],
+        [location, type === "overlay" ? "overlay" : "docked"] as const,
     );
 
 const sameBox = (

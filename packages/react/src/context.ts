@@ -1,10 +1,10 @@
 import type {
+    AnyTypes,
     DockableLabel,
+    DockableTypes,
     IKeyMap,
     LayoutEngine,
     Model,
-    ModelLayout,
-    PopoutCallback,
 } from "@fragiola/dockable";
 import * as React from "react";
 
@@ -21,6 +21,11 @@ export interface PanelLayer {
     engine: LayoutEngine;
 }
 
+/**
+ * The context of a `Dockable.Root`. It holds the model and engines with the registry erased
+ * (`AnyTypes`): a child cannot infer the root's `T` through context, so the typed surface is each
+ * part's props and type argument.
+ */
 export interface DockableContextValue {
     /** the main layout's engine */
     engine: LayoutEngine;
@@ -37,16 +42,26 @@ export interface DockableContextValue {
     popoutHooks: { current: PopoutHooks };
 }
 
-/** Window callbacks a `Dockable.Popout` contributes. */
+/** Window callbacks a `Dockable.Popout` contributes, by window layout id. */
 export interface PopoutHooks {
-    title?: ((layout: ModelLayout) => string | undefined) | undefined;
-    onOpen?: PopoutCallback | undefined;
-    onClose?: PopoutCallback | undefined;
+    title?: ((layoutId: string) => string | undefined) | undefined;
+    onOpen?:
+        | ((layoutId: string, window: Window, document: Document) => void)
+        | undefined;
+    onClose?:
+        | ((layoutId: string, window: Window, document: Document) => void)
+        | undefined;
 }
 
 export const DockableContext = React.createContext<DockableContextValue | null>(
     null,
 );
+
+/**
+ * The model alone: it changes only when the root gets another model, so a component that reads
+ * it (`useModelState`) does not re-render with every change of the layout.
+ */
+export const ModelContext = React.createContext<Model | null>(null);
 
 /** The layout a subtree renders: the main layout, or a popout's. */
 export interface LayoutContextValue {
@@ -81,4 +96,33 @@ export function useLayoutContext(part: string): LayoutContextValue {
         );
     }
     return context;
+}
+
+/**
+ * A model of any registry, seen as `Model<AnyTypes>`. `Model<T>` takes `T` in its commands'
+ * payloads, so it is not assignable to the erased type; the adapter only passes it on to the core.
+ */
+export function eraseModel<T extends DockableTypes>(
+    model: Model<T>,
+): Model<AnyTypes> {
+    return model as unknown as Model<AnyTypes>;
+}
+
+/** An engine of any registry, seen as `LayoutEngine<AnyTypes>` (see {@link eraseModel}). */
+export function eraseEngine<T extends DockableTypes>(
+    engine: LayoutEngine<T>,
+): LayoutEngine {
+    return engine as unknown as LayoutEngine;
+}
+
+/** The erased engine seen with the registry `T` the caller declares (`useDockable<T>()`). */
+export function typedEngine<T extends DockableTypes>(
+    engine: LayoutEngine,
+): LayoutEngine<T> {
+    return engine as unknown as LayoutEngine<T>;
+}
+
+/** The erased model seen with the registry `T` the caller declares. */
+export function typedModel<T extends DockableTypes>(model: Model): Model<T> {
+    return model as unknown as Model<T>;
 }

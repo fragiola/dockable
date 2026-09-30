@@ -1,56 +1,114 @@
 ---
 title: Saving and restoring layouts
-description: toJson, fromJson and onModelChange - persist a layout and bring it back.
+description: Save model.toJSON(), restore it with createModel or layout.load, and handle a stored layout that no longer validates.
 ---
 
-A layout is plain JSON. Save `model.toJson()`, restore with `Model.fromJson()`.
+A layout is plain JSON, version 1 (`LayoutJson`). Save `model.toJSON()`; restore it with
+`createModel(json)` at start-up, or with the `layout.load` command into a model that is already on
+screen. Both validate the document first and say exactly what is wrong with one that does not fit.
 
 <Example id="save-restore" />
 
 ## Saving on every change
 
-`onModelChange` is called after each applied action. Skip the *adjusting* actions of a live
-splitter drag (or debounce), and guard storage access: it can throw (private mode, quota).
+`model.subscribe` calls a listener after every committed command, with the command's event. Skip
+the *transient* steps of a live gesture (a splitter drag: its last command is not transient), or
+debounce, and guard storage access: it can throw (private mode, quota).
 
 ```tsx
+import type { Model } from "@fragiola/dockable";
+
 const KEY = "my-app:layout";
 
-function save(model: Model, action: Action) {
-    if (action.isAdjusting()) return; // the gesture ends with a normal action
-    try {
-        localStorage.setItem(KEY, JSON.stringify(model.toJson()));
-    } catch {
-        // storage unavailable: keep working without persistence
-    }
+function persist(model: Model<Types>) {
+    return model.subscribe((event) => {
+        if (event.transient) return; // the gesture ends with a normal command
+        try {
+            localStorage.setItem(KEY, JSON.stringify(model.toJSON()));
+        } catch {
+            // storage unavailable: keep working without persistence
+        }
+    });
 }
 
-<Dockable.Root model={model} onModelChange={save}>
+// in a component: subscribe once per model, unsubscribe on unmount
+useEffect(() => persist(model), [model]);
 ```
+
+`JSON.stringify(model)` works too: it calls `toJSON()`.
 
 ## Restoring at start-up
 
+`createModel` validates the document against JSON v1 and throws a `LayoutValidationError` when it
+does not fit, with every problem in `error.issues` (each a `ValidationIssue`: a JSON pointer
+`path` and a `message`). A saved layout outlives your code, so expect it: fall back to your
+default layout, and tell the user why if it matters.
+
 ```tsx
-function loadModel(): Model {
+import { createModel, LayoutValidationError, type Model } from "@fragiola/dockable";
+
+function loadModel(): Model<Types> {
     try {
         const saved = localStorage.getItem(KEY);
-        if (saved) return Model.fromJson(JSON.parse(saved) as IJsonModel);
-    } catch {
-        // corrupt or unavailable: fall back to the default
+        if (saved) return createModel<Types>(JSON.parse(saved));
+    } catch (error) {
+        if (error instanceof LayoutValidationError) {
+            // every problem: a JSON pointer into the document and a message
+            console.warn(error.issues.map((issue) => `${issue.path} ${issue.message}`));
+        }
+        // corrupt, invalid or unavailable: fall back to the default
     }
-    return Model.fromJson(defaultJson);
+    return createModel<Types>(defaultJson);
 }
 
-const [model, setModel] = useState(loadModel);
+const [model] = useState(loadModel);
 ```
+
+To check a document without building a model (and without throwing), use `validateLayout(json)`:
+it returns `{ ok: true, value }` or `{ ok: false, issues }`.
+
+### Validating your data too
+
+The schema checks the layout's shape, not your tabs' `data`. Register a JSON Schema per component
+with `dataSchemas`, and `createModel`, `layout.load`, `tab.add` and `tab.update` validate each
+tab's `data` with it, so a stored editor that lost its `path` is reported instead of crashing the
+editor:
+
+```ts
+import { createModel, type JsonSchema } from "@fragiola/dockable";
+
+const editor: JsonSchema = {
+    type: "object",
+    properties: { name: { type: "string" }, path: { type: "string" } },
+    required: ["name", "path"],
+};
+
+const model = createModel<Types>(json, { dataSchemas: { editor } });
+```
+
+`validateLayout(json, { dataSchemas })` takes the same schemas.
 
 ## Restoring into a mounted layout
 
-To load a layout while one is on screen (a "Reset layout" button, a saved workspace), create a
-new model and render it. Pass the current model as the second argument so tabs with the same
-**id** keep their mounted content:
+To load a layout while one is on screen (a "Reset layout" button, a saved workspace, an undo step),
+run `layout.load` on the model you already have. The model keeps its identity, so nothing is
+re-created: tabs whose **id** survives keep their mounted content, and the result lists the ids
+`added` and `removed`.
 
-```tsx
-const restore = (json: IJsonModel) => setModel((current) => Model.fromJson(json, current));
+```ts
+const reset = () => model.run("layout.load", { layout: defaultJson });
+```
+
+A stored document is untrusted JSON: `dispatch` takes it as is, validates it, and returns a result
+instead of throwing. An invalid layout is an `invalid_payload` error whose `issues` carry every
+problem (their paths start with `/payload/layout`; with `run`, `/layout`), and the current layout
+stays:
+
+```ts
+const result = model.dispatch({ command: "layout.load", payload: { layout: JSON.parse(text) } });
+if (!result.ok) {
+    showError(result.error.issues?.map((issue) => `${issue.path} ${issue.message}`) ?? [result.error.message]);
+}
 ```
 
 Give tabs stable `id`s in your default JSON if content should survive a reset. Tabs without an id
@@ -58,38 +116,46 @@ get a generated one, which a different JSON will not match.
 
 ## What is saved
 
-`toJson()` returns `{ global, borders, layout, subLayouts }`:
+`toJSON()` returns a `LayoutJson` (`version`, `root`, and when they are set `defaults`, `active`,
+`maximized`, `borders` and `windows`), and `createModel(model.toJSON())` gives back the same
+state. It holds:
 
-- the tree: rows, tabsets and tabs with their ids, names, `component`, `config` and weights;
-- the selected tab of each tabset, the active tabset and the maximized one;
-- every attribute that differs from its default;
-- popout windows (`subLayouts`), with their screen rect. Restoring reopens them, which the
-  browser may block without a user gesture.
+- the tree: rows, tabsets and tabs with their ids, weights, `component` and `data`, and every
+  behaviour field set on a node (`enableClose`, `pinned`, `minWidth`, …);
+- the selected tab of each tabset and border, and each layout's active and maximized tabset;
+- the layout `defaults`;
+- popout windows (`windows`), with their screen rect. Restoring reopens them, which the browser
+  may block without a user gesture.
 
 It does **not** save your content's state (a text field's value, a scroll position of your own
-component). Store that yourself, keyed by tab id, or in the tab's `config` with
-`Actions.updateNodeAttributes(tab.getId(), { config })`.
+component). Store that yourself, keyed by tab id, or in the tab's `data`.
 
 ## Saving content state with the layout
 
 Keep content state in your own store, keyed by tab id, and save it next to the layout:
 
 ```ts
-const saved = { layout: model.toJson(), drafts: Object.fromEntries(drafts) };
+const saved = { layout: model.toJSON(), drafts: Object.fromEntries(drafts) };
 ```
 
 When the state should travel **inside** the layout JSON (to a popout, into undo history), write
-it into the tab's `config` with an action when it changes (debounced for typing):
+it into the tab's data with `tab.update` when it changes (debounced for typing). `data` is the
+whole value, so spread the rest of it:
 
 ```ts
-engine.doAction(Actions.updateNodeAttributes(tab.getId(), { config: { ...tab.getConfig(), draft } }));
+if (tab.component === "editor") {
+    model.run("tab.update", { tab: tab.id, component: "editor", data: { ...tab.data, draft } });
+}
 ```
 
-Each such action is an undo step; add `Actions.UPDATE_NODE_ATTRIBUTES` to the
-your [undo history](/docs/guides/undo-redo)'s ignored actions if it should not be.
+Each such command is an undo step; add `"tab.update"` to your
+[undo history](/docs/guides/undo-redo)'s ignored commands if it should not be (renames are
+`tab.update` too).
 
 ## Versioning saved layouts
 
-A saved layout outlives your code. Store a version next to it and fall back to the default when
-it does not match, or migrate: the JSON is yours to transform before `fromJson`. Validate
-`component` names against the components you still have.
+The document carries its format's `version` (1), and loading refuses any other value. Your own
+data changes too: store your app's version next to the layout and fall back to the default when it
+does not match, or migrate: the JSON is yours to transform before `createModel` or `layout.load`.
+With `dataSchemas`, a tab whose data no longer fits is reported rather than rendered, and a
+`component` your registry no longer has is yours to check (or drop) before loading.

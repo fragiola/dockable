@@ -1,10 +1,9 @@
-import { type ITransfer, Model } from "@fragiola/dockable";
+import { createModel, type Model, type Transfer } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { layoutFromQuery } from "../../src/fixture/layouts";
-import { renderNode } from "../../src/fixture/renderNode";
-import { TabContent } from "../../src/fixture/TabContent";
+import { layoutFromQuery, type Types } from "../../src/fixture/layouts";
+import { renderNode, renderPanel } from "../../src/fixture/renderNode";
 import "../../src/fixture/fixture.css";
 
 /**
@@ -15,34 +14,39 @@ import "../../src/fixture/fixture.css";
 const grouped =
     new URLSearchParams(window.location.search).get("group") !== "0";
 
-function Layout({ model, testId }: { model: Model; testId: string }) {
+function Layout({ model, testId }: { model: Model<Types>; testId: string }) {
     return (
         <div
             data-testid={testId}
             style={{ display: "flex", flex: 1, minWidth: 0 }}
         >
             <Dockable.Root model={model}>
-                <Dockable.Row>{renderNode}</Dockable.Row>
-                <Dockable.Panels>
-                    {(tab) => (
-                        <Dockable.Panel node={tab}>
-                            <TabContent tab={tab} />
-                        </Dockable.Panel>
-                    )}
-                </Dockable.Panels>
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
                 <Dockable.DropIndicator />
             </Dockable.Root>
         </div>
     );
 }
 
+/** the name a transferred tab left with (its data, as the source model held it) */
+function nameOf(transfer: Transfer): string {
+    const data = transfer.init.data;
+    return typeof data === "object" &&
+        data !== null &&
+        "name" in data &&
+        typeof data.name === "string"
+        ? data.name
+        : "?";
+}
+
 function App() {
-    const [a] = useState(() => Model.fromJson(layoutFromQuery()));
-    const [b] = useState(() => Model.fromJson(layoutFromQuery()));
+    const [a] = useState(() => createModel<Types>(layoutFromQuery()));
+    const [b] = useState(() => createModel<Types>(layoutFromQuery()));
     const [last, setLast] = useState("none");
-    const onTransfer = (transfer: ITransfer) =>
+    const onTransfer = (transfer: Transfer) =>
         setLast(
-            `${transfer.tab.getName()}:${transfer.from.model === a ? "a" : "b"}->${transfer.to.model === a ? "a" : "b"}`,
+            `${nameOf(transfer)}:${transfer.from.model === a ? "a" : "b"}->${transfer.to.model === a ? "a" : "b"}`,
         );
     const layouts = (
         <div style={{ display: "flex", flex: 1, gap: 16, minHeight: 0 }}>

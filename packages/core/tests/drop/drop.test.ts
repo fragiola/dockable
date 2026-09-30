@@ -1,0 +1,204 @@
+import { describe, expect, it } from "vitest";
+import {
+    type DropGeometry,
+    type DropSubjectKind,
+    dropCandidates,
+} from "../../src/drop/resolve";
+import { clampToPinnedRun, findStripDrop } from "../../src/drop/strip";
+import {
+    dockLocationAt,
+    dockRect,
+    edgeAt,
+    edgeBands,
+} from "../../src/geometry/dock";
+import { type Rect, rect } from "../../src/geometry/rect";
+import { createModel } from "../../src/state/model";
+import { tab } from "../state/harness";
+
+describe("dock locations", () => {
+    const r = rect(0, 0, 100, 100);
+    it("splits a rect into a center and four sides along its diagonals", () => {
+        expect(dockLocationAt(r, 50, 50)).toBe("center");
+        expect(dockLocationAt(r, 50, 5)).toBe("top");
+        expect(dockLocationAt(r, 50, 95)).toBe("bottom");
+        expect(dockLocationAt(r, 5, 50)).toBe("left");
+        expect(dockLocationAt(r, 95, 50)).toBe("right");
+        expect(dockLocationAt(r, 50, 40, true)).toBe("top");
+        expect(dockLocationAt(rect(0, 0, 0, 10), 1, 1)).toBe("center");
+    });
+
+    it("gives each location half the rect", () => {
+        expect(dockRect(r, "top")).toEqual(rect(0, 0, 100, 50));
+        expect(dockRect(r, "right")).toEqual(rect(50, 0, 50, 100));
+        expect(dockRect(r, "center")).toBe(r);
+    });
+
+    it("draws the edge bands and finds the band under a point, once", () => {
+        const root = rect(10, 20, 400, 300);
+        expect(edgeBands(root, 10, 100)).toEqual([
+            { location: "top", rect: rect(160, 20, 100, 10) },
+            { location: "bottom", rect: rect(160, 310, 100, 10) },
+            { location: "left", rect: rect(10, 120, 10, 100) },
+            { location: "right", rect: rect(400, 120, 10, 100) },
+        ]);
+        expect(edgeAt(root, 10, 100, 12, 170)).toEqual({
+            location: "left",
+            outline: rect(10, 20, 100, 300),
+        });
+        expect(edgeAt(root, 10, 100, 405, 170)?.outline).toEqual(
+            rect(310, 20, 100, 300),
+        );
+        expect(edgeAt(root, 10, 100, 12, 30)).toBeUndefined(); // outside the band's length
+        expect(edgeAt(root, 10, 100000, 12, 30)?.location).toBe("left"); // the whole edge
+    });
+});
+
+describe("strip drops", () => {
+    const host = rect(0, 0, 300, 200);
+    const strip = rect(0, 0, 300, 30);
+    const tabs = [
+        rect(0, 0, 60, 30),
+        rect(60, 0, 60, 30),
+        rect(120, 0, 60, 30),
+    ];
+
+    it("drops before a tab's centre, after the last one, or in an empty strip", () => {
+        expect(findStripDrop(host, strip, tabs, 80, 10, false, false)).toEqual({
+            index: 1,
+            outline: rect(58, 0, 3, 30),
+        });
+        expect(findStripDrop(host, strip, tabs, 170, 10, false, false)).toEqual(
+            {
+                index: 3,
+                outline: rect(178, 0, 3, 30),
+            },
+        );
+        expect(findStripDrop(host, strip, [], 170, 10, false, false)).toEqual({
+            index: 0,
+            outline: rect(0, 0, 2, 30),
+        });
+    });
+
+    it("skips tabs hidden by overflow", () => {
+        const hidden: (Rect | undefined)[] = [
+            tabs[0],
+            rect(0, 0, 0, 0),
+            tabs[2],
+        ];
+        expect(
+            findStripDrop(host, strip, hidden, 130, 10, false, false)?.index,
+        ).toBe(2);
+    });
+
+    it("clamps to the pinned run", () => {
+        const drop = { index: 0, outline: rect(-2, 0, 3, 30) };
+        expect(clampToPinnedRun(drop, 2, false, tabs)).toEqual({
+            index: 2,
+            outline: rect(118, 0, 3, 30),
+        });
+        expect(
+            clampToPinnedRun({ index: 3, outline: drop.outline }, 1, true, tabs)
+                .index,
+        ).toBe(1);
+    });
+});
+
+describe("drop candidates", () => {
+    const model = createModel({
+        version: 1,
+        root: {
+            type: "row",
+            id: "root",
+            children: [
+                { type: "tabset", id: "a", children: [tab("A1"), tab("A2")] },
+                {
+                    type: "tabset",
+                    id: "b",
+                    enableDrop: false,
+                    children: [tab("B1")],
+                },
+            ],
+        },
+        borders: [{ location: "bottom", children: [tab("Log")] }],
+    });
+    const rects: Record<string, Rect> = {
+        root: rect(0, 0, 400, 300),
+        a: rect(0, 0, 196, 300),
+        b: rect(204, 0, 196, 300),
+    };
+    const geometry: DropGeometry = {
+        node: (id) => rects[id],
+        tabStrip: (id) =>
+            rects[id] ? rect(rects[id].x, 0, rects[id].width, 30) : undefined,
+        content: (id) =>
+            rects[id] ? rect(rects[id].x, 30, rects[id].width, 270) : undefined,
+        tabButton: (id) =>
+            ({
+                A1: rect(0, 0, 60, 30),
+                A2: rect(60, 0, 60, 30),
+                B1: rect(204, 0, 60, 30),
+                Log: rect(0, 300, 60, 20),
+            })[id],
+        borderStrip: () => rect(0, 300, 400, 20),
+        borderContent: () => undefined,
+    };
+    const tabSubject: DropSubjectKind = {
+        kind: "tab",
+        id: "A1",
+        pinned: false,
+    };
+    const candidates = (
+        x: number,
+        y: number,
+        subject: DropSubjectKind = tabSubject,
+    ) =>
+        dropCandidates(model.state, "main", geometry, subject, x, y, {
+            excludeCenter: false,
+        });
+
+    it("offers the edge band first, then the tabset under the point", () => {
+        const found = candidates(5, 150);
+        expect(found.map((c) => [c.target, c.location, c.kind])).toEqual([
+            ["root", "left", "edge"],
+            ["a", "left", "rect"],
+        ]);
+    });
+
+    it("offers a strip drop with its index", () => {
+        expect(candidates(100, 10)).toMatchObject([
+            { target: "a", location: "center", index: 2 },
+        ]);
+    });
+
+    it("keeps a center-less tabset's content to its edges", () => {
+        expect(candidates(300, 150)).toMatchObject([{ target: "b" }]);
+        expect(candidates(300, 150)[0]?.location).not.toBe("center");
+    });
+
+    it("offers the border strip", () => {
+        expect(candidates(100, 310)).toMatchObject([
+            { target: "border_bottom", index: 1 },
+        ]);
+    });
+
+    it("marks a tabset dropped on itself", () => {
+        expect(candidates(100, 150, { kind: "tabset", id: "a" })).toMatchObject(
+            [{ target: "a", self: true }],
+        );
+    });
+
+    it("offers only the maximized tabset", () => {
+        const maximized = createModel({ ...model.toJSON(), maximized: "a" });
+        expect(
+            dropCandidates(
+                maximized.state,
+                "main",
+                geometry,
+                tabSubject,
+                5,
+                150,
+                { excludeCenter: false },
+            ),
+        ).toMatchObject([{ target: "a", location: "center" }]);
+    });
+});

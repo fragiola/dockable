@@ -7,8 +7,9 @@ export default {
     level: "basic",
     order: 6,
     features: [
-        "Actions.deleteTab",
-        "Actions.deleteTabset",
+        "tab.close",
+        "tabset.close",
+        "model.can",
         "enableClose",
         "data-empty",
     ],

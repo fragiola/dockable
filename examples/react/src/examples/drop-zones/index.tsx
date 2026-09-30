@@ -1,13 +1,11 @@
 "use client";
 
 import {
-    Actions,
-    DockLocation,
-    type IJsonModel,
-    LayoutEngine,
-    Model,
-    type Node,
-    TabNode,
+    createModel,
+    type DragSubject,
+    type LayoutJson,
+    type Model,
+    type TabOf,
 } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import {
@@ -22,26 +20,27 @@ import { DockLayout } from "../_kit/layout";
 
 // Drop zones: elements outside the layout that take a dragged tab. While a drag the zone takes is
 // in progress it has `data-drop-active`; while the pointer is over it, `data-drop-over` (and the
-// layout hides its outline). A drop calls `onDrop` with the dragged node: nothing moves by itself,
-// the zone dispatches the action it stands for, through the engine (so `onAction` sees it).
+// layout hides its outline). A drop calls `onDrop` with what is dragged: nothing moves by itself,
+// the zone runs the command it stands for on the model (so its middleware sees it).
 
-const json: IJsonModel = {
-    global: { tabEnablePopout: true },
-    borders: [],
-    layout: {
+type Types = { tabs: { card: { name: string } } };
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    defaults: { tab: { enablePopout: true } },
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { type: "tab", name: "Inbox", component: "card" },
-                    { type: "tab", name: "Drafts", component: "card" },
+                    { component: "card", data: { name: "Inbox" } },
+                    { component: "card", data: { name: "Drafts" } },
                     // cannot be closed: the trash does not take it
                     {
-                        type: "tab",
-                        name: "Pinned note",
                         component: "card",
+                        data: { name: "Pinned note" },
                         enableClose: false,
                     },
                 ],
@@ -50,13 +49,18 @@ const json: IJsonModel = {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { type: "tab", name: "Calendar", component: "card" },
-                    { type: "tab", name: "Contacts", component: "card" },
+                    { component: "card", data: { name: "Calendar" } },
+                    { component: "card", data: { name: "Contacts" } },
                 ],
             },
         ],
     },
 };
+
+/** The dragged tab of the layout, or undefined for a tabset or a new tab. */
+function draggedTab(drag: DragSubject<Types>): TabOf<Types> | undefined {
+    return drag.kind === "tab" ? drag.tab : undefined;
+}
 
 function Zone({
     model,
@@ -68,18 +72,25 @@ function Zone({
     id,
 }: {
     id: string;
-    model: Model;
+    model: Model<Types>;
     icon: LucideIcon;
     label: ReactNode;
-    accepts: (node: Node) => boolean;
-    onDrop: (node: Node) => void;
+    accepts: (tab: TabOf<Types>) => boolean;
+    onDrop: (tab: TabOf<Types>) => void;
     tone: string;
 }) {
     return (
         <Dockable.DropZone
             model={model}
-            accepts={accepts}
-            onDrop={(node) => onDrop(node)}
+            // the zones take tabs only
+            accepts={(drag) => {
+                const tab = draggedTab(drag);
+                return tab !== undefined && accepts(tab);
+            }}
+            onDrop={(drag) => {
+                const tab = draggedTab(drag);
+                if (tab) onDrop(tab);
+            }}
             data-testid={`zone-${id}`}
             className={[
                 tone,
@@ -97,18 +108,13 @@ function Zone({
 }
 
 export default function DropZones() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     const [status, setStatus] = useState("Drag a tab onto a zone below.");
 
-    // the zones live outside Dockable.Root: LayoutEngine.of finds the mounted layout's engine
-    const act = (
-        describe: string,
-        action: Parameters<LayoutEngine["doAction"]>[0],
-    ) => {
-        LayoutEngine.of(model)?.doAction(action);
-        setStatus(describe);
+    // the zones live outside Dockable.Root: they run commands on the model itself
+    const report = (ok: boolean, describe: string) => {
+        if (ok) setStatus(describe);
     };
-    const isTab = (node: Node): node is TabNode => node instanceof TabNode;
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -124,11 +130,13 @@ export default function DropZones() {
                     label="Close"
                     tone="palette-danger"
                     // only tabs that may be closed
-                    accepts={(node) => isTab(node) && node.isEnableClose()}
-                    onDrop={(node) =>
-                        act(
-                            `Closed ${(node as TabNode).getName()}`,
-                            Actions.deleteTab(node.getId()),
+                    accepts={(tab) =>
+                        model.can("tab.close", { tab: tab.id }).ok
+                    }
+                    onDrop={(tab) =>
+                        report(
+                            model.run("tab.close", { tab: tab.id }).ok,
+                            `Closed ${tab.data.name}`,
                         )
                     }
                 />
@@ -138,18 +146,18 @@ export default function DropZones() {
                     icon={PanelRight}
                     label="Open to the right"
                     tone="palette-blue"
-                    accepts={isTab}
-                    onDrop={(node) => {
-                        const root = model.getRootRow();
+                    accepts={() => true}
+                    onDrop={(tab) => {
+                        const root = model.root();
                         if (!root) return;
-                        act(
-                            `Moved ${(node as TabNode).getName()} to the right`,
-                            Actions.moveNode(
-                                node.getId(),
-                                root.getId(),
-                                DockLocation.RIGHT,
-                                -1,
-                            ),
+                        // the right edge of the root row: a new tabset on the right of the layout
+                        report(
+                            model.run("tab.move", {
+                                tab: tab.id,
+                                to: root.id,
+                                location: "right",
+                            }).ok,
+                            `Moved ${tab.data.name} to the right`,
                         );
                     }}
                 />
@@ -159,11 +167,13 @@ export default function DropZones() {
                     icon={ExternalLink}
                     label="Pop out"
                     tone="palette-green"
-                    accepts={(node) => isTab(node) && node.isEnablePopout()}
-                    onDrop={(node) =>
-                        act(
-                            `Popped out ${(node as TabNode).getName()}`,
-                            Actions.popoutTab(node.getId(), "window"),
+                    accepts={(tab) =>
+                        model.can("tab.popout", { tab: tab.id }).ok
+                    }
+                    onDrop={(tab) =>
+                        report(
+                            model.run("tab.popout", { tab: tab.id }).ok,
+                            `Popped out ${tab.data.name}`,
                         )
                     }
                 />

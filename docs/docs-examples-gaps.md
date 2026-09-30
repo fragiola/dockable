@@ -1,5 +1,9 @@
 # Docs examples report
 
+> **Pre-v2.** This report describes the API before Engine v2 (Epic #43): `Actions`,
+> `doAction`, `onAction`, node getters and `IJsonModel` are gone. See the design record,
+> [docs/engine-v2-design.md](engine-v2-design.md), for what replaced them.
+
 Epic #10 built the documentation site (the first docs site, since replaced by fragiola.com/dockable) and 26 examples against the packages as
 they are. It changed **no file under `packages/`**. Everything the examples had to work around
 is listed here, as input for the next Epics, in the same spirit as

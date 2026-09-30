@@ -1,13 +1,13 @@
 "use client";
 
 import {
-    Actions,
-    type IJsonModel,
-    Model,
-    type TabNode,
-    TabSetNode,
+    createModel,
+    type LayoutJson,
+    type ParentNode,
+    type TabOf,
+    type TabsetNode,
 } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { useDockable, useModelState } from "@fragiola/dockable-react";
 import { Palette } from "lucide-react";
 import { useState } from "react";
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
@@ -21,8 +21,8 @@ import { useStageTheme } from "../_kit/theme";
 
 // Fragiola palettes, scoped per tabset. A palette class sets six roles (base, soft, line,
 // contrast, accent, ring) as CSS variables, and every `bg-palette-*`/`text-palette-*` inside
-// reads them. Each tabset keeps its palette in its `config` (through an action, so it is saved
-// with the layout); the tabset's element takes the class.
+// reads them. Each tabset keeps its palette in its `data` (through the `tabset.configure` command,
+// so it is saved with the layout); the tabset's element takes the class.
 //
 // A coloured palette's `base` is a strong fill, so the tabset uses the pairs its roles are made
 // for: `soft` behind `accent` text, and the selected tab as a `base` chip with `contrast` text.
@@ -38,19 +38,24 @@ const PALETTES = [
 
 const DEFAULT_PALETTE = "palette-raised";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+// What the layout holds: each tab component's data, and the tabsets' data (their palette).
+type Types = {
+    tabs: { chart: { name: string }; card: { name: string } };
+    tabset: { palette: string };
+};
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 weight: 50,
-                config: { palette: "palette-blue" },
+                data: { palette: "palette-blue" },
                 children: [
-                    { type: "tab", name: "Trend", component: "chart" },
-                    { type: "tab", name: "Notes", component: "card" },
+                    { component: "chart", data: { name: "Trend" } },
+                    { component: "card", data: { name: "Notes" } },
                 ],
             },
             {
@@ -59,15 +64,15 @@ const json: IJsonModel = {
                 children: [
                     {
                         type: "tabset",
-                        config: { palette: "palette-orange" },
+                        data: { palette: "palette-orange" },
                         children: [
-                            { type: "tab", name: "Alerts", component: "card" },
+                            { component: "card", data: { name: "Alerts" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { type: "tab", name: "Plain", component: "card" },
+                            { component: "card", data: { name: "Plain" } },
                         ],
                     },
                 ],
@@ -76,18 +81,15 @@ const json: IJsonModel = {
     },
 };
 
-function paletteOf(tabset: TabSetNode | undefined): string {
-    return (
-        (tabset?.getConfig() as { palette?: string } | undefined)?.palette ??
-        DEFAULT_PALETTE
-    );
+/** A tabset's palette (a tab's parent may also be a border, which has none). */
+function paletteOf(node: ParentNode<Types> | undefined): string {
+    return (node?.type === "tabset" && node.data?.palette) || DEFAULT_PALETTE;
 }
 
 /** The tabset's palette picker: a Fragiola DropdownMenu with a radio group. */
-function PaletteMenu({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
+function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { run } = useDockable<Types>();
     const [themeRef, theme] = useStageTheme();
-    const config = (tabset.getConfig() ?? {}) as Record<string, unknown>;
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger
@@ -103,11 +105,10 @@ function PaletteMenu({ tabset }: { tabset: TabSetNode }) {
                     <DropdownMenu.RadioGroup
                         value={paletteOf(tabset)}
                         onValueChange={(palette) =>
-                            engine.doAction(
-                                Actions.updateNodeAttributes(tabset.getId(), {
-                                    config: { ...config, palette },
-                                }),
-                            )
+                            run("tabset.configure", {
+                                tabset: tabset.id,
+                                data: { ...tabset.data, palette },
+                            })
                         }
                     >
                         {PALETTES.map((palette) => (
@@ -140,21 +141,20 @@ function PaletteMenu({ tabset }: { tabset: TabSetNode }) {
  * `palette-raised`, which an added `palette-surface` cannot override, since the surface rules come
  * first in the stylesheet.)
  */
-function Content({ tab }: { tab: TabNode }) {
-    const parent = tab.getParent();
-    const palette = paletteOf(
-        parent instanceof TabSetNode ? parent : undefined,
+function Content({ tab }: { tab: TabOf<Types> }) {
+    const palette = useModelState<Types, string>((_, model) =>
+        paletteOf(model.parentOf(tab.id)),
     );
     return (
         <div
             data-palette={palette}
             className={cn(
                 palette,
-                tab.getComponent() === "chart" ? "h-full" : "min-h-full",
+                tab.component === "chart" ? "h-full" : "min-h-full",
                 "bg-palette-soft text-palette-accent",
             )}
         >
-            {tab.getComponent() === "chart" ? (
+            {tab.component === "chart" ? (
                 // the chart derives its series from the palette: redraw it when that changes
                 <ChartPanel
                     key={palette}
@@ -170,7 +170,7 @@ function Content({ tab }: { tab: TabNode }) {
 }
 
 export default function ScopedPalettes() {
-    const [model] = useState(() => Model.fromJson(json));
+    const [model] = useState(() => createModel<Types>(json));
     return (
         <DockLayout
             model={model}

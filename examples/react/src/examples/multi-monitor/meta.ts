@@ -10,7 +10,9 @@ export default {
         "PopoutTrigger target=tabset",
         "drag between popouts",
         "popoutMirrorRoot",
-        "engine.dockBack",
+        "window.close",
+        "batch",
+        "typed data",
     ],
     docs: "/docs/guides/cross-layout-drag",
 } satisfies ExampleMeta;

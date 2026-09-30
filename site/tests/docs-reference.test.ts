@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -13,7 +13,9 @@ import { describe, expect, it } from "vitest";
 // - every export of @fragiola/dockable-react (index.ts, and the parts in parts.ts) is on its
 //   reference page;
 // - every field of every exported props/state/result interface is a row of its page's tables;
-// - the core pages cover every action creator, label key, JSON attribute and public method.
+// - the core pages cover every command (with every payload and result field, taken from the
+//   registry itself), every error code, every export of the core, every field of the node and
+//   layout JSON types, every label key and every public method of the model and the engine.
 //
 // Interfaces are read with regular expressions (fields are the 4-space-indented `name?:` lines
 // of an `export interface … {` block), which is enough for this codebase's formatting (Biome).
@@ -24,6 +26,19 @@ const CORE_SRC = join(ROOT, "packages/core/src");
 const API = join(import.meta.dirname, "../docs/api");
 
 const read = (path: string) => readFileSync(path, "utf-8");
+
+/** What the test reads of a command in the core's registry. */
+interface CommandInfo {
+    name: string;
+    payloadSchema: { properties?: Record<string, unknown> };
+    resultSchema: { properties?: Record<string, unknown> };
+}
+
+// the core's registry, loaded at run time from its source: a computed path keeps the site's
+// typecheck from checking the core too (it has its own)
+const core = (await import(join(CORE_SRC, "index.ts"))) as {
+    createModel(): { commands(): readonly CommandInfo[] };
+};
 const page = (slug: string) => read(join(API, `${slug}.mdx`));
 
 /** The reference page of each module of the React package. */
@@ -77,23 +92,44 @@ function namedExports(source: string): Export[] {
     return exports;
 }
 
-/** The fields of `export interface <name> … { … }` in `source`, or undefined when absent. */
+/**
+ * The fields of `export interface <name> … { … }` (or of `export type <name> … = { … }`) in
+ * `source`, or undefined when absent. `extendsNames` are the names in its heritage clause.
+ */
 function interfaceFields(
     source: string,
     name: string,
 ): { fields: string[]; extendsNames: string[] } | undefined {
-    const match = new RegExp(
+    const declared = new RegExp(
         `export interface ${name}\\b([^{]*)\\{([\\s\\S]*?)\\n\\}`,
     ).exec(source);
-    if (!match) return undefined;
-    const [, heritage = "", body = ""] = match;
+    const aliased = new RegExp(
+        `export type ${name}\\b(?:<[^>]*>)?\\s*= \\{([\\s\\S]*?)\\n\\}`,
+    ).exec(source);
+    if (!declared && !aliased) return undefined;
+    const heritage = declared?.[1] ?? "";
+    const body = (declared ? declared[2] : aliased?.[1]) ?? "";
     const fields = [...body.matchAll(/^ {4}(?:readonly )?(\w+)\??:/gm)].map(
         (field) => field[1] ?? "",
     );
-    const extendsNames = [...heritage.matchAll(/\b(I\w+)\b/g)].map(
+    // the bases after `extends`: not the type parameters (`<T extends …>`), not type arguments
+    const bases = heritage
+        .replace(/^\s*<[^>]*>/, "")
+        .replace(/<[^>]*>/g, "")
+        .replace(/^\s*extends\b/, "");
+    const extendsNames = [...bases.matchAll(/\b([A-Z]\w*)\b/g)].map(
         (base) => base[1] ?? "",
     );
     return { fields, extendsNames };
+}
+
+/** `import { type A as B }` aliases of a source: alias → original name. */
+function importAliases(source: string): Map<string, string> {
+    const aliases = new Map<string, string>();
+    for (const match of source.matchAll(/(?:type )?(\w+) as (\w+)/g)) {
+        aliases.set(match[2] ?? "", match[1] ?? "");
+    }
+    return aliases;
 }
 
 /** The first-cell names of every markdown table row: `` | `name(…)` | `` gives `name`. */
@@ -135,16 +171,24 @@ function sourceOf(module: string): string {
     }
 }
 
-const CORE_FILES = ["splitter/SplitterController.ts", "dnd/DragDropManager.ts"];
+const CORE_FILES = [
+    "splitter/SplitterController.ts",
+    "dnd/DragDropManager.ts",
+    "state/types.ts",
+];
 
-/** Fields of an interface, following `extends` into the core for `I…` bases. */
+/** Fields of an interface, following `extends` into the core for bases it declares. */
 function allFields(source: string, name: string): string[] {
     const found = interfaceFields(source, name);
     if (!found) return [];
+    const aliases = importAliases(source);
     const inherited = found.extendsNames.flatMap((base) => {
+        const original = aliases.get(base) ?? base;
         for (const file of CORE_FILES) {
             const core = read(join(CORE_SRC, file));
-            if (interfaceFields(core, base)) return allFields(core, base);
+            if (interfaceFields(core, original)) {
+                return allFields(core, original);
+            }
         }
         return [];
     });
@@ -253,78 +297,190 @@ describe("the React reference", () => {
 });
 
 describe("the core reference", () => {
-    it("lists every action creator and type constant", () => {
-        const source = read(join(CORE_SRC, "model/Actions.ts"));
-        const actions = source.slice(
-            source.indexOf("export class Actions"),
-            source.indexOf("export class Action {"),
+    const commands = core.createModel().commands();
+    const commandsPage = page("commands");
+
+    /** The part of the commands page about one command: from its `###` to the next heading. */
+    function commandSection(name: string): string {
+        const heading = `### \`${name}\``;
+        const start = commandsPage.indexOf(heading);
+        if (start < 0) return "";
+        const rest = commandsPage.slice(start + heading.length);
+        const end = rest.search(/^#{2,3} /m);
+        return end < 0 ? rest : rest.slice(0, end);
+    }
+
+    it("has a section for every command of the registry, with every payload and result field", () => {
+        expect(commands.length).toBeGreaterThan(20);
+        // the registry is the one the model runs: the source names the same commands
+        const sources = ["tab", "tabset", "row", "border", "window", "layout"]
+            .map((file) => read(join(CORE_SRC, `commands/${file}.ts`)))
+            .join("\n");
+        const declared = [...sources.matchAll(/^ {4}name: "([\w.]+)",/gm)].map(
+            (match) => match[1],
         );
-        const creators = [...actions.matchAll(/static (\w+)\(/g)].map(
-            (match) => match[1] ?? "",
+        expect(new Set(commands.map((info) => info.name))).toEqual(
+            new Set(declared),
         );
-        const constants = [...actions.matchAll(/static (\w+) = "/g)].map(
-            (match) => match[1] ?? "",
-        );
-        expect(creators.length).toBeGreaterThan(20);
-        const mdx = page("actions");
-        const rows = tableRowNames(mdx);
-        for (const creator of creators) {
-            expect(rows.has(creator), `Actions.${creator}`).toBe(true);
+        for (const info of commands) {
+            const section = commandSection(info.name);
+            expect(
+                section,
+                `### \`${info.name}\` on api/commands.mdx`,
+            ).not.toBe("");
+            const rows = tableRowNames(section);
+            for (const schema of [info.payloadSchema, info.resultSchema]) {
+                for (const field of Object.keys(schema.properties ?? {})) {
+                    expect(rows.has(field), `${info.name}.${field}`).toBe(true);
+                }
+            }
+            expect(section, `${info.name}: a model.run example`).toContain(
+                `model.run("${info.name}"`,
+            );
+            expect(section, `${info.name}: its errors`).toContain("**Errors**");
         }
-        for (const constant of constants) {
-            expect(mentions(mdx, constant), `Actions.${constant}`).toBe(true);
+    });
+
+    it("documents the command bus and every error code", () => {
+        const mdx = page("command-bus");
+        for (const method of [
+            "run",
+            "dispatch",
+            "can",
+            "use",
+            "subscribe",
+            "commands",
+        ]) {
+            expect(mentions(mdx, method), `model.${method}`).toBe(true);
         }
+        expect(mdx).toContain("`batch`");
+        const source = read(join(CORE_SRC, "commands/types.ts"));
+        const union =
+            /export type CommandErrorCode =([^;]+);/.exec(source)?.[1] ?? "";
+        const codes = [...union.matchAll(/"(\w+)"/g)].map((m) => m[1] ?? "");
+        expect(codes.length).toBeGreaterThan(5);
+        for (const code of codes) {
+            expect(mdx, `error code ${code}`).toContain(`\`${code}\``);
+        }
+    });
+
+    it("mentions every export of the core on an API page", () => {
+        const index = read(join(CORE_SRC, "index.ts"));
+        const names = namedExports(index).map((entry) => entry.name);
+        // `export * from "./x"`: every declaration the module exports
+        for (const match of index.matchAll(/export \* from "\.\/([^"]+)"/g)) {
+            const module = read(join(CORE_SRC, `${match[1]}.ts`));
+            for (const declaration of module.matchAll(
+                /^export (?:declare )?(?:const|function|class|interface|type|enum) (\w+)/gm,
+            )) {
+                names.push(declaration[1] ?? "");
+            }
+        }
+        expect(names.length).toBeGreaterThan(100);
+        const pages = readdirSync(API)
+            .filter((file) => file.endsWith(".mdx"))
+            .map((file) => read(join(API, file)));
+        const missing = names.filter(
+            (name) => !pages.some((mdx) => mentions(mdx, name)),
+        );
+        expect(missing, "exports no API page mentions").toEqual([]);
+    });
+
+    it("has a table row for every field of the node and layout JSON types", () => {
+        const types = read(join(CORE_SRC, "state/types.ts"));
+        const json = read(join(CORE_SRC, "state/json.ts"));
+        const rows = tableRowNames(page("json-model"));
+        let checked = 0;
+        for (const [source, names] of [
+            [
+                types,
+                [
+                    "SizeLimits",
+                    "TabNode",
+                    "TabsetNode",
+                    "RowNode",
+                    "BorderNode",
+                    "WindowLayout",
+                    "LayoutSettings",
+                    "TabDefaults",
+                    "TabsetDefaults",
+                    "BorderDefaults",
+                    "LayoutDefaults",
+                    "LayoutState",
+                ],
+            ],
+            [
+                json,
+                [
+                    "TabInit",
+                    "TabsetJson",
+                    "RowJson",
+                    "BorderJson",
+                    "WindowJson",
+                    "LayoutJson",
+                ],
+            ],
+        ] as const) {
+            for (const name of names) {
+                const fields = interfaceFields(source, name)?.fields ?? [];
+                expect(fields.length, name).toBeGreaterThan(0);
+                for (const field of fields) {
+                    checked++;
+                    expect(rows.has(field), `${name}.${field}`).toBe(true);
+                }
+            }
+        }
+        expect(checked).toBeGreaterThan(60);
     });
 
     it("lists every DockableLabel key with its value", () => {
         const source = read(join(CORE_SRC, "labels/DockableLabel.ts"));
         const keys = [...source.matchAll(/^ {4}(\w+) = "([^"]+)",/gm)];
-        expect(keys.length).toBeGreaterThan(40);
+        expect(keys.length).toBeGreaterThan(20);
         const mdx = page("labels");
         for (const [, key = "", value = ""] of keys) {
             expect(mdx, key).toContain(`| \`${key}\` | \`"${value}"\` |`);
         }
     });
 
-    it("lists every JSON attribute of the global, row, tabset, tab and sub-layout nodes", () => {
-        const source = read(join(CORE_SRC, "model/IJsonModel.ts"));
-        const rows = tableRowNames(page("json-model"));
-        for (const name of [
-            "IGlobalAttributes",
-            "IRowAttributes",
-            "ITabSetAttributes",
-            "ITabAttributes",
-            "ISubLayoutAttributes",
-        ]) {
-            const fields = interfaceFields(source, name)?.fields ?? [];
-            expect(fields.length, name).toBeGreaterThan(0);
-            for (const field of fields) {
-                expect(rows.has(field), `${name}.${field}`).toBe(true);
-            }
-        }
-    });
-
-    it.each([
-        ["engine/LayoutEngine.ts", "LayoutEngine", "layout-engine"],
-        ["model/Model.ts", "Model", "model"],
-    ])("documents every public method of %s", (file, name, slug) => {
-        const source = read(join(CORE_SRC, file));
-        const start = source.indexOf(`export class ${name}`);
+    it("documents every public method of engine/LayoutEngine.ts", () => {
+        const source = read(join(CORE_SRC, "engine/LayoutEngine.ts"));
+        const start = source.indexOf("export class LayoutEngine");
         const body = source.slice(start, source.indexOf("\n}\n", start));
         const methods = new Set<string>();
         for (const match of body.matchAll(
-            /(\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*)?\n {4}(?:static |get )?(?!private\b|protected\b|constructor\b)([a-zA-Z]\w*)(?:\s*=\s*\(|\()/g,
+            /(\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*)?\n {4}(?:static |get |readonly )?(?!private\b|protected\b|constructor\b)([a-zA-Z]\w*)(?:\s*=\s*\(|\(|: Model<T>\["run"\])/g,
         )) {
             if (match[1]?.includes("@internal")) continue;
             methods.add(match[2] ?? "");
         }
-        expect(methods.size).toBeGreaterThan(5);
-        const mdx = page(slug);
+        expect(methods.size).toBeGreaterThan(20);
+        const mdx = page("layout-engine");
         const rows = tableRowNames(mdx);
         for (const method of methods) {
             expect(
                 rows.has(method) || mentions(mdx, method),
-                `${name}.${method} on api/${slug}.mdx`,
+                `LayoutEngine.${method} on api/layout-engine.mdx`,
+            ).toBe(true);
+        }
+    });
+
+    it("documents every method of the Model interface", () => {
+        const source = read(join(CORE_SRC, "state/model.ts"));
+        const start = source.indexOf("export interface Model<");
+        const body = source.slice(start, source.indexOf("\n}\n", start));
+        const members = new Set(
+            [...body.matchAll(/^ {4}(?:readonly )?(\w+)[<(:]/gm)].map(
+                (match) => match[1] ?? "",
+            ),
+        );
+        expect(members.size).toBeGreaterThan(15);
+        const mdx = page("model") + page("command-bus");
+        const rows = tableRowNames(mdx);
+        for (const member of members) {
+            expect(
+                rows.has(member) || mentions(mdx, member),
+                `Model.${member} on api/model.mdx or api/command-bus.mdx`,
             ).toBe(true);
         }
     });

@@ -1,29 +1,32 @@
 ---
 title: Dockable.TabOverflowTrigger
-description: The button that opens your menu of the tabs that do not fit - rendered only while tabs are hidden.
+description: The button that opens your menu of the tabs that do not fit in the strip, rendered only while tabs are hidden.
 ---
 
 "The button that opens the consumer's menu of hidden tabs, inside `Dockable.TabSet` or
 `Dockable.Border`, next to the `Dockable.TabList`. It renders only while tabs are hidden, and the
 engine reserves the space it takes in the strip. It renders no menu: make it your menu's trigger
-(`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`), and select with
-`Actions.selectTab`, which brings the tab into the strip."
+(`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`, typed with
+`<Dockable.TabOverflowTrigger<Types>>`), and select with `tab.select`, which brings the tab into
+the strip."
 
 ```tsx
-function Header({ tabset }: { tabset: TabSetNode }) {
-    const { engine } = useDockable();
+function Header({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { run } = useDockable<Types>();
     const { hidden } = useTabOverflow(tabset);
     return (
         <div className="flex">
-            <Dockable.TabList className="flex min-w-0 flex-1">{(tab) => <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>}</Dockable.TabList>
+            <Dockable.TabList<Types> className="flex min-w-0 flex-1">
+                {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
+            </Dockable.TabList>
             <Menu.Root>
                 <Dockable.TabOverflowTrigger aria-label="More tabs" render={<Menu.Trigger />}>
                     {`+${hidden.length}`}
                 </Dockable.TabOverflowTrigger>
                 <Menu.Content>
                     {hidden.map((tab) => (
-                        <Menu.Item key={tab.getId()} onClick={() => engine.doAction(Actions.selectTab(tab.getId()))}>
-                            {tab.getName() || tab.getAltName()}
+                        <Menu.Item key={tab.id} onClick={() => run("tab.select", { tab: tab.id })}>
+                            {tab.data.name}
                         </Menu.Item>
                     ))}
                 </Menu.Content>
@@ -33,11 +36,15 @@ function Header({ tabset }: { tabset: TabSetNode }) {
 }
 ```
 
+The state's `hidden` holds the same tabs: with the registry as the type argument
+(`<Dockable.TabOverflowTrigger<Types>>`), a `render` function or a `className` function gets
+typed tabs (`TabOf<Types>[]`).
+
 See [Tab overflow](/docs/guides/tab-overflow).
 
 ## Props
 
-`TabOverflowTriggerProps` extends the [common primitive props](/docs/api/root#common-props) and the
+`TabOverflowTriggerProps<T>` extends the [common primitive props](/docs/api/root#common-props) and the
 `<button>` attributes.
 
 | prop | type | default | description |
@@ -46,11 +53,11 @@ See [Tab overflow](/docs/guides/tab-overflow).
 
 ## State
 
-`TabOverflowTriggerState`:
+`TabOverflowTriggerState<T>`:
 
 | field | type | description |
 | --- | --- | --- |
-| `hidden` | `TabNode[]` | the tabs that do not fit in the strip, in model order: what the menu lists |
+| `hidden` | `TabOf<T>[]` | the tabs that do not fit in the strip, in model order: what the menu lists |
 | `hiddenCount` | `number` | how many tabs are hidden |
 
 ## Data attributes and ARIA

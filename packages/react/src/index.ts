@@ -14,6 +14,7 @@ export type {
 export {
     type TabSetDropState,
     type TabSetState,
+    type UseBorderOptions,
     type UseBorderResult,
     type UseDockableResult,
     type UseDragNodeResult,
@@ -29,6 +30,7 @@ export {
     useDragNode,
     useDragSource,
     useDropZone,
+    useModelState,
     useSplitter,
     useTabOverflow,
     useTabSet,

@@ -1,45 +1,20 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
-    type Action,
-    Actions,
-    type BorderNode,
     createLayoutEngine,
-    DockLocation,
     DragDropManager,
-    getTabButtonId,
-    getTabPanelId,
-    type IJsonModel,
     type LayoutEngine,
+    type LayoutJson,
     OVERLAY_ATTRIBUTE,
-    type TabNode,
 } from "../../src";
 import {
+    dragEvent,
     freshModel,
     mountTwoTabsets,
-    node,
     Rects,
+    recordCommands,
     twoTabsets,
 } from "./fixture";
-
-// jsdom has no DragEvent: a MouseEvent with a fake dataTransfer carries what the manager reads
-function dragEvent(type: string, x: number, y: number) {
-    const event = new MouseEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        clientX: x,
-        clientY: y,
-    });
-    Object.defineProperty(event, "dataTransfer", {
-        value: {
-            setData: vi.fn(),
-            setDragImage: vi.fn(),
-            effectAllowed: "none",
-            dropEffect: "none",
-        },
-    });
-    return event as unknown as DragEvent;
-}
 
 const engines: LayoutEngine[] = [];
 afterEach(() => {
@@ -51,92 +26,59 @@ afterEach(() => {
 });
 
 function withBorders(
-    borders: IJsonModel["borders"],
-    global: IJsonModel["global"] = {},
-): IJsonModel {
-    return { ...structuredClone(twoTabsets), global, borders };
+    borders: LayoutJson["borders"],
+    defaults: LayoutJson["defaults"] = {},
+): LayoutJson {
+    return { ...structuredClone(twoTabsets), defaults, borders };
 }
 
-/**
- * The two-tabset layout (root 400x300 at 10,20, the root row filling it), with the given borders.
- * A left border's panel area, when registered, is 150px wide over the layout's left edge.
- */
-function setup(json: IJsonModel) {
+/** The two-tabset layout (root 400x300 at 10,20, the root row filling it), with the given borders. */
+function setup(json: LayoutJson) {
     const model = freshModel(json);
     const rects = new Rects();
-    const actions: Action[] = [];
-    const engine = createLayoutEngine({
-        model,
-        measure: rects.measure,
-        onAction: (action) => {
-            actions.push(action);
-            return action;
-        },
-    });
+    const commands = recordCommands(model);
+    const engine = createLayoutEngine({ model, measure: rects.measure });
     engines.push(engine);
     const dom = mountTwoTabsets(engine, rects);
     engine.sync();
-    return { model, rects, engine, actions, ...dom };
+    return { model, rects, engine, commands, ...dom };
 }
 
 describe("edge docking bands", () => {
     it("are edgeDockMargin deep and edgeDockLength long, centred on each edge of the root row", () => {
-        const { model } = setup(withBorders([]));
+        const { model, engine } = setup(withBorders([]));
         const bands = Object.fromEntries(
-            model
-                .getEdgeDockRects()
-                .map(({ location, rect }) => [location.getName(), rect]),
+            engine.edgeBands().map(({ location, rect }) => [location, rect]),
         );
-        expect(bands.top).toMatchObject({
-            x: 150,
-            y: 0,
-            width: 100,
-            height: 10,
-        });
-        expect(bands.bottom).toMatchObject({
+        expect(bands.top).toEqual({ x: 150, y: 0, width: 100, height: 10 });
+        expect(bands.bottom).toEqual({
             x: 150,
             y: 290,
             width: 100,
             height: 10,
         });
-        expect(bands.left).toMatchObject({
-            x: 0,
-            y: 100,
-            width: 10,
-            height: 100,
-        });
-        expect(bands.right).toMatchObject({
-            x: 390,
-            y: 100,
-            width: 10,
-            height: 100,
-        });
+        expect(bands.left).toEqual({ x: 0, y: 100, width: 10, height: 100 });
+        expect(bands.right).toEqual({ x: 390, y: 100, width: 10, height: 100 });
 
-        model.doAction(
-            Actions.updateModelAttributes({
-                edgeDockMargin: 4,
-                edgeDockLength: 60,
-            }),
-        );
-        const top = model
-            .getEdgeDockRects()
-            .find(({ location }) => location === DockLocation.TOP)?.rect;
-        expect(top).toMatchObject({ x: 170, y: 0, width: 60, height: 4 });
+        model.run("layout.configure", {
+            defaults: { layout: { edgeDockMargin: 4, edgeDockLength: 60 } },
+        });
+        const top = engine
+            .edgeBands()
+            .find(({ location }) => location === "top")?.rect;
+        expect(top).toEqual({ x: 170, y: 0, width: 60, height: 4 });
 
-        model.doAction(
-            Actions.updateModelAttributes({ enableEdgeDock: false }),
-        );
-        expect(model.getEdgeDockRects()).toEqual([]);
+        model.run("layout.configure", {
+            defaults: { layout: { edgeDock: false } },
+        });
+        expect(engine.edgeBands()).toEqual([]);
     });
 
     it("decide where a drop docks to an edge: a smaller margin frees a strip at the top (gap 11)", () => {
         const s = setup(withBorders([]));
         const manager = s.engine.getDragDropManager();
         const over = (x: number, y: number) => {
-            manager.setDragNode(
-                dragEvent("dragstart", 40, 35),
-                node<TabNode>(s.model, "t2"),
-            );
+            manager.startDrag(dragEvent("dragstart", 40, 35), "t2");
             s.root.dispatchEvent(dragEvent("dragenter", x, y));
             s.root.dispatchEvent(dragEvent("dragover", x, y));
             const indicator = manager.getIndicatorState();
@@ -145,8 +87,9 @@ describe("edge docking bands", () => {
         };
         // 6px below the top edge, at its centre: the top band
         expect(over(210, 26)).toMatchObject({ kind: "edge", location: "top" });
-
-        s.model.doAction(Actions.updateModelAttributes({ edgeDockMargin: 4 }));
+        s.model.run("layout.configure", {
+            defaults: { layout: { edgeDockMargin: 4 } },
+        });
         expect(over(210, 26).kind).toBe("rect");
     });
 });
@@ -157,19 +100,30 @@ describe("edge bands in a short layout", () => {
         // a 400x40 root row: the left and right bands are 40 long, the top and bottom 100
         s.rects.set(s.row, 10, 20, 400, 40);
         s.engine.sync();
-        const left = s.model
-            .getEdgeDockRects()
-            .find(({ location }) => location === DockLocation.LEFT)?.rect;
-        expect(left).toMatchObject({ x: 0, y: 0, width: 10, height: 40 });
-        const top = s.model
-            .getEdgeDockRects()
-            .find(({ location }) => location === DockLocation.TOP)?.rect;
-        expect(top).toMatchObject({ x: 150, width: 100 });
+        const bands = s.engine.edgeBands();
+        expect(bands.find(({ location }) => location === "left")?.rect).toEqual(
+            {
+                x: 0,
+                y: 0,
+                width: 10,
+                height: 40,
+            },
+        );
+        expect(
+            bands.find(({ location }) => location === "top")?.rect,
+        ).toMatchObject({ x: 150, width: 100 });
         // outside the drawn top band (15px past its end), a drop does not dock to the top
-        const row = s.model.getRootRow();
-        const t0 = node<TabNode>(s.model, "t0");
-        expect(row?.canDrop(t0, 265, 2)?.location).not.toBe(DockLocation.TOP);
-        expect(row?.canDrop(t0, 245, 2)?.location).toBe(DockLocation.TOP);
+        const manager = s.engine.getDragDropManager();
+        const over = (x: number, y: number) => {
+            manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+            s.root.dispatchEvent(dragEvent("dragenter", x + 10, y + 20));
+            s.root.dispatchEvent(dragEvent("dragover", x + 10, y + 20));
+            const indicator = manager.getIndicatorState();
+            manager.onDragEnded();
+            return indicator;
+        };
+        expect(over(265, 2).kind).not.toBe("edge");
+        expect(over(245, 2)).toMatchObject({ kind: "edge", location: "top" });
     });
 });
 
@@ -178,55 +132,40 @@ describe("unmounted border parts", () => {
         const s = setup(
             withBorders([
                 {
-                    type: "border",
                     location: "left",
-                    children: [{ type: "tab", id: "b0", name: "Files" }],
+                    children: [{ id: "b0", component: "test" }],
                 },
             ]),
         );
-        const border = s.model
-            .getBorderSet()
-            .getBorderMap()
-            .get(DockLocation.LEFT) as BorderNode;
         const strip = s.rects.set(
             s.root.appendChild(document.createElement("div")),
             10,
             20,
             30,
             300,
-        ) as HTMLElement;
-        s.engine.registerMeasurable(border, "borderheader", strip);
+        );
+        s.engine.registerMeasurable("border_left", "borderheader", strip);
         s.engine.sync();
-        expect(border.getRect().width).toBe(30);
-        s.engine.registerMeasurable(border, "borderheader", null);
-        expect(border.getRect().width).toBe(0);
+        expect(s.engine.rect("borderheader", "border_left")?.width).toBe(30);
+        s.engine.registerMeasurable("border_left", "borderheader", null);
+        expect(s.engine.rect("borderheader", "border_left")).toBeUndefined();
     });
 });
 
 describe("auto-hide borders during a drag", () => {
     const bottomAutoHide = withBorders([
-        {
-            type: "border",
-            location: "bottom",
-            enableAutoHide: true,
-            children: [],
-        },
+        { location: "bottom", autoHide: true, children: [] },
     ]);
 
     it("reveal an empty auto-hide border near its edge, outside the edge docking bands, until the drag ends", () => {
         const s = setup(bottomAutoHide);
         const manager = s.engine.getDragDropManager();
-        manager.setDragNode(
-            dragEvent("dragstart", 40, 35),
-            node<TabNode>(s.model, "t0"),
-        );
+        manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
         s.root.dispatchEvent(dragEvent("dragenter", 30, 315));
         s.root.dispatchEvent(dragEvent("dragover", 30, 315));
         expect(manager.getIndicatorState().revealedBorder).toBe("bottom");
-
         s.root.dispatchEvent(dragEvent("dragover", 200, 150));
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
-
         s.root.dispatchEvent(dragEvent("dragover", 30, 315));
         expect(manager.getIndicatorState().revealedBorder).toBe("bottom");
         manager.onDragEnded();
@@ -236,23 +175,17 @@ describe("auto-hide borders during a drag", () => {
     it("do not reveal over the edge docking band, or a border that has tabs or is not auto-hide", () => {
         const s = setup(bottomAutoHide);
         const manager = s.engine.getDragDropManager();
-        manager.setDragNode(
-            dragEvent("dragstart", 40, 35),
-            node<TabNode>(s.model, "t0"),
-        );
+        manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
         s.root.dispatchEvent(dragEvent("dragenter", 210, 315));
         s.root.dispatchEvent(dragEvent("dragover", 210, 315)); // the bottom edge's centre
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
         manager.onDragEnded();
 
         const plain = setup(
-            withBorders([{ type: "border", location: "bottom", children: [] }]),
+            withBorders([{ location: "bottom", children: [] }]),
         );
         const plainManager = plain.engine.getDragDropManager();
-        plainManager.setDragNode(
-            dragEvent("dragstart", 40, 35),
-            node<TabNode>(plain.model, "t0"),
-        );
+        plainManager.startDrag(dragEvent("dragstart", 40, 35), "t0");
         plain.root.dispatchEvent(dragEvent("dragenter", 30, 315));
         plain.root.dispatchEvent(dragEvent("dragover", 30, 315));
         expect(plainManager.getIndicatorState().revealedBorder).toBeUndefined();
@@ -262,28 +195,23 @@ describe("auto-hide borders during a drag", () => {
 describe("overlay borders", () => {
     const leftOverlay = withBorders([
         {
-            type: "border",
             location: "left",
-            borderType: "overlay",
+            mode: "overlay",
             selected: 0,
-            children: [{ type: "tab", id: "b0", name: "Files" }],
+            children: [{ id: "b0", component: "test" }],
         },
     ]);
 
     function setupOverlay() {
         const s = setup(leftOverlay);
-        const border = s.model
-            .getBorderSet()
-            .getBorderMap()
-            .get(DockLocation.LEFT) as BorderNode;
         const area = s.rects.set(
             s.root.appendChild(document.createElement("div")),
             10,
             20,
             150,
             300,
-        ) as HTMLElement;
-        s.engine.registerMeasurable(border, "bordercontent", area);
+        );
+        s.engine.registerMeasurable("border_left", "bordercontent", area);
         s.engine.sync();
         const press = (x: number, y: number, target: Element = s.root) =>
             s.engine.handleOverlayPointerDown({
@@ -291,16 +219,20 @@ describe("overlay borders", () => {
                 clientX: x,
                 clientY: y,
             });
-        return { ...s, border, area, press };
+        const selected = () => {
+            const border = s.model.get("border_left");
+            return border?.type === "border" ? border.selected : undefined;
+        };
+        return { ...s, area, press, selected };
     }
 
-    it("close on a press in the layout outside the open panel, through onAction", () => {
+    it("close on a press in the layout outside the open panel, with border.configure", () => {
         const s = setupOverlay();
         expect(s.press(300, 100)).toBe(true);
-        expect(s.border.getSelected()).toBe(-1);
-        expect(s.actions.at(-1)).toMatchObject({
-            type: Actions.SELECT_TAB,
-            data: { tabNode: "b0" },
+        expect(s.selected()).toBe(-1);
+        expect(s.commands.at(-1)).toEqual({
+            command: "border.configure",
+            payload: { border: "border_left", open: false },
         });
     });
 
@@ -312,16 +244,16 @@ describe("overlay borders", () => {
         const inner = splitter.appendChild(document.createElement("span"));
         s.root.appendChild(splitter);
         expect(s.press(300, 100, inner)).toBe(false);
-        expect(s.press(500, 100)).toBe(false); // outside the root row (a border strip, elsewhere)
-        expect(s.border.getSelected()).toBe(0);
+        expect(s.press(500, 100)).toBe(false); // outside the root row
+        expect(s.selected()).toBe(0);
     });
 
     it("close with the close key from the tab button or the panel, and focus the tab button", () => {
         const s = setupOverlay();
         const button = s.root.appendChild(document.createElement("button"));
-        button.id = getTabButtonId(node<TabNode>(s.model, "b0"));
+        button.id = s.engine.tabButtonId("b0");
         const panel = s.root.appendChild(document.createElement("div"));
-        panel.id = getTabPanelId(node<TabNode>(s.model, "b0"));
+        panel.id = s.engine.tabPanelId("b0");
         const input = panel.appendChild(document.createElement("input"));
 
         input.focus();
@@ -331,7 +263,7 @@ describe("overlay borders", () => {
         });
         expect(s.engine.handleOverlayKeyDown(key, "Escape")).toBe(true);
         expect(key.defaultPrevented).toBe(true);
-        expect(s.border.getSelected()).toBe(-1);
+        expect(s.selected()).toBe(-1);
         expect(document.activeElement).toBe(button);
 
         // closed: the key does nothing any more
@@ -342,7 +274,7 @@ describe("overlay borders", () => {
             ),
         ).toBe(false);
 
-        s.engine.doAction(Actions.selectTab("b0"));
+        s.engine.run("tab.select", { tab: "b0" });
         button.focus();
         expect(
             s.engine.handleOverlayKeyDown(
@@ -350,7 +282,7 @@ describe("overlay borders", () => {
                 "Escape",
             ),
         ).toBe(true);
-        expect(s.border.getSelected()).toBe(-1);
+        expect(s.selected()).toBe(-1);
     });
 
     it("ignore other keys, and focus outside the overlay", () => {
@@ -369,6 +301,6 @@ describe("overlay borders", () => {
                 "Escape",
             ),
         ).toBe(false);
-        expect(s.border.getSelected()).toBe(0);
+        expect(s.selected()).toBe(0);
     });
 });

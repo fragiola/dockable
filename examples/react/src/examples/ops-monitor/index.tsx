@@ -1,11 +1,13 @@
 "use client";
 
 import {
-    type DropInfo,
-    type IJsonModel,
-    Model,
+    createModel,
+    type LayoutJson,
+    type Middleware,
     type Node,
-    TabNode,
+    type TabInitOf,
+    type TabOf,
+    veto,
 } from "@fragiola/dockable";
 import { Siren } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -20,32 +22,26 @@ import {
     OverviewPanel,
     RunbookPanel,
     ServicePanel,
+    type Types,
 } from "./panels";
 import { createSimulation, SERVICES, type ServiceId } from "./simulation";
 import { INCIDENT_TABSET, MonitorTabSet } from "./tabs";
 
 // A live operations console. A timer streams simulated metrics; each service panel reports its
 // alert level to its tab (colour, data-status, alert badge); the overview tab is pinned; the
-// incident region accepts only incident tabs (Model.setOnAllowDrop); Ctrl+Shift+Arrow keys move
-// focus between tabsets.
+// incident region accepts only incident tabs (a `model.use` middleware); Ctrl+Shift+Arrow keys
+// move focus between tabsets.
 
-const service = (id: ServiceId) => ({
-    type: "tab" as const,
+const service = (id: ServiceId): TabInitOf<Types> => ({
     id: `service-${id}`,
-    name: SERVICES.find((s) => s.id === id)?.name ?? id,
     component: "service",
-    config: { service: id },
+    data: { name: SERVICES.find((s) => s.id === id)?.name ?? id, service: id },
 });
 
-const layout: IJsonModel = {
-    global: {
-        // every service panel reports its status, so all of them mount, not only the visible ones
-        tabEnableRenderOnDemand: false,
-        tabEnableRename: false,
-        tabEnableClose: false,
-    },
-    borders: [],
-    layout: {
+const layout: LayoutJson<Types> = {
+    version: 1,
+    defaults: { tab: { enableClose: false } },
+    root: {
         type: "row",
         children: [
             {
@@ -57,9 +53,8 @@ const layout: IJsonModel = {
                         weight: 60,
                         children: [
                             {
-                                type: "tab",
-                                name: "Overview",
                                 component: "overview",
+                                data: { name: "Overview" },
                                 pinned: true,
                             },
                             service("api"),
@@ -72,11 +67,7 @@ const layout: IJsonModel = {
                         children: [
                             service("search"),
                             service("auth"),
-                            {
-                                type: "tab",
-                                name: "Events",
-                                component: "events",
-                            },
+                            { component: "events", data: { name: "Events" } },
                         ],
                     },
                 ],
@@ -87,16 +78,12 @@ const layout: IJsonModel = {
                 weight: 36,
                 children: [
                     {
-                        type: "tab",
-                        name: "Runbook",
                         component: "runbook",
-                        config: { region: "incident" },
+                        data: { name: "Runbook", region: "incident" },
                     },
                     {
-                        type: "tab",
-                        name: "Timeline",
                         component: "timeline",
-                        config: { region: "incident" },
+                        data: { name: "Timeline", region: "incident" },
                     },
                 ],
             },
@@ -104,25 +91,47 @@ const layout: IJsonModel = {
     },
 };
 
-const inIncidentRegion = (node: Node) =>
-    node instanceof TabNode &&
-    (node.getConfig() as { region?: string } | undefined)?.region ===
-        "incident";
+/** An incident tab: its data says it belongs to the incident region. */
+const isIncidentTab = (tab: TabOf<Types>) =>
+    "region" in tab.data && tab.data.region === "incident";
+
+const inIncidentRegion = (node: Node<Types> | undefined) =>
+    node?.type === "tab" && isIncidentTab(node);
 
 /**
- * The locked region: a drop into (or beside) the incident tabset is allowed only for incident
- * tabs, and incident tabs cannot leave it. A refused target shows no drop indicator.
+ * The locked region, as middleware: incident tabs stay in the incident tabset (they move only
+ * into its centre: an edge would split them off into a new tabset), nothing else goes into it or
+ * beside it, and the incident tabset may be docked elsewhere but never merged into another one.
+ * It vetoes the command itself, so it holds for every move, dragged or not; a drag asks the same
+ * question (`model.can`) while hovering, so a refused target shows no drop indicator.
  */
-function allowDrop(dragNode: Node, dropInfo: DropInfo) {
-    const intoIncident = dropInfo.node.getId() === INCIDENT_TABSET;
-    return intoIncident === inIncidentRegion(dragNode);
-}
+const lockIncidentRegion: Middleware<Types> = (ctx, next) => {
+    const refuse = () =>
+        veto("Only incident tabs belong in the incident region");
+    // the command narrows the payload
+    if (ctx.command === "tab.move") {
+        const { tab, to, location = "center" } = ctx.payload;
+        const intoRegion = to === INCIDENT_TABSET && location === "center";
+        if (inIncidentRegion(ctx.get(tab))) {
+            return intoRegion ? next() : refuse();
+        }
+        return to === INCIDENT_TABSET ? refuse() : next();
+    }
+    if (ctx.command === "tabset.move") {
+        const { tabset, to, location = "center" } = ctx.payload;
+        if (tabset === INCIDENT_TABSET) {
+            return location === "center" ? refuse() : next();
+        }
+        return to === INCIDENT_TABSET ? refuse() : next();
+    }
+    return next();
+};
 
 export default function OpsMonitor() {
     const [simulation] = useState(createSimulation);
     const [model] = useState(() => {
-        const created = Model.fromJson(layout);
-        created.setOnAllowDrop(allowDrop);
+        const created = createModel<Types>(layout);
+        created.use(lockIncidentRegion);
         return created;
     });
     const [live, setLive] = useState(true);
@@ -136,8 +145,9 @@ export default function OpsMonitor() {
         [simulation, live],
     );
 
-    const renderContent = (tab: TabNode) => {
-        switch (tab.getComponent()) {
+    const renderContent = (tab: TabOf<Types>) => {
+        // `tab.data` narrows on `tab.component`: a service panel gets its service's data
+        switch (tab.component) {
             case "service":
                 return <ServicePanel tab={tab} simulation={simulation} />;
             case "overview":
@@ -153,8 +163,6 @@ export default function OpsMonitor() {
                 );
             case "runbook":
                 return <RunbookPanel simulation={simulation} />;
-            default:
-                return null;
         }
     };
 
@@ -221,6 +229,9 @@ export default function OpsMonitor() {
             <DockLayout
                 model={model}
                 renderContent={renderContent}
+                // every service panel reports its status, so all of them mount, not only the
+                // visible ones
+                renderOnDemand={false}
                 renderTabSet={(node) => <MonitorTabSet node={node} />}
                 rootProps={{
                     keyMap: {

@@ -4,3 +4,10 @@ Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see the repository LICENSE.
 `test_overlay.json` drops the left border's sub-layout tab (sub-layouts in tabs are not rendered yet)
 and `test_border_direction.json` is copied as is. `test_autohide_borders.json` is Dockable's own:
 auto-hide borders, two of them empty, for the drag reveal.
+
+All of them are converted to Dockable's JSON v1 (`docs/engine-v2-design.md` §2 and §4): `layout`
+becomes `root`, a tab's and a tabset's `name` moves into its `data`, the globals become `defaults`
+(`tabEnablePopout` → `defaults.tab.enablePopout`, `borderEnableAutoHide` →
+`defaults.border.autoHide`), `borderType` becomes a border's `mode`, and the attributes the model
+dropped (`tabEnablePin`, `tabEnableRename`, `borderEnableTabScrollbar`) are gone: nothing in the
+fixtures read them.

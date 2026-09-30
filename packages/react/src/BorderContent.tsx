@@ -3,13 +3,16 @@
 // nesting, the content area's size, split and overlay placement); the markup and class names are
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import {
+    type AnyTypes,
     type BorderNode,
-    DockLocation,
+    type DockableTypes,
+    type LayoutEngine,
+    type Model,
     OVERLAY_ATTRIBUTE,
 } from "@fragiola/dockable";
 import * as React from "react";
 import { type BorderState, borderAttributes } from "./Border";
-import { useLayoutContext } from "./context";
+import { useDockableContext, useLayoutContext } from "./context";
 import { useBorder } from "./hooks";
 import { Splitter } from "./Splitter";
 import {
@@ -18,10 +21,11 @@ import {
     useRenderElement,
 } from "./utils/useRender";
 
-export interface BorderContentProps extends DivPrimitiveProps<BorderState> {
-    node: BorderNode;
+export interface BorderContentProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<BorderState> {
+    node: BorderNode<T>;
     /** renders the border's splitter (defaults to `<Dockable.Splitter node={border} />`) */
-    renderSplitter?: ((border: BorderNode) => React.ReactNode) | undefined;
+    renderSplitter?: ((border: BorderNode<T>) => React.ReactNode) | undefined;
     /** `false` renders no splitter (the panel keeps its size) */
     splitter?: boolean | undefined;
 }
@@ -29,40 +33,38 @@ export interface BorderContentProps extends DivPrimitiveProps<BorderState> {
 /**
  * The place a border's panel opens: an area sized by the border's `size` (the engine positions the
  * selected tab's panel over it) and the border's splitter, on the layout's side of it. Hidden while
- * no tab is selected. A split border sits beside the layout and shrinks it; an overlay border
- * (`borderType: "overlay"`) is positioned over the layout's edge, so its stacking (`z-index`) is
- * yours. Render it from `Dockable.Borders`'s `renderContent`.
+ * no tab is selected. A docked border sits beside the layout and shrinks it; an overlay border
+ * (`mode: "overlay"`) is positioned over the layout's edge, so its stacking (`z-index`) is yours.
+ * Render it from `Dockable.Borders`'s `renderContent`.
  */
-export function BorderContent(props: BorderContentProps) {
+export function BorderContent<T extends DockableTypes = AnyTypes>(
+    props: BorderContentProps<T>,
+) {
     const { node, renderSplitter, splitter = true, ...rest } = props;
+    const { model } = useDockableContext("BorderContent");
     const { engine } = useLayoutContext("BorderContent");
     const { state } = useBorder(node);
+    const id = node.id;
     const areaRef = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(node, "bordercontent", element);
+            engine.registerMeasurable(id, "bordercontent", element);
         },
-        [engine, node],
+        [engine, id],
     );
-    const horizontal = node.isHorizontal(); // a left or right border: sized by width
-    const location = node.getLocation();
-    const size = node.getSize();
+    const location = node.location;
+    // a left or right border: sized by width
+    const horizontal = location === "left" || location === "right";
+    const { size, minSize, maxSize } = model.resolve(node);
+    const path = engine.path(id);
     const area = (
         <div
             key="area"
             ref={areaRef}
-            {...dataAttributes({ "layout-path": `${node.getPath()}/area` })}
+            {...dataAttributes({ "layout-path": `${path}/area` })}
             style={
                 horizontal
-                    ? {
-                          width: size,
-                          minWidth: node.getMinSize(),
-                          maxWidth: node.getMaxSize(),
-                      }
-                    : {
-                          height: size,
-                          minHeight: node.getMinSize(),
-                          maxHeight: node.getMaxSize(),
-                      }
+                    ? { width: size, minWidth: minSize, maxWidth: maxSize }
+                    : { height: size, minHeight: minSize, maxHeight: maxSize }
             }
         />
     );
@@ -77,8 +79,7 @@ export function BorderContent(props: BorderContentProps) {
             </React.Fragment>
         ) : null;
     // the splitter is on the layout's side: after the area on the left and top
-    const areaFirst =
-        location === DockLocation.LEFT || location === DockLocation.TOP;
+    const areaFirst = location === "left" || location === "top";
 
     const structural: React.CSSProperties = {
         display: state.open ? "flex" : "none",
@@ -88,7 +89,7 @@ export function BorderContent(props: BorderContentProps) {
     if (state.overlay) {
         // hit-testing, not cosmetics: the overlay paints over the layout (its z-index is yours),
         // but presses must reach the tab panel under its empty area; its splitter takes them back
-        Object.assign(structural, overlayPosition(node), {
+        Object.assign(structural, overlayPosition(model, engine, node), {
             pointerEvents: "none",
         });
     }
@@ -96,7 +97,7 @@ export function BorderContent(props: BorderContentProps) {
         state,
         props: {
             ...dataAttributes({
-                "layout-path": `${node.getPath()}/content`,
+                "layout-path": `${path}/content`,
                 ...borderAttributes(state),
             }),
             // a press inside an open overlay (its splitter included) does not close it
@@ -113,30 +114,34 @@ export function BorderContent(props: BorderContentProps) {
  * An overlay's structural placement over the layout's edge. A left or right overlay stops at the
  * open top and bottom overlays, as FlexLayout's does.
  */
-function overlayPosition(node: BorderNode): React.CSSProperties {
-    const location = node.getLocation();
+function overlayPosition<T extends DockableTypes>(
+    model: Model,
+    engine: LayoutEngine,
+    node: BorderNode<T>,
+): React.CSSProperties {
+    const location = node.location;
     const style: React.CSSProperties = { position: "absolute" };
-    if (location === DockLocation.TOP || location === DockLocation.BOTTOM) {
+    if (location === "top" || location === "bottom") {
         style.left = 0;
         style.right = 0;
-        style[location === DockLocation.TOP ? "top" : "bottom"] = 0;
+        style[location] = 0;
         return style;
     }
-    style[location === DockLocation.LEFT ? "left" : "right"] = 0;
+    style[location] = 0;
     style.top = 0;
     style.bottom = 0;
-    const model = node.getModel();
-    for (const other of model.getBorderSet().getBorders()) {
+    for (const other of model.state.borders) {
+        const resolved = model.resolve(other);
         if (
-            other !== node &&
-            other.isOverlay() &&
-            other.isShowing() &&
-            other.getSelected() !== -1
+            other.id !== node.id &&
+            resolved.mode === "overlay" &&
+            resolved.show &&
+            other.selected !== -1
         ) {
-            const inset = other.getSize() + model.getSplitterSize();
-            if (other.getLocation() === DockLocation.TOP) {
+            const inset = resolved.size + engine.splitterSize();
+            if (other.location === "top") {
                 style.top = inset;
-            } else if (other.getLocation() === DockLocation.BOTTOM) {
+            } else if (other.location === "bottom") {
                 style.bottom = inset;
             }
         }

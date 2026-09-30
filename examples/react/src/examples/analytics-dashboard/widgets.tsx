@@ -1,6 +1,5 @@
 "use client";
 
-import { Actions, type TabNode } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import type { EChartsOption } from "echarts";
 import {
@@ -17,28 +16,22 @@ import { Table } from "#/components/ui/table";
 import { cn } from "#/lib/cn";
 import { useExampleTheme } from "../_kit/theme";
 import {
-    type ChartMetric,
     DEFAULT_FILTERS,
     type Filters,
     KPIS,
-    type KpiMetric,
     kpiValue,
     METRICS,
     months,
     ORDERS,
+    type Types,
+    type WidgetTab,
 } from "./data";
 
-// The widgets a tab can hold, chosen by the tab's `component` and configured by its `config`.
+// The widgets a tab can hold, chosen by the tab's `component` and configured by its `data`.
 // They read the shared filters from context: a portal (the panel, or a popout window) keeps the
 // React context of where it is declared.
 
 export const FiltersContext = createContext<Filters>(DEFAULT_FILTERS);
-
-/** What a KPI tab keeps in its `config`; `status` is written by the widget itself. */
-export interface KpiConfig {
-    metric: KpiMetric;
-    status?: "ok" | "alert";
-}
 
 const segment = [
     "h-6 px-2 text-xs text-palette-accent/85 outline-none first:rounded-s-md last:rounded-e-md",
@@ -50,9 +43,9 @@ const segment = [
  * A Fragiola chart. The Line/Bar choice is local state: pop the tab out to another window and
  * it is still there, since the content moves with its tab instead of remounting.
  */
-export function ChartWidget({ tab }: { tab: TabNode }) {
+export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
     const filters = useContext(FiltersContext);
-    const config = tab.getConfig() as { metric: ChartMetric; kind?: "bar" };
+    const config = tab.data;
     const [kind, setKind] = useState<"line" | "bar">(config.kind ?? "line");
     const ref = useRef<HTMLDivElement | null>(null);
     const theme = useExampleTheme(ref);
@@ -131,13 +124,13 @@ export function ChartWidget({ tab }: { tab: TabNode }) {
 }
 
 /**
- * A KPI. It compares its value with a threshold and writes the result into its TAB's config
- * (`Actions.updateNodeAttributes`), and the tab turns red: the tab follows its content.
+ * A KPI. It compares its value with a threshold and writes the result into its TAB's data
+ * (the `tab.update` command), and the tab turns red: the tab follows its content.
  */
-export function KpiWidget({ tab }: { tab: TabNode }) {
+export function KpiWidget({ tab }: { tab: WidgetTab<"kpi"> }) {
     const filters = useContext(FiltersContext);
-    const { engine } = useDockable();
-    const config = tab.getConfig() as KpiConfig;
+    const { run } = useDockable<Types>();
+    const config = tab.data;
     const kpi = KPIS[config.metric];
     const [threshold, setThreshold] = useState<number>(kpi.threshold);
     const value = kpiValue(config.metric, filters);
@@ -145,13 +138,13 @@ export function KpiWidget({ tab }: { tab: TabNode }) {
 
     useEffect(() => {
         if (config.status !== status) {
-            engine.doAction(
-                Actions.updateNodeAttributes(tab.getId(), {
-                    config: { ...config, status },
-                }),
-            );
+            run("tab.update", {
+                tab: tab.id,
+                component: "kpi",
+                data: { ...config, status },
+            });
         }
-    }, [engine, tab, config, status]);
+    }, [run, tab.id, config, status]);
 
     const format = (n: number) =>
         kpi.unit === "$" ? `$${n.toFixed(0)}` : `${n.toFixed(1)}${kpi.unit}`;

@@ -35,7 +35,7 @@ test("opening an open file selects its tab, and closing a modified tab asks firs
         "1 unsaved file",
     );
 
-    // closing it is vetoed in onAction and asks; Cancel keeps the tab
+    // closing it is vetoed by a middleware, which asks; Cancel keeps the tab
     const dialog = page.getByRole("alertdialog");
     await tab("main.ts").getByRole("button", { name: "Close main.ts" }).click();
     await expect(dialog).toBeVisible();

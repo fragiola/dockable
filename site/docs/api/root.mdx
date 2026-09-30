@@ -1,6 +1,6 @@
 ---
 title: Dockable.Root
-description: The layout's root - owns the engine for a model and is the containing block the panels are positioned in.
+description: The layout's root owns the engine for a model and is the containing block the panels are positioned in.
 ---
 
 "The layout's root: owns the engine for `model`, attaches it to the rendered element (the
@@ -8,41 +8,79 @@ containing block the panels are positioned in), runs the measure-and-position cy
 commit and re-renders when the engine asks."
 
 ```tsx
-<Dockable.Root model={model} onAction={onAction} getLabel={getLabel} className="layout">
-    <Dockable.Row>{renderNode}</Dockable.Row>
-    <Dockable.Panels>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
+const model = createModel<Types>(json);
+
+<Dockable.Root model={model} getLabel={getLabel} className="layout">
+    <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+    <Dockable.Panels<Types>>
+        {(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}
+    </Dockable.Panels>
     <Dockable.DropIndicator />
-    <Dockable.Popout>{() => <Dockable.Row>{renderNode}</Dockable.Row>}</Dockable.Popout>
+    <Dockable.Popout<Types>>{() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}</Dockable.Popout>
 </Dockable.Root>
 ```
 
 The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting-started/sizing)).
 
+`Root` is generic over the model's registry: `model: Model<Types>` types the callbacks
+(`onExternalDrag`, `onPopoutOpen`, `onPopoutClose`). The parts that hand nodes to a children
+function (`Row`, `TabList`, `Panels`, `Borders`, `Popout`, `TabOverflowTrigger`) cannot infer it
+through context: pass it as their type argument (`<Dockable.Panels<Types>>`).
+
+The layout's policies and reactions live on the model, not on the root: a middleware
+(`model.use`) sees, rewrites or vetoes every command the layout runs (a drop, a close, a splitter
+release), and a listener (`model.subscribe`) sees every change. See
+[The command bus](/docs/api/command-bus).
+
 ## Props
 
-`RootProps` extends the [common primitive props](#common-props).
+`RootProps<T>` extends the [common primitive props](#common-props).
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `model` | `Model` | required | the layout model; a new model identity (e.g. an undo/redo swap) creates a new engine |
-| `onAction` | `(action: Action) => Action \| undefined` | none | intercepts every action: return it (or a replacement) to apply it, `undefined` to veto |
-| `onModelChange` | `(model: Model, action: Action) => void` | none | called after the model applied an action |
+| `model` | `Model<T>` | required | the layout model. Its middleware (`model.use`) sees every command the layout runs, and its listeners (`model.subscribe`) every change; a new state never needs a new model (`layout.load`). A new model identity creates a new engine |
 | `getLabel` | `GetLabel` | none | resolves label keys to text (accessible names); with no resolver the primitives render no text of their own |
 | `keyMap` | `IKeyMap` | `defaultKeyMap` | keyboard bindings, merged over `defaultKeyMap` |
 | `realtimeResize` | `boolean` | `true` | true (default) to resize live while dragging a splitter; false to preview and commit on release |
 | `tabDragSpeed` | `number` | `0.3` | seconds a view may take to animate the drop indicator (exposed as data; default 0.3) |
 | `popoutURL` | `string` | `"popout.html"` | the popout host page (default `"popout.html"`); the window layout's id is passed as `?id=` |
-| `supportsPopout` | `boolean` | a desktop pointer is present | whether window layouts open as popouts; default: a desktop pointer is present |
-| `popoutClosePolicy` | `"dock" \| "float"` | `"dock"` | what closing a popout window does; default `"dock"` (its tabs move back to the main layout) |
-| `onPopoutOpen` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
-| `onPopoutClose` | `(layout: ModelLayout, window: Window, document: Document) => void` | none | a popout window is closing |
+| `supportsPopout` | `boolean` | a desktop pointer is present | whether window layouts open as popouts; without support, a window layout's tabs dock back into the main layout |
+| `onPopoutOpen` | `PopoutCallback<T>`: `(layout: WindowLayout<T>, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
+| `onPopoutClose` | `PopoutCallback<T>` | none | a popout window is closing (its tabs dock back into the main layout) |
+| `openWindow` | `OpenWindow`: `(url: string, name: string, features: string) => Window \| null` | the main window's `open` | opens a popout's native window. Return `null` to refuse: the window layout docks back |
 | `popoutMirrorRoot` | `boolean \| readonly string[]` | none (only `lang` and `dir`) | copies the main document's `<html>` and `<body>` attributes into each popout and keeps them in sync (a theme class, `data-theme`, …): `true` copies them all (except `style` and `id`), a list copies those names |
-| `onExternalDrag` | `(event: DragEvent) => { json: IJsonTabNode; onDrop?: (node, event) => void } \| undefined` | none | accepts a drag that did not start in a layout (files, links, text, another library's element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called when the drag enters the layout (once per entry), when only `event.dataTransfer.types` is readable; read the data in `onDrop`. See [External drag](/docs/guides/external-drag) |
-| `onAllowDrop` | `(dragNode: Node, dropInfo: DropInfo) => boolean` | none | decides whether a drag may drop at a target: return `false` to refuse it (the outline hides, the target gets `data-drop-refused`). The same rule as `model.setOnAllowDrop`, which it sets while given; removing the prop restores the model's own rule |
+| `onExternalDrag` | `OnExternalDrag<T>`: `(event: DragEventLike) => { tab: TabInitOf<T>; onDrop?: NewTabDropped } \| undefined` | none | accepts a drag that did not start in a layout (files, links, text, another library's element) as a new tab: return `{ tab, onDrop? }`, or `undefined` to ignore it. Called when the drag enters the layout, when only `event.dataTransfer.types` is readable; read the data in `onDrop(tabId \| undefined, event)`. See [External drag](/docs/guides/external-drag) |
 | `children` | `ReactNode` | none | the layout: a `Row`, `Panels`, `DropIndicator`, `Popout`, and anything else |
 
 `GetLabel` is `(key: DockableLabel, ...args: (string | number)[]) => string | undefined`; see
 [Labels](/docs/api/labels). `IKeyMap` is described in [Keyboard](/docs/guides/keyboard).
+
+The tab `onExternalDrag` returns is a typed `tab.add` init (`TabInitOf<T>`): `data` is checked
+against `component`. The drop runs `tab.add` through the model's middleware, so a veto refuses it
+like any other drop.
+
+```tsx
+<Dockable.Root
+    model={model}
+    onExternalDrag={(event) =>
+        event.dataTransfer?.types.includes("Files")
+            ? {
+                  tab: { component: "file", data: { name: "Dropped file" } },
+                  onDrop: (tabId, drop) => {
+                      const file = drop.dataTransfer?.files[0];
+                      if (tabId && file) {
+                          model.run("tab.update", {
+                              tab: tabId,
+                              component: "file",
+                              data: { name: file.name },
+                          });
+                      }
+                  },
+              }
+            : undefined
+    }
+>
+```
 
 ## State
 
@@ -61,7 +99,7 @@ The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting
 | `data-layout-path` | always `"/layout"` |
 | `data-maximized` | a tabset of the main layout is maximized |
 | `data-dragging` | a node of this layout is being dragged |
-| `data-drop-refused` | the drag is over a target that a drop rule refused |
+| `data-drop-refused` | the drag is over a target that a drop rule (or a middleware veto) refused |
 
 ## Structural style
 
@@ -71,22 +109,38 @@ The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting
 
 - Creates one engine per `model` identity and attaches it to the element on mount.
 - After every commit, runs `engine.sync()` (measure, then position the panels).
-- Listens on its document for the `focusNextTabset`/`focusPreviousTabset` bindings.
+- Opens a popout window for every window layout of the model's state while it is mounted (see
+  [Dockable.Popout](/docs/api/popout)).
+- Listens on its document for the `focusNextTabset`/`focusPreviousTabset` bindings, and closes an
+  open overlay border on a press elsewhere or on its close key.
 - Provides the context `useDockable` reads.
 
 ## Common props
 
-Every primitive except `Panels` accepts these on top of its own props (`PrimitiveProps` and the
-`div` attributes, as `DivPrimitiveProps<State>`):
+Every primitive except `Panels` accepts these on top of its own props (`PrimitiveProps<State>`
+and the `div` attributes, as `DivPrimitiveProps<State>`):
 
 | prop | type | description |
 | --- | --- | --- |
-| `render` | `ReactElement \| (props, state) => ReactElement` | replaces the rendered element (never `asChild`) |
-| `className` | `string \| (state) => string \| undefined` | a class name, or a function of the primitive's state returning one |
-| `style` | `CSSProperties \| (state) => CSSProperties \| undefined` | a style, or a function of the primitive's state returning one. Structural keys the primitive sets (position, geometry, display, flex sizing) always win |
+| `render` | `RenderProp<State>`: `ReactElement \| ((props: RenderedProps, state: State) => ReactElement)` | replaces the rendered element (never `asChild`) |
+| `className` | `string \| ((state: State) => string \| undefined)` | a class name, or a function of the primitive's state returning one |
+| `style` | `CSSProperties \| ((state: State) => CSSProperties \| undefined)` | a style, or a function of the primitive's state returning one. Structural keys the primitive sets (position, geometry, display, flex sizing) always win |
 | `ref` | `Ref<HTMLElement>` | merged with the primitive's own ref |
 | any `div` attribute | | forwarded to the element; event handlers run after the primitive's own |
 
+`RenderedProps<E extends Element = HTMLElement>` is what a `render` function receives: the
+element's attributes, the primitive's `data-*` attributes and a `ref`. Spread them onto the
+element it returns. The `ref` is a callback ref, `(element: E | null) => void | (() => void)`, so
+it fits any element's `ref` with no cast:
+
+```tsx
+<Dockable.TabSet
+    node={tabset}
+    render={(props, state) => (
+        <section {...props} aria-label={state.active ? "Active tabset" : undefined} />
+    )}
+/>
+```
+
 The exported types are `PrimitiveProps<State>`, `DivPrimitiveProps<State>`, `RenderProp<State>`
-and `RenderedProps` (the props a `render` function receives: spread them onto the element it
-returns). See [The primitive contract](/docs/concepts/primitive-contract).
+and `RenderedProps<E>`. See [The primitive contract](/docs/concepts/primitive-contract).

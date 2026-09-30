@@ -1,20 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-    type Action,
-    Actions,
-    type BorderNode,
+    type CommandEvent,
     createLayoutEngine,
+    createModel,
     createSplitterController,
-    DockLocation,
     type LayoutEngine,
-    Model,
-    Rect,
-    type RowNode,
     type SplitterController,
-    type TabSetNode,
 } from "../../src";
-import { freshModel, mountTwoTabsets, node, Rects } from "../engine/fixture";
+import { splitterBounds } from "../../src/split/split";
+import { freshModel, mountTwoTabsets, Rects } from "../engine/fixture";
 
 let engine: LayoutEngine | undefined;
 let controller: SplitterController | undefined;
@@ -28,26 +23,37 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
+/** a commit as the tests read it */
+interface Committed {
+    command: string;
+    weights: number[];
+    transient: boolean;
+}
+
+function record(model: ReturnType<typeof freshModel>): Committed[] {
+    const actions: Committed[] = [];
+    model.subscribe((event: CommandEvent) => {
+        actions.push({
+            command: event.command,
+            weights: (event.payload as { weights?: number[] }).weights ?? [],
+            transient: event.transient,
+        });
+    });
+    return actions;
+}
+
 function setup(realtimeResize = true) {
     const model = freshModel();
     const rects = new Rects();
-    const actions: Action[] = [];
+    const actions = record(model);
     engine = createLayoutEngine({
         model,
         measure: rects.measure,
         realtimeResize,
-        onAction: (action) => {
-            actions.push(action);
-            return action;
-        },
     });
     const dom = mountTwoTabsets(engine, rects);
     engine.sync();
-    controller = createSplitterController(
-        engine,
-        node<RowNode>(model, "row"),
-        1,
-    );
+    controller = createSplitterController(engine, "row", 1);
     controller.attach(dom.splitter);
     return { model, rects, actions, engine, controller, ...dom };
 }
@@ -101,7 +107,7 @@ function key(
 }
 
 describe("SplitterController pointer drag", () => {
-    it("realtime: streams adjusting weight actions, then commits once on release", () => {
+    it("realtime: streams transient row.resize commands, then commits one on release", () => {
         const { actions, splitter, controller } = setup(true);
         pointerDown(splitter, controller);
         expect(controller.getState()).toEqual({
@@ -111,23 +117,21 @@ describe("SplitterController pointer drag", () => {
 
         pointer("pointermove", document, 230);
         pointer("pointermove", document, 250);
-        const adjusting = actions.filter((a) => a.isAdjusting());
-        expect(adjusting.length).toBe(2);
-        expect(adjusting.every((a) => a.type === Actions.ADJUST_WEIGHTS)).toBe(
-            true,
-        );
+        const transient = actions.filter((a) => a.transient);
+        expect(transient.length).toBe(2);
+        expect(transient.every((a) => a.command === "row.resize")).toBe(true);
 
         pointer("pointerup", document, 250);
         const final = actions.at(-1);
-        expect(final?.type).toBe(Actions.ADJUST_WEIGHTS);
-        expect(final?.isAdjusting()).toBe(false);
-        expect(actions.filter((a) => !a.isAdjusting())).toHaveLength(1);
+        expect(final?.command).toBe("row.resize");
+        expect(final?.transient).toBe(false);
+        expect(actions.filter((a) => !a.transient)).toHaveLength(1);
         expect(controller.getState().dragging).toBe(false);
     });
 
-    it("outline: previews without touching the model, then commits a single action", () => {
+    it("outline: previews without touching the model, then commits a single command", () => {
         const { model, actions, splitter, controller } = setup(false);
-        const before = node<TabSetNode>(model, "ts0").getWeight();
+        const before = model.state;
         pointerDown(splitter, controller);
         expect(controller.getState()).toEqual({
             dragging: true,
@@ -137,12 +141,12 @@ describe("SplitterController pointer drag", () => {
         pointer("pointermove", document, 240);
         expect(controller.getState().previewOffset).toBe(30);
         expect(actions).toHaveLength(0);
-        expect(node<TabSetNode>(model, "ts0").getWeight()).toBe(before);
+        expect(model.state).toBe(before);
 
         pointer("pointerup", document, 240);
         expect(actions).toHaveLength(1);
-        expect(actions[0]?.isAdjusting()).toBe(false);
-        const weights = actions[0]?.data.weights as number[];
+        expect(actions[0]?.transient).toBe(false);
+        const weights = actions[0]?.weights ?? [];
         // the tabset before the splitter grows by the 30px preview offset
         expect(weights[0]).toBeCloseTo((226 * 100) / 392, 3);
         expect(controller.getState()).toEqual({
@@ -152,8 +156,22 @@ describe("SplitterController pointer drag", () => {
     });
 
     it("clamps the position to the splitter bounds", () => {
-        const { model, splitter, controller } = setup(false);
-        const bounds = node<RowNode>(model, "row").getSplitterBounds(1);
+        const { engine, splitter, controller } = setup(false);
+        const children = ["ts0", "ts1"].map((id) => ({
+            rect: engine.rect("tabset", id) ?? {
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0,
+            },
+            range: engine.minMax(id),
+        }));
+        const bounds = splitterBounds(
+            children,
+            "horizontal",
+            engine.splitterSize(),
+            1,
+        );
         pointerDown(splitter, controller);
 
         pointer("pointermove", document, 5000);
@@ -168,7 +186,7 @@ describe("SplitterController pointer drag", () => {
         pointerDown(realtime.splitter, realtime.controller);
         pointer("pointermove", document, 230);
         pointer("pointercancel", document, 230);
-        expect(realtime.actions.at(-1)?.isAdjusting()).toBe(false);
+        expect(realtime.actions.at(-1)?.transient).toBe(false);
         realtime.controller.dispose();
         realtime.engine.dispose();
         document.body.innerHTML = "";
@@ -286,20 +304,20 @@ describe("SplitterController pointer guards", () => {
         pointerDown(splitter, controller);
         pointer("pointermove", document, 240);
         controller.dispose();
-        expect(actions.at(-1)?.isAdjusting()).toBe(false);
+        expect(actions.at(-1)?.transient).toBe(false);
     });
 
     it("measures the splitter along its current orientation", () => {
         const { model, rects, engine, splitter } = setup(true);
         engine.sync();
-        expect(model.getSplitterSize()).toBe(8);
+        expect(engine.splitterSize()).toBe(8);
         // the row turns vertical: the same splitter is now a horizontal bar, 8px high
         rects.set(splitter, 10, 180, 400, 8);
-        model.doAction(
-            Actions.updateModelAttributes({ rootOrientationVertical: true }),
-        );
+        model.run("layout.configure", {
+            defaults: { layout: { rootOrientation: "vertical" } },
+        });
         engine.sync();
-        expect(model.getSplitterSize()).toBe(8);
+        expect(engine.splitterSize()).toBe(8);
     });
 });
 
@@ -309,7 +327,7 @@ describe("SplitterController keyboard", () => {
         const event = key(controller, "ArrowRight");
         expect(event.defaultPrevented).toBe(true);
         expect(actions).toHaveLength(1);
-        const weights = actions[0]?.data.weights as number[];
+        const weights = actions[0]?.weights ?? [];
         expect(weights[0]).toBeCloseTo((206 * 100) / 392, 3);
 
         key(controller, "ArrowLeft");
@@ -328,19 +346,9 @@ describe("SplitterController keyboard", () => {
 
     it("skips an unmeasured (zero-sum) row", () => {
         const model = freshModel();
-        const actions: Action[] = [];
-        engine = createLayoutEngine({
-            model,
-            onAction: (a) => {
-                actions.push(a);
-                return a;
-            },
-        });
-        controller = createSplitterController(
-            engine,
-            node<RowNode>(model, "row"),
-            1,
-        );
+        const actions = record(model);
+        engine = createLayoutEngine({ model });
+        controller = createSplitterController(engine, "row", 1);
         key(controller, "ArrowRight");
         expect(actions).toHaveLength(0);
     });
@@ -359,31 +367,24 @@ describe("SplitterController ARIA", () => {
     });
 
     it("reports a border splitter in px with min and max", () => {
-        const model = Model.fromJson({
-            global: {},
+        const model = createModel({
+            version: 1,
             borders: [
                 {
-                    type: "border",
                     location: "left",
                     size: 200,
                     minSize: 50,
                     maxSize: 400,
-                    children: [{ type: "tab", name: "B" }],
+                    children: [{ component: "x" }],
                 },
             ],
-            layout: {
+            root: {
                 type: "row",
-                children: [
-                    { type: "tabset", children: [{ type: "tab", name: "A" }] },
-                ],
+                children: [{ type: "tabset", children: [{ component: "x" }] }],
             },
         });
         engine = createLayoutEngine({ model });
-        const border = model
-            .getBorderSet()
-            .getBorderMap()
-            .get(DockLocation.LEFT) as BorderNode;
-        controller = createSplitterController(engine, border, 0);
+        controller = createSplitterController(engine, "border_left", 0);
         expect(controller.getAria()).toEqual({
             orientation: "vertical",
             valueNow: 200,
@@ -396,7 +397,7 @@ describe("SplitterController ARIA", () => {
     it("is hidden while a tabset is maximized", () => {
         const { model, controller } = setup();
         expect(controller.isHidden()).toBe(false);
-        model.doAction(Actions.maximizeToggle("ts0"));
+        model.run("tabset.maximize", { tabset: "ts0", value: true });
         expect(controller.isHidden()).toBe(true);
     });
 
@@ -410,11 +411,75 @@ describe("SplitterController ARIA", () => {
     });
 });
 
-describe("Rect sanity for the fixture", () => {
-    it("the row is measured before splitting", () => {
-        const { model } = setup();
-        expect(node<RowNode>(model, "row").getRect()).toEqual(
-            new Rect(0, 0, 400, 300),
+describe("border splitters", () => {
+    it("resize the border with border.resize, transient while dragged, clamped to its limits", () => {
+        const model = createModel({
+            version: 1,
+            borders: [
+                {
+                    location: "left",
+                    size: 200,
+                    minSize: 50,
+                    maxSize: 300,
+                    selected: 0,
+                    children: [{ component: "x" }],
+                },
+            ],
+            root: {
+                type: "row",
+                id: "row",
+                children: [{ type: "tabset", children: [{ component: "x" }] }],
+            },
+        });
+        const actions: {
+            command: string;
+            payload: unknown;
+            transient: boolean;
+        }[] = [];
+        model.subscribe((event) => actions.push(event));
+        const rects = new Rects();
+        engine = createLayoutEngine({ model, measure: rects.measure });
+        const root = rects.set(
+            document.body.appendChild(document.createElement("div")),
+            0,
+            0,
+            800,
+            600,
         );
+        const el = () => root.appendChild(document.createElement("div"));
+        engine.attachRoot(root);
+        engine.registerMeasurable(
+            "border_left",
+            "borderheader",
+            rects.set(el(), 0, 0, 30, 600),
+        );
+        engine.registerMeasurable(
+            "row",
+            "row",
+            rects.set(el(), 238, 0, 562, 600),
+        );
+        const splitterElement = rects.set(el(), 230, 0, 8, 600);
+        engine.sync();
+        controller = createSplitterController(engine, "border_left", 0);
+        controller.attach(splitterElement);
+        expect(controller.isHorizontal()).toBe(true);
+
+        pointerDown(splitterElement, controller, 232);
+        pointer("pointermove", document, 282); // 50px wider
+        expect(actions.at(-1)).toMatchObject({
+            command: "border.resize",
+            payload: { border: "border_left", size: 250 },
+            transient: true,
+        });
+        pointer("pointermove", document, 900); // clamped by the bounds to the maximum
+        pointer("pointerup", document, 900);
+        expect(actions.at(-1)).toMatchObject({
+            command: "border.resize",
+            transient: false,
+        });
+        expect(model.get("border_left")).toMatchObject({ size: 300 });
+
+        key(controller, "ArrowLeft"); // towards the border's edge: it shrinks
+        expect(model.get("border_left")).toMatchObject({ size: 290 });
     });
 });

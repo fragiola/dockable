@@ -1,19 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-    Actions,
     createLayoutEngine,
-    type IJsonModel,
     type LayoutEngine,
-    type TabNode,
-    type TabSetNode,
+    type LayoutJson,
 } from "../../src";
-import { freshModel, mountTwoTabsets, node, Rects } from "./fixture";
+import { freshModel, mountTwoTabsets, Rects } from "./fixture";
 
 // ts0 with four tabs (80px each): a list whose width the test sets, and a 40px trigger after it
-const fourTabs: IJsonModel = {
-    global: {},
-    layout: {
+const fourTabs: LayoutJson = {
+    version: 1,
+    root: {
         type: "row",
         id: "row",
         children: [
@@ -21,15 +18,14 @@ const fourTabs: IJsonModel = {
                 type: "tabset",
                 id: "ts0",
                 children: ["t0", "t1", "t2", "t3"].map((id) => ({
-                    type: "tab" as const,
                     id,
-                    name: id,
+                    component: "test",
                 })),
             },
             {
                 type: "tabset",
                 id: "ts1",
-                children: [{ type: "tab", id: "t4", name: "t4" }],
+                children: [{ id: "t4", component: "test" }],
             },
         ],
     },
@@ -51,14 +47,10 @@ function setup() {
     const list = el();
     const buttons = ["t0", "t1", "t2", "t3"].map((id) => {
         const button = el();
-        engine.registerMeasurable(
-            node<TabNode>(model, id),
-            "tabbutton",
-            button,
-        );
+        engine.registerMeasurable(id, "tabbutton", button);
         return button;
     });
-    const ts0 = node<TabSetNode>(model, "ts0");
+    const ts0 = "ts0";
     engine.registerTabList(ts0, list);
     /** lays the strip out as a browser would: the list is `width` wide; shown tabs are 80px */
     const layout = (width: number) => {
@@ -137,7 +129,7 @@ describe("tab overflow in the engine", () => {
 
     it("keeps the selected tab in the strip", () => {
         const s = setup();
-        s.engine.doAction(Actions.selectTab("t3"));
+        s.engine.run("tab.select", { tab: "t3" });
         s.layout(250);
         s.engine.sync();
         expect(s.engine.getHiddenTabs("ts0")).toEqual(["t2"]);

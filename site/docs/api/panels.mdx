@@ -1,34 +1,43 @@
 ---
 title: Dockable.Panels
-description: The panel layer - calls the child function for every tab whose content should render, in every layout.
+description: The panel layer calls the child function for every tab whose content should render, in every layout of the model.
 ---
 
-"The panel layer. Place it once, directly under `Dockable.Root`. It calls the child function for
-every tab of every layout of the model whose content should render: the selected tab once its
-content area has a size, a tab rendered before (content is kept alive), and every tab with
-render-on-demand disabled. Tabs are iterated in stable id order, so the framework never reorders
-DOM the engine has re-parented. Renders no element of its own."
+"The panel layer. Place it once, directly under `Dockable.Root`, with the model's registry as its
+type argument (`<Dockable.Panels<Types>>`). It calls the child function for every tab of every
+layout of the model whose content should render: the selected tab once its content area has a
+size, a tab rendered before (content is kept alive), and every tab not rendered on demand. Tabs
+are iterated in stable id order, so the framework never reorders DOM the engine has re-parented.
+Renders no element of its own."
 
 ```tsx
 <Dockable.Root model={model}>
-    <Dockable.Row>{renderNode}</Dockable.Row>
-    <Dockable.Panels>
+    <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+    <Dockable.Panels<Types> renderOnDemand={(tab) => tab.component !== "terminal"}>
         {(tab) => (
             <Dockable.Panel node={tab} className="panel">
-                {renderContent(tab)}
+                {tab.component === "editor" ? <Editor path={tab.data.path} /> : <Terminal />}
             </Dockable.Panel>
         )}
     </Dockable.Panels>
 </Dockable.Root>
 ```
 
+The child function receives a plain `TabOf<T>`. `Panels` reads the tabs from the model in
+context, so it cannot infer `T`: pass the registry as the type argument, and `tab.data` narrows
+on `tab.component`. Without it, `T` is `AnyTypes` and `tab.data` is `unknown`.
+
 ## Props
 
-`PanelsProps`. `Panels` renders no element, so it takes none of the common props.
+`PanelsProps<T>`. `Panels` renders no element, so it takes none of the common props.
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `children` | `(tab: TabNode) => ReactNode` | required | renders a tab's panel (a `Dockable.Panel`) |
+| `children` | `(tab: TabOf<T>) => ReactNode` | required | renders a tab's panel (a `Dockable.Panel`); `tab.data` narrows on `tab.component` |
+| `renderOnDemand` | `boolean \| ((tab: TabOf<T>) => boolean)` | `true` | render a tab's content only once it is first shown; `false` renders every tab's content at once. A function decides per tab |
+
+Rendering on demand is a view option, not a model attribute: the model knows nothing of it, and
+it is not saved with the layout.
 
 ## Which tabs render
 
@@ -36,10 +45,11 @@ DOM the engine has re-parented. Renders no element of its own."
 | --- | --- |
 | selected, and its content area has a non-zero size | yes |
 | rendered once before (then hidden or moved) | yes: content stays mounted |
-| `enableRenderOnDemand: false` | yes, even before it is ever shown |
+| `renderOnDemand` is `false` for it | yes, even before it is ever shown |
 | never selected | no |
 
-A tab is unmounted only when it leaves the model (closed).
+A tab is unmounted only when it leaves the model (closed, or removed by a `layout.load`). A
+`layout.load` that keeps a tab's id keeps its content mounted.
 
 ## Data attributes
 

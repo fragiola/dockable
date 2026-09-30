@@ -1,8 +1,8 @@
 "use client";
 
-import type { TabNode } from "@fragiola/dockable";
 import { type ReactNode, useState } from "react";
 import { cn } from "#/lib/cn";
+import { tabName } from "./layout";
 import * as styles from "./styles";
 
 // Demo content: a panel body, and a card with state you can see. Nothing here is part of
@@ -34,12 +34,13 @@ export function Card({
     tab,
     children,
 }: {
-    tab: TabNode;
+    tab: { readonly data?: unknown };
     children?: ReactNode;
 }) {
     const [count, setCount] = useState(0);
+    const name = tabName(tab);
     return (
-        <PanelBody title={tab.getName()}>
+        <PanelBody title={name}>
             <p className="text-palette-accent/85">
                 Drag the tab, resize with the splitters. The counter and the
                 notes survive every move.
@@ -55,7 +56,7 @@ export function Card({
                 </button>
                 <input
                     data-testid="notes"
-                    aria-label={`${tab.getName()} notes`}
+                    aria-label={`${name} notes`}
                     placeholder="Notes"
                     className="h-8 min-w-0 rounded-md border border-palette-line bg-palette-soft px-3 text-sm placeholder:text-palette-accent/85 focus-visible:outline-2 focus-visible:outline-palette-ring"
                 />

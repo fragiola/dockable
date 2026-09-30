@@ -1,20 +1,24 @@
 import * as React from "react";
 import { mergeProps, mergeRefs } from "./mergeProps";
 
-/** Props a `render` function receives: spread them onto the element it returns. */
-export type RenderedProps = React.HTMLAttributes<HTMLElement> & {
-    ref: React.Ref<HTMLElement>;
-    [dataAttribute: `data-${string}`]: string | undefined;
-};
+/**
+ * Props a `render` function receives: spread them onto the element it returns. `ref` is a callback
+ * ref, so it fits any element's `ref` (`render={(props) => <section {...props} />}` needs no cast).
+ */
+export type RenderedProps<E extends Element = HTMLElement> =
+    React.HTMLAttributes<E> & {
+        ref: React.RefCallback<E>;
+        [dataAttribute: `data-${string}`]: string | undefined;
+    };
 
 /**
  * Replaces the element a primitive renders, Base UI style: either an element whose props are
  * merged with the primitive's (`render={<section />}`), or a function receiving the props and
  * the primitive's state (`render={(props, state) => <section {...props} />}`).
  */
-export type RenderProp<State> =
-    | React.ReactElement<Record<string, unknown>>
-    | ((props: RenderedProps, state: State) => React.ReactElement);
+export type RenderProp<State, E extends Element = HTMLElement> =
+    | React.ReactElement
+    | ((props: RenderedProps<E>, state: State) => React.ReactElement);
 
 /** The props every primitive accepts on top of the element's own. */
 export interface PrimitiveProps<State> {
@@ -56,6 +60,8 @@ export function dataAttributes(
     return attributes;
 }
 
+type AnyProps = Record<string, unknown>;
+
 interface RenderOptions<State> {
     state: State;
     /** the primitive's own props: ARIA, data-*, handlers, children */
@@ -75,21 +81,24 @@ export function useRenderElement<State>(
     tag: keyof React.JSX.IntrinsicElements,
     componentProps: PrimitiveProps<State>,
     options: RenderOptions<State>,
-): React.ReactElement {
+): React.JSX.Element {
     const {
         render,
         className,
         style,
         ref: externalRef,
         ...external
-    } = componentProps as PrimitiveProps<State> & Record<string, unknown>;
+    } = componentProps as PrimitiveProps<State> & AnyProps;
     const internalRef = options.ref;
     // the render element's own ref joins the merge; memoized so React does not detach and
     // re-attach the refs (and the primitive's registrations) on every render
-    const elementRef =
+    const renderElement =
         render && typeof render !== "function"
-            ? (render.props.ref as React.Ref<HTMLElement> | undefined)
+            ? (render as React.ReactElement<AnyProps>)
             : undefined;
+    const elementRef = renderElement?.props.ref as
+        | React.Ref<HTMLElement>
+        | undefined;
     // consumer refs are read when the element attaches, not memoized on their identity: an inline
     // callback ref (a new function each render) must not make React detach and re-attach the
     // primitive's own ref (and its registrations) on every render
@@ -97,14 +106,16 @@ export function useRenderElement<State>(
         [],
     );
     consumerRefs.current = [externalRef, elementRef];
+    // (a consumer ref that appears later re-attaches once, so it is called)
     const hasConsumerRef = externalRef != null || elementRef != null;
-    const ref = React.useMemo<React.Ref<HTMLElement> | undefined>(() => {
-        if (!hasConsumerRef) {
-            return internalRef;
-        }
-        return (element: HTMLElement | null) =>
-            mergeRefs(internalRef, ...consumerRefs.current)(element);
-    }, [internalRef, hasConsumerRef]);
+    const ref = React.useMemo<React.RefCallback<HTMLElement>>(
+        () => (element: HTMLElement | null) =>
+            mergeRefs(
+                internalRef,
+                ...(hasConsumerRef ? consumerRefs.current : []),
+            )(element),
+        [internalRef, hasConsumerRef],
+    );
 
     const resolvedClassName =
         typeof className === "function" ? className(options.state) : className;
@@ -123,15 +134,13 @@ export function useRenderElement<State>(
     if (mergedStyle !== undefined) {
         props.style = mergedStyle;
     }
-    if (ref !== undefined) {
-        props.ref = ref;
-    }
+    props.ref = ref;
 
     if (typeof render === "function") {
         return render(props as unknown as RenderedProps, options.state);
     }
-    if (render) {
-        const elementProps = render.props;
+    if (renderElement) {
+        const elementProps = renderElement.props;
         const merged = mergeProps(props, elementProps);
         // the element's own style sits under the structural keys too
         if (elementProps.style || props.style) {
@@ -142,7 +151,7 @@ export function useRenderElement<State>(
             };
         }
         merged.ref = ref;
-        return React.cloneElement(render, merged);
+        return React.cloneElement(renderElement, merged);
     }
     return React.createElement(tag, props);
 }

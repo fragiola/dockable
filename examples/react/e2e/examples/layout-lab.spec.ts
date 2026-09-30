@@ -8,13 +8,12 @@ test("applying JSON changes the layout", async ({ page }) => {
 
     const tabset = (name: string) => ({
         type: "tabset",
-        children: [{ type: "tab", name, component: "card" }],
+        children: [{ component: "card", data: { name } }],
     });
     await json.fill(
         JSON.stringify({
-            global: {},
-            borders: [],
-            layout: {
+            version: 1,
+            root: {
                 type: "row",
                 children: ["Alpha", "Beta", "Gamma"].map(tabset),
             },
@@ -42,13 +41,13 @@ test("a vetoed action leaves the model unchanged", async ({ page }) => {
     await stage.getByRole("tab", { name: /Welcome/ }).click(); // its tabset becomes active
     const before = await json.inputValue();
 
-    // veto "selectTab" (the default choice), then try to select another tab
+    // veto "tab.select" (the default choice), then try to select another tab
     await stage.getByRole("switch", { name: "Veto" }).click();
     await notes.click();
 
     const log = stage.getByTestId("action-log");
     await expect(log.locator("li[data-vetoed]").first()).toContainText(
-        "Actions.selectTab",
+        "tab.select",
     );
     await expect(notes).toHaveAttribute("aria-selected", "false");
     await expect(json).toHaveValue(before);

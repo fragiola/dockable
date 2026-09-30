@@ -1,11 +1,11 @@
 {
-    "global": {
-        "tabEnablePin": true,
-        "tabEnableRename": true,
-        "tabEnablePopout": true
+    "version": 1,
+    "defaults": {
+        "tab": {
+            "enablePopout": true
+        }
     },
-    "borders": [],
-    "layout": {
+    "root": {
         "type": "row",
         "weight": 100,
         "children": [
@@ -14,9 +14,10 @@
                 "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "One",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "One"
+                        }
                     }
                 ]
             },
@@ -26,9 +27,10 @@
                 "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "Two",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "Two"
+                        }
                     }
                 ]
             }

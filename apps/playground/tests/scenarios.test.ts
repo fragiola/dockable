@@ -95,6 +95,6 @@ describe("scenario paths", () => {
         expect(scenarioTitle("drop-indicator-motion")).toBe(
             "Drop indicator motion",
         );
-        expect(scenarioTitle("actions")).toBe("Actions");
+        expect(scenarioTitle("commands")).toBe("Commands");
     });
 });

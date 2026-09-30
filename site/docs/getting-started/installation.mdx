@@ -40,18 +40,23 @@ Dockable is two packages: the framework-agnostic core and the React primitives o
 `@fragiola/dockable` has **zero runtime dependencies**. `@fragiola/dockable-react` depends only
 on the core and its React peers.
 
+The core ships its own types, and is best used with TypeScript in `strict` mode: the layout JSON,
+the command payloads and each tab's data are typed by your registry
+([Typed data](/docs/concepts/typed-data)). Plain JavaScript works too; the model validates every
+command's payload at runtime either way.
+
 ## What to import from where
 
 ```tsx
-// the model, the actions and the other core classes
-import { Actions, DockLocation, Model, type IJsonModel } from "@fragiola/dockable";
+// the model, its types and the other core exports
+import { createModel, type LayoutJson, type TabOf } from "@fragiola/dockable";
 // the primitives (one namespace) and the hooks
-import { Dockable, useDockable } from "@fragiola/dockable-react";
+import { Dockable, useDockable, useModelState } from "@fragiola/dockable-react";
 ```
 
-The React package does **not** re-export the core. Import model classes (`Model`, `TabNode`,
-`TabSetNode`, `RowNode`, `Actions`, `DockLocation`, `DockableLabel`, …) from
-`@fragiola/dockable`.
+The React package does **not** re-export the core. Import the model and its types
+(`createModel`, `Model`, `LayoutJson`, `TabOf`, `TabsetNode`, `RowNode`, `Middleware`, `veto`,
+`MAIN_LAYOUT`, `DockableLabel`, …) from `@fragiola/dockable`.
 
 ## Server rendering
 
@@ -82,4 +87,4 @@ HTML document: the core writes everything it needs into it.
 
 ## Next
 
-[Your first layout](/docs/getting-started/first-layout) builds a working layout in five steps.
+[Your first layout](/docs/getting-started/first-layout) builds a working, typed layout step by step.

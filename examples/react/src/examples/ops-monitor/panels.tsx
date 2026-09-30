@@ -1,6 +1,6 @@
 "use client";
 
-import { Actions, type TabNode } from "@fragiola/dockable";
+import type { TabNode } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import type { EChartsOption } from "echarts";
 import {
@@ -36,12 +36,30 @@ export const LEVEL_PALETTE: Record<Level | "info", string> = {
     info: "",
 };
 
-/** What a service tab keeps in its `config`; `status` and `alerts` are written by its panel. */
-export interface ServiceConfig {
+/** What a service tab keeps in its `data`; `status` and `alerts` are written by its panel. */
+export interface ServiceData {
+    name: string;
     service: ServiceId;
     status?: Level;
     alerts?: number;
 }
+
+/** What an incident tab keeps in its `data`: the region it belongs to (and may not leave). */
+export interface IncidentData {
+    name: string;
+    region: "incident";
+}
+
+/** What the console holds: each tab component and the type of its data. */
+export type Types = {
+    tabs: {
+        overview: { name: string };
+        service: ServiceData;
+        events: { name: string };
+        runbook: IncidentData;
+        timeline: IncidentData;
+    };
+};
 
 function useSimulation(simulation: Simulation) {
     return useSyncExternalStore(
@@ -52,36 +70,32 @@ function useSimulation(simulation: Simulation) {
 }
 
 /**
- * One service, live. When its alert level changes it writes the level into its TAB's config
- * (`Actions.updateNodeAttributes`); the tab reads it back and recolours. Only on a change, not
- * on every sample, so the model sees a handful of actions, not one a second.
+ * One service, live. When its alert level changes it writes the level into its TAB's data
+ * (the `tab.update` command); the tab reads it back and recolours. Only on a change, not on
+ * every sample, so the model sees a handful of commands, not one a second.
  */
 export function ServicePanel({
     tab,
     simulation,
 }: {
-    tab: TabNode;
+    tab: TabNode<"service", ServiceData>;
     simulation: Simulation;
 }) {
-    const { engine } = useDockable();
-    const config = tab.getConfig() as ServiceConfig;
+    const { run } = useDockable<Types>();
+    const config = tab.data;
     const state = useSimulation(simulation).services[config.service];
     const ref = useRef<HTMLDivElement | null>(null);
     const theme = useExampleTheme(ref);
 
     useEffect(() => {
         if (config.status !== state.level || config.alerts !== state.alerts) {
-            engine.doAction(
-                Actions.updateNodeAttributes(tab.getId(), {
-                    config: {
-                        ...config,
-                        status: state.level,
-                        alerts: state.alerts,
-                    },
-                }),
-            );
+            run("tab.update", {
+                tab: tab.id,
+                component: "service",
+                data: { ...config, status: state.level, alerts: state.alerts },
+            });
         }
-    }, [engine, tab, config, state.level, state.alerts]);
+    }, [run, tab.id, config, state.level, state.alerts]);
 
     const option = useMemo<EChartsOption>(
         () => ({
@@ -166,11 +180,11 @@ export function ServicePanel({
 
 /** Every service at a glance; a row opens the service's tab. */
 export function OverviewPanel({ simulation }: { simulation: Simulation }) {
-    const { engine, model } = useDockable();
+    const { model, run } = useDockable<Types>();
     const { services } = useSimulation(simulation);
     const open = (id: ServiceId) => {
-        if (model.getNodeById(`service-${id}`)) {
-            engine.doAction(Actions.selectTab(`service-${id}`));
+        if (model.get(`service-${id}`)) {
+            run("tab.select", { tab: `service-${id}` });
         }
     };
     return (

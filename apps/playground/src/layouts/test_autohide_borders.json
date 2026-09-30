@@ -1,31 +1,11 @@
 {
-    "global": {
-        "borderEnableAutoHide": true
-    },
-    "borders": [
-        {
-            "type": "border",
-            "location": "left",
-            "children": [
-                {
-                    "type": "tab",
-                    "name": "left1",
-                    "component": "testing"
-                }
-            ]
-        },
-        {
-            "type": "border",
-            "location": "right",
-            "children": []
-        },
-        {
-            "type": "border",
-            "location": "bottom",
-            "children": []
+    "version": 1,
+    "defaults": {
+        "border": {
+            "autoHide": true
         }
-    ],
-    "layout": {
+    },
+    "root": {
         "type": "row",
         "weight": 100,
         "children": [
@@ -34,14 +14,16 @@
                 "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "One",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "One"
+                        }
                     },
                     {
-                        "type": "tab",
-                        "name": "Two",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "Two"
+                        }
                     }
                 ]
             },
@@ -50,12 +32,34 @@
                 "weight": 50,
                 "children": [
                     {
-                        "type": "tab",
-                        "name": "Three",
-                        "component": "testing"
+                        "component": "testing",
+                        "data": {
+                            "name": "Three"
+                        }
                     }
                 ]
             }
         ]
-    }
+    },
+    "borders": [
+        {
+            "location": "left",
+            "children": [
+                {
+                    "component": "testing",
+                    "data": {
+                        "name": "left1"
+                    }
+                }
+            ]
+        },
+        {
+            "location": "right",
+            "children": []
+        },
+        {
+            "location": "bottom",
+            "children": []
+        }
+    ]
 }

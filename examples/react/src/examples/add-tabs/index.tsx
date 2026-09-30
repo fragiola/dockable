@@ -1,34 +1,38 @@
 "use client";
 
 import {
-    Actions,
-    DockLocation,
-    type IJsonModel,
-    type IJsonTabNode,
-    type LayoutEngine,
-    Model,
-    type TabNode,
+    createModel,
+    type LayoutJson,
+    MAIN_LAYOUT,
+    type TabOf,
 } from "@fragiola/dockable";
 import { ChartLine, ScrollText, Table2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Select } from "#/components/ui/select";
 import { ChartPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
-import { EngineBridge } from "../_kit/engine-bridge";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
-const json: IJsonModel = {
-    global: {},
-    borders: [],
-    layout: {
+// What the layout holds: each tab component and the type of its data.
+type Types = {
+    tabs: {
+        chart: { name: string };
+        table: { name: string };
+        log: { name: string };
+    };
+};
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
         type: "row",
         children: [
             {
                 type: "tabset",
                 children: [
-                    { type: "tab", name: "Revenue", component: "chart" },
-                    { type: "tab", name: "Orders", component: "table" },
+                    { component: "chart", data: { name: "Revenue" } },
+                    { component: "table", data: { name: "Orders" } },
                 ],
             },
         ],
@@ -49,50 +53,49 @@ const KINDS = [
     { component: "log", name: "Log", icon: ScrollText },
 ] as const;
 
-function Content({ tab }: { tab: TabNode }) {
-    switch (tab.getComponent()) {
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
         case "chart":
-            return <ChartPanel seed={tab.getName().length * 7} />;
+            return <ChartPanel seed={tab.data.name.length * 7} />;
         case "table":
             return <TablePanel />;
-        default:
+        case "log":
             return <LogPanel />;
     }
 }
 
 export default function AddTabs() {
-    const [model] = useState(() => Model.fromJson(json));
-    const [engine, setEngine] = useState<LayoutEngine | null>(null);
+    const [model] = useState(() => createModel<Types>(json));
     const [target, setTarget] = useState<Target>("active");
     const count = useRef(0);
 
+    // The toolbar is outside the layout: it runs commands on the model it owns, no engine needed.
     const add = (kind: (typeof KINDS)[number]) => {
-        if (!engine) return;
         count.current += 1;
-        const tab: IJsonTabNode = {
-            type: "tab",
-            name: `${kind.name} ${count.current}`,
+        const tab = {
             component: kind.component,
+            data: { name: `${kind.name} ${count.current}` },
         };
-        const root = model.getRootRow();
-        // the active tabset, or the first one when none is active yet
-        const tabset = model.getActiveTabset() ?? model.getFirstTabSet();
-        if (target === "active" && tabset) {
-            // dropped into the tabset's centre, at the end (-1), and selected
-            engine.doAction(
-                Actions.addTab(
-                    tab,
-                    tabset.getId(),
-                    DockLocation.CENTER,
-                    -1,
-                    true,
-                ),
-            );
-        } else if (root) {
-            // dropped on an edge of the root row: a new tabset along that edge
-            const edge =
-                target === "right" ? DockLocation.RIGHT : DockLocation.BOTTOM;
-            engine.doAction(Actions.addTab(tab, root.getId(), edge, -1, true));
+        if (target === "active") {
+            // the active tabset, or the first one when none is active yet
+            const tabset = model.activeTabset() ?? model.tabsets()[0];
+            // dropped into the tabset's centre, at the end (-1), and selected (with no tabset
+            // left, into the layout itself: a new tabset)
+            model.run("tab.add", {
+                ...tab,
+                to: tabset?.id ?? MAIN_LAYOUT,
+                location: "center",
+                index: -1,
+                select: true,
+            });
+        } else {
+            // dropped on an edge of the layout (its root row): a new tabset along that edge
+            model.run("tab.add", {
+                ...tab,
+                to: MAIN_LAYOUT,
+                location: target,
+                select: true,
+            });
         }
     };
 
@@ -104,7 +107,6 @@ export default function AddTabs() {
                         key={kind.component}
                         type="button"
                         className={styles.button}
-                        disabled={!engine}
                         onClick={() => add(kind)}
                     >
                         <kind.icon aria-hidden className="size-4" />
@@ -138,9 +140,7 @@ export default function AddTabs() {
             <DockLayout
                 model={model}
                 renderContent={(tab) => <Content tab={tab} />}
-            >
-                <EngineBridge onEngine={setEngine} />
-            </DockLayout>
+            />
         </div>
     );
 }

@@ -8,10 +8,12 @@ export default {
     order: 5,
     features: [
         "Dockable.DragSource",
-        "setOnAllowDrop",
-        "Actions.addTab",
+        "model.use",
+        "tab.add",
         "data-empty",
-        "toJson",
+        "toJSON",
+        "createModel",
+        "layout.load",
     ],
     docs: "/docs/guides/external-drag",
 } satisfies ExampleMeta;

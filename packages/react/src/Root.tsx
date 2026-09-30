@@ -2,24 +2,27 @@
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
 import {
+    type AnyTypes,
     createLayoutEngine,
+    type DockableTypes,
     type IKeyMap,
-    Model,
+    MAIN_LAYOUT,
+    type Model,
     matchesKey,
-    type OnAction,
-    type OnAllowDrop,
     type OnExternalDrag,
-    type OnModelChange,
+    type OpenWindow,
     type PopoutCallback,
-    type PopoutClosePolicy,
     resolveKeyMap,
 } from "@fragiola/dockable";
 import * as React from "react";
 import {
     DockableContext,
     type DockableContextValue,
+    eraseEngine,
+    eraseModel,
     type GetLabel,
     LayoutContext,
+    ModelContext,
     type PanelLayer,
     type PopoutHooks,
 } from "./context";
@@ -40,13 +43,14 @@ export interface RootState {
     refused: boolean;
 }
 
-export interface RootProps extends DivPrimitiveProps<RootState> {
-    /** the layout model; a new model identity (e.g. an undo/redo swap) creates a new engine */
-    model: Model;
-    /** intercepts every action: return it (or a replacement) to apply it, `undefined` to veto */
-    onAction?: OnAction | undefined;
-    /** called after the model applied an action */
-    onModelChange?: OnModelChange | undefined;
+export interface RootProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<RootState> {
+    /**
+     * the layout model. Its middleware (`model.use`) sees every command the layout runs, and its
+     * listeners (`model.subscribe`) every change; a new state never needs a new model
+     * (`layout.load`). A new model identity creates a new engine.
+     */
+    model: Model<T>;
     /**
      * resolves label keys to text (accessible names); with no resolver the primitives render
      * no text of their own
@@ -62,12 +66,12 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
     popoutURL?: string | undefined;
     /** whether window layouts open as popouts; default: a desktop pointer is present */
     supportsPopout?: boolean | undefined;
-    /** what closing a popout window does; default `"dock"` (its tabs move back to the main layout) */
-    popoutClosePolicy?: PopoutClosePolicy | undefined;
     /** a popout document is ready, before its content renders */
-    onPopoutOpen?: PopoutCallback | undefined;
-    /** a popout window is closing */
-    onPopoutClose?: PopoutCallback | undefined;
+    onPopoutOpen?: PopoutCallback<T> | undefined;
+    /** a popout window is closing (its tabs dock back into the main layout) */
+    onPopoutClose?: PopoutCallback<T> | undefined;
+    /** opens a popout's native window (default: the main window's `open`) */
+    openWindow?: OpenWindow | undefined;
     /**
      * copies the main document's `<html>` and `<body>` attributes into each popout and keeps them
      * in sync (a theme class, `data-theme`, …): `true` copies them all (except `style` and `id`),
@@ -76,17 +80,11 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
     popoutMirrorRoot?: boolean | readonly string[] | undefined;
     /**
      * accepts a drag that did not start in a layout (files, links, text, another library's
-     * element) as a new tab: return `{ json, onDrop? }`, or `undefined` to ignore it. Called when
+     * element) as a new tab: return `{ tab, onDrop? }`, or `undefined` to ignore it. Called when
      * the drag enters the layout, when only `event.dataTransfer.types` is readable; read the data in
      * `onDrop`.
      */
-    onExternalDrag?: OnExternalDrag | undefined;
-    /**
-     * decides whether a drag may drop at a target: return `false` to refuse it (the outline hides,
-     * the target gets `data-drop-refused`). The same rule as `model.setOnAllowDrop`, which it
-     * sets while given; removing the prop restores the model's own rule.
-     */
-    onAllowDrop?: OnAllowDrop | undefined;
+    onExternalDrag?: OnExternalDrag<T> | undefined;
     children?: React.ReactNode;
 }
 
@@ -95,53 +93,55 @@ export interface RootProps extends DivPrimitiveProps<RootState> {
  * containing block the panels are positioned in), runs the measure-and-position cycle after
  * every commit and re-renders when the engine asks.
  */
-export function Root(props: RootProps) {
+export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     const {
-        model,
-        onAction,
-        onModelChange,
+        model: typedModel,
         getLabel,
         keyMap,
         realtimeResize,
         tabDragSpeed,
         popoutURL,
         supportsPopout,
-        popoutClosePolicy,
         onPopoutOpen,
         onPopoutClose,
+        openWindow,
         popoutMirrorRoot,
         onExternalDrag,
-        onAllowDrop,
         children,
         ...rest
     } = props;
     const popoutHooks = React.useRef<PopoutHooks>({});
     const dragGroup = React.useContext(DragGroupContext);
-    const engine = React.useMemo(() => createLayoutEngine({ model }), [model]);
-    engine.setOptions({
-        onAction,
-        onModelChange,
+    // DOM ids and window names unique on the page, and the same on the server and the client
+    const idScope = `${React.useId().replace(/[^\w-]/g, "")}-`;
+    const typedEngine = React.useMemo(
+        () => createLayoutEngine({ model: typedModel, idScope }),
+        [typedModel, idScope],
+    );
+    typedEngine.setOptions({
         realtimeResize,
         tabDragSpeed,
         onExternalDrag,
-        onAllowDrop,
         dragGroup: dragGroup?.group,
         popout: {
             popoutURL,
             supportsPopout,
-            closePolicy: popoutClosePolicy,
             mirrorRoot: popoutMirrorRoot,
-            title: (layout) => popoutHooks.current.title?.(layout),
+            openWindow,
+            title: (layout) => popoutHooks.current.title?.(layout.id),
             onPopoutOpen: (layout, win, doc) => {
                 onPopoutOpen?.(layout, win, doc);
-                popoutHooks.current.onOpen?.(layout, win, doc);
+                popoutHooks.current.onOpen?.(layout.id, win, doc);
             },
             onPopoutClose: (layout, win, doc) => {
                 onPopoutClose?.(layout, win, doc);
-                popoutHooks.current.onClose?.(layout, win, doc);
+                popoutHooks.current.onClose?.(layout.id, win, doc);
             },
         },
     });
+    // the parts below work on the erased registry; the typed surface is their props
+    const model = eraseModel(typedModel);
+    const engine = eraseEngine(typedEngine);
     // leave the group when this root unmounts or its engine is replaced (a new model), so the group
     // never reaches a layout that is gone; the setup re-joins after a StrictMode remount
     React.useEffect(() => dragGroup?.group.join(engine), [dragGroup, engine]);
@@ -263,8 +263,8 @@ export function Root(props: RootProps) {
         const all = new Map(extraLayers);
         if (rootElement) {
             // the main layout's panels are positioned in the root itself
-            all.set(Model.MAIN_LAYOUT_ID, {
-                layoutId: Model.MAIN_LAYOUT_ID,
+            all.set(MAIN_LAYOUT, {
+                layoutId: MAIN_LAYOUT,
                 element: rootElement,
                 engine,
             });
@@ -286,12 +286,12 @@ export function Root(props: RootProps) {
         [engine, model, revision, getLabel, resolvedKeyMap, layers, setLayer],
     );
     const layoutContext = React.useMemo(
-        () => ({ layoutId: Model.MAIN_LAYOUT_ID, engine }),
+        () => ({ layoutId: MAIN_LAYOUT, engine }),
         [engine],
     );
 
     const state: RootState = {
-        maximized: model.getMaximizedTabset(Model.MAIN_LAYOUT_ID) !== undefined,
+        maximized: model.maximizedTabset(MAIN_LAYOUT) !== undefined,
         dragging: dragState !== undefined && dragState.mainEngine === engine,
         refused,
     };
@@ -312,10 +312,12 @@ export function Root(props: RootProps) {
     });
 
     return (
-        <DockableContext.Provider value={context}>
-            <LayoutContext.Provider value={layoutContext}>
-                {element}
-            </LayoutContext.Provider>
-        </DockableContext.Provider>
+        <ModelContext.Provider value={model}>
+            <DockableContext.Provider value={context}>
+                <LayoutContext.Provider value={layoutContext}>
+                    {element}
+                </LayoutContext.Provider>
+            </DockableContext.Provider>
+        </ModelContext.Provider>
     );
 }

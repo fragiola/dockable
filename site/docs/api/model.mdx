@@ -1,106 +1,310 @@
 ---
 title: Model
-description: The layout model - a tree of rows, tabsets and tabs that changes only through actions.
+description: The layout model is an immutable state tree created from a JSON v1 document, read through typed queries and changed only by commands.
 ---
 
-`Model` (from `@fragiola/dockable`) holds the layout: the main layout's tree, the popout window
-layouts, the global attributes and the active and maximized tabsets. It is ported from
-FlexLayout's model and works in plain Node (no DOM needed), so layout logic is unit-testable.
+`Model<T>` (from `@fragiola/dockable`) holds the layout: the main layout's tree, its borders, the
+popout window layouts, the layout defaults and each layout's active and maximized tabset. Its
+state is a tree of plain, frozen objects; a command replaces it with a new one. It needs no DOM,
+so layout logic runs and is testable in plain Node.
 
 ```ts
-import { Actions, Model } from "@fragiola/dockable";
+import { createModel, type LayoutJson } from "@fragiola/dockable";
 
-const model = Model.fromJson(json);
-model.getActiveTabset()?.getSelectedNode();
-const saved = model.toJson();
+type Types = {
+    tabs: {
+        editor: { name: string; path: string; dirty: boolean };
+        log: { name: string };
+    };
+};
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
+        type: "row",
+        children: [
+            {
+                type: "tabset",
+                id: "editors",
+                children: [
+                    {
+                        id: "readme",
+                        component: "editor",
+                        data: { name: "README.md", path: "/README.md", dirty: false },
+                    },
+                ],
+            },
+        ],
+    },
+};
+
+const model = createModel<Types>(json);
+model.selectedTab("editors")?.data; // typed by the registry
+model.run("tab.close", { tab: "readme" });
+const saved = model.toJSON(); // a LayoutJson<Types> again
 ```
 
-Never mutate nodes. Change the model with actions, dispatched through the engine
-([The model and actions](/docs/concepts/model-and-actions)).
+Never change the state yourself: it is frozen, and every change goes through a command
+([The model and commands](/docs/concepts/model-and-commands)). This page covers creating a model
+and reading it; running commands, middleware and change events are on
+[The command bus](/docs/api/command-bus), and the document format on
+[Layout JSON](/docs/api/json-model).
 
-## Creating and saving
+## Creating a model
+
+```ts
+function createModel<T extends DockableTypes = AnyTypes>(
+    json?: LayoutJson<T>,
+    options?: ModelOptions<T>,
+): Model<T>;
+```
+
+`createModel` validates the document, fills what it omits, generates the missing ids and tidies
+the tree. Without a document it creates an empty layout: a root row with one empty, active tabset.
+An invalid document throws a `LayoutValidationError` listing every problem with its JSON path
+([Validation](/docs/api/json-model#validation)); for input you do not trust, check it first with
+`validateLayout`, or load it into an existing model with `dispatch`, which returns the problems
+instead of throwing.
+
+`T` is your type registry ([below](#the-type-registry)). Pass it explicitly: the model's queries,
+`run` and middleware are typed by it.
+
+### `ModelOptions`
+
+| option | type | description |
+| --- | --- | --- |
+| `createId` | `CreateId` | generates the id of a node or window created without one; default `` `${kind}-${n}` `` |
+| `dataSchemas` | `{ [K in ComponentOf<T>]?: JsonSchema }` | a JSON Schema per tab component: loading, `tab.add`, `tab.update` and `layout.load` validate that component's `data` with it (`invalid_payload`, or a `LayoutValidationError` at creation) |
+| `freeze` | `boolean` | freeze every state object (`Object.freeze`, deeply); default `true`. With `false` the state is not frozen, but must still never be mutated |
+
+```ts
+import { createModel, type FromSchema } from "@fragiola/dockable";
+
+const logSchema = {
+    type: "object",
+    properties: { name: { type: "string", minLength: 1 } },
+    required: ["name"],
+    additionalProperties: false,
+} as const;
+
+type Types = {
+    tabs: { log: FromSchema<typeof logSchema> }; // { name: string }
+};
+
+const model = createModel<Types>(json, {
+    createId: (kind) => `${kind}-${crypto.randomUUID()}`,
+    dataSchemas: { log: logSchema },
+});
+```
+
+### Ids
+
+Every node and window has an explicit `id` in the state; reading never assigns one. A node
+created without an id (in a document, or by `tab.add`, a split or a popout) gets one when it is
+created:
+
+- `CreateId` is `(kind: IdKind) => string`, and `IdKind` is `NodeKind | "window"`: the kind the
+  id is for (`"row"`, `"tabset"`, `"tab"` or `"window"`).
+- The default generator is deterministic and needs no `crypto`: `` `${kind}-${n}` `` with one
+  counter per kind (`tab-1`, `tabset-2`), skipping ids already in use.
+- A custom generator is asked again when it returns an empty string or an id in use (up to 100
+  times, then the default takes over).
+- A border without an id is `border_<location>` (there is one border per side).
+- Ids are unique across all nodes and windows, and `MAIN_LAYOUT` (`"main"`) is reserved.
+
+Ids are stable: a node keeps its id when it moves, and `layout.load` keeps the mounted content
+of every tab whose id survives. Keep references by id, not by layout path.
+
+## Queries
+
+Every query reads the current state. A layout argument is `MAIN_LAYOUT` (the default) or a
+popout window's id.
+
+| member | returns | description |
+| --- | --- | --- |
+| `state` | `LayoutState<T>` | the current state: immutable, a new object after every change, with unchanged subtrees shared (compare with `===`) |
+| `get(id)` | `Node<T> \| undefined` | a node by id, in O(1); check its `type` to narrow it |
+| `parentOf(id)` | `ParentNode<T> \| undefined` | a node's parent: a row, a tabset or a border |
+| `layoutOf(id)` | `string \| undefined` | the layout a node is in: `MAIN_LAYOUT` (borders included) or a window id |
+| `root(layout?)` | `RowNode<T> \| undefined` | a layout's root row |
+| `windowLayout(id)` | `WindowLayout<T> \| undefined` | a popout window's layout |
+| `tabs(layout?)` | `TabOf<T>[]` | the tabs of a layout (the main layout's include its borders'), or without an argument every tab of the model, windows included; in tree order |
+| `tabsets(layout?)` | `TabsetNode<T>[]` | every tabset of a layout (default the main one), in tree order |
+| `selectedTab(container)` | `TabOf<T> \| undefined` | the selected tab of a tabset or border (by id) |
+| `activeTabset(layout?)` | `TabsetNode<T> \| undefined` | a layout's active tabset |
+| `maximizedTabset(layout?)` | `TabsetNode<T> \| undefined` | a layout's maximized tabset |
+| `isHiddenByMaximize(id)` | `boolean` | whether a tabset or row is hidden because another tabset of its layout is maximized: every other tabset, and every row not on the path to the maximized one (Dockable hides them instead of moving the maximized tabset, so nothing remounts) |
+| `resolve(node)` | `ResolvedTab`, `ResolvedTabset` or `ResolvedBorder` | a tab's, tabset's or border's behaviour fields, resolved through the defaults ([below](#resolving-defaults)) |
+| `resolveLayout()` | `ResolvedLayout` | the layout-wide settings, resolved |
+| `toJSON()` | `LayoutJson<T>` | the state as a layout document ([below](#saving-and-loading)) |
+
+The command bus completes the interface: `run`, `dispatch`, `can`, `use`, `subscribe` and
+`commands` ([The command bus](/docs/api/command-bus)).
+
+Nodes are plain objects with a `type` field (`"row"`, `"tabset"`, `"tab"`, `"border"`), no
+classes and no methods. A tab of `TabOf<T>` narrows on `component`, so its `data` is typed:
+
+```ts
+function title(tab: TabOf<Types>): string {
+    switch (tab.component) {
+        case "editor":
+            return tab.data.dirty ? `${tab.data.name} •` : tab.data.name;
+        case "log":
+            return tab.data.name;
+    }
+}
+
+const node = model.get("editors");
+if (node?.type === "tabset") {
+    node.children.map(title);
+}
+```
+
+In React, read these queries through `useModelState` or `useDockable` so a component re-renders
+when the state changes ([Hooks](/docs/api/hooks)).
+
+## Resolving defaults
+
+A node stores only the behaviour fields it sets itself. The effective value of a field is:
+
+```ts
+node.x ?? state.defaults[kind].x ?? BUILT_IN[kind].x
+```
+
+There is no other inheritance: a tab does not inherit from its tabset. `model.resolve(node)`
+applies the rule and returns every field, resolved:
+
+| type | fields |
+| --- | --- |
+| `ResolvedTab` | `enableClose`, `enableDrag`, `enablePopout`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedTabset` | `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose`, `deleteWhenEmpty`, `autoSelectTab`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedBorder` | `size`, `minSize`, `maxSize`, `mode`, `autoHide`, `enableDrop`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, `show` |
+| `ResolvedLayout` | `rootOrientation`, `edgeDock`, `edgeDockMargin`, `edgeDockLength` (from `model.resolveLayout()`) |
+
+A resolved border's `size`, `minSize` and `maxSize` are its panel's effective values: the
+selected tab's own `borderWidth` (left and right borders) or `borderHeight` (top and bottom)
+replaces `size`, and the tab's size limits narrow `minSize` and `maxSize`. `show` is `true` unless
+the border sets it to `false`.
+
+```ts
+const tab = model.selectedTab("editors");
+if (tab && model.resolve(tab).enableClose) {
+    // render a close button
+}
+```
+
+`BUILT_IN` is the last step of the rule, the frozen built-in value of every field:
+
+| kind | field | built-in |
+| --- | --- | --- |
+| `tab` | `enableClose`, `enableDrag` | `true` |
+| `tab` | `enablePopout` | `false` |
+| `tab`, `tabset` | `minWidth`, `minHeight` / `maxWidth`, `maxHeight` | `1` / `99999` |
+| `tabset` | `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose`, `deleteWhenEmpty`, `autoSelectTab` | `true` |
+| `border` | `size` / `minSize` / `maxSize` | `200` / `1` / `99999` |
+| `border` | `mode` | `"docked"` |
+| `border` | `autoHide`, `autoSelectTabWhenClosed` / `enableDrop`, `autoSelectTabWhenOpen` | `false` / `true` |
+| `layout` | `rootOrientation` | `"horizontal"` |
+| `layout` | `edgeDock` / `edgeDockMargin` / `edgeDockLength` | `true` / `10` / `100` |
+
+The layout's own defaults are the `defaults` of the document ([Defaults](/docs/api/json-model#defaults)),
+changed at runtime with `layout.configure`.
+
+## Saving and loading
 
 | member | description |
 | --- | --- |
-| `Model.fromJson(json, previousModel?)` | load a model from JSON. `previousModel` optional; when given, matching tabs adopt its view state (no remount) |
-| `toJson()` | converts the model to a json object (`IJsonModel`): global attributes, borders, the main layout and the sub-layouts |
-| `toString()` | `JSON.stringify(model.toJson())` |
-| `Model.MAIN_LAYOUT_ID` | the id of the main layout (`"__main_layout_id__"`), the default `layoutId` everywhere |
+| `model.toJSON()` | the current state as a `LayoutJson<T>`: a writable copy with `version: 1`, without the empty parts. `JSON.stringify(model)` calls it. `createModel(model.toJSON())` gives an equal state |
+| `toLayoutJson(state)` | the same for any state: one kept from before (`event.before`, an undo step), to load it back |
+| `layout.load` | the command that replaces the whole layout in place with a document |
 
-## Changing
+`layout.load` keeps the model (and so your middleware, listeners and the rendered view) and
+replaces its state. A node is the same node when its id is in both states, so the tabs whose ids
+survive keep their mounted content; the result lists the `added` and `removed` ids.
 
-| member | description |
+```ts
+import { toLayoutJson } from "@fragiola/dockable";
+
+// restore something you saved (validated like any untrusted JSON)
+const restored = model.dispatch({
+    command: "layout.load",
+    payload: { layout: JSON.parse(text) },
+});
+if (!restored.ok) console.warn(restored.error.issues);
+
+// go back to a state you kept
+const previous = model.state;
+model.run("layout.load", { layout: toLayoutJson(previous) });
+```
+
+[Saving and restoring](/docs/guides/persistence) and [Undo and redo](/docs/guides/undo-redo) build
+on these.
+
+## `ModelHandle`
+
+The part of a model that does not depend on its registry: `dispatch(input, options?)`, `commands()` and
+`toJSON()`. Every `Model<T>` is a `ModelHandle`. APIs that join models of different registries
+take one: a [drag group](/docs/api/drag-group)'s transfers name their `from` and `to` models as
+`ModelHandle`s; compare them with your own models by reference (`===`).
+
+## `MAIN_LAYOUT`
+
+`MAIN_LAYOUT` is `"main"`, the id of the main layout: the state's `root`, `active`, `maximized` and
+its borders. A popout window's layout id is its window's id. Every query and primitive that takes a
+layout id defaults to it, and no node or window may use it as an id.
+
+```ts
+import { MAIN_LAYOUT } from "@fragiola/dockable";
+
+for (const windowLayout of model.state.windows) {
+    model.tabs(windowLayout.id); // the tabs of one popout window
+}
+model.tabs(MAIN_LAYOUT); // the main layout's tabs, its borders' included
+```
+
+## The type registry
+
+The model, its commands and the React primitives are generic over one type, the registry that
+says what data each tab component holds ([Typed data](/docs/concepts/typed-data)):
+
+```ts
+type Types = {
+    tabs: {
+        editor: { name: string; path: string; dirty: boolean };
+        log: { name: string };
+    };
+    tabset: { name: string };
+};
+```
+
+`DockableTypes` is what a registry must satisfy:
+
+| field | type | description |
+| --- | --- | --- |
+| `tabs` | `object` | each tab component's data type, keyed by the component name (an interface or a type literal) |
+| `tabset` | `unknown` | the data type of tabsets (optional) |
+| `border` | `unknown` | the data type of borders (optional) |
+| `row` | `unknown` | the data type of rows (optional) |
+
+`AnyTypes` (`{ tabs: Record<string, unknown> }`) is the default when you pass none: any component,
+`unknown` data.
+
+| type | description |
 | --- | --- |
-| `doAction(action)` | update the node tree by performing the given action. Returns the added node for `Actions.addTab`, the layout id for `createPopout`. **Bypasses `onAction`**: in a rendered layout, call `engine.doAction` instead |
-| `setOnAllowDrop(fn)` | sets a function to allow/deny dropping a node: `(dragNode: Node, dropInfo: DropInfo) => boolean`. See [Restricting drops](/docs/guides/restricting-drops) |
-| `setOnCreateTabSet(fn)` | set a callback called when a new tabset is created: `(tabNode?: TabNode) => ITabSetAttributes`, the attributes of the new tabset. The `tabNode` can be undefined if it is the auto-created first tabset in the root row |
-| `addChangeListener(listener)` | register a change listener (`{ onBeforeAction?, onAfterAction? }` or a function of the action). Fires for every action, including direct `model.doAction` calls |
-| `removeChangeListener(listener)` | removes a listener previously registered with `addChangeListener` |
+| `ComponentOf<T>` | the component names of a registry (`"editor" \| "log"`) |
+| `TabDataOf<T, K>` | the data type of component `K` |
+| `TabsetDataOf<T>` | the data type of tabsets (`unknown` when the registry declares none) |
+| `BorderDataOf<T>` | the data type of borders |
+| `RowDataOf<T>` | the data type of rows |
+| `TabOf<T>` | a tab of the registry: a union of `TabNode<K, TabDataOf<T, K>>` over its components, so `data` narrows on `component` |
+| `TabInitOf<T>` | a new tab of the registry (JSON, `tab.add`, a drag source): a union of `TabInit<K, D>` |
+| `DataField<D>` | `{ data?: D }` when `D` allows `undefined`, `{ data: D }` otherwise: `data` is required exactly when its type requires it |
+| `Node<T>` | any node: `RowNode<T> \| TabsetNode<T> \| TabOf<T> \| BorderNode<T>` |
+| `NodeKind` | the kinds of node: `"row" \| "tabset" \| "tab" \| "border"` |
+| `ParentNode<T>` | what a node can be the child of: `RowNode<T> \| TabsetNode<T> \| BorderNode<T>` |
+| `TabContainer<T>` | what holds tabs: `TabsetNode<T> \| BorderNode<T>` |
+| `FromSchema<S>` | the TypeScript type a JSON Schema of the supported subset describes (declare it `as const`); it does not follow `$ref` |
 
-## Reading
-
-| member | description |
-| --- | --- |
-| `getRootRow(layoutId?)` | the root `RowNode` of a layout |
-| `getActiveTabset(layoutId?)` | the currently active tabset node |
-| `getMaximizedTabset(layoutId?)` | the currently maximized tabset node |
-| `isHiddenByMaximize(node)` | whether a tabset or row is hidden because a tabset of its layout is maximized: every other tabset, and every row not on the path to the maximized one (Dockable hides them instead of FlexLayout's portal, so nothing remounts) |
-| `getFirstTabSet(node?)` | finds the first (top left) tabset of the given node, defaulting to the main root row |
-| `getNodeById(id)` | gets a node by its id |
-| `visitNodes(fn)` | visits all the nodes in the model (every layout) and calls `fn(node, level)` for each |
-| `visitLayoutNodes(layoutId, fn)` | the same, for one layout |
-| `getLayouts()` | the layouts, keyed by id (`ModelLayout`: the main one and one per popout window); marked `@internal`, used by the primitives |
-| `getSplitterSize()` | the splitter thickness, as measured by the engine |
-| `isRootOrientationVertical()` | the global `rootOrientationVertical` |
-| `isEnableEdgeDock()` | the global `enableEdgeDock` |
-| `getEdgeDockMargin()`, `getEdgeDockLength()` | the globals `edgeDockMargin` and `edgeDockLength`: the depth and length of the edge drop bands |
-| `getEdgeDockRects(layoutId?)` | the four edge drop bands of a layout's root row (`{ location, rect }`, layout coordinates), where a drop docks to an edge and where `Dockable.EdgeIndicator` goes; empty when edge docking is off |
-| `getBorderSet()` | the borders (`getBorders()`, `getBorderMap()` by `DockLocation`), rendered by `Dockable.Borders` |
-| `isEnableEdgeDockIndicators()`, `isEnableRotateBorderIcons()`, `getBorderLeftTabDirection()`, `getTabGroupType()` | the global attributes of the same names, for views that render edge indicators, borders and tab groups |
-| `Model.ensureAttributePairing()` | pairs the global attribute definitions with the node ones (e.g. `tabEnableClose` with `enableClose`); idempotent, called automatically |
-
-## Nodes
-
-The tree is made of node classes, all exported from `@fragiola/dockable`. Every node has
-`getId()`, `getType()`, `getParent()`, `getChildren()`, `getModel()`, `getRect()`,
-`getPath()` (its layout path), `getLayoutId()` and `getOrientation()`.
-
-**`RowNode`**: a row or column. `getWeight()`, `getChildren()` (tabsets and rows).
-
-**`TabSetNode`**: a tabset.
-
-| method | returns |
-| --- | --- |
-| `getTabNodes()` | its tabs, in order |
-| `getSelectedNode()` | the selected tab, or `undefined` |
-| `getSelected()` | the selected index (`-1` for none) |
-| `isActive()`, `isMaximized()` | its state |
-| `getName()`, `getConfig()`, `getWeight()` | attributes |
-| `isEnableDrop()`, `isEnableDrag()`, `isEnableDivide()`, `isEnableMaximize()`, `isEnableClose()`, `isEnableTabWrap()`, `getTabLocation()`, … | attribute getters |
-
-**`TabNode`**: a tab.
-
-| method | returns |
-| --- | --- |
-| `getName()`, `getAltName()`, `getComponent()`, `getConfig()`, `getIcon()`, `getHelpText()` | attributes |
-| `isSelected()`, `isPinned()`, `isVisible()` | its state |
-| `isCloseable()` | `enableClose`, and not pinned |
-| `isEnableDrag()`, `isEnableRename()`, `isEnablePin()`, `isEnablePopout()`, `isEnableRenderOnDemand()`, `isEnableWindowReMount()`, … | attribute getters |
-| `getTabContainer()` | its tabset (or border) |
-| `getLayout()`, `getLayoutId()`, `getWindowId()` | the layout (window) it is in |
-| `setEventListener(event, fn)`, `removeEventListener(event)` | node events: `"resize"`, `"visibility"`, `"close"`, `"save"` |
-
-Node classes also carry setters (`setName`, `setWeight`, …) and methods marked `@internal`:
-they exist for the model's own use. Calling them bypasses actions, `onAction`, undo and the
-engine's re-render: don't.
-
-## Related classes
-
-- `ModelLayout`: one layout of the model (`getLayoutId()`, `getType()`, `getRootRow()`,
-  `getPath()`, `isMainLayout()`).
-- `DockLocation`: `CENTER`, `TOP`, `BOTTOM`, `LEFT`, `RIGHT`, with `getName()` and
-  `DockLocation.getByName(name)`.
-- `DropInfo`: what a drop would do: `node`, `rect`, `location`, `index`, `kind`.
-- `Rect`, `Orientation`, `BorderNode`, `BorderSet`, `TabGroupNode`: ported from FlexLayout.
-
-The JSON format is in [IJsonModel](/docs/api/json-model).
+`FromSchema` lets one schema be both the runtime check (`dataSchemas`) and the data type, as in
+the [options example](#modeloptions). The node types themselves (`TabNode`, `TabsetNode`,
+`RowNode`, `BorderNode`, `WindowLayout`, `LayoutState`) are on [Layout JSON](/docs/api/json-model#the-state).

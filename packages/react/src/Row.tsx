@@ -1,9 +1,14 @@
 // Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/Row.tsx (flex sizing from weights, splitters between children);
 // the markup and class names are not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence,
 // see LICENSE.
-import { Orientation, RowNode, type TabSetNode } from "@fragiola/dockable";
+import type {
+    AnyTypes,
+    DockableTypes,
+    RowNode,
+    TabsetNode,
+} from "@fragiola/dockable";
 import * as React from "react";
-import { useDockableContext, useLayoutContext } from "./context";
+import { typedModel, useDockableContext, useLayoutContext } from "./context";
 import { Splitter } from "./Splitter";
 import {
     type DivPrimitiveProps,
@@ -19,20 +24,26 @@ export interface RowState {
     hidden: boolean;
 }
 
-export interface RowSplitterProps {
+export interface RowSplitterProps<T extends DockableTypes = AnyTypes> {
     /** the row the splitter resizes */
-    node: RowNode;
+    node: RowNode<T>;
     /** the splitter sits before child `index` (1-based) */
     index: number;
 }
 
-export interface RowProps extends DivPrimitiveProps<RowState> {
-    /** the row to render; defaults to the root row of the enclosing layout */
-    node?: RowNode | undefined;
+export interface RowProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<RowState> {
+    /**
+     * the row to render; defaults to the root row of the enclosing layout (then pass the model's
+     * registry as the type argument: `<Dockable.Row<Types>>`)
+     */
+    node?: RowNode<T> | undefined;
     /** renders a child: a tabset or a nested row */
-    children: (child: TabSetNode | RowNode) => React.ReactNode;
+    children: (child: TabsetNode<T> | RowNode<T>) => React.ReactNode;
     /** renders the splitter between two children (defaults to `<Dockable.Splitter />`) */
-    renderSplitter?: ((props: RowSplitterProps) => React.ReactNode) | undefined;
+    renderSplitter?:
+        | ((props: RowSplitterProps<T>) => React.ReactNode)
+        | undefined;
     /** `false` renders no splitters */
     splitter?: boolean | undefined;
 }
@@ -41,30 +52,30 @@ export interface RowProps extends DivPrimitiveProps<RowState> {
  * A row (or column) of the layout. Lays its children out with flex, sized by their weights,
  * calls the child function per child and inserts a splitter between children.
  */
-export function Row(props: RowProps) {
+export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
     const { node, children, renderSplitter, splitter = true, ...rest } = props;
-    useDockableContext("Row");
+    const { model } = useDockableContext("Row");
     const { engine, layoutId } = useLayoutContext("Row");
-    const row = node ?? engine.getModel().getRootRow(layoutId);
-    if (!(row instanceof RowNode)) {
+    const row = node ?? typedModel<T>(model).root(layoutId);
+    if (!row) {
         throw new Error(`Dockable.Row: layout "${layoutId}" has no root row`);
     }
+    const id = row.id;
     const root = node === undefined;
-    const horizontal = row.getOrientation() === Orientation.HORZ;
+    const horizontal = engine.rowOrientation(id) === "horizontal";
 
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(row, "row", element);
+            engine.registerMeasurable(id, "row", element);
         },
-        [engine, row],
+        [engine, id],
     );
 
     const items: React.ReactNode[] = [];
-    for (const [index, child] of row.getChildren().entries()) {
-        const childNode = child as TabSetNode | RowNode;
+    for (const [index, child] of row.children.entries()) {
         if (index > 0 && splitter) {
             items.push(
-                <React.Fragment key={`splitter:${child.getId()}`}>
+                <React.Fragment key={`splitter:${child.id}`}>
                     {renderSplitter ? (
                         renderSplitter({ node: row, index })
                     ) : (
@@ -74,9 +85,7 @@ export function Row(props: RowProps) {
             );
         }
         items.push(
-            <React.Fragment key={child.getId()}>
-                {children(childNode)}
-            </React.Fragment>,
+            <React.Fragment key={child.id}>{children(child)}</React.Fragment>,
         );
     }
 
@@ -84,18 +93,19 @@ export function Row(props: RowProps) {
         orientation: horizontal ? "horizontal" : "vertical",
         root,
         // a maximized tabset fills the layout: the rows off its path give up their space
-        hidden: row.getModel().isHiddenByMaximize(row),
+        hidden: model.isHiddenByMaximize(id),
     };
+    const range = engine.minMax(id);
     const structural: React.CSSProperties = {
         display: state.hidden ? "none" : "flex",
         flexDirection: horizontal ? "row" : "column",
         flexBasis: 0,
         // NOTE: flex-grow cannot have values < 1 otherwise it will not fill the parent
-        flexGrow: Math.max(1, row.getWeight() * 1000),
-        minWidth: row.getMinWidth(),
-        minHeight: row.getMinHeight(),
-        maxWidth: row.getMaxWidth(),
-        maxHeight: row.getMaxHeight(),
+        flexGrow: Math.max(1, row.weight * 1000),
+        minWidth: range.minWidth,
+        minHeight: range.minHeight,
+        maxWidth: range.maxWidth,
+        maxHeight: range.maxHeight,
         overflow: "hidden",
     };
     if (root) {
@@ -108,7 +118,7 @@ export function Row(props: RowProps) {
         ref,
         props: {
             ...dataAttributes({
-                "layout-path": root ? "/row" : row.getPath(),
+                "layout-path": root ? "/row" : engine.path(id),
                 orientation: state.orientation,
                 root,
             }),

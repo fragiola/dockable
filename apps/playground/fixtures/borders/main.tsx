@@ -1,17 +1,19 @@
-import { Actions, type BorderNode, Model } from "@fragiola/dockable";
+import { type BorderNode, createModel, type Model } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { layoutFromQuery } from "../../src/fixture/layouts";
+import { layoutFromQuery, type Types } from "../../src/fixture/layouts";
 import { renderNode, renderPanel } from "../../src/fixture/renderNode";
 import "../../src/fixture/fixture.css";
 import "./borders.css";
 
 /**
  * Borders around the layout (Epic #21). `?layout=` picks the layout (test_overlay by default),
- * `?edgeDockMargin=` sets the global of that name, `?thin` makes the tab strips 12px tall (gap 11).
- * Like FlexLayout's demo, the page exposes the model and the actions on `window.__dockable`, so
- * the specs can dispatch actions (`setBorderType`, `updateModelAttributes`) directly.
+ * `?edgeDockMargin=` sets the layout default of that name, `?thin` makes the tab strips 12px tall
+ * (gap 11). Like FlexLayout's demo, the page exposes the model on `window.__dockable`, so the specs
+ * can run commands directly (`border.configure`). A left border's tab direction is the
+ * `Dockable.Border` prop, read from the border's data: `border.configure` with
+ * `data: { tabDirection }` switches it.
  */
 const params = new URLSearchParams(window.location.search);
 if (params.has("thin")) {
@@ -20,18 +22,16 @@ if (params.has("thin")) {
 
 declare global {
     interface Window {
-        __dockable?: { model: Model; Actions: typeof Actions };
+        __dockable?: { model: Model<Types> };
     }
 }
 
-function renderBar(border: BorderNode) {
+function renderBar(border: BorderNode<Types>) {
     return (
-        <Dockable.Border node={border}>
-            <Dockable.TabList
-                aria-label={`${border.getLocation().getName()} border`}
-            >
+        <Dockable.Border node={border} tabDirection={border.data?.tabDirection}>
+            <Dockable.TabList<Types> aria-label={`${border.location} border`}>
                 {(tab) => (
-                    <Dockable.Tab node={tab}>{tab.getName()}</Dockable.Tab>
+                    <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
                 )}
             </Dockable.TabList>
         </Dockable.Border>
@@ -45,20 +45,26 @@ function App() {
         const json = layoutFromQuery("test_overlay");
         const margin = params.get("edgeDockMargin");
         if (margin !== null) {
-            json.global = { ...json.global, edgeDockMargin: Number(margin) };
+            json.defaults = {
+                ...json.defaults,
+                layout: {
+                    ...json.defaults?.layout,
+                    edgeDockMargin: Number(margin),
+                },
+            };
         }
-        return Model.fromJson(json);
+        return createModel<Types>(json);
     });
     // an effect, not the state initializer: StrictMode calls the initializer twice
     useEffect(() => {
-        window.__dockable = { model, Actions };
+        window.__dockable = { model };
     }, [model]);
     return (
         <Dockable.Root model={model}>
-            <Dockable.Borders renderBar={renderBar}>
-                <Dockable.Row>{renderNode}</Dockable.Row>
+            <Dockable.Borders<Types> renderBar={renderBar}>
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
             </Dockable.Borders>
-            <Dockable.Panels>{renderPanel}</Dockable.Panels>
+            <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
             <Dockable.DropIndicator />
             {EDGES.map((edge) => (
                 <Dockable.EdgeIndicator key={edge} edge={edge} />

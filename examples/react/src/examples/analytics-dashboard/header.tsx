@@ -1,11 +1,6 @@
 "use client";
 
-import {
-    Actions,
-    DockLocation,
-    type LayoutEngine,
-    type Model,
-} from "@fragiola/dockable";
+import type { Model } from "@fragiola/dockable";
 import { Plus, Redo2, Undo2 } from "lucide-react";
 import { useRef } from "react";
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
@@ -13,11 +8,11 @@ import { Select } from "#/components/ui/select";
 import { cn } from "#/lib/cn";
 import * as styles from "../_kit/styles";
 import { usePopupTheme } from "../_kit/theme";
-import type { IUndoSnapshot, UndoManager } from "../_kit/undo";
-import { type Filters, REGIONS, WIDGETS } from "./data";
+import type { UndoManager, UndoSnapshot } from "../_kit/undo";
+import { type Filters, REGIONS, type Types, WIDGETS } from "./data";
 
 // The header OUTSIDE the layout: shared filters (read by every widget through context), the
-// "Add widget" menu (an addTab action), and undo/redo (the UndoManager).
+// "Add widget" menu (a `tab.add` command on the model), and undo/redo (the UndoManager).
 
 const REGION_ITEMS = [
     { value: "all", label: "All regions" },
@@ -30,35 +25,26 @@ const RANGE_ITEMS = [
 ];
 
 /** Adds a widget to the active tabset (or the first one) and selects it. */
-function addWidget(engine: LayoutEngine, model: Model, index: number) {
+function addWidget(model: Model<Types>, index: number) {
     const widget = WIDGETS[index];
-    const target = model.getActiveTabset() ?? model.getFirstTabSet();
+    const target = model.activeTabset() ?? model.tabsets()[0];
     if (!widget || !target) return;
-    engine.doAction(
-        Actions.addTab(
-            { type: "tab", ...widget.tab }, // no id: the model assigns a unique one
-            target.getId(),
-            DockLocation.CENTER,
-            -1,
-            true,
-        ),
-    );
+    // no id: the model assigns a unique one
+    model.run("tab.add", { ...widget.tab, to: target.id, select: true });
 }
 
 export function Header({
     filters,
     onFilters,
-    engine,
     model,
     undo,
     history,
 }: {
     filters: Filters;
     onFilters: (filters: Filters) => void;
-    engine: LayoutEngine | null;
-    model: Model;
-    undo: UndoManager;
-    history: IUndoSnapshot;
+    model: Model<Types>;
+    undo: UndoManager<Types>;
+    history: UndoSnapshot<Types>;
 }) {
     const ref = useRef<HTMLElement | null>(null);
     const popupTheme = usePopupTheme(ref);
@@ -140,7 +126,6 @@ export function Header({
 
             <DropdownMenu.Root>
                 <DropdownMenu.Trigger
-                    disabled={!engine}
                     className={cn("palette-blue", styles.solidButton)}
                 >
                     <Plus aria-hidden="true" className="size-4" />
@@ -150,9 +135,7 @@ export function Header({
                     {WIDGETS.map((widget, index) => (
                         <DropdownMenu.Item
                             key={widget.label}
-                            onClick={() =>
-                                engine && addWidget(engine, model, index)
-                            }
+                            onClick={() => addWidget(model, index)}
                         >
                             {widget.label}
                         </DropdownMenu.Item>

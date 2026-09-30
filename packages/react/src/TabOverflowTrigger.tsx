@@ -1,4 +1,9 @@
-import { DockableLabel, type TabNode } from "@fragiola/dockable";
+import {
+    type AnyTypes,
+    DockableLabel,
+    type DockableTypes,
+    type TabOf,
+} from "@fragiola/dockable";
 import * as React from "react";
 import { useDockableContext, useLayoutContext } from "./context";
 import { useTabOverflow } from "./hooks";
@@ -9,9 +14,9 @@ import {
     useRenderElement,
 } from "./utils/useRender";
 
-export interface TabOverflowTriggerState {
+export interface TabOverflowTriggerState<T extends DockableTypes = AnyTypes> {
     /** the tabs that do not fit in the strip, in model order: what the menu lists */
-    hidden: TabNode[];
+    hidden: TabOf<T>[];
     /** how many tabs are hidden */
     hiddenCount: number;
 }
@@ -21,8 +26,8 @@ type ButtonProps = Omit<
     "className" | "style" | "children"
 >;
 
-export interface TabOverflowTriggerProps
-    extends PrimitiveProps<TabOverflowTriggerState>,
+export interface TabOverflowTriggerProps<T extends DockableTypes = AnyTypes>
+    extends PrimitiveProps<TabOverflowTriggerState<T>>,
         ButtonProps {
     /** the trigger's content (an icon, a count); the primitive renders no text of its own */
     children?: React.ReactNode;
@@ -32,22 +37,26 @@ export interface TabOverflowTriggerProps
  * The button that opens the consumer's menu of hidden tabs, inside `Dockable.TabSet` or
  * `Dockable.Border`, next to the `Dockable.TabList`. It renders only while tabs are hidden, and the
  * engine reserves the space it takes in the strip. It renders no menu: make it your menu's trigger
- * (`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`), and select with
- * `Actions.selectTab`, which brings the tab into the strip.
+ * (`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`, typed with
+ * `<Dockable.TabOverflowTrigger<Types>>`), and select with `tab.select`, which brings the tab into
+ * the strip.
  */
-export function TabOverflowTrigger(props: TabOverflowTriggerProps) {
+export function TabOverflowTrigger<T extends DockableTypes = AnyTypes>(
+    props: TabOverflowTriggerProps<T>,
+) {
     const { children, ...rest } = props;
-    const container = useTabContainer("TabOverflowTrigger");
+    const container = useTabContainer<T>("TabOverflowTrigger");
     const { getLabel } = useDockableContext("TabOverflowTrigger");
     const { engine } = useLayoutContext("TabOverflowTrigger");
     const { hidden } = useTabOverflow(container);
+    const id = container.id;
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerOverflowTrigger(container, element);
+            engine.registerOverflowTrigger(id, element);
         },
-        [engine, container],
+        [engine, id],
     );
-    const state: TabOverflowTriggerState = {
+    const state: TabOverflowTriggerState<T> = {
         hidden,
         hiddenCount: hidden.length,
     };
@@ -59,7 +68,7 @@ export function TabOverflowTrigger(props: TabOverflowTriggerProps) {
             "aria-label": getLabel?.(DockableLabel.Overflow_Menu_Tooltip),
             ...dataAttributes({
                 // FlexLayout's path for a tabset's overflow button
-                "layout-path": `${container.getPath()}/button/overflow`,
+                "layout-path": `${engine.path(id)}/button/overflow`,
                 count: hidden.length,
             }),
             children,

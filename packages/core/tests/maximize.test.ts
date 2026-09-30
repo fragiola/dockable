@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { Actions, type IJsonModel, Model, type Node } from "../src";
+import { createModel, type LayoutJson, MAIN_LAYOUT } from "../src";
 
-// root row: ts0 (tabs a, b) | nested row r1 (ts1 above ts2)
-const json: IJsonModel = {
-    global: {},
-    layout: {
+// root row: ts0 (tab a) | nested row r1 (ts1 above ts2)
+const json: LayoutJson = {
+    version: 1,
+    defaults: { tab: { enablePopout: true } },
+    root: {
         type: "row",
         id: "root",
         children: [
             {
                 type: "tabset",
                 id: "ts0",
-                children: [{ type: "tab", id: "a", name: "A" }],
+                children: [{ id: "a", component: "x" }],
             },
             {
                 type: "row",
@@ -20,12 +21,12 @@ const json: IJsonModel = {
                     {
                         type: "tabset",
                         id: "ts1",
-                        children: [{ type: "tab", id: "b", name: "B" }],
+                        children: [{ id: "b", component: "x" }],
                     },
                     {
                         type: "tabset",
                         id: "ts2",
-                        children: [{ type: "tab", id: "c", name: "C" }],
+                        children: [{ id: "c", component: "x" }],
                     },
                 ],
             },
@@ -34,13 +35,12 @@ const json: IJsonModel = {
 };
 
 function setup() {
-    const model = Model.fromJson(structuredClone(json));
-    const node = (id: string) => model.getNodeById(id) as Node;
-    const hidden = (id: string) => model.isHiddenByMaximize(node(id));
-    return { model, node, hidden };
+    const model = createModel(structuredClone(json));
+    const hidden = (id: string) => model.isHiddenByMaximize(id);
+    return { model, hidden };
 }
 
-describe("Model.isHiddenByMaximize", () => {
+describe("model.isHiddenByMaximize", () => {
     it("hides nothing while no tabset is maximized", () => {
         const { hidden } = setup();
         for (const id of ["root", "ts0", "r1", "ts1", "ts2"]) {
@@ -50,7 +50,7 @@ describe("Model.isHiddenByMaximize", () => {
 
     it("hides the other tabsets and the rows that do not contain the maximized one", () => {
         const { model, hidden } = setup();
-        model.doAction(Actions.maximizeToggle("ts0"));
+        model.run("tabset.maximize", { tabset: "ts0", value: true });
         expect(hidden("ts0")).toBe(false);
         expect(hidden("root")).toBe(false); // the root row is on every path
         expect(hidden("r1")).toBe(true); // a sibling row gives up its space
@@ -60,7 +60,7 @@ describe("Model.isHiddenByMaximize", () => {
 
     it("keeps the rows on the path to a nested maximized tabset", () => {
         const { model, hidden } = setup();
-        model.doAction(Actions.maximizeToggle("ts2"));
+        model.run("tabset.maximize", { tabset: "ts2", value: true });
         expect(hidden("root")).toBe(false);
         expect(hidden("r1")).toBe(false);
         expect(hidden("ts2")).toBe(false);
@@ -69,13 +69,12 @@ describe("Model.isHiddenByMaximize", () => {
     });
 
     it("never hides tabs, and only reads the node's own layout", () => {
-        const { model, node, hidden } = setup();
-        model.doAction(Actions.maximizeToggle("ts0"));
-        expect(hidden("b")).toBe(false); // a tab: its panel follows isTabPanelVisible
+        const { model, hidden } = setup();
+        model.run("tabset.maximize", { tabset: "ts0", value: true });
+        expect(hidden("b")).toBe(false); // a tab: its panel follows the engine's visibility
         // a tabset popped out into a window is in another layout: no maximized tabset there
-        model.doAction(Actions.popoutTabset("ts1"));
-        const ts1 = node("b").getParent() as Node;
-        expect(ts1.getLayoutId()).not.toBe(Model.MAIN_LAYOUT_ID);
-        expect(model.isHiddenByMaximize(ts1)).toBe(false);
+        model.run("tabset.popout", { tabset: "ts1" });
+        expect(model.layoutOf("ts1")).not.toBe(MAIN_LAYOUT);
+        expect(hidden("ts1")).toBe(false);
     });
 });
