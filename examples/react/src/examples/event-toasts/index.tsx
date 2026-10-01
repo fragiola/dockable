@@ -6,7 +6,9 @@ import {
     createModel,
     type LayoutJson,
     type Model,
+    type RowJson,
     type RowNode,
+    type TabJson,
     type TabOf,
     type TabsetNode,
     toLayoutJson,
@@ -25,9 +27,9 @@ import { type Toast, Toaster, useToasts } from "./toasts";
 // The layout tells the app what happened: `model.subscribe` delivers one event per committed
 // command, whoever issued it (a drag, a close button, a keyboard shortcut, the Add button). The app
 // decides what deserves a reaction. Here: a toast per kind of command, each worded for that kind,
-// and a closed tab's toast offers Undo, which loads the layout as it was before the close (the
-// event carries that state: `event.before`). The switches mute kinds: the listener sees every
-// command, the app picks.
+// and a closed tab's toast offers Undo, which adds the tab back where it was: the event carries
+// the state before the close (`event.before`), where the tab, its tabset and its place are found.
+// The switches mute kinds: the listener sees every command, the app picks.
 
 type Types = {
     tabs: {
@@ -106,18 +108,72 @@ function field(value: unknown, key: string): unknown {
         : undefined;
 }
 
+/** A tab in a layout document, with its tabset's id and its place in the strip. */
+function findTab(
+    row: RowJson<Types>,
+    tabId: string,
+):
+    | { tab: TabJson<Types>; tabsetId: string | undefined; index: number }
+    | undefined {
+    for (const child of row.children ?? []) {
+        if (child.type === "row") {
+            const found = findTab(child, tabId);
+            if (found) return found;
+            continue;
+        }
+        const tabs = child.children ?? [];
+        const index = tabs.findIndex((tab) => tab.id === tabId);
+        const tab = tabs[index];
+        if (tab) return { tab, tabsetId: child.id, index };
+    }
+    return undefined;
+}
+
+/** Adds a closed tab back where it was (its tabset, its place), or to the active tabset. */
+function reopen(
+    model: Model<Types>,
+    before: CommandEvent<Types>["before"],
+    tabId: string,
+) {
+    const found = findTab(toLayoutJson(before).root, tabId);
+    if (!found) return;
+    const home = found.tabsetId && model.get("node-by", { id: found.tabsetId });
+    const to =
+        home && home.type === "tabset"
+            ? home.id
+            : (model.get("active-tabset") ?? model.get("tabsets")[0])?.id;
+    if (!to) return;
+    // a tab in JSON may say `type: "tab"`, which `tab.add` does not take: the rest is its init
+    const { type: _type, ...tab } = found.tab;
+    model.run("tab.add", {
+        ...tab,
+        to,
+        index: found.index,
+        select: true,
+    });
+}
+
+/** What the listener remembers of each tab, read after every event. */
+interface Seen {
+    name: string;
+    tabsetId: string | undefined;
+}
+
 /** The words of a toast for one event, or nothing for a command the example does not announce. */
 function describe(
     model: Model<Types>,
     event: CommandEvent<Types>,
-    names: ReadonlyMap<string, string>,
+    seen: ReadonlyMap<string, Seen>,
 ): Omit<Toast, "id"> | undefined {
     const tabId = field(event.result, "tabId");
+    if (event.command === "tabset.maximize") {
+        return field(event.payload, "value") === true
+            ? { tone: "info", title: "Maximized a tabset" }
+            : { tone: "info", title: "Restored the layout" };
+    }
+    if (typeof tabId !== "string") return undefined;
     // a closed tab is gone from the model: its name comes from what the listener remembered
-    const name =
-        typeof tabId === "string"
-            ? (tabName(model, tabId) ?? names.get(tabId) ?? "a tab")
-            : "a tab";
+    const name = tabName(model, tabId) ?? seen.get(tabId)?.name ?? "a tab";
     switch (event.command) {
         case "tab.close":
             return {
@@ -125,28 +181,24 @@ function describe(
                 title: `Closed ${name}`,
                 action: {
                     label: "Undo",
-                    // the state before the close, loaded back: the tab returns where it was
-                    run: () =>
-                        model.run("layout.load", {
-                            layout: toLayoutJson(event.before),
-                        }),
+                    run: () => reopen(model, event.before, tabId),
                 },
             };
         case "tab.move": {
             const location = field(event.payload, "location");
+            const from = seen.get(tabId)?.tabsetId;
+            const to = model.get("node-parent-by", { nodeId: tabId })?.id;
             return {
                 tone: "info",
                 title: `Moved ${name}`,
                 detail:
                     typeof location === "string" && location !== "center"
                         ? `Docked ${location}`
-                        : "Into another tabset",
+                        : from === to
+                          ? "Reordered in its tabset"
+                          : "Into another tabset",
             };
         }
-        case "tabset.maximize":
-            return field(event.payload, "value") === true
-                ? { tone: "info", title: "Maximized a tabset" }
-                : { tone: "info", title: "Restored the layout" };
         case "tab.add":
             return { tone: "success", title: `Added ${name}` };
         case "tab.select":
@@ -170,17 +222,23 @@ export default function EventToasts() {
     const [added, setAdded] = useState(0);
 
     useEffect(() => {
-        // every tab's name, kept after each event, so a closed tab can still be named
-        const names = new Map<string, string>();
+        // every tab's name and tabset, kept after each event: a closed tab can still be named,
+        // and a move can tell a reorder from a move to another tabset
+        const seen = new Map<string, Seen>();
         const remember = () => {
-            for (const tab of model.get("all-tabs"))
-                names.set(tab.id, tab.data.name);
+            for (const tab of model.get("all-tabs")) {
+                seen.set(tab.id, {
+                    name: tab.data.name,
+                    tabsetId: model.get("node-parent-by", { nodeId: tab.id })
+                        ?.id,
+                });
+            }
         };
         remember();
         return model.subscribe((event) => {
             // a splitter drag commits many transient steps: none of them is news
             if (!event.transient && !muted.has(event.command)) {
-                const toast = describe(model, event, names);
+                const toast = describe(model, event, seen);
                 if (toast) show(toast);
             }
             remember();

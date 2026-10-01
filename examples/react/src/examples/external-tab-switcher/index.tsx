@@ -68,84 +68,9 @@ function setCount(model: Model<Types>, tab: CounterTab, count: number) {
 
 export default function ExternalTabSwitcher() {
     const [model] = useState(() => createModel<Types>(json));
-    // This component is outside Dockable.Root: it re-renders on every commit through `subscribe`,
-    // then reads what it shows with `model.get`.
-    useSyncExternalStore(model.subscribe, () => model.state);
-    const tabs = model.get("tabs");
-    // "the tab the user is looking at": the selected tab of the active tabset (the first tabset
-    // until one is activated)
-    const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
-    const current = tabset
-        ? model.get("selected-tab-by", { tabsetId: tabset.id })
-        : undefined;
     return (
         <>
-            <div className={styles.controls}>
-                <fieldset aria-label="Show tab" className={styles.switcher}>
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            type="button"
-                            aria-pressed={tab.id === current?.id}
-                            className={styles.switchButton}
-                            onClick={() =>
-                                model.run("tab.select", { tabId: tab.id })
-                            }
-                        >
-                            {tab.data.name}
-                            <span className={styles.switchCount}>
-                                {tab.data.count}
-                            </span>
-                        </button>
-                    ))}
-                </fieldset>
-                <fieldset
-                    aria-label="Selected counter"
-                    className={styles.stepper}
-                >
-                    <button
-                        type="button"
-                        aria-label="Decrement"
-                        disabled={!current}
-                        className={styles.stepButton}
-                        onClick={() =>
-                            current &&
-                            setCount(model, current, current.data.count - 1)
-                        }
-                    >
-                        <Minus aria-hidden="true" className={styles.icon} />
-                    </button>
-                    <output
-                        data-testid="outside-count"
-                        className={styles.stepValue}
-                    >
-                        {current
-                            ? `${current.data.name}: ${current.data.count}`
-                            : "No tab"}
-                    </output>
-                    <button
-                        type="button"
-                        aria-label="Increment"
-                        disabled={!current}
-                        className={styles.stepButton}
-                        onClick={() =>
-                            current &&
-                            setCount(model, current, current.data.count + 1)
-                        }
-                    >
-                        <Plus aria-hidden="true" className={styles.icon} />
-                    </button>
-                    <button
-                        type="button"
-                        aria-label="Reset"
-                        disabled={!current}
-                        className={styles.stepButton}
-                        onClick={() => current && setCount(model, current, 0)}
-                    >
-                        <RotateCcw aria-hidden="true" className={styles.icon} />
-                    </button>
-                </fieldset>
-            </div>
+            <Controls model={model} />
             <div className={styles.frame}>
                 <Dockable.Root model={model} className={styles.root}>
                     <Dockable.Row<Types>
@@ -169,6 +94,88 @@ export default function ExternalTabSwitcher() {
                 </Dockable.Root>
             </div>
         </>
+    );
+}
+
+/**
+ * The controls outside the layout. They re-render on every commit (`subscribe`) and read what they
+ * show with `model.get`. They are a component of their own, so a commit re-renders them, not the
+ * layout.
+ */
+function Controls({ model }: { model: Model<Types> }) {
+    useSyncExternalStore(model.subscribe, () => model.state);
+    useSyncExternalStore(model.subscribe, () => model.state);
+    const tabs = model.get("tabs");
+    // "the tab the user is looking at": the selected tab of the active tabset (the first tabset
+    // until one is activated)
+    const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const current = tabset
+        ? model.get("selected-tab-by", { tabsetId: tabset.id })
+        : undefined;
+    return (
+        <div className={styles.controls}>
+            <fieldset aria-label="Show tab" className={styles.switcher}>
+                {tabs.map((tab) => (
+                    <button
+                        key={tab.id}
+                        type="button"
+                        aria-pressed={tab.id === current?.id}
+                        className={styles.switchButton}
+                        onClick={() =>
+                            model.run("tab.select", { tabId: tab.id })
+                        }
+                    >
+                        {tab.data.name}
+                        <span className={styles.switchCount}>
+                            {tab.data.count}
+                        </span>
+                    </button>
+                ))}
+            </fieldset>
+            <fieldset aria-label="Selected counter" className={styles.stepper}>
+                <button
+                    type="button"
+                    aria-label="Decrement"
+                    disabled={!current}
+                    className={styles.stepButton}
+                    onClick={() =>
+                        current &&
+                        setCount(model, current, current.data.count - 1)
+                    }
+                >
+                    <Minus aria-hidden="true" className={styles.icon} />
+                </button>
+                <output
+                    data-testid="outside-count"
+                    className={styles.stepValue}
+                >
+                    {current
+                        ? `${current.data.name}: ${current.data.count}`
+                        : "No tab"}
+                </output>
+                <button
+                    type="button"
+                    aria-label="Increment"
+                    disabled={!current}
+                    className={styles.stepButton}
+                    onClick={() =>
+                        current &&
+                        setCount(model, current, current.data.count + 1)
+                    }
+                >
+                    <Plus aria-hidden="true" className={styles.icon} />
+                </button>
+                <button
+                    type="button"
+                    aria-label="Reset"
+                    disabled={!current}
+                    className={styles.stepButton}
+                    onClick={() => current && setCount(model, current, 0)}
+                >
+                    <RotateCcw aria-hidden="true" className={styles.icon} />
+                </button>
+            </fieldset>
+        </div>
     );
 }
 

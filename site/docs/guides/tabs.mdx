@@ -180,12 +180,16 @@ active without changing its selection.
 
 Code outside the layout follows the selection the same way it changes it: through the model.
 Subscribe to re-read after every commit, and ask which tab the user is looking at, the selected
-tab of the active tabset:
+tab of the active tabset. Do it in the controls' own component, so a commit re-renders them and
+not the layout beside them:
 
 ```tsx
-useSyncExternalStore(model.subscribe, () => model.state);
-const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
-const current = tabset ? model.get("selected-tab-by", { tabsetId: tabset.id }) : undefined;
+function Controls({ model }: { model: Model<Types> }) {
+    useSyncExternalStore(model.subscribe, () => model.state);
+    const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const current = tabset ? model.get("selected-tab-by", { tabsetId: tabset.id }) : undefined;
+    // …
+}
 ```
 
 Keep what outside controls change in the tab's `data` (a counter here), and `tab.update` it: the

@@ -101,51 +101,9 @@ function updateChart(
 
 export default function ActiveTabControls() {
     const [model] = useState(() => createModel<Types>(json));
-    // outside Dockable.Root: re-render on every commit, then read the current tab
-    useSyncExternalStore(model.subscribe, () => model.state);
-    const tab = currentTab(model);
-    const chart = tab?.component === "chart" ? tab : undefined;
     return (
         <>
-            <div className={styles.toolbar}>
-                <p role="status" data-testid="target" className={styles.target}>
-                    {chart
-                        ? `Editing ${chart.data.name}`
-                        : `${tab?.data.name ?? "No tab"}: not a chart`}
-                </p>
-                <fieldset
-                    aria-label="Chart kind"
-                    disabled={!chart}
-                    className={styles.segments}
-                >
-                    {KINDS.map(({ kind, label, Icon }) => (
-                        <button
-                            key={kind}
-                            type="button"
-                            aria-label={label}
-                            aria-pressed={chart?.data.kind === kind}
-                            className={styles.segment}
-                            onClick={() =>
-                                chart && updateChart(model, chart, { kind })
-                            }
-                        >
-                            <Icon aria-hidden="true" className={styles.icon} />
-                        </button>
-                    ))}
-                </fieldset>
-                <button
-                    type="button"
-                    disabled={!chart}
-                    className={styles.button}
-                    onClick={() =>
-                        chart &&
-                        updateChart(model, chart, { seed: chart.data.seed + 1 })
-                    }
-                >
-                    <Shuffle aria-hidden="true" className={styles.icon} />
-                    New data
-                </button>
-            </div>
+            <Toolbar model={model} />
             <div className={styles.frame}>
                 <Dockable.Root model={model} className={styles.root}>
                     <Dockable.Row<Types>
@@ -179,6 +137,57 @@ export default function ActiveTabControls() {
                 </Dockable.Root>
             </div>
         </>
+    );
+}
+
+/**
+ * The toolbar outside the layout. It re-renders on every commit (`subscribe`) and reads the
+ * current tab; a component of its own, so a commit re-renders it, not the layout.
+ */
+function Toolbar({ model }: { model: Model<Types> }) {
+    useSyncExternalStore(model.subscribe, () => model.state);
+    const tab = currentTab(model);
+    const chart = tab?.component === "chart" ? tab : undefined;
+    return (
+        <div className={styles.toolbar}>
+            <p role="status" data-testid="target" className={styles.target}>
+                {chart
+                    ? `Editing ${chart.data.name}`
+                    : `${tab?.data.name ?? "No tab"}: not a chart`}
+            </p>
+            <fieldset
+                aria-label="Chart kind"
+                disabled={!chart}
+                className={styles.segments}
+            >
+                {KINDS.map(({ kind, label, Icon }) => (
+                    <button
+                        key={kind}
+                        type="button"
+                        aria-label={label}
+                        aria-pressed={chart?.data.kind === kind}
+                        className={styles.segment}
+                        onClick={() =>
+                            chart && updateChart(model, chart, { kind })
+                        }
+                    >
+                        <Icon aria-hidden="true" className={styles.icon} />
+                    </button>
+                ))}
+            </fieldset>
+            <button
+                type="button"
+                disabled={!chart}
+                className={styles.button}
+                onClick={() =>
+                    chart &&
+                    updateChart(model, chart, { seed: chart.data.seed + 1 })
+                }
+            >
+                <Shuffle aria-hidden="true" className={styles.icon} />
+                New data
+            </button>
+        </div>
     );
 }
 

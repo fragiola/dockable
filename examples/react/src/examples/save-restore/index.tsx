@@ -18,7 +18,8 @@ import { PanelBody } from "../_kit/card";
 import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-const STORAGE_KEY = "dockable-example:save-restore";
+// versioned: a layout saved with an older registry (its "card" tabs) is not restored
+const STORAGE_KEY = "dockable-example:save-restore:v2";
 
 // What the layout holds: the live JSON, short documents and a table, each named in its data.
 type Types = {

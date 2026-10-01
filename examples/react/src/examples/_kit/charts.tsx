@@ -71,6 +71,13 @@ export function useChartKey(ref: RefObject<HTMLElement | null>) {
     return key;
 }
 
+/** Each channel's share, in whole percents that add up to about 100. */
+function shares(seed: number) {
+    const raw = series(seed, CHANNELS.length).map((value) => value + 10);
+    const total = raw.reduce((sum, value) => sum + value, 0);
+    return raw.map((value) => Math.round((value / total) * 100));
+}
+
 /** The ECharts option of a chart kind: two monthly series, or the share of each channel. */
 function chartOption(kind: ChartKind, seed: number): EChartsOption {
     if (kind === "pie" || kind === "donut") {
@@ -89,9 +96,9 @@ function chartOption(kind: ChartKind, seed: number): EChartsOption {
                     // the legend names the slices: no labels to collide in a narrow panel
                     label: { show: false },
                     itemStyle: { borderWidth: 2, borderColor: "transparent" },
-                    data: CHANNELS.map((name, index) => ({
-                        name,
-                        value: (series(seed, CHANNELS.length)[index] ?? 0) + 10,
+                    data: shares(seed).map((value, index) => ({
+                        name: CHANNELS[index],
+                        value,
                     })),
                 },
             ],

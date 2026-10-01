@@ -17,11 +17,15 @@ test("layout events raise toasts; Undo brings a closed tab back", async ({
     await expect(toasts.getByRole("listitem").first()).toContainText(
         "Closed Traffic",
     );
+    // a change made after the close survives the undo: only the closed tab comes back
+    await page.getByRole("button", { name: "Add a chart" }).click();
     await toasts.getByRole("button", { name: "Undo" }).click();
     await expect(path(page, "/ts0").locator('[role="tab"]')).toHaveText([
         "Revenue",
         "Traffic",
+        "Chart 1",
     ]);
+    await expect(path(page, "/ts0/tb1")).toHaveAttribute("data-selected", "");
 
     // maximize and restore
     await path(page, "/ts0").getByRole("button", { name: "Maximize" }).click();
@@ -36,7 +40,7 @@ test("layout events raise toasts; Undo brings a closed tab back", async ({
     // an add from code is an event like any other
     await page.getByRole("button", { name: "Add a chart" }).click();
     await expect(toasts.getByRole("listitem").first()).toContainText(
-        "Added Chart 1",
+        "Added Chart 2",
     );
 });
 

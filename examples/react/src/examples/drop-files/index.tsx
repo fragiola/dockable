@@ -100,7 +100,18 @@ async function openFile(
         });
         return;
     }
-    const text = await file.text();
+    let text: string;
+    try {
+        text = await file.text();
+    } catch {
+        // the file went away after the drop (moved, deleted, no longer readable)
+        model.run("tab.update", {
+            tabId,
+            component: "error",
+            data: { name, message: "The file could not be read." },
+        });
+        return;
+    }
     if (kind === "csv") {
         const csv = parseCsv(text);
         model.run("tab.update", {

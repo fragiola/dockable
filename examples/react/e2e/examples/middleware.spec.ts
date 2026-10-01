@@ -16,6 +16,13 @@ test("the veto caps a tabset at four tabs, from code and by drag", async ({
         "Add a chart: A tabset holds at most 4 tabs.",
     );
     await expect(path(page, "/ts0").locator('[role="tab"]')).toHaveCount(4);
+    // the log wraps the rules: it records the vetoed command too
+    await expect(
+        page
+            .getByRole("list", { name: "Command log" })
+            .getByRole("listitem")
+            .first(),
+    ).toContainText("A tabset holds at most 4 tabs.");
 
     // a drag into the full tabset is refused while it hovers
     const box = await path(page, "/ts0/content").boundingBox();

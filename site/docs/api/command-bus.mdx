@@ -368,7 +368,8 @@ rethrown from the `run` that committed (the commit stands).
 
 One listener sees every command, so `payload` and `result` are typed `unknown`: read the fields a
 reaction needs and check their type. The example turns closes, moves, maximizes and adds into
-toasts, and a closed tab's toast offers Undo, which loads `event.before` back:
+toasts, and a closed tab's toast offers Undo, which finds the tab in `event.before` and adds it back
+where it was:
 
 <Example id="event-toasts" />
 

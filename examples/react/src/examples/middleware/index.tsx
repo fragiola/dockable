@@ -10,7 +10,7 @@ import {
     veto,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
-import { type FormEvent, useEffect, useId, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Switch } from "#/components/ui/switch";
 import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import * as styles from "./styles";
@@ -18,7 +18,8 @@ import * as styles from "./styles";
 // Middleware is how an app adds its own rules to the layout. Each one wraps every command, whoever
 // issues it (a drag, a button, your code), and can do one of three things:
 //
-//   veto     a tabset holds at most four tabs: a fifth is refused, by a drag as well as from code
+//   veto     a tabset holds at most four tabs: a fifth is refused, by a drag as well as from code,
+//            and so is merging a tabset into one that would then hold more
 //   rewrite  a tab's name is tidied before it commits (trimmed, capitalised, at most 20 letters)
 //   observe  every command that commits is logged with its outcome, in the Log tab
 //
@@ -81,21 +82,34 @@ const json: LayoutJson<Types> = {
 
 // ─── the three middlewares ──────────────────────────────────────────────────
 
-/** Veto: a tab may not join a tabset that already holds LIMIT tabs. */
+/** Veto: no tabset may hold more than LIMIT tabs, however tabs join it. */
 const limitTabs: Middleware<Types> = (ctx, next) => {
-    if (ctx.command === "tab.add" || ctx.command === "tab.move") {
-        // a drop on a tabset's edge makes a new tabset: only "center" joins one
-        const joins = (ctx.payload.location ?? "center") === "center";
-        const target = ctx.get("node-by", { id: ctx.payload.to });
-        const moving = ctx.command === "tab.move" ? ctx.payload.tabId : "";
-        if (
-            joins &&
-            target?.type === "tabset" &&
-            target.children.length >= LIMIT &&
-            !target.children.some((tab) => tab.id === moving)
-        ) {
-            return veto(`A tabset holds at most ${LIMIT} tabs.`);
-        }
+    if (
+        ctx.command !== "tab.add" &&
+        ctx.command !== "tab.move" &&
+        ctx.command !== "tabset.move"
+    ) {
+        return next();
+    }
+    // a drop on a tabset's edge makes a new tabset: only "center" joins one
+    if ((ctx.payload.location ?? "center") !== "center") return next();
+    const target = ctx.get("node-by", { id: ctx.payload.to });
+    if (target?.type !== "tabset") return next();
+    // how many tabs would join it: a new tab, a tab from elsewhere (a reorder adds none), or
+    // every tab of a tabset merged into it
+    let joining = 1;
+    if (ctx.command === "tab.move") {
+        const tabId = ctx.payload.tabId;
+        if (target.children.some((tab) => tab.id === tabId)) joining = 0;
+    } else if (ctx.command === "tabset.move") {
+        const moved = ctx.get("node-by", { id: ctx.payload.tabsetId });
+        joining =
+            moved?.type === "tabset" && moved.id !== target.id
+                ? moved.children.length
+                : 0;
+    }
+    if (target.children.length + joining > LIMIT) {
+        return veto(`A tabset holds at most ${LIMIT} tabs.`);
     }
     return next();
 };
@@ -167,26 +181,34 @@ export default function MiddlewareExample() {
     const nameId = useId();
     const ruleId = useId();
 
-    // each switch adds its middleware with `model.use`, and its cleanup removes it
-    useEffect(
-        () => (enabled.limit ? model.use(limitTabs) : undefined),
-        [model, enabled.limit],
-    );
-    useEffect(
-        () => (enabled.tidy ? model.use(tidyNames) : undefined),
-        [model, enabled.tidy],
-    );
+    // The log's entry ids, counted across the times the log is switched off and on.
+    const nextLogId = useRef(0);
+
+    // Each switch adds its middleware with `model.use`; the cleanup removes it with the function
+    // `use` returned. The first added runs outermost, so they are added in a fixed order: the log
+    // first, around the rules, so it also sees the commands a rule vetoes.
     useEffect(() => {
-        if (!enabled.log) return undefined;
-        let next = 0;
-        return model.use(
-            logCommands((entry) =>
-                setLog((entries) =>
-                    [{ ...entry, id: next++ }, ...entries].slice(0, 50),
-                ),
-            ),
+        const middlewares = [
+            enabled.log
+                ? logCommands((entry) =>
+                      setLog((entries) =>
+                          [
+                              { ...entry, id: nextLogId.current++ },
+                              ...entries,
+                          ].slice(0, 50),
+                      ),
+                  )
+                : undefined,
+            enabled.limit ? limitTabs : undefined,
+            enabled.tidy ? tidyNames : undefined,
+        ];
+        const removers = middlewares.flatMap((middleware) =>
+            middleware ? [model.use(middleware)] : [],
         );
-    }, [model, enabled.log]);
+        return () => {
+            for (const remove of removers) remove();
+        };
+    }, [model, enabled.log, enabled.limit, enabled.tidy]);
 
     /** Shows a command's result from code: applied, or why it was refused. */
     const report = (what: string, result: CommandResult<unknown>) =>

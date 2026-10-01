@@ -96,8 +96,9 @@ export function CsvTable({ csv }: { csv: Csv }) {
             <Table.Root>
                 <Table.Header>
                     <Table.Row>
-                        {csv.columns.map((column) => (
-                            <Table.Head key={column}>{column}</Table.Head>
+                        {csv.columns.map((column, cell) => (
+                            // biome-ignore lint/suspicious/noArrayIndexKey: a header may repeat a name or be empty; columns never reorder
+                            <Table.Head key={cell}>{column}</Table.Head>
                         ))}
                     </Table.Row>
                 </Table.Header>
@@ -105,10 +106,9 @@ export function CsvTable({ csv }: { csv: Csv }) {
                     {csv.rows.map((row, index) => (
                         // biome-ignore lint/suspicious/noArrayIndexKey: rows of a file, never reordered
                         <Table.Row key={index}>
-                            {csv.columns.map((column, cell) => (
-                                <Table.Cell key={column}>
-                                    {row[cell]}
-                                </Table.Cell>
+                            {csv.columns.map((_, cell) => (
+                                // biome-ignore lint/suspicious/noArrayIndexKey: cells of a row, by column
+                                <Table.Cell key={cell}>{row[cell]}</Table.Cell>
                             ))}
                         </Table.Row>
                     ))}
