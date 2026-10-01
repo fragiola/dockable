@@ -1,13 +1,19 @@
 "use client";
 
-import { type Model, type TabOf, veto } from "@fragiola/dockable";
+import {
+    type BorderNode,
+    type RowNode,
+    type TabOf,
+    type TabsetNode,
+    veto,
+} from "@fragiola/dockable";
+import { Dockable } from "@fragiola/dockable-react";
 import { Bug, FolderTree, GitBranch, SquareTerminal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Clickable } from "#/components/atoms/clickable";
 import { AlertDialog } from "#/components/ui/alert-dialog";
 import { Tooltip } from "#/components/ui/tooltip";
-import { type BorderOptions, DockLayout } from "../_kit/layout";
-import { usePopupTheme } from "../_kit/theme";
+import { cn } from "#/lib/cn";
 import { Explorer } from "./explorer";
 import { EditorPanel, ProblemsPanel, TerminalPanel } from "./panels";
 import { WorkbenchTabSet } from "./tabs";
@@ -29,73 +35,6 @@ import {
 // menu, Ctrl+Delete); and the layout is saved on every change (`model.subscribe`, `toJSON`) and
 // restored on the next visit (`createModel`, which reports a stored layout that is not valid).
 
-const BORDER_ICONS: Partial<
-    Record<TabOf<Types>["component"], typeof FolderTree>
-> = {
-    explorer: FolderTree,
-    terminal: SquareTerminal,
-    problems: Bug,
-};
-
-/** A tab of a side border (the activity bar): its button shows only the icon, upright. */
-function inSideBorder(model: Model<Types>, tab: TabOf<Types>) {
-    const parent = model.parentOf(tab.id);
-    return (
-        parent?.type === "border" &&
-        (parent.location === "left" || parent.location === "right")
-    );
-}
-
-/**
- * The borders' look. The left border is an activity bar, as in VS Code: an upright icon per tab,
- * named by `aria-label` and a tooltip (the kit's vertical labels are replaced). The bottom border's
- * tabs keep their icon and name.
- */
-function borderOptions(
-    model: Model<Types>,
-    popupTheme: ReturnType<typeof usePopupTheme>,
-): BorderOptions<Types> {
-    return {
-        renderBorderTab: (tab) => {
-            const Icon = BORDER_ICONS[tab.component];
-            const icon = Icon ? (
-                <Icon aria-hidden="true" className="size-4 shrink-0" />
-            ) : null;
-            if (!inSideBorder(model, tab)) {
-                return (
-                    <>
-                        {icon}
-                        {tab.data.name}
-                    </>
-                );
-            }
-            return (
-                <Tooltip.Root>
-                    <Tooltip.Trigger
-                        render={<span />}
-                        className="grid place-items-center"
-                    >
-                        {icon}
-                    </Tooltip.Trigger>
-                    <Tooltip.Content {...popupTheme}>
-                        {tab.data.name}
-                    </Tooltip.Content>
-                </Tooltip.Root>
-            );
-        },
-        // upright and centred: no writing-mode, no rotation
-        borderTabClassName: (tab) =>
-            inSideBorder(model, tab) ? "justify-center p-2" : undefined,
-        borderTabLabel: (tab) =>
-            inSideBorder(model, tab) ? tab.data.name : undefined,
-        // the bar is as wide as its icon buttons
-        borderClassName: (border) =>
-            border.location === "left" || border.location === "right"
-                ? "data-[orientation=vertical]:w-10"
-                : undefined,
-    };
-}
-
 export default function IdeWorkbench() {
     const [workspace] = useState(createWorkspace);
     // the model, restored from storage; `problem` says why a stored layout was not used
@@ -106,9 +45,6 @@ export default function IdeWorkbench() {
     // tabs waiting for an answer to "save changes?", and the ones already answered
     const [pending, setPending] = useState<string[]>([]);
     const confirmed = useRef(new Set<string>());
-    const container = useRef<HTMLDivElement | null>(null);
-    const popupTheme = usePopupTheme(container);
-    const borders = borderOptions(model, popupTheme);
 
     // The policy: closing a modified editor asks first. The middleware sees every `tab.close`,
     // from any button, menu or key; it vetoes the close and queues the question, and the dialog
@@ -202,10 +138,7 @@ export default function IdeWorkbench() {
     };
 
     return (
-        <div
-            ref={container}
-            className="flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)"
-        >
+        <div className="flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)">
             {problem ? (
                 <div
                     role="alert"
@@ -238,12 +171,58 @@ export default function IdeWorkbench() {
             ) : null}
             {/* hairline splitters with a wider grab area, whatever the theme */}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col [--dk-splitter-grab:7px] [--dk-splitter-size:1px]">
-                <DockLayout
-                    model={model}
-                    renderTabSet={(node) => <WorkbenchTabSet node={node} />}
-                    borders={borders}
-                    renderContent={renderContent}
-                />
+                <div className="flex min-h-0 flex-1 flex-col p-(--dk-gap)">
+                    <Dockable.Root
+                        model={model}
+                        className="palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast"
+                    >
+                        {/* the borders around the editors: a strip of tabs on each side that has
+                            some, and the area where the selected tab's panel opens */}
+                        <Dockable.Borders<Types>
+                            renderBar={(border) => <Border node={border} />}
+                            renderContent={(border) => (
+                                <BorderContent node={border} />
+                            )}
+                        >
+                            <Dockable.Row<Types>
+                                renderSplitter={(props) => (
+                                    <Splitter {...props} />
+                                )}
+                            >
+                                {renderNode}
+                            </Dockable.Row>
+                        </Dockable.Borders>
+                        {/* every tab's content, editors and border panels alike */}
+                        <Dockable.Panels<Types>>
+                            {(tab) => (
+                                <Dockable.Panel
+                                    node={tab}
+                                    // panels sit in a layer above the tabsets, whose overflow
+                                    // cannot clip them: the panel repeats the tabset's inner
+                                    // radius on its corners
+                                    className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
+                                >
+                                    {renderContent(tab)}
+                                </Dockable.Panel>
+                            )}
+                        </Dockable.Panels>
+                        {/* Panels are portalled into the root after the indicator: it needs a
+                            stacking order to paint above them. */}
+                        <Dockable.DropIndicator
+                            className={(state) =>
+                                cn(
+                                    "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
+                                    state.kind === "edge"
+                                        ? "palette-orange bg-palette-base/25"
+                                        : "palette-blue bg-palette-base/20",
+                                )
+                            }
+                            style={(state) => ({
+                                transitionDuration: `${state.tabDragSpeed}s`,
+                            })}
+                        />
+                    </Dockable.Root>
+                </div>
             </div>
 
             <footer className="palette-blue flex h-6 shrink-0 items-center gap-4 bg-palette-base px-3 text-xs text-palette-contrast">
@@ -267,7 +246,7 @@ export default function IdeWorkbench() {
             >
                 <AlertDialog.Portal>
                     <AlertDialog.Backdrop />
-                    <AlertDialog.Content {...popupTheme}>
+                    <AlertDialog.Content>
                         <AlertDialog.Header>
                             <AlertDialog.Title>
                                 {`Save changes to ${pendingData?.name ?? ""}?`}
@@ -304,5 +283,158 @@ export default function IdeWorkbench() {
                 </AlertDialog.Portal>
             </AlertDialog.Root>
         </div>
+    );
+}
+
+/** A row's child: a tabset, or a nested row rendered by this same function. */
+function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
+    if (node.type === "row") {
+        return (
+            <Dockable.Row
+                node={node}
+                renderSplitter={(props) => <Splitter {...props} />}
+            >
+                {renderNode}
+            </Dockable.Row>
+        );
+    }
+    return <WorkbenchTabSet node={node} />;
+}
+
+const BORDER_ICONS: Partial<
+    Record<TabOf<Types>["component"], typeof FolderTree>
+> = {
+    explorer: FolderTree,
+    terminal: SquareTerminal,
+    problems: Bug,
+};
+
+/**
+ * A border's strip. The left border is an activity bar, as in VS Code: an upright icon per tab,
+ * named by `aria-label` and a tooltip, in a bar as wide as its icon buttons. The bottom border's
+ * tabs keep their icon and name.
+ */
+function Border({ node }: { node: BorderNode<Types> }) {
+    const side = node.location === "left" || node.location === "right";
+    return (
+        <Dockable.Border
+            node={node}
+            className={cn(
+                "palette-surface shrink-0 bg-palette-base text-palette-contrast",
+                // a side bar is as wide as its icon buttons
+                "data-[orientation=vertical]:w-10 data-[orientation=horizontal]:h-(--dk-tab-height)",
+                "data-[location=left]:border-e data-[location=right]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
+                "data-drop-target:bg-palette-soft",
+            )}
+        >
+            <Dockable.TabList<Types>
+                aria-label={`${node.location} panels`}
+                className="flex min-h-0 min-w-0 flex-1 gap-(--dk-tab-gap) p-1 data-[orientation=vertical]:flex-col"
+            >
+                {(tab) => {
+                    const Icon = BORDER_ICONS[tab.component];
+                    const icon = Icon ? (
+                        <Icon aria-hidden="true" className="size-4 shrink-0" />
+                    ) : null;
+                    return (
+                        <Dockable.Tab
+                            node={tab}
+                            // an icon-only tab is named by its tab's name
+                            aria-label={side ? tab.data.name : undefined}
+                            className={cn(
+                                "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-sm",
+                                "font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
+                                "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
+                                "data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40",
+                                // upright and centred in a side bar: no writing-mode, no rotation
+                                side ? "justify-center p-2" : "px-2 py-1",
+                            )}
+                        >
+                            {side ? (
+                                <Tooltip.Root>
+                                    <Tooltip.Trigger
+                                        render={<span />}
+                                        className="grid place-items-center"
+                                    >
+                                        {icon}
+                                    </Tooltip.Trigger>
+                                    <Tooltip.Content>
+                                        {tab.data.name}
+                                    </Tooltip.Content>
+                                </Tooltip.Root>
+                            ) : (
+                                <>
+                                    {icon}
+                                    {tab.data.name}
+                                </>
+                            )}
+                        </Dockable.Tab>
+                    );
+                }}
+            </Dockable.TabList>
+        </Dockable.Border>
+    );
+}
+
+/**
+ * Where a border's panel opens, with its splitter on the layout's side. An overlay border paints
+ * over the layout, so it gets a stacking order (above the tabsets and their splitters), a shadow
+ * and a line on the side facing the layout.
+ */
+function BorderContent({ node }: { node: BorderNode<Types> }) {
+    return (
+        <Dockable.BorderContent
+            node={node}
+            className={cn(
+                "data-overlay:z-30 data-overlay:shadow-xl data-overlay:border-palette-line",
+                "data-overlay:data-[location=left]:border-e data-overlay:data-[location=right]:border-s",
+                "data-overlay:data-[location=top]:border-b data-overlay:data-[location=bottom]:border-t",
+            )}
+            renderSplitter={(border) => <Splitter node={border} />}
+        />
+    );
+}
+
+/**
+ * The bar between two children of a row, or between a border's panel and the layout:
+ * `--dk-splitter-size` thick (the engine measures it), with a wider grab area (`::after`) and a
+ * grip for the themes that show one (`--dk-grip`).
+ */
+function Splitter({
+    node,
+    index,
+}: {
+    node: RowNode<Types> | BorderNode<Types>;
+    index?: number;
+}) {
+    return (
+        <Dockable.Splitter
+            node={node}
+            index={index}
+            aria-label="Resize"
+            className={cn(
+                "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
+                "after:absolute after:transition-colors after:duration-(--dk-motion)",
+                "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
+                // side by side: a vertical bar
+                "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
+                "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
+                "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
+                "rtl:data-[orientation=vertical]:after:translate-x-1/2",
+                // stacked: a horizontal bar
+                "data-[orientation=horizontal]:h-(--dk-splitter-size) data-[orientation=horizontal]:cursor-ns-resize",
+                "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
+                "data-[orientation=horizontal]:after:h-(--dk-splitter-grab) data-[orientation=horizontal]:after:-translate-y-1/2",
+            )}
+        >
+            <span
+                aria-hidden="true"
+                className={cn(
+                    "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
+                    "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
+                    "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
+                )}
+            />
+        </Dockable.Splitter>
     );
 }

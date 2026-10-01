@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { openExample } from "../helpers";
 
-// With the kit off, the package paints nothing: its elements carry no class, only structural
+// With the styles off, the package paints nothing: its elements carry no class, only structural
 // inline styles, and no stylesheet rule targets them.
 
 /** The inline style properties the primitive contract allows (AGENTS.md), as longhands. */
@@ -31,7 +31,7 @@ const STRUCTURAL = new Set([
 ]);
 
 for (const theme of ["light", "dark"] as const) {
-    test(`the layout is unstyled with the kit off (${theme})`, async ({
+    test(`the layout is unstyled with the styles off (${theme})`, async ({
         page,
     }) => {
         const stage = await openExample(page, "unstyled", { theme });
@@ -127,8 +127,8 @@ for (const theme of ["light", "dark"] as const) {
             expect(STRUCTURAL, property).toContain(property);
         }
 
-        // the kit's class names are one toggle away
-        await page.getByTestId("kit-toggle").click();
+        // the example's class names are one toggle away
+        await page.getByTestId("styles-toggle").click();
         await expect(
             stage.locator('[data-layout-path="/layout"]'),
         ).toHaveAttribute("class", /palette-surface/);

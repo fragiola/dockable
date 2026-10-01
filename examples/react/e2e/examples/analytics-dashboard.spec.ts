@@ -61,3 +61,34 @@ test("a popped-out chart keeps its state", async ({ page, context }) => {
     await expect(popout.locator('[data-slot="chart"] svg')).toBeVisible();
     await expect(stage.getByRole("tab", { name: /Revenue/ })).toHaveCount(0);
 });
+
+test("a popped-out chart follows a theme switch", async ({ page, context }) => {
+    const stage = await openExample(page, "analytics-dashboard", {
+        theme: "paper",
+    });
+    const [popout] = await Promise.all([
+        context.waitForEvent("page"),
+        stage.getByRole("button", { name: "Pop out Revenue" }).click(),
+    ]);
+    await popout.waitForLoadState();
+    // the first stroked path of the chart is a grid line, in the palette's line colour
+    const stroke = () =>
+        popout
+            .locator("[_echarts_instance_] path[stroke]")
+            .first()
+            .getAttribute("stroke");
+    await expect.poll(stroke).toMatch(/^#[0-9a-f]{6}$/i);
+    const paper = await stroke();
+
+    await page.evaluate(() =>
+        window.postMessage(
+            { type: "fragiola:example:theme", theme: "terminal" },
+            location.origin,
+        ),
+    );
+    await expect(popout.locator("body")).toHaveAttribute(
+        "data-example-theme",
+        "terminal",
+    );
+    await expect.poll(stroke).not.toBe(paper);
+});

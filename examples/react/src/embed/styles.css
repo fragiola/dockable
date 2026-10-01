@@ -1,6 +1,6 @@
 /* The examples' stylesheet, the docs app's stack minus the site chrome (Fumadocs):
    1. the Fragiola base (Tailwind, the palette roles) and the palettes, keyed off :root[data-theme]
-   2. the example themes, scoped to [data-example-theme] (the stage) */
+   2. the example themes, scoped to [data-example-theme] (on <body>) */
 
 @import "../styles/global.css";
 @import "../styles/palettes/surface.css";

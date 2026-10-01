@@ -7,13 +7,10 @@ import {
     useTabOverflow,
 } from "@fragiola/dockable-react";
 import { Bug, Maximize2, Minimize2, SquareTerminal, X } from "lucide-react";
-import { useRef } from "react";
+
 import { ContextMenu } from "#/components/ui/context-menu";
 import { Select } from "#/components/ui/select";
 import { cn } from "#/lib/cn";
-import { labels } from "../_kit/labels";
-import * as styles from "../_kit/styles";
-import { usePopupTheme } from "../_kit/theme";
 import { FileIcon } from "./explorer";
 import { editorData, type Types } from "./workspace";
 
@@ -55,11 +52,9 @@ function TabIcon({ tab }: { tab: TabOf<Types> }) {
 function WorkbenchTab({
     tab,
     tabset,
-    popupTheme,
 }: {
     tab: TabOf<Types>;
     tabset: TabsetNode<Types>;
-    popupTheme: ReturnType<typeof usePopupTheme>;
 }) {
     const { model } = useDockable<Types>();
     const siblings = tabset.children;
@@ -73,28 +68,34 @@ function WorkbenchTab({
             {/* `render` makes the context menu trigger the tab itself, with the tab's props */}
             <Dockable.Tab
                 node={tab}
-                data-kit-tab=""
                 render={<ContextMenu.Trigger />}
                 data-dirty={dirty ? "" : undefined}
-                className={cn(styles.tab, "gap-1.5 ps-2.5 pe-1")}
+                className={cn(
+                    "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 ps-2.5 pe-1",
+                    "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
+                    "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
+                    "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
+                    "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
+                )}
             >
                 <TabIcon tab={tab} />
-                <span data-tab-label className={styles.tabLabel}>
-                    {tab.data.name}
-                </span>
+                <span className="truncate">{tab.data.name}</span>
                 {canClose ? (
                     <button
                         type="button"
                         tabIndex={-1}
                         draggable={false}
-                        aria-label={`${labels.closeTab} ${tab.data.name}`}
+                        aria-label={`Close ${tab.data.name}`}
                         data-testid="close-tab"
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
                             event.stopPropagation(); // do not select the tab being closed
                             close();
                         }}
-                        className={cn(styles.iconButton, "size-5")}
+                        className={cn(
+                            "grid size-5 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
+                            "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
+                        )}
                     >
                         {/* VS Code's convention: a dot while modified, the cross on hover */}
                         {dirty ? (
@@ -114,13 +115,14 @@ function WorkbenchTab({
                         />
                     </button>
                 ) : null}
+                {/* the active tabset's marker: `in-data-active:` reads the enclosing TabSet's
+                    data-active, `group-data-selected/tab:` this tab's */}
                 <span
                     aria-hidden="true"
-                    data-tab-marker
-                    className={styles.tabMarker}
+                    className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"
                 />
             </Dockable.Tab>
-            <ContextMenu.Content {...popupTheme}>
+            <ContextMenu.Content>
                 <ContextMenu.Item disabled={!canClose} onClick={close}>
                     Close
                 </ContextMenu.Item>
@@ -186,33 +188,24 @@ function WorkbenchTab({
 
 export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
     const { model, layoutId } = useDockable<Types>();
-    const list = useRef<HTMLDivElement | null>(null);
     const { hidden } = useTabOverflow(node);
-    const popupTheme = usePopupTheme(list);
     const maximized = model.maximizedTabset(layoutId)?.id === node.id;
 
     return (
         <Dockable.TabSet
             node={node}
-            data-kit-tabset=""
-            className={cn(styles.tabset, "data-maximized:shadow-none")}
+            className="palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line) data-maximized:shadow-none"
         >
-            <div className={styles.tabsetHeader}>
+            <div className="flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line">
                 <Dockable.TabList<Types>
-                    data-kit-tablist=""
-                    ref={list}
                     aria-label={node.id === "panel" ? "Panel" : "Editors"}
-                    className={styles.tabList}
+                    // the start padding is load-bearing: a tab flush with the tabset's edge could
+                    // not take a drop before it (that edge is the tabset's side drop)
+                    className="flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]"
                 >
-                    {(tab) => (
-                        <WorkbenchTab
-                            tab={tab}
-                            tabset={node}
-                            popupTheme={popupTheme}
-                        />
-                    )}
+                    {(tab) => <WorkbenchTab tab={tab} tabset={node} />}
                 </Dockable.TabList>
-                <div className={styles.tabsetActions}>
+                <div className="flex items-center gap-0.5 pe-1">
                     {/* the tabs that do not fit, one click away (rendered only while there are some) */}
                     <Select.Root
                         value={null}
@@ -231,7 +224,7 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                         >
                             {`+${hidden.length}`}
                         </Dockable.TabOverflowTrigger>
-                        <Select.Content {...popupTheme}>
+                        <Select.Content>
                             {hidden.map((tab) => (
                                 <Select.Item key={tab.id} value={tab.id}>
                                     {tab.data.name}
@@ -241,9 +234,7 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                     </Select.Root>
                     <button
                         type="button"
-                        aria-label={
-                            maximized ? labels.restore : labels.maximize
-                        }
+                        aria-label={maximized ? "Restore" : "Maximize"}
                         aria-pressed={maximized}
                         onClick={() =>
                             model.run("tabset.maximize", {
@@ -251,7 +242,10 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                                 value: !maximized,
                             })
                         }
-                        className={styles.iconButton}
+                        className={cn(
+                            "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
+                            "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
+                        )}
                     >
                         {maximized ? (
                             <Minimize2

@@ -10,7 +10,7 @@ import { Sidebar } from "./sidebar";
 import { SourcePanel } from "./source-panel";
 import { Stage } from "./stage";
 import { Toolbar } from "./toolbar";
-import { applyScheme, parseView, sameItem, toSearch, type View } from "./view";
+import { applyTheme, parseView, sameItem, toSearch, type View } from "./view";
 
 // The shell: sidebar, toolbar, stage, source panel and Inspector, built from the Fragiola UI
 // vendored in examples/react and painted through palette roles only. It uses no Dockable layout:
@@ -36,7 +36,7 @@ export function App() {
         [],
     );
 
-    useLayoutEffect(() => applyScheme(view.theme), [view.theme]);
+    useLayoutEffect(() => applyTheme(view.theme), [view.theme]);
 
     useEffect(() => {
         document.title = entry
@@ -97,7 +97,6 @@ export function App() {
                                     key={itemKey}
                                     ref={setStage}
                                     entry={entry}
-                                    theme={view.theme}
                                 />
                             ) : (
                                 <p className="p-8 text-sm text-palette-accent/85">

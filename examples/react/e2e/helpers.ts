@@ -20,7 +20,7 @@ export async function openExample(
     await page.goto(`./?${params}`);
     const stage = page.getByTestId("stage");
     if (options.theme) {
-        await expect(stage).toHaveAttribute(
+        await expect(page.locator("body")).toHaveAttribute(
             "data-example-theme",
             options.theme,
         );

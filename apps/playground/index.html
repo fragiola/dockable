@@ -5,8 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Dockable playground</title>
     </head>
-    <!-- The theme's scheme goes on <html> before the first paint (vite.config.ts) -->
-    <body class="palette-surface bg-palette-base text-palette-contrast">
+    <!-- Before the first paint, the theme's scheme goes on <html> and the example theme on <body>
+         (examples/react/vite.shared.ts). The shell paints with its own palette, palette-shell
+         (src/styles.css), which no example theme overrides. -->
+    <body class="palette-shell bg-palette-base text-palette-contrast">
         <div id="root"></div>
         <script type="module" src="/src/main.tsx"></script>
     </body>

@@ -128,14 +128,16 @@ It shows three things, which are not interchangeable:
 - **Examples** live in `examples/react/src/examples` and are public: the site embeds them,
   `site:export` ships them, readers copy them. The playground reads them in place
   (`import.meta.glob`, the `#/` alias and the pre-paint theme from `examples/react/vite.shared.ts`);
-  it never keeps a second list. The stage follows the embed's contract (`data-example-theme` on the
-  stage, the scheme on `<html>`, `fill`/`flow`), so an example renders as the site shows it.
+  it never keeps a second list. The stage follows the embed's contract (`data-example-theme` on
+  `<body>`, the scheme on `<html>`, `fill`/`flow`), so an example renders as the site shows it; the
+  shell keeps its own palette (`palette-shell`), which no example theme overrides.
 - **Scenarios** live in `apps/playground/src/scenarios/<area>/<id>.tsx` and are dev-only: new
   primitives, edge cases, animations, API experiments; never shipped, never linked from
   `site/docs`. A file is all it takes: `<area>` is one of `AREAS` in `src/catalog.ts` (`layout`,
   `drag`, `borders`, `popout`, `api`), `<id>` is kebab-case, and the module has **only a default
   export** (anything else costs Fast Refresh); `tests/scenarios.test.ts` enforces it. A scenario
-  may import `#/examples/_kit/*` and `#/components/*`. When readers should see it, it becomes an
+  may import `#/examples/_kit/*` (shared demo content: cards, charts, data) and `#/components/*`,
+  and writes its own Dockable assembly, as the examples do. When readers should see it, it becomes an
   example in `examples/react`.
 - **Fixtures** (`fixtures/<name>/`) are the unstyled pages Playwright drives; the sidebar links
   them.

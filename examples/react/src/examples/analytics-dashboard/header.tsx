@@ -2,12 +2,10 @@
 
 import type { Model } from "@fragiola/dockable";
 import { Plus, Redo2, Undo2 } from "lucide-react";
-import { useRef } from "react";
+
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
 import { Select } from "#/components/ui/select";
 import { cn } from "#/lib/cn";
-import * as styles from "../_kit/styles";
-import { usePopupTheme } from "../_kit/theme";
 import type { UndoManager, UndoSnapshot } from "../_kit/undo";
 import { type Filters, REGIONS, type Types, WIDGETS } from "./data";
 
@@ -46,12 +44,10 @@ export function Header({
     undo: UndoManager<Types>;
     history: UndoSnapshot<Types>;
 }) {
-    const ref = useRef<HTMLElement | null>(null);
-    const popupTheme = usePopupTheme(ref);
     const selectTrigger = "h-8 w-40 py-0 text-sm";
 
     return (
-        <header ref={ref} className={cn(styles.toolbar, "gap-3")}>
+        <header className="palette-surface flex flex-wrap items-center gap-3 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast">
             <h1 className="me-auto text-sm font-semibold">Sales overview</h1>
 
             <Select.Root
@@ -67,7 +63,7 @@ export function Header({
                 <Select.Trigger aria-label="Region" className={selectTrigger}>
                     <Select.Value />
                 </Select.Trigger>
-                <Select.Content {...popupTheme}>
+                <Select.Content>
                     {REGION_ITEMS.map((item) => (
                         <Select.Item key={item.value} value={item.value}>
                             {item.label}
@@ -92,7 +88,7 @@ export function Header({
                 >
                     <Select.Value />
                 </Select.Trigger>
-                <Select.Content {...popupTheme}>
+                <Select.Content>
                     {RANGE_ITEMS.map((item) => (
                         <Select.Item key={item.value} value={item.value}>
                             {item.label}
@@ -108,7 +104,11 @@ export function Header({
                     title="Undo (Ctrl+Z)"
                     disabled={!history.canUndo}
                     onClick={() => undo.undo()}
-                    className={cn(styles.button, "rounded-e-none px-2")}
+                    className={cn(
+                        "inline-flex h-8 items-center gap-1.5 rounded-md rounded-e-none border border-palette-line bg-palette-base px-2 text-sm",
+                        "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
+                        "disabled:pointer-events-none disabled:opacity-50",
+                    )}
                 >
                     <Undo2 aria-hidden="true" className="size-4" />
                 </button>
@@ -118,7 +118,11 @@ export function Header({
                     title="Redo (Ctrl+Shift+Z)"
                     disabled={!history.canRedo}
                     onClick={() => undo.redo()}
-                    className={cn(styles.button, "-ms-px rounded-s-none px-2")}
+                    className={cn(
+                        "-ms-px inline-flex h-8 items-center gap-1.5 rounded-md rounded-s-none border border-palette-line bg-palette-base px-2 text-sm",
+                        "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
+                        "disabled:pointer-events-none disabled:opacity-50",
+                    )}
                 >
                     <Redo2 aria-hidden="true" className="size-4" />
                 </button>
@@ -126,12 +130,16 @@ export function Header({
 
             <DropdownMenu.Root>
                 <DropdownMenu.Trigger
-                    className={cn("palette-blue", styles.solidButton)}
+                    className={cn(
+                        "palette-blue inline-flex h-8 items-center gap-1.5 rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast",
+                        "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
+                        "disabled:pointer-events-none disabled:opacity-50",
+                    )}
                 >
                     <Plus aria-hidden="true" className="size-4" />
                     Add widget
                 </DropdownMenu.Trigger>
-                <DropdownMenu.Content align="end" {...popupTheme}>
+                <DropdownMenu.Content align="end">
                     {WIDGETS.map((widget, index) => (
                         <DropdownMenu.Item
                             key={widget.label}

@@ -11,8 +11,9 @@ import {
 } from "../scripts/examples-lib.ts";
 
 // The example contract (DD6–DD8, and `#/` imports per §6 of the site export contract): every example has a valid meta.ts, is in
-// the manifest, imports only what a consumer can copy, and the code panel lists exactly the
-// files it is compiled from.
+// the manifest, imports only what a consumer can copy, the code panel lists exactly the
+// files it is compiled from, and each example assembles Dockable itself (README, "Anatomy of
+// an example"): `_kit/` is shared demo content and app logic only.
 
 /** What an example file may import, besides relative files inside examples/. */
 const ALLOWED = [
@@ -35,6 +36,15 @@ const SITE_FILES = [
     /^_themes\/themes\.ts$/,
     /\.md$/,
     /\.css$/,
+];
+
+/** What `_kit/` may hold: demo content and app logic, never a Dockable assembly or a style layer. */
+const KIT_FILES = [
+    "card.tsx",
+    "charts.tsx",
+    "data.tsx",
+    "rename-field.tsx",
+    "undo.ts",
 ];
 
 function walk(dir: string): string[] {
@@ -114,6 +124,36 @@ describe("the examples", () => {
                     expect(resolved, `${file} → ${specifier}`).toBe(true);
                 }
             }
+        }
+    });
+
+    it("assemble Dockable themselves: index.tsx renders <Dockable.Root>", () => {
+        for (const slug of listExampleSlugs()) {
+            const source = readFileSync(
+                join(EXAMPLES_DIR, slug, "index.tsx"),
+                "utf-8",
+            );
+            expect(source, `${slug}/index.tsx`).toMatch(/<Dockable\.Root\b/);
+        }
+    });
+});
+
+describe("the kit", () => {
+    it("holds only shared demo content and app logic", () => {
+        expect(readdirSync(join(EXAMPLES_DIR, "_kit")).sort()).toEqual(
+            [...KIT_FILES].sort(),
+        );
+    });
+
+    it("renders no Dockable primitive: the examples assemble the layout", () => {
+        for (const file of KIT_FILES) {
+            const source = readFileSync(
+                join(EXAMPLES_DIR, "_kit", file),
+                "utf-8",
+            );
+            expect(importsOf(source), `_kit/${file}`).not.toContain(
+                "@fragiola/dockable-react",
+            );
         }
     });
 });

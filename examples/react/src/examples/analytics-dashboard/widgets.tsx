@@ -14,7 +14,7 @@ import { Badge } from "#/components/atoms/badge";
 import { Chart } from "#/components/ui/chart";
 import { Table } from "#/components/ui/table";
 import { cn } from "#/lib/cn";
-import { useExampleTheme } from "../_kit/theme";
+import { useChartKey } from "../_kit/charts";
 import {
     DEFAULT_FILTERS,
     type Filters,
@@ -48,7 +48,7 @@ export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
     const config = tab.data;
     const [kind, setKind] = useState<"line" | "bar">(config.kind ?? "line");
     const ref = useRef<HTMLDivElement | null>(null);
-    const theme = useExampleTheme(ref);
+    const chartKey = useChartKey(ref);
 
     const data = useMemo(
         () => METRICS[config.metric](filters),
@@ -115,10 +115,13 @@ export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
                     ))}
                 </fieldset>
             </div>
-            {/* keyed on the theme: the Fragiola chart reads its colours from CSS once */}
-            {theme ? (
-                <Chart key={theme} option={option} className="min-h-0 flex-1" />
-            ) : null}
+            {chartKey === null ? null : (
+                <Chart
+                    key={chartKey}
+                    option={option}
+                    className="min-h-0 flex-1"
+                />
+            )}
         </div>
     );
 }

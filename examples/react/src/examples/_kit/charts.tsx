@@ -1,10 +1,16 @@
 "use client";
 
 import type { EChartsOption } from "echarts";
-import { type ReactNode, useMemo, useRef } from "react";
+import {
+    type ReactNode,
+    type RefObject,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import { Chart } from "#/components/ui/chart";
 import { cn } from "#/lib/cn";
-import { useExampleTheme } from "./theme";
 
 // Demo content: a Fragiola UI chart that fills its panel and follows the example theme.
 
@@ -17,6 +23,44 @@ export function series(seed: number, length = MONTHS.length, scale = 100) {
         value = (value * 9301 + 49297) % 233280;
         return Math.round((value / 233280) * scale);
     });
+}
+
+/**
+ * When to (re)mount a Fragiola chart, which reads its colours from its own element when it mounts:
+ * `null` until the element is in the document, then a key that changes after every theme switch.
+ *
+ * - A panel's content is portalled into the tab's moveable element, which the engine attaches to
+ *   the layout after the first commit: the chart waits for it (checked once per frame).
+ * - A theme switch changes an attribute of `<html>` or `<body>`. The key changes one frame later,
+ *   once a popout window has mirrored the attributes (`popoutMirrorRoot`), so a chart that was
+ *   moved into a popout re-reads the colours of its own window.
+ */
+export function useChartKey(ref: RefObject<HTMLElement | null>) {
+    const [key, setKey] = useState<number | null>(null);
+    useEffect(() => {
+        let frame = 0;
+        const check = () => {
+            if (ref.current?.isConnected) {
+                setKey(0);
+            } else {
+                frame = requestAnimationFrame(check);
+            }
+        };
+        check();
+        const observer = new MutationObserver(() => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() =>
+                setKey((current) => (current === null ? null : current + 1)),
+            );
+        });
+        observer.observe(document.documentElement, { attributes: true });
+        observer.observe(document.body, { attributes: true });
+        return () => {
+            cancelAnimationFrame(frame);
+            observer.disconnect();
+        };
+    }, [ref]);
+    return key;
 }
 
 /** A Fragiola chart that fills its panel and follows the example theme. */
@@ -32,7 +76,7 @@ export function ChartPanel({
     className?: string;
 }) {
     const ref = useRef<HTMLDivElement | null>(null);
-    const theme = useExampleTheme(ref);
+    const chartKey = useChartKey(ref);
     const option = useMemo<EChartsOption>(
         () => ({
             grid: { left: 36, right: 16, top: 16, bottom: 28 },
@@ -61,10 +105,13 @@ export function ChartPanel({
             className={cn("flex h-full min-h-40 flex-col p-3", className)}
         >
             {title ? <h2 className="px-1 pb-2 text-sm">{title}</h2> : null}
-            {/* drawn once the theme is known: the chart reads its colours on mount */}
-            {theme ? (
-                <Chart key={theme} option={option} className="min-h-0 flex-1" />
-            ) : null}
+            {chartKey === null ? null : (
+                <Chart
+                    key={chartKey}
+                    option={option}
+                    className="min-h-0 flex-1"
+                />
+            )}
         </div>
     );
 }

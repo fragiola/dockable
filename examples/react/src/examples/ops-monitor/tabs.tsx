@@ -10,11 +10,9 @@ import {
     type LucideIcon,
     ScrollText,
 } from "lucide-react";
-import { useRef } from "react";
+
 import { Tooltip } from "#/components/ui/tooltip";
 import { cn } from "#/lib/cn";
-import * as styles from "../_kit/styles";
-import { usePopupTheme } from "../_kit/theme";
 import { LEVEL_PALETTE, type Types } from "./panels";
 
 // The console's tabsets. A service tab reads the status its panel wrote into its data and
@@ -44,9 +42,16 @@ function MonitorTab({ tab }: { tab: TabOf<Types> }) {
         // its icon, a line on top and a badge; `data-status` drives what shows.
         <Dockable.Tab
             node={tab}
-            data-kit-tab=""
             data-status={status}
-            className={cn(styles.tab, "data-pinned:px-2.5")}
+            className={cn(
+                "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
+                "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
+                "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
+                "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
+                "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
+                // a pinned tab is only its icon: a narrower button
+                "data-pinned:px-2.5",
+            )}
         >
             <Icon
                 aria-hidden="true"
@@ -59,10 +64,7 @@ function MonitorTab({ tab }: { tab: TabOf<Types> }) {
                 )}
             />
             {/* a pinned tab is only its icon; the name stays for screen readers */}
-            <span
-                data-tab-label
-                className={cn(styles.tabLabel, tab.pinned && "sr-only")}
-            >
+            <span className={cn("truncate", tab.pinned && "sr-only")}>
                 {tab.data.name}
             </span>
             {alerts > 0 ? (
@@ -88,10 +90,11 @@ function MonitorTab({ tab }: { tab: TabOf<Types> }) {
                     "group-data-[status=warning]/tab:block group-data-[status=critical]/tab:block",
                 )}
             />
+            {/* the active tabset's marker: `in-data-active:` reads the enclosing TabSet's
+                data-active, `group-data-selected/tab:` this tab's */}
             <span
                 aria-hidden="true"
-                data-tab-marker
-                className={styles.tabMarker}
+                className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"
             />
         </Dockable.Tab>
     );
@@ -99,36 +102,38 @@ function MonitorTab({ tab }: { tab: TabOf<Types> }) {
 
 export function MonitorTabSet({ node }: { node: TabsetNode<Types> }) {
     const locked = node.id === INCIDENT_TABSET;
-    const header = useRef<HTMLDivElement | null>(null);
-    const popupTheme = usePopupTheme(header);
     return (
         <Dockable.TabSet
             node={node}
-            data-kit-tabset=""
             data-locked={locked ? "" : undefined}
-            className={cn(styles.tabset, "data-locked:border-dashed")}
+            className={cn(
+                "palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)",
+                "data-locked:border-dashed",
+            )}
         >
-            <div ref={header} className={styles.tabsetHeader}>
+            <div className="flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line">
                 <Dockable.TabList<Types>
-                    data-kit-tablist=""
                     aria-label={locked ? "Incident" : "Monitors"}
-                    className={styles.tabList}
+                    // the start padding is load-bearing: a tab flush with the tabset's edge could
+                    // not take a drop before it (that edge is the tabset's side drop)
+                    className="flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]"
                 >
                     {(tab) => <MonitorTab tab={tab} />}
                 </Dockable.TabList>
                 {locked ? (
-                    <div className={styles.tabsetActions}>
+                    <div className="flex items-center gap-0.5 pe-1">
                         <Tooltip.Root>
                             <Tooltip.Trigger
                                 aria-label="Locked region"
-                                className={styles.iconButton}
+                                className={cn(
+                                    "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
+                                    "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
+                                    "disabled:pointer-events-none disabled:opacity-40",
+                                )}
                             >
                                 <Lock aria-hidden="true" className="size-3.5" />
                             </Tooltip.Trigger>
-                            <Tooltip.Content
-                                className="palette-surface"
-                                {...popupTheme}
-                            >
+                            <Tooltip.Content className="palette-surface">
                                 Locked: only incident tabs can be dropped here
                             </Tooltip.Content>
                         </Tooltip.Root>

@@ -86,6 +86,6 @@ export function WidgetContent({ tab }: { tab: TabOf<Types> }) {
         case "log":
             return <LogPanel />;
         case "notes":
-            return <Card tab={tab} />;
+            return <Card name={tab.data.name} />;
     }
 }

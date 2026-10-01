@@ -21,7 +21,7 @@ test("a tabset's palette menu recolours the tabset and its panel", async ({
     await expect(content).toHaveAttribute("data-palette", "palette-green");
     expect(await background(content)).toBe(await background(tabset));
 
-    // surface, too, overrides the kit's raised default
+    // surface, too, overrides the tabset's raised default
     await tabset.getByRole("button", { name: "Tabset palette" }).click();
     await page.getByRole("menuitemradio", { name: "Surface" }).click();
     await expect(content).toHaveAttribute("data-palette", "palette-surface");

@@ -32,13 +32,7 @@ function devManifest(): Plugin {
 
 export default defineConfig(({ command }) => ({
     base,
-    // the stage is `#root` in index.html
-    plugins: [
-        react(),
-        tailwindcss(),
-        prePaintTheme({ stage: "root" }),
-        devManifest(),
-    ],
+    plugins: [react(), tailwindcss(), prePaintTheme(), devManifest()],
     resolve: examplesResolve(command),
     // echarts (~1.1 MB) is its own chunk, loaded only by the examples that draw a chart
     build: { chunkSizeWarningLimit: 1200 },

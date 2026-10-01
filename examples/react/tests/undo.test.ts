@@ -1,7 +1,7 @@
 // Ported from FlexLayout (https://github.com/caplin/FlexLayout), tests/useUndo.test.tsx.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 //
-// The hook tests, rewritten against the examples' framework-agnostic UndoManager (the kit's
+// The hook tests, rewritten against the examples' framework-agnostic UndoManager (the shared
 // `_kit/undo.ts`): same cases, no React.
 
 import {

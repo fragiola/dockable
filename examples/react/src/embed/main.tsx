@@ -15,7 +15,7 @@ import { followTheme, postReady, reportHeight } from "./messages";
 import "./styles.css";
 
 // `?id=<id>` renders one example on the whole viewport, with no chrome: the site puts it in an
-// iframe (contract v1, §5). The theme is already on the stage (vite.config.ts, before the first
+// iframe (contract v1, §5). The theme is already on `<body>` (vite.shared.ts, before the first
 // paint); the site changes it with a message. Without an id, a plain list of links (local checks).
 
 const READY_TIMEOUT_MS = 500;
@@ -135,7 +135,7 @@ if (stage) {
         stage.style.height = "auto";
         stage.style.gridTemplate = "auto / minmax(0, 1fr)";
     }
-    followTheme(stage);
+    followTheme();
     createRoot(stage).render(
         <StrictMode>{id ? <Embed id={id} /> : <Index />}</StrictMode>,
     );

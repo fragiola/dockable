@@ -8,7 +8,6 @@ import type {
 } from "@fragiola/dockable";
 import { useEffect, useId, useState } from "react";
 import { cn } from "#/lib/cn";
-import * as styles from "../_kit/styles";
 import { fieldsOf, fromToolCall, toolName, toTools } from "./tools";
 
 // The console lives outside the layout and talks to the model only: `commands()` to list what it
@@ -101,8 +100,10 @@ export function CommandConsole<T extends DockableTypes = AnyTypes>({
                         aria-pressed={view === value}
                         onClick={() => setView(value)}
                         className={cn(
-                            styles.button,
-                            "h-7 px-2 text-xs aria-pressed:bg-palette-soft aria-pressed:text-palette-contrast",
+                            "inline-flex h-7 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-2 text-xs text-palette-contrast",
+                            "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
+                            "disabled:pointer-events-none disabled:opacity-50",
+                            "aria-pressed:bg-palette-soft aria-pressed:text-palette-contrast",
                         )}
                     >
                         {label}
@@ -163,7 +164,11 @@ function ConsoleView<T extends DockableTypes>({
                         onClick={() =>
                             setInput(JSON.stringify(sample.input, null, 2))
                         }
-                        className={cn(styles.button, "h-7 px-2 text-xs")}
+                        className={cn(
+                            "inline-flex h-7 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-2 text-xs text-palette-contrast",
+                            "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
+                            "disabled:pointer-events-none disabled:opacity-50",
+                        )}
                     >
                         {sample.label}
                     </button>
@@ -185,9 +190,9 @@ function ConsoleView<T extends DockableTypes>({
                 type="button"
                 onClick={run}
                 className={cn(
-                    "palette-blue",
-                    styles.solidButton,
-                    "h-8 self-start px-3",
+                    "palette-blue inline-flex h-8 items-center gap-1.5 self-start rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast",
+                    "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
+                    "disabled:pointer-events-none disabled:opacity-50",
                 )}
             >
                 Run
