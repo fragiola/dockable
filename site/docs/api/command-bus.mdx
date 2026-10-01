@@ -149,6 +149,11 @@ const checked = model.check("tab.close", { tabId: tab.id });
 if (!checked.ok) console.info(checked.error.message); // why it cannot close
 ```
 
+A panel beside the layout drives tabs and tabsets this way: every button runs a command, and is
+disabled, with the reason as its tooltip, when the dry run of that command is refused:
+
+<Example id="remote-control" />
+
 ### `RunOptions`
 
 The third argument of `run`, `can` and `check`.
@@ -268,6 +273,12 @@ The rules:
   its commands run the chain.
 - **Dry runs.** During `can` and `check` (`ctx.dryRun`), the same chain runs and must have no side effects.
 
+The three kinds side by side, each switched on and off at runtime with the function `model.use`
+returns: a veto that caps a tabset at four tabs (a drag into a full one is refused while it
+hovers), a rewrite that tidies a tab's new name, and an observer that logs every command:
+
+<Example id="middleware" />
+
 ### `CommandContext`
 
 What a middleware receives. `CommandContext<T>` is a union discriminated by `command`: once you
@@ -354,6 +365,12 @@ loads it back with `toLayoutJson` and `layout.load`.
 
 A listener that throws does not stop the others: every listener runs, then the first error is
 rethrown from the `run` that committed (the commit stands).
+
+One listener sees every command, so `payload` and `result` are typed `unknown`: read the fields a
+reaction needs and check their type. The example turns closes, moves, maximizes and adds into
+toasts, and a closed tab's toast offers Undo, which loads `event.before` back:
+
+<Example id="event-toasts" />
 
 ## Listing the commands
 
