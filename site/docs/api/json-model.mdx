@@ -4,8 +4,8 @@ description: The JSON v1 layout document, field by field, with the layout defaul
 ---
 
 A layout is saved and loaded as a `LayoutJson<T>` document, version 1. `createModel(json)` and the
-`layout.load` command read it, and `model.toJSON()` writes it. It is plain JSON: the state the
-model holds has the same shape, with the omitted fields filled in.
+`layout.load` command read it, and `model.get("layout-json")` writes it. It is plain JSON: the
+state the model holds has the same shape, with the omitted fields filled in.
 
 ```json
 {
@@ -104,7 +104,7 @@ each, and each must name a tabset of that layout.
 | `minWidth`, `minHeight`, `maxWidth`, `maxHeight` | `number` | its size limits in px, used by the splitters |
 
 A behaviour field left out follows the layout's `defaults.tabset`, then the built-in value
-([Resolving defaults](/docs/api/model#resolving-defaults)).
+([Settings](/docs/api/model#settings)).
 
 ## Tabs
 
@@ -194,7 +194,7 @@ layout-wide settings. `LayoutDefaults`:
 | `layout` | `LayoutSettings` | the settings of every layout (main and windows) |
 
 The rule is `node.x ?? defaults[kind].x ?? BUILT_IN[kind].x`, with no other inheritance
-([Resolving defaults](/docs/api/model#resolving-defaults)). Change the defaults at runtime with
+([Settings](/docs/api/model#settings)). Change the defaults at runtime with
 `layout.configure` ([`LayoutDefaultsPatch`](/docs/api/command-bus#layoutdefaultspatch)).
 
 `TabDefaults` (built-in values in the last column):
@@ -263,8 +263,8 @@ queries return.
 | `WindowLayout<T>` | `WindowJson<T>` | `id`, `rect` |
 
 A node's behaviour fields stay as the document set them (absent means "use the defaults"), so
-`toJSON()` writes back exactly what was set. `selected` is an index into `children`, `-1` for
-none. Loading also tidies the tree, as every command does: an empty tabset is removed when it
+`model.get("layout-json")` writes back exactly what was set. `selected` is an index into
+`children`, `-1` for none. Loading also tidies the tree, as every command does: an empty tabset is removed when it
 allows it (`deleteWhenEmpty` and `enableClose`), an empty nested row is removed, a nested row with one child is
 replaced by that child, an empty main layout gets a new empty tabset and an empty window is
 removed.

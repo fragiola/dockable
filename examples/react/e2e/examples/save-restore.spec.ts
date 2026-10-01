@@ -14,7 +14,7 @@ test("save, reset and restore bring the layout back", async ({ page }) => {
     for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight");
     await expect.poll(value).toBeGreaterThan(initial);
     await path(page, "/ts0/tb1").click();
-    // the JSON panel shows model.toJSON(): the whole layout, ids and weights included
+    // the JSON panel shows model.get("layout-json"): the whole layout, ids and weights included
     const json = page.getByTestId("layout-json");
     const saved = await json.textContent();
 

@@ -27,8 +27,8 @@ Do not "fix" these.
    primitive applies is structural**: `position`, `inset`/`left`/`top`/`width`/
    `height`, `display: none`, flex sizing and indicator position. Nothing cosmetic.
    **Maximize (deviation from FlexLayout):** FlexLayout portals the maximized tabset over the
-   layout; Dockable hides every tabset and row off its path (`model.isHiddenByMaximize`,
-   `display: none`), so nothing remounts.
+   layout; Dockable hides every tabset and row off its path
+   (`model.is("hidden-by-maximize", { node })`, `display: none`), so nothing remounts.
 2. **Public API is composable primitives under one namespace** (`Dockable.Root`,
    `Row`, `TabSet`, `TabList`, `Tab`, `Panel`, `Splitter`, …). Hooks
    (`useDockable`, `useTabSet`, `useSplitter`, `useDragNode`) are exported as the
@@ -38,8 +38,8 @@ Do not "fix" these.
    `data-maximized`, `data-orientation`, `data-dragging`, `data-drop-location`,
    `data-pinned`, …) and ARIA. Boolean `data-*` are present or absent, never
    `"false"`.
-5. **Menus:** the package provides commands and their `model.can` answers, never a rendered
-   menu.
+5. **Menus:** the package provides commands and their `model.can` answers (a boolean;
+   `model.check` says why), never a rendered menu.
 6. **Buttons and icons:** each button is a primitive that takes `children`.
 7. **The model is the source of truth.** Every change is a command (`model.run` /
    `model.dispatch`) through the middleware chain (`model.use`); nodes are immutable.
@@ -60,6 +60,15 @@ Do not "fix" these.
     persistence. They expose the model, its commands, its middleware and its events; the examples
     show how to build those features (`examples/react/src/examples/_kit/undo.ts` is copyable code,
     not part of a package).
+13. **One pattern on the model and the engine** (`site/docs/concepts/model-and-engine.mdx`). The
+    model is the layout's data and its rules; an engine is one layout on screen (one per window).
+    Both have the same verbs, each taking a key and a payload: `run` (do), `can` (a boolean),
+    `check` (the dry-run result), `get` (read), `is` (yes/no). Keys are kebab-case and typed by a
+    registry (`src/state/queries.ts`, `src/engine/verbs.ts`); a command name has a dot
+    (`tab.close`), an engine action never does (`popout`). Only `model.run` changes the layout.
+    Everything only an adapter calls is under `engine.adapter`; an app (and every example) never
+    touches it, and never needs the main engine: page-wide actions work from any engine. A new
+    read or question is a new key, not a new method; guard tests keep both surfaces exact.
 
 ## Commands
 
@@ -144,8 +153,8 @@ It shows three things, which are not interchangeable:
 
 **The Inspector** (`src/inspector/`, app code, never in a package): a scenario calls
 `useInspector(model)` and the toolbar offers a panel with every command the model commits
-(`model.subscribe`, engine-issued and direct alike: name, payload, result, transient), `model.toJSON()`
-after the last one, and every `[data-layout-path]` element of the stage with its `data-*`/ARIA
+(`model.subscribe`, engine-issued and direct alike: name, payload, result, transient),
+`model.get("layout-json")` after the last one, and every `[data-layout-path]` element of the stage with its `data-*`/ARIA
 attributes, live during a drag. Examples do not call it.
 
 ## Provenance: FlexLayout
@@ -217,6 +226,10 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
 - **No text and no names.** Primitives render only their children and set no `aria-label` of
   their own. Accessible names come from the consumer (`aria-label`, children, `render` with state);
   the splitters a `Row` or a border inserts are named through `renderSplitter`.
+- **Hooks have one shape.** `useDockable()` is `{ model, engine, layoutId }`. A part hook
+  (`useTabSet`, `useBorder`, `useSplitter`, `useDragNode`, `useDragSource`, `useDropZone`) takes
+  the node (or an options object with the model) and returns `{ state, props }`: what the part
+  shows, and what goes on its element. A hook that wires no element returns its value.
 - **The developer owns the recursion** (children functions: `Row`, `TabList`, `Panels`). `Row`
   inserts splitters itself (`renderSplitter` / `splitter={false}` to override).
 - **React never reconciles what the engine writes.** Panels get geometry from the engine after

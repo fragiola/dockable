@@ -164,7 +164,7 @@ function RenamableTab({
     editing: boolean;
     setEditing: (id: string | null) => void;
 }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const start = () => {
         if (tab.data.renamable !== false) {
             setEditing(tab.id);
@@ -194,7 +194,7 @@ function RenamableTab({
                     name={tab.data.name}
                     onCommit={(name) => {
                         // the new data is the whole value: keep the rest of it
-                        run("tab.update", {
+                        model.run("tab.update", {
                             tab: tab.id,
                             component: tab.component,
                             data: { ...tab.data, name },

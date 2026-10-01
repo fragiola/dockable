@@ -95,15 +95,16 @@ From code, two commands create a window layout:
   or already in a window, or when any of its tabs does not allow popouts.
 
 Both return `{ window }`, the new window layout's id. `rect` is the window's screen rect; without
-one a default place is used. The engine's `engine.popout(id)` runs the right command with the
-node's current screen rect, so the window opens where the tab was; `engine.canPopout(id)` answers
-with `model.can` (and whether popouts are supported); `engine.dockBack(id)` moves a tab or tabset
-of a window back into the main layout.
+one a default place is used. The engine's `engine.run("popout", { node })` runs the right command
+with the node's current screen rect, so the window opens where the tab was;
+`engine.can("popout", { node })` answers with `model.can` (and whether popouts are supported);
+`engine.run("dock-back", { node })` moves a tab or tabset of a window back into the main layout.
+Any engine does it, a popout's included.
 
 ```tsx
-const { run, engine } = useDockable<Types>();
-const popOut = () => engine.popout(tab.id); // or run("tab.popout", { tab: tab.id })
-const allowed = engine.canPopout(tab.id);
+const { model, engine } = useDockable<Types>();
+const popOut = () => engine.run("popout", { node: tab.id }); // or model.run("tab.popout", { tab: tab.id })
+const allowed = engine.can("popout", { node: tab.id });
 ```
 
 `supportsPopout` on `Root` decides whether windows open at all; the default is "a desktop
@@ -151,8 +152,8 @@ A "dock back" button inside popped-out content moves one tab home; the engine do
 the window when it was the window's last tab:
 
 ```tsx
-const { mainEngine } = useDockable<Types>();
-mainEngine.dockBack(tab.id);
+const { engine } = useDockable<Types>();
+engine.run("dock-back", { node: tab.id });
 ```
 
 Do not veto `window.close` in a middleware for a window the user closed: the window is already
@@ -171,7 +172,7 @@ moves or resizes), so a saved layout reopens it in place.
 
 - **Works**: content state (counters, inputs, scroll) survives popping out and docking back;
   splitters, tabs, keyboard and maximize work inside the window; the window layouts are saved by
-  `model.toJSON()` under `windows` and reopened by `createModel` or `layout.load` (the browser may
+  `model.get("layout-json")` under `windows` and reopened by `createModel` or `layout.load` (the browser may
   block a window opened without a user gesture).
 - **Drags**: tabs drag between the main window and a popout, and between popouts, like between
   tabsets. See [Drag across windows and layouts](/docs/guides/cross-layout-drag).

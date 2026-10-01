@@ -102,11 +102,11 @@ describe("docking", () => {
     it("drop activates", () => {
         const { model } = setup(tabsets(["One", "Two"], ["Three"]));
         must(model.run("tab.move", { tab: "One", to: "ts1" }));
-        expect(model.activeTabset()?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
         must(
             model.run("tab.move", { tab: "Two", to: "ts1", location: "left" }),
         );
-        expect(model.activeTabset()?.id).toBe(at(model, "/ts0"));
+        expect(model.get("active-tabset")?.id).toBe(at(model, "/ts0"));
     });
 
     it("move clears maximize", () => {
@@ -119,7 +119,7 @@ describe("docking", () => {
                 location: "bottom",
             }),
         );
-        expect(model.maximizedTabset()).toBeUndefined();
+        expect(model.get("maximized-tabset")).toBeUndefined();
     });
 
     it("a tabset merges into a tabset", () => {
@@ -267,7 +267,7 @@ describe("drop rules", () => {
         });
         const { window } = must(model.run("tab.popout", { tab: "One" }));
         must(model.run("tab.configure", { tab: "Two", enablePopout: false }));
-        const target = model.tabsets(window)[0]?.id ?? "";
+        const target = model.get("tabsets", { layout: window })[0]?.id ?? "";
         expect(model.run("tab.move", { tab: "Two", to: target }).ok).toBe(
             false,
         );

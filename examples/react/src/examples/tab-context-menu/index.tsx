@@ -203,12 +203,12 @@ function MenuTab({
     editing: boolean;
     setEditing: (id: string | null) => void;
 }) {
-    const { model, run, engine, layoutId } = useDockable<Types>();
+    const { model, engine, layoutId } = useDockable<Types>();
     // Rename opens the inline field once the menu has closed and handed focus back to the tab
     const renameOnClose = useRef(false);
 
     // a tab lives in a tabset or a border; maximize is a tabset's
-    const parent = model.parentOf(tab.id);
+    const parent = model.get("parent", { node: tab.id });
     const tabset = parent?.type === "tabset" ? parent : undefined;
     const siblings = parent && parent.type !== "row" ? parent.children : [];
     const right = siblings.slice(
@@ -216,22 +216,22 @@ function MenuTab({
     );
     // what a command would do, asked without applying it (middleware included)
     const closable = (tabs: readonly TabOf<Types>[]) =>
-        tabs.filter((t) => model.can("tab.close", { tab: t.id }).ok);
+        tabs.filter((t) => model.can("tab.close", { tab: t.id }));
     const others = closable(siblings.filter((t) => t.id !== tab.id));
     const toTheRight = closable(right);
     const pinned = tab.pinned === true;
     const maximized =
         tabset !== undefined &&
-        model.maximizedTabset(layoutId)?.id === tabset.id;
+        model.get("maximized-tabset", { layout: layoutId })?.id === tabset.id;
     const rename = (name: string) =>
-        run("tab.update", {
+        model.run("tab.update", {
             tab: tab.id,
             component: tab.component,
             data: { ...tab.data, name },
         });
     // several closes are one command (one change event, one undo step): all apply or none
     const closeAll = (tabs: readonly TabOf<Types>[]) =>
-        run("batch", {
+        model.run("batch", {
             commands: tabs.map(
                 (t): BatchEntry<Types> => ({
                     command: "tab.close",
@@ -283,8 +283,8 @@ function MenuTab({
             </Dockable.Tab>
             <ContextMenu.Content>
                 <ContextMenu.Item
-                    disabled={!model.can("tab.close", { tab: tab.id }).ok}
-                    onClick={() => run("tab.close", { tab: tab.id })}
+                    disabled={!model.can("tab.close", { tab: tab.id })}
+                    onClick={() => model.run("tab.close", { tab: tab.id })}
                 >
                     Close
                 </ContextMenu.Item>
@@ -308,7 +308,7 @@ function MenuTab({
                             tab: tab.id,
                             component: tab.component,
                             data: tab.data,
-                        }).ok
+                        })
                     }
                     onClick={() => {
                         renameOnClose.current = true;
@@ -320,10 +320,9 @@ function MenuTab({
                     // refused for a tab in a border (only a tabset has a pinned run)
                     disabled={
                         !model.can("tab.pin", { tab: tab.id, value: !pinned })
-                            .ok
                     }
                     onClick={() =>
-                        run("tab.pin", { tab: tab.id, value: !pinned })
+                        model.run("tab.pin", { tab: tab.id, value: !pinned })
                     }
                 >
                     {pinned ? "Unpin" : "Pin"}
@@ -334,11 +333,11 @@ function MenuTab({
                         !model.can("tabset.maximize", {
                             tabset: tabset.id,
                             value: !maximized,
-                        }).ok
+                        })
                     }
                     onClick={() => {
                         if (tabset) {
-                            run("tabset.maximize", {
+                            model.run("tabset.maximize", {
                                 tabset: tabset.id,
                                 value: !maximized,
                             });
@@ -348,13 +347,11 @@ function MenuTab({
                     {maximized ? "Restore tabset" : "Maximize tabset"}
                 </ContextMenu.Item>
                 <ContextMenu.Item
-                    // refused when the tab does not allow popouts, is pinned or already in a
-                    // window; whether the page can open windows at all is the engine's to say
-                    disabled={
-                        !engine.isSupportsPopout() ||
-                        !model.can("tab.popout", { tab: tab.id }).ok
-                    }
-                    onClick={() => run("tab.popout", { tab: tab.id })}
+                    // a screen action: the engine runs `tab.popout` with the tab's place on screen.
+                    // Refused when the page cannot open windows, or the tab does not allow
+                    // popouts, is pinned or already in a window
+                    disabled={!engine.can("popout", { node: tab.id })}
+                    onClick={() => engine.run("popout", { node: tab.id })}
                 >
                     Pop out
                 </ContextMenu.Item>

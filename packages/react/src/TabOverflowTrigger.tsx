@@ -11,7 +11,7 @@ import {
 
 export interface TabOverflowTriggerState<T extends DockableTypes = AnyTypes> {
     /** the tabs that do not fit in the strip, in model order: what the menu lists */
-    hidden: TabOf<T>[];
+    hiddenTabs: TabOf<T>[];
     /** how many tabs are hidden */
     hiddenCount: number;
 }
@@ -32,7 +32,7 @@ export interface TabOverflowTriggerProps<T extends DockableTypes = AnyTypes>
  * The button that opens the consumer's menu of hidden tabs, inside `Dockable.TabSet` or
  * `Dockable.Border`, next to the `Dockable.TabList`. It renders only while tabs are hidden, and the
  * engine reserves the space it takes in the strip. It renders no menu: make it your menu's trigger
- * (`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`, typed with
+ * (`render`), list `useTabOverflow(node).hiddenTabs` (or the state's `hiddenTabs`, typed with
  * `<Dockable.TabOverflowTrigger<Types>>`), and select with `tab.select`, which brings the tab into
  * the strip. It has no name of its own: give it an `aria-label`.
  */
@@ -42,17 +42,17 @@ export function TabOverflowTrigger<T extends DockableTypes = AnyTypes>(
     const { children, ...rest } = props;
     const container = useTabContainer<T>("TabOverflowTrigger");
     const { engine } = useLayoutContext("TabOverflowTrigger");
-    const { hidden } = useTabOverflow(container);
+    const { hiddenTabs } = useTabOverflow(container);
     const id = container.id;
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerOverflowTrigger(id, element);
+            engine.adapter.registerOverflowTrigger(id, element);
         },
         [engine, id],
     );
     const state: TabOverflowTriggerState<T> = {
-        hidden,
-        hiddenCount: hidden.length,
+        hiddenTabs,
+        hiddenCount: hiddenTabs.length,
     };
     const element = useRenderElement("button", rest, {
         state,
@@ -61,11 +61,11 @@ export function TabOverflowTrigger<T extends DockableTypes = AnyTypes>(
             type: "button",
             ...dataAttributes({
                 // FlexLayout's path for a tabset's overflow button
-                "layout-path": `${engine.path(id)}/button/overflow`,
-                count: hidden.length,
+                "layout-path": `${engine.get("path", { node: id })}/button/overflow`,
+                count: hiddenTabs.length,
             }),
             children,
         },
     });
-    return hidden.length > 0 ? element : null;
+    return hiddenTabs.length > 0 ? element : null;
 }

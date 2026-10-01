@@ -1,6 +1,6 @@
 import type { CommandInfo, JsonSchema } from "@fragiola/dockable";
 
-// Everything here is plain data from `model.commands()`: each command's name, description and
+// Everything here is plain data from `model.get("commands")`: each command's name, description and
 // JSON Schemas. Nothing is Dockable-specific beyond that list.
 
 /** A payload field as the console lists it. */

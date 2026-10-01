@@ -132,7 +132,7 @@ export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
  */
 export function KpiWidget({ tab }: { tab: WidgetTab<"kpi"> }) {
     const filters = useContext(FiltersContext);
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const config = tab.data;
     const kpi = KPIS[config.metric];
     const [threshold, setThreshold] = useState<number>(kpi.threshold);
@@ -141,13 +141,13 @@ export function KpiWidget({ tab }: { tab: WidgetTab<"kpi"> }) {
 
     useEffect(() => {
         if (config.status !== status) {
-            run("tab.update", {
+            model.run("tab.update", {
                 tab: tab.id,
                 component: "kpi",
                 data: { ...config, status },
             });
         }
-    }, [run, tab.id, config, status]);
+    }, [model, tab.id, config, status]);
 
     const format = (n: number) =>
         kpi.unit === "$" ? `$${n.toFixed(0)}` : `${n.toFixed(1)}${kpi.unit}`;

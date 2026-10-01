@@ -24,7 +24,7 @@ import type { CommandName } from "./types";
 import { windowClose, windowConfigure } from "./window";
 
 /**
- * Every built-in command, in the order `model.commands()` lists them. Each definition keeps its
+ * Every built-in command, in the order `model.get("commands")` lists them. Each definition keeps its
  * schemas' literal types (the type tests read them); the list erases them to `CommandDefinition`
  * once, so code that walks it does not compare 23 literal schemas with `JsonSchema` again.
  */

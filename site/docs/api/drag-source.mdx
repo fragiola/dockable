@@ -40,7 +40,7 @@ replaces the element's native drop handler: a drag source is never a drop target
 | `children` | `ReactNode` | none | the source's content; the primitive renders no text of its own |
 
 The init is what `tab.add` takes without its placement (`to`, `location`, `index`): the drop
-supplies those. Read the new tab back with `model.get(tabId)`.
+supplies those. Read the new tab back with `model.get("node", { node: tabId })`.
 
 ## State
 
@@ -71,7 +71,7 @@ adds the tab to the active tabset.
 
 ```tsx
 const addToActiveTabset = () => {
-    const target = model.activeTabset() ?? model.tabsets()[0];
+    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
     if (!target) return;
     const added = model.run("tab.add", { ...widgetTab(widget), to: target.id, select: true });
     onAdded(added.ok ? added.value.tab : undefined);

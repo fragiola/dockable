@@ -141,7 +141,7 @@ describe("Dockable.DropIndicator", () => {
                 type="button"
                 data-testid="start"
                 onClick={() =>
-                    engine
+                    engine.adapter
                         .getDragDropManager()
                         .startDrag(dragEvent("dragstart", 0, 0), tabId)
                 }

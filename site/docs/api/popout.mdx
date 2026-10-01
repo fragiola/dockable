@@ -94,12 +94,13 @@ panels are positioned in.
 ## The core: PopoutManager
 
 The React part only portals. The windows belong to the core's `PopoutManager<T>`, one per main
-engine (`engine.getPopoutManager()`), which an adapter for another framework uses the same way:
+layout's engine, on the adapter's side (`engine.adapter.getPopoutManager()`), which an adapter for
+another framework uses the same way (an app never needs it):
 
 | member | description |
 | --- | --- |
 | `setOptions(options: PopoutOptions<T>)` | the window options (below); the engine passes its `popout` option |
-| `attach()` / `detach()` | the main engine was attached / detached: opens the windows of the state's window layouts / closes them after the current task, unless the engine is attached again |
+| `attach()` / `detach()` | the main layout's engine was attached / detached: opens the windows of the state's window layouts / closes them after the current task, unless the engine is attached again |
 | `sync()` | opens a window for every window layout without one and closes those whose layout is gone (the engine calls it on every change) |
 | `subscribe(listener)`, `getSnapshot()` | a window opened, became ready or closed |
 | `getContentRoot(layoutId)` | the element to render the window layout into, once its window is ready (`undefined` before) |

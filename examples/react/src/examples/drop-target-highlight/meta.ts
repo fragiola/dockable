@@ -9,7 +9,7 @@ export default {
     features: [
         "data-drop-target",
         "data-drop-location",
-        "useTabSetDropState",
+        "useTabSet",
         "TabList dropIndex",
     ],
     docs: "/docs/guides/drop-zones",

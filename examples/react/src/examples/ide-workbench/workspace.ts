@@ -139,11 +139,11 @@ export const defaultLayout: LayoutJson<Types> = {
  */
 export function openFile(model: Model<Types>, path: string) {
     const id = tabId(path);
-    if (model.get(id)) {
+    if (model.get("node", { node: id })) {
         model.run("tab.select", { tab: id });
         return;
     }
-    const target = model.activeTabset() ?? model.tabsets()[0];
+    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
     if (target) {
         model.run("tab.add", {
             ...editorTab(path),
@@ -155,7 +155,7 @@ export function openFile(model: Model<Types>, path: string) {
 
 // ── Save and restore ────────────────────────────────────────────────────────
 
-// v3: the layout is JSON v1 (`model.toJSON()`); a v2 layout was FlexLayout's format
+// v3: the layout is JSON v1 (`model.get("layout-json")`); a v2 layout was FlexLayout's format
 const STORAGE_KEY = "dockable-docs:ide-workbench:layout:v3";
 
 const NAMED: JsonSchema = {
@@ -239,7 +239,10 @@ export function restoreModel(): {
 
 export function saveLayout(model: Model<Types>) {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(model.toJSON()));
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(model.get("layout-json")),
+        );
     } catch {
         // storage full or blocked: the layout just is not remembered
     }

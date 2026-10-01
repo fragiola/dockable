@@ -47,7 +47,7 @@ export function Popout<T extends DockableTypes = AnyTypes>(
     const { children, title, onOpen, onClose, ...rest } = props;
     const { engine, model: erased, popoutHooks } = useDockableContext("Popout");
     const model = typedModel<T>(erased);
-    const manager = engine.getPopoutManager();
+    const manager = engine.adapter.getPopoutManager();
     React.useSyncExternalStore(
         manager.subscribe,
         manager.getSnapshot,
@@ -57,15 +57,15 @@ export function Popout<T extends DockableTypes = AnyTypes>(
     // the root calls these by window layout id: hand the typed layout over
     popoutHooks.current = {
         title: (id) => {
-            const layout = model.windowLayout(id);
+            const layout = model.get("window", { window: id });
             return layout && title ? title(layout) : undefined;
         },
         onOpen: (id, win, doc) => {
-            const layout = model.windowLayout(id);
+            const layout = model.get("window", { window: id });
             if (layout) onOpen?.(layout, win, doc);
         },
         onClose: (id, win, doc) => {
-            const layout = model.windowLayout(id);
+            const layout = model.get("window", { window: id });
             if (layout) onClose?.(layout, win, doc);
         },
     };
@@ -93,7 +93,7 @@ function PopoutWindow<T extends DockableTypes>({
     children,
 }: PopoutWindowProps<T>) {
     const { engine } = useDockableContext("Popout");
-    const manager = engine.getPopoutManager();
+    const manager = engine.adapter.getPopoutManager();
     const layoutId = layout.id;
 
     // the core owns the window (it opens one per window layout while the root is attached)
@@ -125,18 +125,18 @@ function PopoutLayout<T extends DockableTypes>({
 }: PopoutLayoutProps<T>) {
     const { setLayer } = useDockableContext("Popout");
     const layoutId = layout.id;
-    engine.prepare();
+    engine.adapter.prepare();
 
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
             if (!element) {
                 return;
             }
-            engine.attachRoot(element);
+            engine.adapter.attachRoot(element);
             // the window's panels are positioned in this element
             setLayer(layoutId, { layoutId, element, engine });
             return () => {
-                engine.detachRoot();
+                engine.adapter.detachRoot();
                 setLayer(layoutId, null);
             };
         },
@@ -145,7 +145,7 @@ function PopoutLayout<T extends DockableTypes>({
 
     // the measure-and-position cycle of the window layout, after every commit
     React.useLayoutEffect(() => {
-        engine.sync();
+        engine.run("measure-and-position");
     });
 
     const layoutContext = React.useMemo(
@@ -158,7 +158,9 @@ function PopoutLayout<T extends DockableTypes>({
         ref,
         props: {
             ...dataAttributes({
-                "layout-path": engine.path(layout.root.id) || `/${layoutId}`,
+                "layout-path":
+                    engine.get("path", { node: layout.root.id }) ||
+                    `/${layoutId}`,
             }),
             children: (
                 <LayoutContext.Provider value={layoutContext}>

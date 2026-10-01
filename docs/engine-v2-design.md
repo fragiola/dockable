@@ -9,6 +9,14 @@ What does not change: AGENTS.md rules 1–6 and 8–12, the `data-layout-path` s
 remain, and the primitive, drag and drop and popout contracts. The only amendments are the three the
 Epic lists: rule 7, Provenance, and the popout close policy (§11.3).
 
+> **Update, 2026-10-01 (Epic #67).** The public surface named in §6, §7, §8 and §10 has since moved
+> to one pattern on the model and the engine: `run`, `can` (now a boolean), `check` (the old `can`),
+> `get` and `is`, each taking a key and a payload. The queries of §7 are `model.get`/`model.is`
+> keys (`src/state/queries.ts`); the engine's app-facing methods are `engine.run`/`get`/`is` keys
+> (`src/engine/verbs.ts`), everything else is under `engine.adapter`, `engine.run` is no longer an
+> alias of `model.run`, and `useDockable()` returns `{ model, engine, layoutId }`. The names below
+> are the record's, not the current API: see `site/docs/concepts/model-and-engine.mdx`.
+
 ## Contents
 
 1. [Types](#1-types)

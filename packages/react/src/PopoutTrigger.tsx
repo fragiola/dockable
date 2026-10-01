@@ -50,13 +50,14 @@ export function PopoutTrigger<T extends DockableTypes = AnyTypes>(
     const subject =
         target === "tabset"
             ? tabset.id
-            : (node?.id ?? model.selectedTab(tabset.id)?.id);
+            : (node?.id ??
+              model.get("selected-tab", { container: tabset.id })?.id);
     const mode: PopoutTriggerState["mode"] | undefined =
         subject === undefined
             ? undefined
-            : engine.isInWindow(subject)
+            : model.is("in-window", { node: subject })
               ? "dock"
-              : engine.canPopout(subject)
+              : engine.can("popout", { node: subject })
                 ? "popout"
                 : undefined;
 
@@ -65,9 +66,9 @@ export function PopoutTrigger<T extends DockableTypes = AnyTypes>(
             return;
         }
         if (mode === "dock") {
-            engine.dockBack(subject);
+            engine.run("dock-back", { node: subject });
         } else {
-            engine.popout(subject);
+            engine.run("popout", { node: subject });
         }
     };
 
@@ -78,7 +79,7 @@ export function PopoutTrigger<T extends DockableTypes = AnyTypes>(
             type: "button",
             ...dataAttributes({
                 // FlexLayout's path for a tabset's pop out button
-                "layout-path": `${engine.path(tabset.id)}/button/popout`,
+                "layout-path": `${engine.get("path", { node: tabset.id })}/button/popout`,
                 mode: state.mode,
                 target,
             }),

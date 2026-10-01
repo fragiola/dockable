@@ -8,12 +8,12 @@ tool-calling assistant needs to drive it, and what a script, a macro recorder, a
 a test needs too. The model provides the four pieces; the package has no SDK, makes no network
 call and knows no provider:
 
-1. **describe**: `model.commands()` lists every command with its description and schemas, ready
+1. **describe**: `model.get("commands")` lists every command with its description and schemas, ready
    to become tool definitions;
 2. **run**: `model.dispatch(input, { meta })` takes a command as untrusted JSON, validates it, and answers
    with a result or a structured error, never an exception;
-3. **guard**: a middleware (`model.use`) decides what an assistant may do, and `model.can` asks
-   before acting;
+3. **guard**: a middleware (`model.use`) decides what an assistant may do, and `model.can` /
+   `model.check` ask before acting;
 4. **report**: the result goes back to the assistant, and `model.subscribe` tells it what changed
    in the meantime.
 
@@ -26,7 +26,7 @@ API you call.
 
 ## Commands as tool definitions
 
-`model.commands()` returns a `CommandInfo` per command:
+`model.get("commands")` returns a `CommandInfo` per command:
 
 | field | holds |
 | --- | --- |
@@ -68,9 +68,9 @@ function toTools(commands: readonly CommandInfo[]): ToolDefinition[] {
         }));
 }
 
-const tools = toTools(model.commands());
+const tools = toTools(model.get("commands"));
 // and back: the command a tool call names
-const commandOf = new Map(model.commands().map((command) => [toolName(command.name), command.name]));
+const commandOf = new Map(model.get("commands").map((command) => [toolName(command.name), command.name]));
 ```
 
 `tab_select`, for example, becomes:
@@ -94,16 +94,16 @@ safeguard; the middleware below is.
 
 ### What the assistant needs to know
 
-The commands name nodes by id, so give the assistant the layout with its ids. `model.toJSON()` is
-the whole document; a summary of your own is smaller:
+The commands name nodes by id, so give the assistant the layout with its ids.
+`model.get("layout-json")` is the whole document; a summary of your own is smaller:
 
 ```ts
 function describeLayout(model: Model<Types>) {
     return {
-        active: model.activeTabset()?.id,
-        tabsets: model.tabsets().map((tabset) => ({
+        active: model.get("active-tabset")?.id,
+        tabsets: model.get("tabsets").map((tabset) => ({
             id: tabset.id,
-            selected: model.selectedTab(tabset.id)?.id,
+            selected: model.get("selected-tab", { container: tabset.id })?.id,
             tabs: tabset.children.map((tab) => ({ id: tab.id, component: tab.component, name: tab.data.name })),
         })),
     };
@@ -221,7 +221,7 @@ const assistantPolicy: Middleware<Types> = (ctx, next) => {
         case "batch": // each command inside it passes this middleware too, with the same meta
             return next();
         case "tab.close": {
-            const tab = ctx.get(ctx.payload.tab);
+            const tab = ctx.get("node", { node: ctx.payload.tab });
             if (tab?.type === "tab" && tab.component === "editor" && tab.data.dirty) {
                 return veto(`"${tab.data.name}" has unsaved changes: ask the user to close it.`);
             }
@@ -246,8 +246,8 @@ model.use(assistantPolicy);
 
 ### Asking before acting
 
-`model.can` runs the same checks, middleware included (with `ctx.dryRun` set), and commits
-nothing. Use it to answer "could this work?" before a command runs: to confirm a destructive step
+`model.check` runs the same checks, middleware included (with `ctx.dryRun` set), commits
+nothing, and returns what `run` would (`model.can` answers the same as a boolean). Use it to answer "could this work?" before a command runs: to confirm a destructive step
 with the user first, or to check a whole plan. A `batch` is atomic, so a plan of several commands
 is one question:
 
@@ -259,7 +259,7 @@ const plan = {
     ],
 } satisfies PayloadOf<Types, "batch">;
 
-const answer = model.can("batch", plan, { meta: ASSISTANT });
+const answer = model.check("batch", plan, { meta: ASSISTANT });
 if (!answer.ok) {
     // tell the assistant why, before anything happened
 } else if (await confirmWithUser(plan)) {
@@ -267,7 +267,7 @@ if (!answer.ok) {
 }
 ```
 
-A middleware must not cause side effects while `ctx.dryRun` is true: it runs on every `can`,
+A middleware must not cause side effects while `ctx.dryRun` is true: it runs on every `can` and `check`,
 including the ones a drag asks on every pointer move.
 
 ## Reporting back

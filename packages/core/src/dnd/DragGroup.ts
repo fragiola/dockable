@@ -52,10 +52,10 @@ export interface TransferRequest {
 }
 
 function endOf(model: Model<AnyTypes>, tab: string): TransferEnd {
-    const parent = model.parentOf(tab);
+    const parent = model.get("parent", { node: tab });
     return {
         model,
-        layoutId: model.layoutOf(tab) ?? "",
+        layoutId: model.get("layout-id", { node: tab }) ?? "",
         tabsetId: parent?.id,
         index: parent
             ? parent.children.findIndex((child) => child.id === tab)
@@ -91,7 +91,7 @@ export class DragGroup {
     /** The main engine of `model` in this group, if it joined. */
     engineOf(model: ModelHandle): LayoutEngine<AnyTypes> | undefined {
         for (const engine of this.engines) {
-            if (engine.model === model) {
+            if (engine.adapter.model === model) {
                 return engine;
             }
         }
@@ -114,7 +114,11 @@ export class DragGroup {
     transfer(request: TransferRequest): string | undefined {
         const source = this.engineOf(request.from);
         const target = this.engineOf(request.to);
-        if (!source || !target || !source.model.get(request.tab)) {
+        if (
+            !source ||
+            !target ||
+            !source.adapter.model.get("node", { node: request.tab })
+        ) {
             return undefined;
         }
         return this.transferTab(
@@ -139,14 +143,14 @@ export class DragGroup {
         location: DockLocation,
         index: number,
     ): string | undefined {
-        const source = sourceEngine.model as unknown as Model<AnyTypes>;
-        const target = targetEngine.model as unknown as Model<AnyTypes>;
-        const tab = source.get(tabId);
+        const source = sourceEngine.adapter.model as unknown as Model<AnyTypes>;
+        const target = targetEngine.adapter.model as unknown as Model<AnyTypes>;
+        const tab = source.get("node", { node: tabId });
         if (source === target || tab?.type !== "tab") {
             return undefined;
         }
         const { type: _type, ...init } = tab;
-        const fields: TabInit = target.get(tabId)
+        const fields: TabInit = target.get("node", { node: tabId })
             ? { ...init, id: undefined }
             : init;
         const meta: TransferMeta = {
@@ -155,20 +159,23 @@ export class DragGroup {
         const add = { ...fields, to, location, index };
         // both sides must accept before anything changes
         if (
-            !target.can("tab.add", add, { meta: { ...meta } }).ok ||
-            !source.can("tab.close", { tab: tabId }, { meta: { ...meta } }).ok
+            !target.can("tab.add", add, { meta: { ...meta } }) ||
+            !source.can("tab.close", { tab: tabId }, { meta: { ...meta } })
         ) {
             return undefined;
         }
         const from = endOf(source, tabId);
         // the content moves with the tab: take its element before the source forgets it
-        const moveable = sourceEngine.main.takeMoveable(tabId);
+        const moveable = sourceEngine.adapter.main.adapter.takeMoveable(tabId);
         const added = target.run("tab.add", add, { meta: { ...meta } });
         if (!added.ok) {
-            sourceEngine.main.adoptMoveable(tabId, moveable);
+            sourceEngine.adapter.main.adapter.adoptMoveable(tabId, moveable);
             return undefined;
         }
-        targetEngine.main.adoptMoveable(added.value.tab, moveable);
+        targetEngine.adapter.main.adapter.adoptMoveable(
+            added.value.tab,
+            moveable,
+        );
         const closed = source.run(
             "tab.close",
             { tab: tabId },
@@ -177,16 +184,21 @@ export class DragGroup {
         if (!closed.ok) {
             // the source refused after all (its answer changed since the dry run): undo the add,
             // and the content goes back with the tab
-            const back = targetEngine.main.takeMoveable(added.value.tab);
+            const back = targetEngine.adapter.main.adapter.takeMoveable(
+                added.value.tab,
+            );
             const undone = target.run(
                 "tab.close",
                 { tab: added.value.tab },
                 { meta: { ...meta } },
             );
             if (undone.ok) {
-                sourceEngine.main.adoptMoveable(tabId, back);
+                sourceEngine.adapter.main.adapter.adoptMoveable(tabId, back);
             } else {
-                targetEngine.main.adoptMoveable(added.value.tab, back);
+                targetEngine.adapter.main.adapter.adoptMoveable(
+                    added.value.tab,
+                    back,
+                );
             }
             return undefined;
         }

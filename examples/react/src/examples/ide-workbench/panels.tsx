@@ -24,7 +24,7 @@ export function EditorPanel({
     tab: TabNode<"editor", EditorData>;
     workspace: Workspace;
 }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const { id, data } = tab;
     const { path } = data;
     const [text, setText] = useState(() => workspace.read(path));
@@ -34,13 +34,13 @@ export function EditorPanel({
     useEffect(() => {
         if (Boolean(data.dirty) !== dirty) {
             // `data` is replaced whole: keep the rest of it
-            run("tab.update", {
+            model.run("tab.update", {
                 tab: id,
                 component: "editor",
                 data: { ...data, dirty },
             });
         }
-    }, [run, id, data, dirty]);
+    }, [model, id, data, dirty]);
 
     const save = () => {
         workspace.save(path);

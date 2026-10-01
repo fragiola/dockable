@@ -9,8 +9,7 @@ import {
 import {
     Dockable,
     type RowSplitterProps,
-    useDockable,
-    useTabSetDropState,
+    useTabSet,
 } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { cn } from "#/lib/cn";
@@ -111,9 +110,8 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 
 /** A tabset that marks itself while it is a drop target: a ring or a side bar, and a caret in its strip. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
-    const { engine } = useDockable<Types>();
-    // the same answer the tabset's data-* come from: is a strip drop aimed here, and where?
-    const drop = useTabSetDropState(engine, node.id);
+    // the same state the tabset's data-* come from: is a strip drop aimed here, and where?
+    const { dropIndex } = useTabSet(node).state;
     const tabs = node.children;
     return (
         <Dockable.TabSet
@@ -140,10 +138,9 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => {
                         const index = tabs.findIndex((t) => t.id === tab.id);
-                        const before = drop.strip && drop.index === index;
+                        const before = dropIndex === index;
                         const after =
-                            drop.strip &&
-                            drop.index === tabs.length &&
+                            dropIndex === tabs.length &&
                             index === tabs.length - 1;
                         return (
                             <Dockable.Tab

@@ -84,7 +84,9 @@ export default function MultiMonitor() {
     // every window closes, and its tabs dock back into the main layout: one batch, one step
     const bringBack = () => {
         const windows = model.state.windows;
-        const panels = windows.flatMap((layout) => model.tabs(layout.id));
+        const panels = windows.flatMap((layout) =>
+            model.get("tabs", { layout: layout.id }),
+        );
         const commands = windows.map(
             (layout): BatchEntry<Types> => ({
                 command: "window.close",

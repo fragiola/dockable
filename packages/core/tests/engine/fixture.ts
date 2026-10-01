@@ -101,18 +101,18 @@ export function mountTwoTabsets(engine: LayoutEngine, rects: Rects) {
     const splitter = rects.set(el(), 206, 20, 8, 300);
     const panels = { t0: el(), t1: el(), t2: el() };
 
-    engine.attachRoot(root);
-    engine.prepare();
-    engine.registerMeasurable("row", "row", row);
-    engine.registerMeasurable("ts0", "tabset", ts0);
-    engine.registerMeasurable("ts0", "tabstrip", ts0strip);
-    engine.registerMeasurable("ts0", "tabsetcontent", ts0content);
-    engine.registerMeasurable("ts1", "tabset", ts1);
-    engine.registerMeasurable("ts1", "tabstrip", ts1strip);
-    engine.registerMeasurable("ts1", "tabsetcontent", ts1content);
-    engine.registerSplitter(splitter, () => true);
+    engine.adapter.attachRoot(root);
+    engine.adapter.prepare();
+    engine.adapter.registerMeasurable("row", "row", row);
+    engine.adapter.registerMeasurable("ts0", "tabset", ts0);
+    engine.adapter.registerMeasurable("ts0", "tabstrip", ts0strip);
+    engine.adapter.registerMeasurable("ts0", "tabsetcontent", ts0content);
+    engine.adapter.registerMeasurable("ts1", "tabset", ts1);
+    engine.adapter.registerMeasurable("ts1", "tabstrip", ts1strip);
+    engine.adapter.registerMeasurable("ts1", "tabsetcontent", ts1content);
+    engine.adapter.registerSplitter(splitter, () => true);
     for (const [id, panel] of Object.entries(panels)) {
-        engine.registerTabPanel(id, panel);
+        engine.adapter.registerTabPanel(id, panel);
     }
     return {
         root,

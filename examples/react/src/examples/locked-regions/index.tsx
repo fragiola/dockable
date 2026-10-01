@@ -129,7 +129,7 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
     // what is placed: an existing tab (tab.move), a new tab (tab.add) or a tabset (tabset.move)
     const moving =
         "tab" in payload
-            ? ctx.get(payload.tab)
+            ? ctx.get("node", { node: payload.tab })
             : "component" in payload
               ? payload
               : undefined;
@@ -141,7 +141,9 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
     }
     // docking at the layout's edge next to a locked tabset (`to` is the root row, or the layout)
     const target =
-        payload.to === MAIN_LAYOUT ? ctx.state.root : ctx.get(payload.to);
+        payload.to === MAIN_LAYOUT
+            ? ctx.state.root
+            : ctx.get("node", { node: payload.to });
     if (target?.type === "row") {
         const children = target.children;
         const beside =
@@ -343,11 +345,11 @@ function DocPanel({
     tab: Extract<TabOf<Types>, { component: "doc" }>;
     onNotice: (notice: string | undefined) => void;
 }) {
-    const { model, run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const region = tab.data.region;
     // a command from code goes through the same middleware: the result says why it was refused
     const moveToReference = () => {
-        const result = run("tab.move", {
+        const result = model.run("tab.move", {
             tab: tab.id,
             to: REFERENCE,
             location: "center",
@@ -364,7 +366,7 @@ function DocPanel({
                     : "Reference refuses this tab: try dragging it there."}
             </p>
             {region !== REFERENCE &&
-            model.parentOf(tab.id)?.id !== REFERENCE ? (
+            model.get("parent", { node: tab.id })?.id !== REFERENCE ? (
                 <div>
                     <button
                         type="button"

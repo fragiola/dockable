@@ -115,7 +115,7 @@ const moved = group.transfer({ tab: last.tab, from: scratch, to: workspace, targ
 | --- | --- |
 | `transfer(request: TransferRequest): string \| undefined` | moves a tab from one model into another, as a drop would (the same `tab.add` and `tab.close`, the same `meta.transfer`). Returns the new tab's id, or `undefined` when it could not happen (a refusal, an unknown tab or target). Both models' roots must be mounted in the group |
 | `onTransfer(listener: TransferListener): () => void` | calls `listener` after each transfer (drops and `transfer` calls alike); returns the unsubscribe function |
-| `has(engine)`, `engineOf(model)` | whether a main engine belongs to the group; the main engine of a model in it |
+| `has(engine)`, `engineOf(model)` | whether a main layout's engine belongs to the group; the main layout's engine of a model in it |
 
 `TransferRequest`, what `transfer` takes:
 

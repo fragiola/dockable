@@ -80,10 +80,14 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         (element: HTMLElement | null) => {
             // a border's strip is measured as a whole by Dockable.Border
             if (!border) {
-                engine.registerMeasurable(id, "tabstrip", element);
+                engine.adapter.registerMeasurable(id, "tabstrip", element);
             }
             // the tabs that do not fit in the list are hidden (tab overflow)
-            engine.registerTabList(id, overflow ? element : null, vertical);
+            engine.adapter.registerTabList(
+                id,
+                overflow ? element : null,
+                vertical,
+            );
         },
         [engine, id, border, vertical, overflow],
     );
@@ -104,7 +108,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         dropTarget: drop.strip,
         dropIndex,
         overflowing: tabOverflow.overflowing,
-        hiddenCount: tabOverflow.hidden.length,
+        hiddenCount: tabOverflow.hiddenTabs.length,
     };
     const tabs = tabset.children.map((tab) => (
         <React.Fragment key={tab.id}>{children(tab)}</React.Fragment>
@@ -119,7 +123,9 @@ export function TabList<T extends DockableTypes = AnyTypes>(
             "aria-orientation": orientation,
             "aria-keyshortcuts": keyShortcuts,
             ...dataAttributes({
-                "layout-path": getTabStripPath(engine.path(id)),
+                "layout-path": getTabStripPath(
+                    engine.get("path", { node: id }),
+                ),
                 orientation,
                 "drop-target": state.dropTarget,
                 "drop-index": dropIndex,

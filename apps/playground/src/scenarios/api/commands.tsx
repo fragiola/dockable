@@ -14,7 +14,7 @@ import { useInspector } from "../../inspector/context";
 
 // The command catalogue, run through `model.run` as any consumer would: one button per common
 // command against the active tabset (else the first) and its selected tab, and the whole catalogue
-// (`model.commands()`, what an assistant would get as tools) listed below them. The Inspector is
+// (`model.get("commands")`, what an assistant would get as tools) listed below them. The Inspector is
 // on: each click is one entry in its log (name, payload, result), and the model JSON follows.
 
 type Types = { tabs: { card: { name: string } } };
@@ -55,7 +55,7 @@ const json: LayoutJson<Types> = {
 };
 
 function activeTabset(model: Model<Types>): TabsetNode<Types> | undefined {
-    return model.activeTabset() ?? model.tabsets()[0];
+    return model.get("active-tabset") ?? model.get("tabsets")[0];
 }
 
 function describe(result: CommandResult<unknown> | undefined): string {
@@ -128,9 +128,11 @@ export default function CommandsScenario() {
         [
             "Move to next tabset",
             () => {
-                const all = model.tabsets();
+                const all = model.get("tabsets");
                 const tabset = activeTabset(model);
-                const tab = tabset ? model.selectedTab(tabset.id) : undefined;
+                const tab = tabset
+                    ? model.get("selected-tab", { container: tabset.id })
+                    : undefined;
                 if (!tabset || !tab || all.length < 2) return undefined;
                 const index = all.findIndex((t) => t.id === tabset.id);
                 const target = all[(index + 1) % all.length];
@@ -146,7 +148,9 @@ export default function CommandsScenario() {
             "Rename",
             () => {
                 const tabset = activeTabset(model);
-                const tab = tabset ? model.selectedTab(tabset.id) : undefined;
+                const tab = tabset
+                    ? model.get("selected-tab", { container: tabset.id })
+                    : undefined;
                 if (!tab) return undefined;
                 return model.run("tab.update", {
                     tab: tab.id,
@@ -162,14 +166,14 @@ export default function CommandsScenario() {
                 if (!tabset) return undefined;
                 return model.run("tabset.maximize", {
                     tabset: tabset.id,
-                    value: model.maximizedTabset()?.id !== tabset.id,
+                    value: model.get("maximized-tabset")?.id !== tabset.id,
                 });
             },
         ],
         [
             "Even weights",
             () => {
-                const row = model.root();
+                const row = model.get("root-row");
                 if (!row) return undefined;
                 return model.run("row.resize", {
                     row: row.id,
@@ -181,7 +185,9 @@ export default function CommandsScenario() {
             "Delete tab",
             () => {
                 const tabset = activeTabset(model);
-                const tab = tabset ? model.selectedTab(tabset.id) : undefined;
+                const tab = tabset
+                    ? model.get("selected-tab", { container: tabset.id })
+                    : undefined;
                 return tab
                     ? model.run("tab.close", { tab: tab.id })
                     : undefined;
@@ -208,10 +214,10 @@ export default function CommandsScenario() {
             </div>
             <details className="px-3 text-xs">
                 <summary className="cursor-pointer py-1">
-                    {`The catalogue: ${model.commands().length} commands`}
+                    {`The catalogue: ${model.get("commands").length} commands`}
                 </summary>
                 <dl className="grid max-h-48 grid-cols-[max-content_1fr] gap-x-3 gap-y-1 overflow-auto pb-2">
-                    {model.commands().map((command) => (
+                    {model.get("commands").map((command) => (
                         <div key={command.name} className="contents">
                             <dt className="font-mono font-semibold">
                                 {command.transient

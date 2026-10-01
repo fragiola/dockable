@@ -51,7 +51,7 @@ const rename = (m: Model<Types>, name: string) =>
     m.run("tab.update", { tab: "t1", component: "tab", data: { name } });
 
 const children = (m: Model<Types>, id: string) => {
-    const node = m.get(id);
+    const node = m.get("node", { node: id });
     return node?.type === "tabset" ? node.children.map((c) => c.id) : [];
 };
 
@@ -62,16 +62,16 @@ describe("UndoManager", () => {
         model(undo).run("tab.close", { tab: "t1" });
         expect(undo.undoCount).toBe(1);
         expect(undo.canUndo).toBe(true);
-        expect(model(undo).get("t1")).toBeUndefined();
+        expect(model(undo).get("node", { node: "t1" })).toBeUndefined();
 
         undo.undo();
-        expect(model(undo).get("t1")).not.toBeUndefined();
+        expect(model(undo).get("node", { node: "t1" })).not.toBeUndefined();
         expect(undo.canUndo).toBe(false);
         expect(undo.canRedo).toBe(true);
         expect(undo.redoCount).toBe(1);
 
         undo.redo();
-        expect(model(undo).get("t1")).toBeUndefined();
+        expect(model(undo).get("node", { node: "t1" })).toBeUndefined();
         expect(undo.canUndo).toBe(true);
         expect(undo.canRedo).toBe(false);
     });
@@ -127,8 +127,12 @@ describe("UndoManager", () => {
         expect(undo.undoCount).toBe(1);
 
         undo.undo();
-        expect(model(undo).get("ts1")).toMatchObject({ weight: 100 });
-        expect(model(undo).get("ts2")).toMatchObject({ weight: 100 });
+        expect(model(undo).get("node", { node: "ts1" })).toMatchObject({
+            weight: 100,
+        });
+        expect(model(undo).get("node", { node: "ts2" })).toMatchObject({
+            weight: 100,
+        });
     });
 
     it("collapses a batch into a single undo step and restores all tabs on undo", () => {
@@ -171,15 +175,15 @@ describe("UndoManager", () => {
             ],
         });
         expect(undo.undoCount).toBe(1);
-        expect(model(undo).get("t1")).toBeUndefined();
-        expect(model(undo).get("t2")).toBeUndefined();
-        expect(model(undo).get("t3")).toBeUndefined();
+        expect(model(undo).get("node", { node: "t1" })).toBeUndefined();
+        expect(model(undo).get("node", { node: "t2" })).toBeUndefined();
+        expect(model(undo).get("node", { node: "t3" })).toBeUndefined();
 
         undo.undo();
         expect(undo.canUndo).toBe(false);
-        expect(model(undo).get("t1")).not.toBeUndefined();
-        expect(model(undo).get("t2")).not.toBeUndefined();
-        expect(model(undo).get("t3")).not.toBeUndefined();
+        expect(model(undo).get("node", { node: "t1" })).not.toBeUndefined();
+        expect(model(undo).get("node", { node: "t2" })).not.toBeUndefined();
+        expect(model(undo).get("node", { node: "t3" })).not.toBeUndefined();
     });
 
     it("keeps the pre-gesture layout when an ignored command happens mid-gesture", () => {
@@ -197,7 +201,9 @@ describe("UndoManager", () => {
 
         undo.undo();
         // back to before the gesture, not to the mid-gesture state
-        expect(model(undo).get("ts1")).toMatchObject({ weight: 100 });
+        expect(model(undo).get("node", { node: "ts1" })).toMatchObject({
+            weight: 100,
+        });
     });
 
     it("caps the undo buffer at maxBufferSize", () => {
@@ -242,10 +248,10 @@ describe("UndoManager", () => {
         undo.undo();
         expect(undo.undoCount).toBe(1);
         expect(undo.redoCount).toBe(0);
-        expect(model(undo).get("t1")).toBeUndefined();
+        expect(model(undo).get("node", { node: "t1" })).toBeUndefined();
         remove();
         undo.undo();
-        expect(model(undo).get("t1")).not.toBeUndefined();
+        expect(model(undo).get("node", { node: "t1" })).not.toBeUndefined();
     });
 
     it("names each step by the command that made it", () => {
@@ -314,7 +320,7 @@ describe("UndoManager", () => {
         undo.reset();
         expect(undo.undoCount).toBe(0);
         expect(undo.redoCount).toBe(0);
-        expect(model(undo).get("t1")).toBeUndefined();
+        expect(model(undo).get("node", { node: "t1" })).toBeUndefined();
     });
 
     it("starts without a model and accepts one later", () => {

@@ -22,7 +22,8 @@ function App() {
 
     /** the name of a tab the model holds, for the report */
     const nameOf = (id: string | undefined) => {
-        const tab = id === undefined ? undefined : model.get(id);
+        const tab =
+            id === undefined ? undefined : model.get("node", { node: id });
         return tab?.type === "tab" ? tab.data.name : "?";
     };
 

@@ -38,11 +38,11 @@ import { MAIN_LAYOUT } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 
 function AddTabButton() {
-    const { model, run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const add = () => {
         // the tabset the user last pressed in, else the first one
-        const target = model.activeTabset() ?? model.tabsets()[0];
-        run("tab.add", {
+        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+        model.run("tab.add", {
             component: "chart",
             data: { name: "Untitled" }, // must be a chart's data
             to: target?.id ?? MAIN_LAYOUT,
@@ -67,16 +67,16 @@ active one. Outside the root, call `model.run` on the model you created: no engi
 
 `tab.close` removes a tab. It is **refused** (`error.code === "refused"`) for a pinned tab and for
 one whose `enableClose` resolves to false (on the tab, or through `defaults.tab.enableClose`). Ask
-before rendering the button: `model.can` answers what `run` would return, middleware included,
-without changing anything.
+before rendering the button: `model.can` answers whether `run` would succeed, middleware included,
+without changing anything (`model.check` returns what it would return).
 
 ```tsx
 import type { TabOf } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 
 function CloseButton({ tab }: { tab: TabOf<Types> }) {
-    const { model, run } = useDockable<Types>();
-    if (!model.can("tab.close", { tab: tab.id }).ok) return null;
+    const { model } = useDockable<Types>();
+    if (!model.can("tab.close", { tab: tab.id })) return null;
     return (
         <button
             type="button"
@@ -85,7 +85,7 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
                 event.stopPropagation();
-                run("tab.close", { tab: tab.id });
+                model.run("tab.close", { tab: tab.id });
             }}
         >
             <XIcon aria-hidden="true" />
@@ -123,7 +123,7 @@ model.use((ctx, next) => {
     if (ctx.command !== "tab.close" || ctx.dryRun || ctx.meta?.confirmed === true) {
         return next();
     }
-    const tab = ctx.get(ctx.payload.tab);
+    const tab = ctx.get("node", { node: ctx.payload.tab });
     if (tab?.type !== "tab" || tab.component !== "editor" || !tab.data.dirty) {
         return next();
     }
@@ -135,8 +135,8 @@ model.use((ctx, next) => {
 });
 ```
 
-`ctx.command` narrows `ctx.payload` (here to `{ tab: string }`), and `ctx.get` reads nodes as the
-command sees them. The [IDE workbench](/examples/ide-workbench) does this with a dialog. More on
+`ctx.command` narrows `ctx.payload` (here to `{ tab: string }`), and `ctx.get("node", …)` reads nodes
+as the command sees them. The [IDE workbench](/examples/ide-workbench) does this with a dialog. More on
 middleware in [the command bus](/docs/api/command-bus).
 
 ## Renaming a tab
@@ -147,7 +147,7 @@ new value, not a patch: spread the old one. Whether a tab may be renamed is your
 
 ```tsx
 if (tab.component === "editor" && tab.data.renamable !== false) {
-    run("tab.update", { tab: tab.id, component: "editor", data: { ...tab.data, name: value.trim() } });
+    model.run("tab.update", { tab: tab.id, component: "editor", data: { ...tab.data, name: value.trim() } });
 }
 ```
 
@@ -165,7 +165,7 @@ it) and cannot be dragged out of its tabset. The tab carries `data-pinned`, so p
 look different (icon-only, no close button).
 
 ```tsx
-run("tab.pin", { tab: tab.id, value: tab.pinned !== true });
+model.run("tab.pin", { tab: tab.id, value: tab.pinned !== true });
 ```
 
 Whether a tab offers pinning at all is your choice; keep it in the tab's data if it varies.

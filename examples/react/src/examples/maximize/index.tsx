@@ -137,7 +137,7 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
  * a tab or a button) toggles.
  */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
-    const { model, run, layoutId } = useDockable<Types>();
+    const { model, layoutId } = useDockable<Types>();
     return (
         <Dockable.TabSet
             node={node}
@@ -152,10 +152,12 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                         !target.closest('[role="tab"], button') &&
                         canMaximize(model, node)
                     ) {
-                        run("tabset.maximize", {
+                        model.run("tabset.maximize", {
                             tabset: node.id,
                             value:
-                                model.maximizedTabset(layoutId)?.id !== node.id,
+                                model.get("maximized-tabset", {
+                                    layout: layoutId,
+                                })?.id !== node.id,
                         });
                     }
                 }}
@@ -210,12 +212,13 @@ function Content({ tab }: { tab: TabOf<Types> }) {
 
 /** Whether the tabset may be maximized: the model answers without running the command. */
 function canMaximize(model: Model<Types>, tabset: TabsetNode<Types>) {
-    return model.can("tabset.maximize", { tabset: tabset.id, value: true }).ok;
+    return model.can("tabset.maximize", { tabset: tabset.id, value: true });
 }
 
 function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { model, run, layoutId } = useDockable<Types>();
-    const maximized = model.maximizedTabset(layoutId)?.id === tabset.id;
+    const { model, layoutId } = useDockable<Types>();
+    const maximized =
+        model.get("maximized-tabset", { layout: layoutId })?.id === tabset.id;
     if (!canMaximize(model, tabset)) {
         return null;
     }
@@ -231,7 +234,10 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
                 "disabled:pointer-events-none disabled:opacity-40",
             )}
             onClick={() =>
-                run("tabset.maximize", { tabset: tabset.id, value: !maximized })
+                model.run("tabset.maximize", {
+                    tabset: tabset.id,
+                    value: !maximized,
+                })
             }
         >
             {maximized ? (
@@ -247,12 +253,14 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
 function RestoreOnEscape() {
     const { engine, model, layoutId } = useDockable<Types>();
     useEffect(() => {
-        const doc = engine.getCurrentDocument();
+        const doc = engine.get("owner-document");
         if (!doc) {
             return;
         }
         const onKeyDown = (event: KeyboardEvent) => {
-            const maximized = model.maximizedTabset(layoutId);
+            const maximized = model.get("maximized-tabset", {
+                layout: layoutId,
+            });
             if (
                 event.key === "Escape" &&
                 !event.defaultPrevented &&

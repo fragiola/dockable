@@ -5,6 +5,7 @@ export type {
     BorderConfigurePayload,
     CommandContext,
     CommandContextBase,
+    CommandContextGetKey,
     CommandError,
     CommandErrorCode,
     CommandEvent,
@@ -55,6 +56,7 @@ export {
 export {
     createLayoutEngine,
     LayoutEngine,
+    type LayoutEngineAdapter,
     type LayoutEngineOptions,
     type LayoutEngineSettings,
     type MeasurableKind,
@@ -64,6 +66,19 @@ export {
     type MoveableOptions,
     OVERLAY_ATTRIBUTE,
 } from "./engine/LayoutEngine";
+export type {
+    EngineActionKey,
+    EngineActionMap,
+    EngineActionPayload,
+    EngineActionResult,
+    EngineGetKey,
+    EngineGetMap,
+    EngineGetPayload,
+    EngineGetResult,
+    EngineIsKey,
+    EngineIsMap,
+    EngineIsPayload,
+} from "./engine/verbs";
 export type {
     BorderLocation,
     DockLocation,
@@ -145,6 +160,17 @@ export {
     type ModelHandle,
     type ModelOptions,
 } from "./state/model";
+export type {
+    ModelGetKey,
+    ModelGetMap,
+    ModelGetPayload,
+    ModelGetResult,
+    ModelIsKey,
+    ModelIsMap,
+    ModelIsPayload,
+    NoPayload,
+    QueryArgs,
+} from "./state/queries";
 export {
     type AnyTypes,
     type BorderDataOf,

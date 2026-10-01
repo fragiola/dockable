@@ -66,9 +66,10 @@ renders nothing when neither is possible (the model is asked with `model.can`), 
 
 From code, the same operations are commands: `model.run("tab.popout", { tab })` and
 `model.run("tabset.popout", { tabset })` open a window, `model.run("window.close", { window })`
-docks a whole window back. The engine wraps them by id for a tab or a tabset:
-`engine.canPopout(id)`, `engine.popout(id)`, `engine.dockBack(id)` and `engine.isInWindow(id)`,
-the first a boolean, the others returning the command's result. Popout stays opt-in per tab:
+docks a whole window back. The engine wraps them by node id, for a tab or a tabset:
+`engine.can("popout", { node })` answers with a boolean, `engine.run("popout", { node })` and
+`engine.run("dock-back", { node })` return the command's result, and
+`model.is("in-window", { node })` says whether the node lives in a window. Popout stays opt-in per tab:
 `enablePopout: true` on a tab, or for every tab in the layout's defaults:
 
 ```ts
@@ -118,7 +119,7 @@ in the source model, each through its own model's middleware.
    const MAX_TABS = 5;
 
    const scratchLimit: Middleware<Types> = (ctx, next) => {
-       if (ctx.command === "tab.add" && scratch.tabs().length >= MAX_TABS) {
+       if (ctx.command === "tab.add" && scratch.get("tabs").length >= MAX_TABS) {
            return veto("Scratch takes no more tabs.");
        }
        return next();

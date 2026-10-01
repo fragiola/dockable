@@ -43,8 +43,8 @@ against the tab buttons' measured boxes, so any styling works.
 | --- | --- | --- |
 | `location` | `"top" \| "bottom" \| "left" \| "right"` | the side of the layout the border is on |
 | `orientation` | `"horizontal" \| "vertical"` | the direction its tabs run: `"vertical"` for a left or right border |
-| `open` | `boolean` | a tab is selected, so the border's panel is open (`border.selected !== -1`) |
-| `overlay` | `boolean` | the panel opens over the layout (`model.resolve(border).mode === "overlay"`) instead of beside it |
+| `open` | `boolean` | a tab is selected, so the border's panel is open (`model.is("open", { border })`) |
+| `overlay` | `boolean` | the panel opens over the layout (`model.is("overlay", { border })`) instead of beside it |
 | `empty` | `boolean` | the border has no tabs |
 | `tabDirection` | `"up" \| "down" \| undefined` | a left border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"`; `undefined` on the other sides |
 | `dropTarget` | `boolean` | the current drag would drop into this border (its strip or its open panel) |

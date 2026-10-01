@@ -283,9 +283,12 @@ export interface RunOptions {
     meta?: Readonly<Record<string, unknown>>;
 }
 
+/** What a middleware's `ctx.get` reads. */
+export type CommandContextGetKey = "node" | "parent";
+
 /** What a middleware sees of any command. */
 export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
-    /** `model.can`: nothing will be committed; do not cause side effects */
+    /** `model.can`/`model.check`: nothing will be committed; do not cause side effects */
     readonly dryRun: boolean;
     readonly transient: boolean;
     /** true for a command running inside a batch (the batch itself also passes the chain) */
@@ -293,10 +296,14 @@ export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
     readonly meta: Readonly<Record<string, unknown>> | undefined;
     /** the committed state the command applies to */
     readonly state: LayoutState<T>;
-    /** a node as the command sees it (inside a batch: after the batch's earlier commands) */
-    get(id: string): Node<T> | undefined;
-    /** a node's parent as the command sees it */
-    parentOf(id: string): ParentNode<T> | undefined;
+    /**
+     * reads a node (`"node"`) or its parent (`"parent"`) as the command sees it: inside a batch,
+     * after the batch's earlier commands
+     */
+    get<K extends CommandContextGetKey>(
+        key: K,
+        payload: { node: string },
+    ): K extends "parent" ? ParentNode<T> | undefined : Node<T> | undefined;
 }
 
 /**
@@ -346,7 +353,7 @@ export type CommandListener<T extends DockableTypes = AnyTypes> = (
     event: CommandEvent<T>,
 ) => void;
 
-/** A command as `model.commands()` describes it: ready to become an AI tool definition. */
+/** A command as `model.get("commands")` describes it: ready to become an AI tool definition. */
 export interface CommandInfo {
     readonly name: CommandName;
     readonly description: string;

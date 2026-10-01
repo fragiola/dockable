@@ -98,7 +98,7 @@ export default function SaveRestore() {
 
     const save = () => {
         setStatus(
-            writeSaved(model.toJSON())
+            writeSaved(model.get("layout-json"))
                 ? "Saved to localStorage."
                 : "Could not save: storage is unavailable.",
         );
@@ -223,10 +223,10 @@ export default function SaveRestore() {
 /** The model's JSON, live: this is everything there is to save. */
 function JsonPanel() {
     const text = useModelState((_state, model) =>
-        JSON.stringify(model.toJSON(), null, 2),
+        JSON.stringify(model.get("layout-json"), null, 2),
     );
     return (
-        <PanelBody title="model.toJSON()">
+        <PanelBody title='model.get("layout-json")'>
             <pre
                 data-testid="layout-json"
                 className="m-0 overflow-auto rounded-md bg-palette-soft p-3 font-mono text-xs leading-5"

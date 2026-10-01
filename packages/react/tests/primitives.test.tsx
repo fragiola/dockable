@@ -399,8 +399,8 @@ describe("ref stability", () => {
         function Probe() {
             const { engine } = useDockable();
             React.useLayoutEffect(() => {
-                const original = engine.attachRoot.bind(engine);
-                engine.attachRoot = (element: HTMLElement) => {
+                const original = engine.adapter.attachRoot.bind(engine);
+                engine.adapter.attachRoot = (element: HTMLElement) => {
                     attach();
                     original(element);
                 };
@@ -493,7 +493,7 @@ describe("interaction", () => {
             key: "Delete",
             ctrlKey: true,
         });
-        expect(model.get("t1")).toBeUndefined();
+        expect(model.get("node", { node: "t1" })).toBeUndefined();
     });
 
     it("moves focus to the previous tab when the last tab is closed", () => {
@@ -502,7 +502,7 @@ describe("interaction", () => {
         const last = mustPath("/ts0/tb1");
         last.focus();
         fireEvent.keyDown(last, { key: "Delete", ctrlKey: true });
-        expect(model.get("t1")).toBeUndefined();
+        expect(model.get("node", { node: "t1" })).toBeUndefined();
         expect(document.activeElement).toBe(mustPath("/ts0/tb0"));
     });
 
@@ -510,7 +510,7 @@ describe("interaction", () => {
         const model = fresh();
         render(<Layout model={model} />);
         fireEvent.pointerDown(mustPath("/ts1"), { button: 0 });
-        expect(model.activeTabset()?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
     });
 
     it("runs row.resize from the splitter keyboard", () => {
@@ -587,7 +587,7 @@ describe("panels and content", () => {
             target: { value: "typed" },
         });
         const content = screen.getByTestId("content-t2");
-        const saved = model.toJSON();
+        const saved = model.get("layout-json");
 
         act(() => {
             model.run("tab.move", {
@@ -597,7 +597,7 @@ describe("panels and content", () => {
                 index: -1,
             });
         });
-        const moved = model.toJSON();
+        const moved = model.get("layout-json");
         act(() => {
             model.run("layout.load", { layout: saved }); // "undo"
         });
@@ -636,14 +636,14 @@ describe("panels and content", () => {
             const attached = React.useRef(new Set<LayoutEngine>());
             React.useLayoutEffect(() => {
                 for (const window of model.state.windows) {
-                    const sub = engine
+                    const sub = engine.adapter
                         .getPopoutManager()
                         .getLayoutEngine(window.id);
                     if (!sub || attached.current.has(sub)) {
                         continue;
                     }
                     attached.current.add(sub);
-                    sub.attachRoot(layerHost);
+                    sub.adapter.attachRoot(layerHost);
                     setLayer(window.id, {
                         layoutId: window.id,
                         element: layerHost,
@@ -709,7 +709,7 @@ describe("StrictMode", () => {
         );
         expect(error).not.toHaveBeenCalled();
         expect(warn).not.toHaveBeenCalled();
-        const registrations = engineRef?.getRegistrations();
+        const registrations = engineRef?.adapter.getRegistrations();
         // row + 2 x (tabset, tabstrip, tabsetcontent) + 3 tab buttons
         expect(registrations?.measurables.size).toBe(10);
         expect(registrations?.tabPanels.size).toBe(2);
@@ -726,12 +726,12 @@ describe("hooks", () => {
         const model = fresh();
         const commands = recordCommands(model);
         function SelectButton() {
-            const { run } = useDockable<Types>();
+            const { model } = useDockable<Types>();
             return (
                 <button
                     type="button"
                     data-testid="select"
-                    onClick={() => run("tab.select", { tab: "t1" })}
+                    onClick={() => model.run("tab.select", { tab: "t1" })}
                 >
                     select
                 </button>
@@ -810,6 +810,6 @@ describe("hooks", () => {
             "aria-orientation",
             "horizontal",
         );
-        expect(model.root()?.children).toHaveLength(2);
+        expect(model.get("root-row")?.children).toHaveLength(2);
     });
 });

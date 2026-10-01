@@ -77,7 +77,8 @@ function title(tab: TabOf<Types>): string {
 }
 ```
 
-Every query returns typed tabs (`model.tabs()`, `model.selectedTab(id)`, a tabset's `children`),
+Every query returns typed tabs (`model.get("tabs")`, `model.get("selected-tab", { container })`,
+a tabset's `children`),
 and so does every children function of the React parts. A tab of one known component is a
 `TabNode<K, D>`: `TabNode<"editor", Types["tabs"]["editor"]>`.
 
@@ -107,7 +108,7 @@ model.run("tab.add", { component: "chart", data: { name: "Sales", series: [] }, 
 // @ts-expect-error: `path` is not in the chart's data
 model.run("tab.add", { component: "chart", data: { name: "Sales", path: "/x" }, to: "main" });
 
-const tab = model.selectedTab("main");
+const tab = model.get("selected-tab", { container: "main" });
 if (tab?.component === "editor") {
     // `data` is the whole new value, not a patch: keep the rest of it
     model.run("tab.update", { tab: tab.id, component: "editor", data: { ...tab.data, dirty: true } });
@@ -205,7 +206,7 @@ context. The parts that hand nodes to a children function take it as a type argu
 ```
 
 The same holds for `Dockable.TabList<Types>`, `Dockable.Borders<Types>`, and the hooks:
-`useDockable<Types>()` returns a `Model<Types>` and a typed `run`, and
+`useDockable<Types>()` returns a `Model<Types>` (its `run` typed), and
 `useModelState<Types, S>(selector)` a typed state. Without the argument, a part uses `AnyTypes`:
 it still works, and `tab.data` is `unknown`.
 

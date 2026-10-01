@@ -47,15 +47,16 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
     const id = node.id;
     const areaRef = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(id, "bordercontent", element);
+            engine.adapter.registerMeasurable(id, "bordercontent", element);
         },
         [engine, id],
     );
     const location = node.location;
     // a left or right border: sized by width
     const horizontal = location === "left" || location === "right";
-    const { size, minSize, maxSize } = model.resolve(node);
-    const path = engine.path(id);
+    const { size, minSize, maxSize } =
+        model.get("border-settings", { border: id }) ?? {};
+    const path = engine.get("path", { node: id });
     const area = (
         <div
             key="area"
@@ -131,14 +132,15 @@ function overlayPosition<T extends DockableTypes>(
     style.top = 0;
     style.bottom = 0;
     for (const other of model.state.borders) {
-        const resolved = model.resolve(other);
+        const resolved = model.get("border-settings", { border: other.id });
         if (
+            resolved &&
             other.id !== node.id &&
             resolved.mode === "overlay" &&
             resolved.show &&
             other.selected !== -1
         ) {
-            const inset = resolved.size + engine.splitterSize();
+            const inset = resolved.size + engine.get("splitter-size");
             if (other.location === "top") {
                 style.top = inset;
             } else if (other.location === "bottom") {

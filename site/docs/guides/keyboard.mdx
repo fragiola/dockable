@@ -70,7 +70,7 @@ buttons and hints can ask the same question:
 ```tsx
 function CloseHint({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
-    const closeable = model.can("tab.close", { tab: tab.id }).ok;
+    const closeable = model.can("tab.close", { tab: tab.id });
     return closeable ? <kbd>Ctrl+Delete</kbd> : null;
 }
 ```
@@ -89,9 +89,9 @@ function useMaximizeShortcut() {
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.defaultPrevented || !matchesKey(event, "Ctrl+Shift+M")) return;
-            const tabset = model.activeTabset();
+            const tabset = model.get("active-tabset");
             if (!tabset) return;
-            const maximized = model.maximizedTabset()?.id === tabset.id;
+            const maximized = model.is("maximized", { tabset: tabset.id });
             // refused (not allowed, or the only tabset): the key is left to others
             if (model.run("tabset.maximize", { tabset: tabset.id, value: !maximized }).ok) {
                 event.preventDefault();

@@ -1,13 +1,23 @@
 // Type fixtures, checked by `tsc` (not run): the registry `T` flows from the model into the parts'
 // children functions and hooks with no cast, and a `render` function's props fit any element.
-import { createModel, type RowNode, type TabsetNode } from "@fragiola/dockable";
+import {
+    createModel,
+    type RowNode,
+    type TabOf,
+    type TabsetNode,
+} from "@fragiola/dockable";
 import type * as React from "react";
 import {
     Dockable,
+    type UseDockableResult,
     useDockable,
     useDragGroup,
+    useDragNode,
     useDragSource,
+    useDropZone,
     useModelState,
+    useTabOverflow,
+    useTabSet,
 } from "../../src";
 
 type Types = {
@@ -138,27 +148,59 @@ export function Hooks() {
         // @ts-expect-error: an editor needs a path and a dirty flag
         tab: { component: "editor", data: { name: "c.ts" } },
     });
-    const { run, model: typed } = useDockable<Types>();
-    run("tab.add", {
+    const { model: typed, engine } = useDockable<Types>();
+    typed.run("tab.add", {
         component: "chart",
         data: { name: "Costs", series: ["q1"] },
         to: "main",
     });
-    run("tab.add", {
+    typed.run("tab.add", {
         component: "chart",
         // @ts-expect-error: a chart's series are strings
         data: { name: "x", series: [1] },
         to: "main",
     });
-    const first = typed.tabs()[0];
+    const first = typed.get("tabs")[0];
     if (first?.component === "editor") {
         const dirty: boolean = first.data.dirty;
         void dirty;
     }
     const names = useModelState<Types, string[]>((_state, m) =>
-        m.tabs().map((tab) => tab.data.name),
+        m.get("tabs").map((tab) => tab.data.name),
     );
+    // the engine of the layout this renders in: screen actions and view facts
+    const panelId: string = engine.get("tab-panel-id", { tab: "t0" });
+    void panelId;
+    // @ts-expect-error: useDockable has no run; change the layout with model.run
+    useDockable<Types>().run;
+    // @ts-expect-error: no main engine: every engine does page-wide work
+    useDockable<Types>().mainEngine;
     return names.join();
+}
+
+/** `true` when `A` and `B` are the same union. */
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+export const dockableResult: Same<
+    keyof UseDockableResult,
+    "model" | "engine" | "layoutId"
+> = true;
+
+// every part hook: what it shows, and what goes on its element
+export function PartHooks({ tabset }: { tabset: TabsetNode<Types> }) {
+    const set = useTabSet(tabset);
+    const active: boolean = set.state.active;
+    const drag = useDragNode(tabset);
+    const draggable: boolean = drag.props.draggable;
+    const dragging: boolean = drag.state.dragging;
+    const zone = useDropZone({ model, onDrop: () => {} });
+    const over: boolean = zone.state.over;
+    const overflow = useTabOverflow(tabset);
+    const hiddenTabs: TabOf<Types>[] = overflow.hiddenTabs;
+    void [active, draggable, dragging, over, hiddenTabs];
+    // @ts-expect-error: the ref goes on the element: it is in props
+    void set.ref;
+    return <div {...set.props} {...drag.props} />;
 }
 
 // DropZone: callbacks get a typed drag subject

@@ -57,7 +57,7 @@ export default function IdeWorkbench() {
                     return next();
                 }
                 const id = ctx.payload.tab;
-                if (!editorData(ctx.get(id))?.dirty) {
+                if (!editorData(ctx.get("node", { node: id }))?.dirty) {
                     return next();
                 }
                 if (confirmed.current.delete(id)) {
@@ -94,7 +94,7 @@ export default function IdeWorkbench() {
 
     // answer the first pending question
     const pendingData = pending[0]
-        ? editorData(model.get(pending[0]))
+        ? editorData(model.get("node", { node: pending[0] }))
         : undefined;
     const answer = (choice: "save" | "discard" | "cancel") => {
         const id = pending[0];
@@ -108,13 +108,14 @@ export default function IdeWorkbench() {
 
     // what the explorer and the status bar show, read from the model
     const dirtyPaths = new Set<string>();
-    for (const tab of model.tabs()) {
+    for (const tab of model.get("tabs")) {
         const data = editorData(tab);
         if (data?.dirty) dirtyPaths.add(data.path);
     }
-    const activeTabset = model.activeTabset();
+    const activeTabset = model.get("active-tabset");
     const activePath = activeTabset
-        ? editorData(model.selectedTab(activeTabset.id))?.path
+        ? editorData(model.get("selected-tab", { container: activeTabset.id }))
+              ?.path
         : undefined;
 
     const renderContent = (tab: TabOf<Types>) => {
@@ -414,6 +415,9 @@ function Splitter({
             aria-label="Resize"
             className={cn(
                 "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
+                // an overlay border's splitter lies over the layout, not a gutter: it gets the
+                // surface underneath, with the theme's splitter colour layered on top
+                "in-data-overlay:bg-palette-base in-data-overlay:bg-[image:linear-gradient(var(--dk-splitter-bg),var(--dk-splitter-bg))]",
                 "after:absolute after:transition-colors after:duration-(--dk-motion)",
                 "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
                 // side by side: a vertical bar

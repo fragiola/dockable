@@ -1,6 +1,6 @@
 ---
 title: Hooks
-description: The hooks under the primitives. useDockable gives you the model and its run function, useModelState reads the layout, the rest wire parts into your markup.
+description: The hooks under the primitives. useDockable gives you the model and the engine, useModelState reads the layout, the rest wire parts into your markup.
 ---
 
 The primitives are built on hooks, exported as the lower layer. Use `useDockable` and
@@ -12,9 +12,8 @@ which take the model as an option and work anywhere on the page.
 
 ## useDockable
 
-"The lower layer: the model, the engine and the layout of the enclosing `Dockable.Root`. Pass the
-model's registry as the type argument (`useDockable<Types>()`); a child cannot infer it through
-context. Change the layout with `run("tab.close", { tab })`."
+"The model, the engine and the layout of the enclosing `Dockable.Root`. Pass the model's registry
+as the type argument (`useDockable<Types>()`); a child cannot infer it through context."
 
 ```tsx
 import type { TabOf } from "@fragiola/dockable";
@@ -23,11 +22,11 @@ import { useDockable } from "@fragiola/dockable-react";
 type Types = { tabs: { card: { name: string } } };
 
 function CloseButton({ tab }: { tab: TabOf<Types> }) {
-    const { model, run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     // a dry run: whether `tab.close` would apply (enableClose, pinned, middleware)
-    if (!model.can("tab.close", { tab: tab.id }).ok) return null;
+    if (!model.can("tab.close", { tab: tab.id })) return null;
     return (
-        <button type="button" onClick={() => run("tab.close", { tab: tab.id })}>
+        <button type="button" onClick={() => model.run("tab.close", { tab: tab.id })}>
             Close {tab.data.name}
         </button>
     );
@@ -38,17 +37,18 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
 
 | field | type | description |
 | --- | --- | --- |
-| `model` | `Model<T>` | the model of the enclosing `Dockable.Root` |
-| `run` | `Model<T>["run"]` | runs a command on the model (`model.run`), through its middleware. See [the command bus](/docs/api/command-bus) |
-| `engine` | `LayoutEngine<T>` | the engine of the layout this component renders in (the main layout or a popout's) |
-| `mainEngine` | `LayoutEngine<T>` | the main layout's engine |
+| `model` | `Model<T>` | the model of the enclosing `Dockable.Root`: change the layout with `model.run`, read it with `model.get` and `model.is` ([Model](/docs/api/model)) |
+| `engine` | `LayoutEngine<T>` | the engine of the layout this component renders in (the main layout's, or a popout window's): screen actions with `engine.run` (pop out, dock back), view facts with `engine.get` and `engine.is` ([LayoutEngine](/docs/api/layout-engine)) |
 | `layoutId` | `string` | the id of the layout this component renders in (`"main"` or a window's id) |
 
 `T` is not checked against the root's model: the context holds the model with its registry
-erased, and `useDockable<Types>()` states which registry you know it has. Inside tab content,
-`engine` is the engine of the window the tab is currently in; use `mainEngine` for window-level
-things (`isSupportsPopout()`, the popout manager). Both engines run commands on the same model,
-so `run` is the same function either way. See [LayoutEngine](/docs/api/layout-engine).
+erased, and `useDockable<Types>()` states which registry you know it has. Tab content renders
+under the root wherever the tab is shown, so inside it `engine` is the main layout's engine and
+`layoutId` is `"main"`, even in a popout window: what concerns the whole page (whether popouts are
+supported, popping out, docking back) works from it all the same. The window a tab is in is
+`model.get("layout-id", { node: tab.id })`, and the document it renders in right now is its own
+element's `ownerDocument`. Which object to go to for what:
+[Model and engine](/docs/concepts/model-and-engine).
 
 ## useModelState
 
@@ -59,7 +59,7 @@ changes (`isEqual`, `Object.is` by default). The selector runs once per state; k
 import { useModelState } from "@fragiola/dockable-react";
 
 function TabCount() {
-    const count = useModelState<Types, number>((state, model) => model.tabs().length);
+    const count = useModelState<Types, number>((state, model) => model.get("tabs").length);
     return <output>{count} tabs</output>;
 }
 ```
@@ -82,18 +82,44 @@ It is `useSyncExternalStore` over `model.subscribe`, so:
 
 A realtime splitter drag commits on every move (transient `row.resize` runs), so a selector should
 stay cheap. Use it for anything that shows layout state outside the parts: a status bar, a list
-of open tabs, a live `model.toJSON()` (the `save-restore` example of the
+of open tabs, a live `model.get("layout-json")` (the `save-restore` example of the
 [persistence guide](/docs/guides/persistence) does this).
+
+## Part hooks
+
+`useTabSet`, `useBorder`, `useSplitter`, `useDragNode`, `useDragSource` and `useDropZone` wire one
+part into your own element. Each takes the node first (the last two, which work outside the
+layout, take an options object with the model) and returns the same shape:
+
+| field | description |
+| --- | --- |
+| `state` | what the part shows: the values the matching primitive turns into `data-*` attributes and passes to `render` |
+| `props` | what goes on the element: spread it (`<div {...props} />`). It holds the callback `ref`, the event handlers, `draggable`, the ARIA attributes and, for a splitter, the structural style |
+
+```tsx
+function DragHandle({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { state, props } = useDragNode(tabset);
+    return (
+        <span {...props} aria-hidden="true" data-dragging={state.dragging ? "" : undefined}>
+            ⠿
+        </span>
+    );
+}
+```
+
+To compose a handler of your own with one of `props`, call both:
+`onPointerDown={(event) => { props.onPointerDown(event); mine(event); }}`.
 
 ## useTabSet
 
-"The lower layer of `Dockable.TabSet`: its state, measurement ref and activation handler."
+"The lower layer of `Dockable.TabSet`: its state, and the props for its element (the measurement
+ref and the activation handler)."
 
 ```tsx
 function MyTabSet({ node, children }: { node: TabsetNode<Types>; children: ReactNode }) {
-    const { state, ref, onPointerDown } = useTabSet(node);
+    const { state, props } = useTabSet(node);
     return (
-        <section ref={ref} onPointerDown={onPointerDown} data-active={state.active ? "" : undefined}>
+        <section {...props} data-active={state.active ? "" : undefined}>
             {children}
         </section>
     );
@@ -101,18 +127,18 @@ function MyTabSet({ node, children }: { node: TabsetNode<Types>; children: React
 ```
 
 A custom tabset must still apply the structural flex sizing `Dockable.TabSet` sets (flex-grow
-from `node.weight`, the min/max sizes from `engine.minMax(node.id)`, `display: none` when
-`state.hidden`), and provide the tabset to `TabList`/`TabSetContent`, which only
-`Dockable.TabSet` does. Prefer `Dockable.TabSet` with `render` unless you need something it
-cannot express.
+from `node.weight`, the min/max sizes from `engine.get("size-limits", { node: node.id })`,
+`display: none` when `state.hidden`), and provide the tabset to `TabList`/`TabSetContent`, which
+only `Dockable.TabSet` does. Prefer `Dockable.TabSet` with `render` unless you need something it
+cannot express. Reading `state` alone is fine too: `useTabSet(node).state.dropIndex` places an
+insertion caret between two tabs.
 
 `useTabSet<T>(node: TabsetNode<T>): UseTabSetResult`
 
 | field | type | description |
 | --- | --- | --- |
 | `state` | `TabSetState` | see below |
-| `ref` | `RefCallback<HTMLElement>` | callback ref for the tabset's element (measured as the tabset) |
-| `onPointerDown` | `(event: PointerEvent<HTMLElement>) => void` | makes the tabset active (`tabset.activate`) on a primary pointer press |
+| `props` | `{ ref, onPointerDown }` | `ref` measures the element as the tabset; `onPointerDown` makes it active (`tabset.activate`) on a primary pointer press |
 
 `TabSetState`:
 
@@ -125,10 +151,13 @@ cannot express.
 | `dropTarget` | `boolean` | the current drag would drop into or beside this tabset (its content or its strip) |
 | `dropLocation` | `DropLocation \| undefined` | while it is the drop target: where the drag would dock relative to it |
 | `dropRefused` | `boolean` | the current drag is over this tabset, but a drop rule refuses it |
+| `dropIndex` | `number \| undefined` | while the drag aims at this tabset's strip: the index among its tabs the tab would be inserted at (its length for the end) |
+
+The drop fields re-render the tabset only when its own answer changes, not on every pointer move.
 
 ## useBorder
 
-"The lower layer of `Dockable.Border`: its state and measurement ref."
+"The lower layer of `Dockable.Border`: its state, and the props for its strip."
 
 `useBorder<T>(node: BorderNode<T>, options?: UseBorderOptions): UseBorderResult`
 
@@ -143,7 +172,7 @@ cannot express.
 | field | type | description |
 | --- | --- | --- |
 | `state` | `BorderState` | see [Dockable.Border](/docs/api/border#state) |
-| `ref` | `RefCallback<HTMLElement>` | callback ref for the border's strip (measured as the border's tab header) |
+| `props` | `{ ref }` | `ref` measures the element as the border's tab header (its strip) |
 
 A custom strip must also provide the border to `Dockable.TabList`, which only `Dockable.Border`
 does: prefer `Dockable.Border` with `render`.
@@ -155,37 +184,30 @@ does: prefer `Dockable.Border` with `render`.
 The selected tab is never hidden."
 
 `useTabOverflow<T>(container: TabContainer<T>): UseTabOverflowResult<T>` (a `TabsetNode<T>` or a
-`BorderNode<T>`)
+`BorderNode<T>`). It wires no element, so it returns its value directly:
 
 | field | type | description |
 | --- | --- | --- |
 | `overflowing` | `boolean` | some of the container's tabs do not fit, so they are hidden |
-| `hidden` | `TabOf<T>[]` | the hidden tabs, in model order: what an overflow menu lists |
-| `visible` | `TabOf<T>[]` | the tabs that stay in the strip, in model order |
+| `hiddenTabs` | `TabOf<T>[]` | the hidden tabs, in model order: what an overflow menu lists |
+| `visibleTabs` | `TabOf<T>[]` | the tabs that stay in the strip, in model order |
 
 It re-renders only when the container's hidden tabs change. See
 [Tab overflow](/docs/guides/tab-overflow).
 
 ## useSplitter
 
-"The lower layer of `Dockable.Splitter`: a headless controller for the splitter before child
-`index` (1-based) of `node` (a row, or a border with no index), its drag state and ARIA values."
+"The lower layer of `Dockable.Splitter`: the splitter before child `index` (1-based) of `node` (a
+row, or a border with no index). Spread `props` on the separator element."
 
 ```tsx
 function MySplitter({ node, index }: RowSplitterProps) {
-    const { controller, state, aria, hidden, ref } = useSplitter(node, index);
-    if (hidden) return null;
+    const { state, props } = useSplitter(node, index);
     return (
         <div
-            ref={ref}
-            role="separator"
-            tabIndex={0}
-            aria-orientation={aria.orientation}
-            aria-valuenow={aria.valueNow}
-            aria-valuetext={aria.valueText}
+            {...props}
+            aria-label="Resize"
             data-dragging={state.dragging ? "" : undefined}
-            onPointerDown={(event) => controller.onPointerDown(event.nativeEvent)}
-            onKeyDown={(event) => controller.onKeyDown(event.nativeEvent)}
         />
     );
 }
@@ -195,11 +217,18 @@ function MySplitter({ node, index }: RowSplitterProps) {
 
 | field | type | description |
 | --- | --- | --- |
-| `controller` | `SplitterController` | the headless controller: `onPointerDown`, `onKeyDown`, `getAria`, `isHidden`, … (see [LayoutEngine](/docs/api/layout-engine#splitters)) |
-| `state` | `SplitterState` | `dragging` and `previewOffset` (see [Splitter](/docs/api/splitter#state)) |
-| `aria` | `SplitterAria` | `orientation`, `valueNow`, `valueMin`, `valueMax`, `valueText` |
+| `state` | `UseSplitterState` | see below |
+| `props` | `{ ref, role, tabIndex, aria-*, onPointerDown, onKeyDown, style }` | the ref; `role="separator"`, `tabIndex: 0` and the ARIA values (`aria-orientation`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-valuetext`); the pointer and arrow-key handlers; and the structural style: `display: none` while hidden, the outline preview's `transform`, `pointer-events: auto` on a border's splitter |
+| `controller` | `SplitterController` | the headless controller behind it, for a gesture of your own: `onPointerDown`, `onKeyDown`, `getAria`, `isHidden`, … (see [LayoutEngine](/docs/api/layout-engine#splitters)) |
+
+`UseSplitterState`:
+
+| field | type | description |
+| --- | --- | --- |
+| `dragging` | `boolean` | the splitter is being dragged with the pointer |
+| `previewOffset` | `number \| undefined` | during an outline (non-realtime) drag: how far, in px, the splitter would move if released now |
+| `orientation` | `"horizontal" \| "vertical"` | the separator's orientation: `"vertical"` for a splitter between side by side children |
 | `hidden` | `boolean` | row splitters are hidden while a tabset is maximized |
-| `ref` | `RefCallback<HTMLElement>` | callback ref for the splitter's element |
 
 A drag runs `row.resize` (or `border.resize`); while a realtime drag moves, those runs are
 transient, and the release runs one lasting command.
@@ -207,36 +236,25 @@ transient, and the release runs one lasting command.
 ## useDragNode
 
 "The lower layer of a draggable part: wires a tab or a tabset to the core's drag-and-drop
-machine. Spread `draggable`, `onDragStart` and `onDragEnd` on the element and attach `ref` to the
-element the browser should snapshot as the drag image."
+machine. Spread `props` on the dragged element."
 
-```tsx
-function TabSetDragHandle({ tabset }: { tabset: TabsetNode<Types> }) {
-    const drag = useDragNode(tabset);
-    return (
-        <span
-            ref={drag.ref}
-            draggable={drag.draggable}
-            onDragStart={drag.onDragStart}
-            onDragEnd={drag.onDragEnd}
-            aria-hidden="true"
-            data-dragging={drag.dragging ? "" : undefined}
-        >
-            ⠿
-        </span>
-    );
-}
-```
+The [example above](#part-hooks) is a tabset drag handle.
 
 `useDragNode<T>(node: TabOf<T> | TabsetNode<T>): UseDragNodeResult`
 
 | field | type | description |
 | --- | --- | --- |
-| `draggable` | `boolean` | whether the element is draggable: the node's resolved `enableDrag` |
+| `state` | `{ dragging }` | `dragging`: this node (of this model) is being dragged |
+| `props` | `DragProps` | see below; `draggable` is the node's effective `enableDrag` |
+
+`DragProps`, the props of a draggable element:
+
+| field | type | description |
+| --- | --- | --- |
+| `draggable` | `boolean` | whether the element is draggable |
 | `onDragStart` | `(event: DragEvent<HTMLElement>) => void` | starts the drag in the core |
 | `onDragEnd` | `(event: DragEvent<HTMLElement>) => void` | ends it |
-| `ref` | `RefCallback<HTMLElement>` | callback ref for the element used as the drag image (the dragged element by default) |
-| `dragging` | `boolean` | this node (of this model) is being dragged |
+| `ref` | `RefCallback<HTMLElement>` | the element the browser snapshots as the drag image: the dragged element itself, unless you attach it to another one |
 
 A drop runs `tab.move` or `tabset.move` through the model's middleware; a veto refuses the drop.
 
@@ -244,24 +262,17 @@ A drop runs `tab.move` or `tabset.move` through the model's middleware; a veto r
 
 "The lower layer of `Dockable.DragSource`: turns any element, inside or outside the layout (a
 sidebar item, a palette entry), into a source of new tabs. Dropping it on the layout runs
-`tab.add` through the model's middleware. Spread `draggable`, `onDragStart` and `onDragEnd` on
-the element."
+`tab.add` through the model's middleware. Spread `props` on the element."
 
 ```tsx
 function PaletteEntry({ model }: { model: Model<Types> }) {
-    const drag = useDragSource({
+    const { state, props } = useDragSource({
         model,
         tab: { component: "card", data: { name: "Orders" } },
         onDrop: (id) => console.log(id ? `added ${id}` : "refused"),
     });
     return (
-        <li
-            ref={drag.ref}
-            draggable={drag.draggable}
-            onDragStart={drag.onDragStart}
-            onDragEnd={drag.onDragEnd}
-            data-dragging={drag.dragging ? "" : undefined}
-        >
+        <li {...props} data-dragging={state.dragging ? "" : undefined}>
             Orders
         </li>
     );
@@ -284,17 +295,14 @@ run inside `Dockable.Root`: the drag goes to the layout of `model` that is mount
 
 | field | type | description |
 | --- | --- | --- |
-| `draggable` | `boolean` | whether the element is draggable |
-| `onDragStart` | `(event: DragEvent<HTMLElement>) => void` | starts the drag in the core (cancels it when disabled or no layout of the model is mounted) |
-| `onDragEnd` | `(event: DragEvent<HTMLElement>) => void` | ends it |
-| `ref` | `RefCallback<HTMLElement>` | callback ref for the element used as the drag image (the dragged element by default) |
-| `dragging` | `boolean` | a drag started by this source is in progress |
+| `state` | `{ dragging }` | `dragging`: a drag started by this source is in progress |
+| `props` | `DragProps` | [above](#usedragnode); `draggable` is false while `disabled`, and `onDragStart` cancels the drag when disabled or when no layout of the model is mounted |
 
 ## useDropZone
 
 "The lower layer of `Dockable.DropZone`: makes an element, inside or outside the layout, a place
 where a drag of the layout can be dropped for the consumer to handle (a trash can, an "open to
-the right" pad). Attach `ref` to the element."
+the right" pad). Spread `props` on the element."
 
 ```tsx
 const zone = useDropZone({
@@ -304,7 +312,7 @@ const zone = useDropZone({
         if (drag.kind === "tab") model.run("tab.close", { tab: drag.tab.id });
     },
 });
-return <div ref={zone.ref} data-over={zone.over ? "" : undefined}>Trash</div>;
+return <div {...zone.props} data-over={zone.state.over ? "" : undefined}>Trash</div>;
 ```
 
 `useDropZone<T>(options: UseDropZoneOptions<T>): UseDropZoneResult`. It does not need to run
@@ -326,29 +334,10 @@ foreign drag), `{ kind: "new", tab }` (a `TabInitOf<T>`).
 
 | field | type | description |
 | --- | --- | --- |
-| `ref` | `RefCallback<HTMLElement>` | callback ref for the zone's element |
-| `over` | `boolean` | a drag the zone takes is over it |
-| `active` | `boolean` | a drag the zone would take is in progress |
+| `state` | `{ over, active }` | `over`: a drag the zone takes is over it; `active`: a drag the zone would take is in progress |
+| `props` | `{ ref }` | the zone's callback ref |
 
 While a drag the zone takes is over it, the layouts hide their outline.
-
-## useTabSetDropState
-
-`useTabSetDropState<T>(engine: LayoutEngine<T>, tabsetId: string): TabSetDropState`: whether the
-current drag targets (or is refused by) a tabset or a border, from the engine's indicator state.
-It re-renders only when the answer for that tabset changes, not on every pointer move.
-`Dockable.TabSet` and `Dockable.TabList` use it for their `data-drop-*` attributes; use it for
-anything they do not cover (an insertion caret between two tabs).
-
-`TabSetDropState`:
-
-| field | type | description |
-| --- | --- | --- |
-| `target` | `boolean` | the current drag would drop into or beside this tabset |
-| `location` | `DropLocation \| undefined` | while it is the target: where the drag would dock |
-| `strip` | `boolean` | while it is the target: the drop goes into its tab strip, at `index` |
-| `index` | `number` | for a strip drop: the insertion index among the tabset's children, else -1 |
-| `refused` | `boolean` | the current drag is over this tabset, but a drop rule (or a middleware veto) refuses it |
 
 ## useDragGroup
 
@@ -359,7 +348,7 @@ undo) or listens to transfers. It must be called inside `Dockable.DragGroup`. Se
 
 ## Types
 
-Also exported: `TabSetState`, `TabSetDropState`, `UseDockableResult`, `UseTabSetResult`,
+Also exported: `TabSetState`, `DragProps`, `UseDockableResult`, `UseTabSetResult`,
 `UseBorderOptions`, `UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`,
-`UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`, `UseDropZoneOptions` and
-`UseDropZoneResult`.
+`UseSplitterState`, `UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`,
+`UseDropZoneOptions` and `UseDropZoneResult`.

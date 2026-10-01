@@ -103,7 +103,7 @@ describe("loading JSON v1", () => {
         const a = createModel(json);
         const b = createModel(json);
         expect(a.state).toEqual(b.state);
-        const ids = a.tabs().map((t) => t.id);
+        const ids = a.get("tabs").map((t) => t.id);
         expect(ids).toEqual(["tab-2", "tab-1"]);
         expect(a.state.root.id).toBe("row-1");
     });
@@ -120,12 +120,12 @@ describe("loading JSON v1", () => {
     it("keeps the active and maximized tabsets on their layouts", () => {
         const json = tabsets(["One"], ["Two"]);
         const model = createModel({ ...json, active: "ts1", maximized: "ts0" });
-        expect(model.activeTabset()?.id).toBe("ts1");
-        expect(model.maximizedTabset()?.id).toBe("ts0");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
+        expect(model.get("maximized-tabset")?.id).toBe("ts0");
         expect(model.state.active).toBe("ts1");
     });
 
-    it("round-trips: createModel(model.toJSON()) has an equal state", () => {
+    it('round-trips: createModel(model.get("layout-json")) has an equal state', () => {
         const model = createModel({
             version: 1,
             defaults: {
@@ -191,14 +191,14 @@ describe("loading JSON v1", () => {
                 },
             ],
         });
-        const again = createModel(model.toJSON());
+        const again = createModel(model.get("layout-json"));
         expect(again.state).toStrictEqual(model.state);
         expect(render(again)).toBe(render(model));
     });
 
     it("hands out a writable copy from toJSON", () => {
         const model = createModel(tabsets(["One"]));
-        const json = model.toJSON();
+        const json = model.get("layout-json");
         expect(Object.isFrozen(json.root)).toBe(false);
         expect(Object.isFrozen(model.state.root)).toBe(true);
     });
@@ -382,11 +382,11 @@ describe("toLayoutJson", () => {
     it("turns a kept state back into a document layout.load takes", () => {
         const model = createModel(tabsets(["One", "Two"], ["Three"]));
         const before = model.state;
-        const one = model.tabs()[0]?.id ?? "";
+        const one = model.get("tabs")[0]?.id ?? "";
         model.run("tab.close", { tab: one });
         const json = toLayoutJson(before);
         expect(json.version).toBe(1);
         expect(model.run("layout.load", { layout: json }).ok).toBe(true);
-        expect(model.toJSON()).toEqual(json);
+        expect(model.get("layout-json")).toEqual(json);
     });
 });

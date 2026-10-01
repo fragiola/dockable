@@ -33,7 +33,7 @@ const fourTabs: LayoutJson = {
 
 const engines: LayoutEngine[] = [];
 afterEach(() => {
-    for (const engine of engines.splice(0)) engine.dispose();
+    for (const engine of engines.splice(0)) engine.adapter.dispose();
     document.body.innerHTML = "";
 });
 
@@ -47,15 +47,15 @@ function setup() {
     const list = el();
     const buttons = ["t0", "t1", "t2", "t3"].map((id) => {
         const button = el();
-        engine.registerMeasurable(id, "tabbutton", button);
+        engine.adapter.registerMeasurable(id, "tabbutton", button);
         return button;
     });
     const ts0 = "ts0";
-    engine.registerTabList(ts0, list);
+    engine.adapter.registerTabList(ts0, list);
     /** lays the strip out as a browser would: the list is `width` wide; shown tabs are 80px */
     const layout = (width: number) => {
         rects.set(list, 10, 20, width, 30);
-        const hidden = new Set(engine.getHiddenTabs("ts0"));
+        const hidden = new Set(engine.adapter.getHiddenTabs("ts0"));
         let x = 10;
         buttons.forEach((button, i) => {
             if (hidden.has(`t${i}`)) {
@@ -73,74 +73,74 @@ describe("tab overflow in the engine", () => {
     it("hides the tabs that do not fit, and shows them again when the strip widens", () => {
         const s = setup();
         const listener = vi.fn();
-        s.engine.subscribeOverflow(listener);
+        s.engine.adapter.subscribeOverflow(listener);
         s.layout(400);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual([]);
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual([]);
 
         s.layout(250);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t3"]);
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t3"]);
         expect(listener).toHaveBeenCalledTimes(1);
 
         // the hidden tab measures as empty now, but its natural size is kept
         s.layout(250);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t3"]);
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t3"]);
         expect(listener).toHaveBeenCalledTimes(1); // same answer: no notification
 
         s.layout(400);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual([]);
-        expect(s.engine.getHiddenTabs("ts1")).toEqual([]); // another container
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual([]);
+        expect(s.engine.adapter.getHiddenTabs("ts1")).toEqual([]); // another container
     });
 
     it("reserves the trigger's space, measured beside the list", () => {
         const s = setup();
         s.layout(250);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t3"]);
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t3"]);
         // the trigger appears after the list, which shrinks by its 40px
         const trigger = s.el();
-        s.engine.registerOverflowTrigger(s.ts0, trigger);
+        s.engine.adapter.registerOverflowTrigger(s.ts0, trigger);
         s.layout(210);
         s.rects.set(trigger, 220, 20, 40, 30);
-        s.engine.sync();
+        s.engine.run("measure-and-position");
         // 210 + 40 = 250 of space, 40 of it for the trigger: two tabs fit
-        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
     });
 
     it("counts only the trigger's own space, whatever sits between it and the list", () => {
         const s = setup();
         s.layout(250);
-        s.engine.sync();
+        s.engine.run("measure-and-position");
         const trigger = s.el();
-        s.engine.registerOverflowTrigger(s.ts0, trigger);
+        s.engine.adapter.registerOverflowTrigger(s.ts0, trigger);
         // a 60px button between the list (shrunk by the trigger's 40px) and the trigger
         s.layout(210);
         s.rects.set(trigger, 290, 20, 40, 30);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
         // stable: the same answer on the next pass (no show/hide loop)
         s.layout(210);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
     });
 
     it("keeps the selected tab in the strip", () => {
         const s = setup();
-        s.engine.run("tab.select", { tab: "t3" });
+        s.engine.adapter.model.run("tab.select", { tab: "t3" });
         s.layout(250);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t2"]);
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t2"]);
     });
 
     it("forgets a container whose tab list unregisters", () => {
         const s = setup();
         s.layout(250);
-        s.engine.sync();
-        expect(s.engine.getHiddenTabs("ts0")).toEqual(["t3"]);
-        s.engine.registerTabList(s.ts0, null);
-        expect(s.engine.getHiddenTabs("ts0")).toEqual([]);
+        s.engine.run("measure-and-position");
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t3"]);
+        s.engine.adapter.registerTabList(s.ts0, null);
+        expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual([]);
     });
 });

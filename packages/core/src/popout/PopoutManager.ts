@@ -121,7 +121,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
     isSupportsPopout(): boolean {
         return (
             this.options.supportsPopout ??
-            isDesktop(this.engine.getCurrentWindow())
+            isDesktop(this.engine.get("owner-window"))
         );
     }
 
@@ -192,7 +192,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         if (!this.attached) {
             return;
         }
-        const layouts = this.engine.model.state.windows;
+        const layouts = this.engine.adapter.model.state.windows;
         for (const layoutId of [...this.entries.keys()]) {
             if (!layouts.some((layout) => layout.id === layoutId)) {
                 this.close(layoutId);
@@ -211,7 +211,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         if (this.entries.has(layoutId)) {
             return;
         }
-        const mainWindow = this.engine.getCurrentWindow();
+        const mainWindow = this.engine.get("owner-window");
         if (!mainWindow) {
             return; // opened once the engine is attached to a window
         }
@@ -229,7 +229,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         // the name is scoped: two models on one page may both have a "window-1"
         const popout = opener(
             url,
-            `dockable-${this.engine.idScope}${layoutId}`,
+            `dockable-${this.engine.adapter.idScope}${layoutId}`,
             features,
         );
         if (!popout) {
@@ -237,7 +237,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             this.dockBack(layoutId);
             return;
         }
-        const engine = this.engine.createPopoutEngine(layoutId);
+        const engine = this.engine.adapter.createPopoutEngine(layoutId);
         const entry: PopoutEntry<T> = {
             layoutId,
             window: popout,
@@ -256,11 +256,11 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
     /** runs `window.close` for a window layout (its tabs dock back into the main layout) */
     private dockBack(layoutId: string) {
         if (
-            this.engine.model.state.windows.some(
+            this.engine.adapter.model.state.windows.some(
                 (layout) => layout.id === layoutId,
             )
         ) {
-            this.engine.run("window.close", { window: layoutId });
+            this.engine.adapter.model.run("window.close", { window: layoutId });
         }
     }
 
@@ -273,7 +273,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         entry.closing = true; // the window's beforeunload must not dock the layout back
         this.entries.delete(layoutId);
         entry.cleanup?.();
-        entry.engine.dispose();
+        entry.engine.adapter.dispose();
         if (PopoutManager.owners.get(entry.window) === this) {
             PopoutManager.owners.delete(entry.window);
             try {
@@ -317,7 +317,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
     }
 
     private layoutOf(layoutId: string): WindowLayout<T> | undefined {
-        return this.engine.model.windowLayout(layoutId);
+        return this.engine.adapter.model.get("window", { window: layoutId });
     }
 
     private onLoad(entry: PopoutEntry<T>) {
@@ -332,7 +332,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         entry.contentRoot = undefined;
 
         const popout = entry.window;
-        const mainDocument = this.engine.getCurrentDocument();
+        const mainDocument = this.engine.get("owner-document");
         if (!mainDocument) {
             return;
         }
@@ -404,7 +404,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             ) {
                 return;
             }
-            this.engine.run(
+            this.engine.adapter.model.run(
                 "window.configure",
                 { window: entry.layoutId, rect },
                 { transient: true },
@@ -450,8 +450,10 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
      * so their content (and the framework state rendered into it) outlives the window
      */
     private rescueContent(layoutId: string) {
-        for (const tab of this.engine.model.tabs(layoutId)) {
-            this.engine.releaseMoveable(tab.id);
+        for (const tab of this.engine.adapter.model.get("tabs", {
+            layout: layoutId,
+        })) {
+            this.engine.adapter.releaseMoveable(tab.id);
         }
     }
 }

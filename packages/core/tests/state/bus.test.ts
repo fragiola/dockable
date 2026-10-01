@@ -14,8 +14,8 @@ const model2 = () => createModel(tabsets(["One", "Two"], ["Three"]));
 describe("results", () => {
     it("uses up no generated id in a dry run", () => {
         const model = model2();
-        const to = model.tabsets()[0]?.id ?? "";
-        const asked = model.can("tab.add", { component: "x", to });
+        const to = model.get("tabsets")[0]?.id ?? "";
+        const asked = model.check("tab.add", { component: "x", to });
         const added = model.run("tab.add", { component: "x", to });
         expect(asked.ok && added.ok && asked.value.tab).toBe(
             added.ok ? added.value.tab : "",
@@ -24,7 +24,7 @@ describe("results", () => {
 
     it("hands out frozen schemas from commands()", () => {
         const model = model2();
-        const info = model.commands().find((c) => c.name === "tab.select");
+        const info = model.get("commands").find((c) => c.name === "tab.select");
         expect(Object.isFrozen(info?.payloadSchema)).toBe(true);
         expect(Object.isFrozen(info?.payloadSchema.required)).toBe(true);
     });
@@ -35,8 +35,8 @@ describe("results", () => {
         const events: string[] = [];
         subscribe((event) => events.push(event.command));
         use((_ctx, next) => next());
-        const tabId = model.tabs()[1]?.id ?? "";
-        expect(can("tab.select", { tab: tabId }).ok).toBe(true);
+        const tabId = model.get("tabs")[1]?.id ?? "";
+        expect(can("tab.select", { tab: tabId })).toBe(true);
         expect(run("tab.select", { tab: tabId }).ok).toBe(true);
         expect(
             dispatch({ command: "tab.close", payload: { tab: tabId } }).ok,
@@ -98,7 +98,7 @@ describe("results", () => {
         });
         const events: unknown[] = [];
         model.subscribe((event) => events.push(event.meta));
-        const tabId = model.tabs()[0]?.id ?? "";
+        const tabId = model.get("tabs")[0]?.id ?? "";
         const meta = { source: "assistant" };
         expect(
             model.dispatch(
@@ -233,7 +233,7 @@ describe("middleware", () => {
             ok: false,
             error: { code: "vetoed", message: "closing is disabled" },
         });
-        expect(model.get("One")).toBeDefined();
+        expect(model.get("node", { node: "One" })).toBeDefined();
     });
 
     it("rewrites the payload, which is validated again", () => {
@@ -248,7 +248,7 @@ describe("middleware", () => {
             return next();
         });
         must(model.run("tab.select", { tab: "Two" }));
-        expect(model.selectedTab("ts0")?.id).toBe("One");
+        expect(model.get("selected-tab", { container: "ts0" })?.id).toBe("One");
         expect(model.run("tab.close", { tab: "One" })).toMatchObject({
             ok: false,
             error: { code: "invalid_payload", path: "/tab" },
@@ -307,7 +307,7 @@ describe("middleware", () => {
             "tab.select (in batch)",
             "tab.close (in batch)",
         ]);
-        expect(model.selectedTab("ts0")?.id).toBe("One");
+        expect(model.get("selected-tab", { container: "ts0" })?.id).toBe("One");
     });
 
     it("reports a throw as middleware_error and commits nothing", () => {
@@ -328,7 +328,7 @@ describe("middleware", () => {
         let seen: unknown;
         model.use((ctx, next) => {
             if (ctx.command === "tab.select") {
-                seen = ctx.get("n")?.type;
+                seen = ctx.get("node", { node: "n" })?.type;
             }
             return next();
         });
@@ -345,38 +345,96 @@ describe("middleware", () => {
         );
         expect(seen).toBe("tab");
     });
+
+    it("reads a node's parent through ctx.get, as the batch left it", () => {
+        const model = model2();
+        let parent: string | undefined;
+        model.use((ctx, next) => {
+            if (ctx.command === "tab.select") {
+                parent = ctx.get("parent", { node: ctx.payload.tab })?.id;
+            }
+            return next();
+        });
+        must(
+            model.run("batch", {
+                commands: [
+                    { command: "tab.move", payload: { tab: "One", to: "ts1" } },
+                    { command: "tab.select", payload: { tab: "One" } },
+                ],
+            }),
+        );
+        expect(parent).toBe("ts1");
+        expect(model.get("parent", { node: "One" })?.id).toBe("ts1");
+    });
+});
+
+describe("ctx.get", () => {
+    it("reads nothing for an unknown key or a payload without a node id", () => {
+        const model = model2();
+        const seen: unknown[] = [];
+        model.use((ctx, next) => {
+            const get = ctx.get as (key: string, payload?: unknown) => unknown;
+            seen.push(
+                get("layout-id", { node: "One" }),
+                get("node"),
+                get("One"),
+            );
+            return next();
+        });
+        must(model.run("tab.select", { tab: "One" }));
+        expect(seen).toEqual([undefined, undefined, undefined]);
+    });
 });
 
 describe("dry run", () => {
-    it("can commits nothing and emits nothing", () => {
+    it("check and can commit nothing and emit nothing", () => {
         const model = model2();
         const listener = vi.fn();
         model.subscribe(listener);
         const before = model.state;
-        expect(model.can("tab.close", { tab: "One" })).toEqual({
+        expect(model.check("tab.close", { tab: "One" })).toEqual({
             ok: true,
             value: { tab: "One" },
         });
         expect(
-            model.can("tab.move", { tab: "One", to: "ts1", location: "top" })
-                .ok,
+            model.can("tab.move", { tab: "One", to: "ts1", location: "top" }),
         ).toBe(true);
         expect(model.state).toBe(before);
         expect(listener).not.toHaveBeenCalled();
     });
 
-    it("can goes through the middleware with dryRun", () => {
+    it("can answers a boolean, check says why", () => {
+        const model = model2();
+        expect(model.can("tab.close", { tab: "One" })).toBe(true);
+        expect(model.can("tab.close", { tab: "nope" })).toBe(false);
+        expect(model.check("tab.close", { tab: "nope" })).toMatchObject({
+            ok: false,
+            error: { code: "not_found" },
+        });
+    });
+
+    it("can and check are bound", () => {
+        const model = model2();
+        const { can, check } = model;
+        expect(can("tab.close", { tab: "One" })).toBe(true);
+        expect(check("tab.close", { tab: "One" }).ok).toBe(true);
+    });
+
+    it("check goes through the middleware with dryRun", () => {
         const model = model2();
         const flags: boolean[] = [];
         model.use((ctx, next) => {
             flags.push(ctx.dryRun);
             return ctx.command === "tab.move" ? veto() : next();
         });
-        expect(model.can("tab.move", { tab: "One", to: "ts1" })).toMatchObject({
+        expect(
+            model.check("tab.move", { tab: "One", to: "ts1" }),
+        ).toMatchObject({
             ok: false,
             error: { code: "vetoed" },
         });
-        expect(flags).toEqual([true]);
+        expect(model.can("tab.move", { tab: "One", to: "ts1" })).toBe(false);
+        expect(flags).toEqual([true, true]);
     });
 });
 
@@ -509,7 +567,7 @@ describe("events", () => {
             "listener",
         );
         expect(second).toHaveBeenCalledTimes(1);
-        expect(model.selectedTab("ts0")?.id).toBe("Two");
+        expect(model.get("selected-tab", { container: "ts0" })?.id).toBe("Two");
     });
 });
 
@@ -533,7 +591,7 @@ describe("re-entrancy", () => {
             "a:tabset.activate",
             "b:tabset.activate",
         ]);
-        expect(model.activeTabset()?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
     });
 
     it("a run from a middleware is queued after the current command", () => {
@@ -551,7 +609,7 @@ describe("re-entrancy", () => {
         remove();
         expect(queued).toMatchObject({ ok: false, error: { code: "queued" } });
         expect(commands).toEqual(["tab.select", "tabset.activate"]);
-        expect(model.activeTabset()?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
     });
 });
 
@@ -596,21 +654,21 @@ describe("state", () => {
         expect(after.root).not.toBe(before.root);
         // the untouched subtree is the same object
         expect(after.root.children[1]).toBe(before.root.children[1]);
-        expect(model.get("r")).toBe(before.root.children[1]);
-        expect(model.get("a")).toBe(after.root.children[0]);
-        expect(Object.isFrozen(model.get("a"))).toBe(true);
+        expect(model.get("node", { node: "r" })).toBe(before.root.children[1]);
+        expect(model.get("node", { node: "a" })).toBe(after.root.children[0]);
+        expect(Object.isFrozen(model.get("node", { node: "a" }))).toBe(true);
     });
 
     it("keeps the id index current after moves (O(1) lookups)", () => {
         const model = model2();
         must(model.run("tab.move", { tab: "Three", to: "ts0", index: 0 }));
-        expect(model.get("ts1")).toBeUndefined();
-        expect(model.parentOf("Three")?.id).toBe("ts0");
-        expect(model.layoutOf("Three")).toBe("main");
+        expect(model.get("node", { node: "ts1" })).toBeUndefined();
+        expect(model.get("parent", { node: "Three" })?.id).toBe("ts0");
+        expect(model.get("layout-id", { node: "Three" })).toBe("main");
         expect(render(model)).toBe("/ts0/t0[Three]*,/ts0/t1[One],/ts0/t2[Two]");
     });
 
-    it("isHiddenByMaximize hides the other tabsets and the rows off the path", () => {
+    it('is("hidden-by-maximize") hides the other tabsets and the rows off the path', () => {
         const model = createModel({
             version: 1,
             root: {
@@ -632,18 +690,18 @@ describe("state", () => {
                 ],
             },
         });
-        expect(model.isHiddenByMaximize("a")).toBe(false);
+        expect(model.is("hidden-by-maximize", { node: "a" })).toBe(false);
         must(model.run("tabset.maximize", { tabset: "c", value: true }));
-        expect(model.isHiddenByMaximize("a")).toBe(true);
-        expect(model.isHiddenByMaximize("b")).toBe(true);
-        expect(model.isHiddenByMaximize("c")).toBe(false);
-        expect(model.isHiddenByMaximize("r")).toBe(false);
-        expect(model.isHiddenByMaximize("One")).toBe(false);
+        expect(model.is("hidden-by-maximize", { node: "a" })).toBe(true);
+        expect(model.is("hidden-by-maximize", { node: "b" })).toBe(true);
+        expect(model.is("hidden-by-maximize", { node: "c" })).toBe(false);
+        expect(model.is("hidden-by-maximize", { node: "r" })).toBe(false);
+        expect(model.is("hidden-by-maximize", { node: "One" })).toBe(false);
     });
 
     it("lists every command with its schemas", () => {
         const model = model2();
-        const names = model.commands().map((command) => command.name);
+        const names = model.get("commands").map((command) => command.name);
         expect(names).toEqual([
             "tab.add",
             "tab.select",
@@ -669,7 +727,7 @@ describe("state", () => {
             "layout.load",
             "batch",
         ]);
-        for (const command of model.commands()) {
+        for (const command of model.get("commands")) {
             expect(command.description.length).toBeGreaterThan(20);
             expect(command.payloadSchema).toMatchObject({ type: "object" });
             expect(command.resultSchema).toMatchObject({ type: "object" });
@@ -723,7 +781,7 @@ describe("review regressions", () => {
         );
         remove();
         unsubscribe();
-        expect(model.activeTabset()?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
     });
 
     it("copies the data and defaults it is given: never freezes or shares them", () => {
@@ -747,7 +805,7 @@ describe("review regressions", () => {
         expect(Object.isFrozen(defaults)).toBe(false);
         data.nested.count = 2;
         defaults.tab.enablePopout = false;
-        expect(model.get("a")).toMatchObject({
+        expect(model.get("node", { node: "a" })).toMatchObject({
             data: { nested: { count: 1 } },
         });
         expect(model.state.defaults.tab?.enablePopout).toBe(true);
@@ -771,7 +829,9 @@ describe("review regressions", () => {
             }),
         );
         updated.name = "changed";
-        expect(model.get("a")).toMatchObject({ data: { name: "Uno" } });
+        expect(model.get("node", { node: "a" })).toMatchObject({
+            data: { name: "Uno" },
+        });
 
         const unfrozen = createModel(tabsets(["One"]), { freeze: false });
         const shared = { name: "Shared" };
@@ -784,7 +844,9 @@ describe("review regressions", () => {
             }),
         );
         shared.name = "leaked";
-        expect(unfrozen.get("s")).toMatchObject({ data: { name: "Shared" } });
+        expect(unfrozen.get("node", { node: "s" })).toMatchObject({
+            data: { name: "Shared" },
+        });
     });
 
     it("layout.load never reuses an id of the layout it replaces for a node it creates", () => {
@@ -805,7 +867,7 @@ describe("review regressions", () => {
                 },
             }),
         );
-        const created = model.tabsets()[0]?.id;
+        const created = model.get("tabsets")[0]?.id;
         expect(created).toBeDefined();
         expect(created).not.toBe("tabset-1");
         expect(result.removed).toContain("tabset-1");

@@ -52,7 +52,7 @@ export function Borders<T extends DockableTypes = AnyTypes>(
     const { model: erased } = useDockableContext("Borders");
     const model = typedModel<T>(erased);
     const { engine, layoutId } = useLayoutContext("Borders");
-    const manager = engine.getDragDropManager();
+    const manager = engine.adapter.getDragDropManager();
     const revealed = React.useSyncExternalStore(
         manager.subscribe,
         () => manager.getIndicatorState().revealedBorder,
@@ -65,7 +65,9 @@ export function Borders<T extends DockableTypes = AnyTypes>(
             const border = model.state.borders.find(
                 (b) => b.location === location,
             );
-            const resolved = border ? model.resolve(border) : undefined;
+            const resolved = border
+                ? model.get("border-settings", { border: border.id })
+                : undefined;
             if (
                 border &&
                 resolved?.show &&

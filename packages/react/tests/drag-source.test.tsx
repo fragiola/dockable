@@ -79,7 +79,7 @@ describe("Dockable.DragSource", () => {
         const state = DragDropManager.getDragState();
         expect(state?.source).toBe("add");
         expect(state?.subjectOf(model)).toEqual({ kind: "new", tab: chart });
-        expect(state?.mainEngine.model).toBe(model);
+        expect(state?.mainEngine.adapter.model).toBe(model);
         expect(dataTransfer.types).toContain(DRAG_TYPE);
         expect(dataTransfer.effectAllowed).toBe("copy");
         expect(dataTransfer.setDragImage).toHaveBeenCalledWith(source, 10, 10);
@@ -130,7 +130,8 @@ describe("Dockable.DragSource", () => {
         expect(onDrop).toHaveBeenCalledTimes(1);
         const id = onDrop.mock.calls[0]?.[0];
         expect(typeof id).toBe("string");
-        const added = id === undefined ? undefined : model.get(id);
+        const added =
+            id === undefined ? undefined : model.get("node", { node: id });
         expect(added?.type).toBe("tab");
         expect(added?.type === "tab" ? added.data : undefined).toEqual(
             chart.data,

@@ -76,7 +76,7 @@ function MyTabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className="tab">
                             {tab.data.name}
-                            {model.can("tab.close", { tab: tab.id }).ok ? <CloseButton tab={tab} /> : null}
+                            {model.can("tab.close", { tab: tab.id }) ? <CloseButton tab={tab} /> : null}
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>
@@ -141,11 +141,11 @@ See [Geometry](/docs/concepts/geometry) for why content lives here.
 ## Anything else inside the root
 
 Any element can be a child of `Dockable.Root`: a toolbar overlay, a status bar, a component that
-calls `useDockable()` to run commands or `useModelState()` to follow the layout. Keep in mind that the root row covers the root
+calls `useDockable()` to run commands (`model.run`) or `useModelState()` to follow the layout. Keep in mind that the root row covers the root
 (`inset: 0`), so an overlay needs to be positioned and stacked.
 
 ## The lower layer
 
 Every primitive is built on a hook you can use directly: `useTabSet`, `useSplitter`,
-`useDragNode`, `useDockable`, `useModelState`. They give you the state, the ref to attach and the handlers, for
-the rare case where a primitive's element does not fit. See [Hooks](/docs/api/hooks).
+`useDragNode`, `useDockable`, `useModelState`. The part hooks return `{ state, props }`: the state, and the props (ref and handlers) to spread on
+your element, for the rare case where a primitive's element does not fit. See [Hooks](/docs/api/hooks).

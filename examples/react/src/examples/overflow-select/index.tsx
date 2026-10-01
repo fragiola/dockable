@@ -123,8 +123,8 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 
 /** A tabset whose strip ends with the overflow select: the tabs that do not fit, listed. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
-    const { run } = useDockable<Types>();
-    const { hidden } = useTabOverflow(node);
+    const { model } = useDockable<Types>();
+    const { hiddenTabs } = useTabOverflow(node);
     // a tab with no name (an icon-only tab) is named by its altName in the menu
     const label = (tab: TabOf<Types>) => tab.data.name || tab.data.altName;
 
@@ -165,22 +165,22 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     value={null}
                     onValueChange={(id) => {
                         if (typeof id === "string") {
-                            run("tab.select", { tab: id });
+                            model.run("tab.select", { tab: id });
                         }
                     }}
                 >
                     {/* the package's trigger (measured, shown only while tabs are hidden),
                         rendered as the Select's trigger */}
                     <Dockable.TabOverflowTrigger
-                        aria-label={`${hidden.length} more tabs`}
+                        aria-label={`${hiddenTabs.length} more tabs`}
                         render={
                             <Select.Trigger className="my-1 me-1 h-auto w-auto shrink-0 gap-1 self-center px-2 py-0.5 text-xs" />
                         }
                     >
-                        {`+${hidden.length}`}
+                        {`+${hiddenTabs.length}`}
                     </Dockable.TabOverflowTrigger>
                     <Select.Content>
-                        {hidden.map((tab) => (
+                        {hiddenTabs.map((tab) => (
                             <Select.Item key={tab.id} value={tab.id}>
                                 {label(tab)}
                             </Select.Item>

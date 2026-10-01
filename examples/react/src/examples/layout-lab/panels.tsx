@@ -154,7 +154,7 @@ export interface Veto {
     command: CommandName;
 }
 
-/** The switch and the command it vetoes, chosen from `model.commands()`. */
+/** The switch and the command it vetoes, chosen from `model.get("commands")`. */
 export function VetoControl({
     veto,
     commands,

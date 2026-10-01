@@ -453,7 +453,7 @@ export function stateToJson(state: AnyState): LayoutJson {
 }
 
 /**
- * A state as a layout document (a writable copy), like `model.toJSON()` for the current state:
+ * A state as a layout document (a writable copy), like `model.get("layout-json")` for the current state:
  * for a state kept from before (`event.before`, an undo step), to load it back with `layout.load`.
  */
 export function toLayoutJson<T extends DockableTypes>(

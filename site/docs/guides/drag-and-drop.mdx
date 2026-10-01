@@ -32,8 +32,8 @@ add is the **look**: the drop indicator, and the dragged tab's state.
 | the layout's outer edge | `top`, `bottom`, `left`, `right` (`kind: "edge"`) | a new tabset along the whole edge |
 
 Tabsets can be dropped too (`tabset.move`), but the React primitives start drags only from tabs
-today. `useDragNode(node)` takes a tab or a tabset node and wires it to the drag machine, if you
-build your own tabset drag handle.
+today. `useDragNode(node)` takes a tab or a tabset node and returns the `props` that wire an
+element to the drag machine, if you build your own tabset drag handle.
 
 ## The drop indicator
 

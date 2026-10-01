@@ -41,7 +41,7 @@ export interface DropIndicatorProps
 export function DropIndicator(props: DropIndicatorProps) {
     const { children, ...rest } = props;
     const { engine } = useLayoutContext("DropIndicator");
-    const manager = engine.getDragDropManager();
+    const manager = engine.adapter.getDragDropManager();
     const indicator = React.useSyncExternalStore(
         manager.subscribe,
         manager.getIndicatorState,

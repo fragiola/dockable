@@ -55,7 +55,7 @@ function renderSplitter(props: RowSplitterProps<Types>) {
 `display: none` while a tabset is maximized; `transform: translateX(…)`/`translateY(…)` during a
 non-realtime drag; `pointer-events: auto` on a border's splitter (an overlay border's content is
 `pointer-events: none`). Nothing else: its size is yours (and the engine measures it as the
-layout's splitter size, `engine.splitterSize()`).
+layout's splitter size, `engine.get("splitter-size")`).
 
 ## Commands
 

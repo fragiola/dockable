@@ -30,6 +30,10 @@
             "collapsible": true,
             "pages": [
                 {
+                    "label": "Model and engine",
+                    "path": "concepts/model-and-engine"
+                },
+                {
                     "label": "The model and commands",
                     "path": "concepts/model-and-commands"
                 },

@@ -79,7 +79,7 @@ import type { TabInitOf } from "@fragiola/dockable";
 const widget: TabInitOf<Types> = { component: "chart", data: { name: "Revenue", metric: "revenue" } };
 
 const addToActiveTabset = () => {
-    const target = model.activeTabset() ?? model.tabsets()[0];
+    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
     if (target) model.run("tab.add", { ...widget, to: target.id, select: true });
 };
 
@@ -169,8 +169,8 @@ again). `onDrop` receives the id of the tab that was actually added.
 ## Lower layers
 
 - `useDragSource({ model, tab, onDrop, disabled })` is `Dockable.DragSource` without the element:
-  spread its `draggable`, `onDragStart` and `onDragEnd` on your own
-  ([hooks](/docs/api/hooks#usedragsource)).
+  spread its `props` (`draggable`, `onDragStart`, `onDragEnd`, `ref`) on your own, and read
+  `state.dragging` ([hooks](/docs/api/hooks#usedragsource)).
 - In the core, `DragDropManager.startAddDrag(model, event, tab, onDrop?, dragImage?)` starts a
   new-tab drag from a native `dragstart` (it returns false when no layout of the model is mounted),
   and `DragDropManager.endDrag()` ends it from `dragend`. An adapter for another framework calls

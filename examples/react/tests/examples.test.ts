@@ -136,6 +136,16 @@ describe("the examples", () => {
             expect(source, `${slug}/index.tsx`).toMatch(/<Dockable\.Root\b/);
         }
     });
+
+    it("use the app's API only: never engine.adapter (an adapter's side)", () => {
+        for (const file of walk(EXAMPLES_DIR)) {
+            if (!/\.(ts|tsx)$/.test(file)) continue;
+            const source = readFileSync(file, "utf-8");
+            expect(source, relative(EXAMPLES_DIR, file)).not.toMatch(
+                /\.adapter\b/,
+            );
+        }
+    });
 });
 
 describe("the kit", () => {

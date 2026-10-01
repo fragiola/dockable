@@ -55,7 +55,7 @@ splitter has no name: `renderSplitter` is where you give it one.
 | --- | --- | --- |
 | `orientation` | `"horizontal" \| "vertical"` | `"horizontal"`: children side by side; `"vertical"`: stacked |
 | `root` | `boolean` | the layout's root row |
-| `hidden` | `boolean` | a tabset of the layout is maximized outside this row, so the row is hidden (`model.isHiddenByMaximize(id)`) |
+| `hidden` | `boolean` | a tabset of the layout is maximized outside this row, so the row is hidden (`model.is("hidden-by-maximize", { node })`) |
 
 ## Data attributes
 
@@ -69,7 +69,7 @@ splitter has no name: `renderSplitter` is where you give it one.
 
 `display: flex` (`none` while a tabset maximized outside the row fills the layout), `flex-direction` (`row` or `column`), `flex-basis: 0`, `flex-grow` from the
 weight (at least 1), `min-width`/`min-height`/`max-width`/`max-height` from the engine
-(`engine.minMax(id)`, aggregated from the tabsets inside), `overflow: hidden`. The root row adds
+(`engine.get("size-limits", { node })`, aggregated from the tabsets inside), `overflow: hidden`. The root row adds
 `position: absolute; inset: 0` to fill the root.
 
 ## Notes
