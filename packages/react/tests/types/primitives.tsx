@@ -192,3 +192,27 @@ export function Group() {
     });
     return null;
 }
+
+// Names: a part is named by its own props (`aria-label`, `render`); there is no label resolver
+export const named = (
+    <Dockable.Root
+        model={model}
+        // @ts-expect-error: the root takes no label resolver
+        getLabel={() => "Resize"}
+    >
+        <Dockable.Row<Types>
+            renderSplitter={(props) => (
+                <Dockable.Splitter {...props} aria-label="Resize" />
+            )}
+        >
+            {() => null}
+        </Dockable.Row>
+    </Dockable.Root>
+);
+
+export function NoLabelResolver() {
+    const dockable = useDockable<Types>();
+    // @ts-expect-error: useDockable returns no label resolver
+    void dockable.getLabel;
+    return null;
+}

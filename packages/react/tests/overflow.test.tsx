@@ -86,14 +86,14 @@ function OverflowLayout({
 function BareLayout({
     model,
     overflow,
-    getLabel,
+    label,
 }: {
     model: Model<Types>;
     overflow?: boolean;
-    getLabel?: (key: string) => string;
+    label?: string;
 }) {
     return (
-        <Dockable.Root model={model} getLabel={getLabel}>
+        <Dockable.Root model={model}>
             <Dockable.Row<Types>>
                 {(tabset) =>
                     tabset.type === "tabset" ? (
@@ -101,7 +101,10 @@ function BareLayout({
                             <Dockable.TabList<Types> overflow={overflow}>
                                 {(tab) => <Dockable.Tab node={tab} />}
                             </Dockable.TabList>
-                            <Dockable.TabOverflowTrigger data-testid="trigger" />
+                            <Dockable.TabOverflowTrigger
+                                data-testid="trigger"
+                                aria-label={label}
+                            />
                         </Dockable.TabSet>
                     ) : null
                 }
@@ -244,13 +247,12 @@ describe("Dockable.TabOverflowTrigger follows the primitive contract", () => {
         expect(trigger.textContent).toBe("");
     });
 
-    it("names itself through getLabel", () => {
-        render(
-            <BareLayout model={load()} getLabel={(key) => `label:${key}`} />,
-        );
-        expect(screen.getByTestId("trigger")).toHaveAttribute(
-            "aria-label",
-            "label:dockable.overflow.menu.tooltip",
-        );
+    it("has no name of its own, and takes the consumer's aria-label", () => {
+        const { unmount } = render(<BareLayout model={load()} />);
+        expect(screen.getByTestId("trigger")).not.toHaveAttribute("aria-label");
+        unmount();
+
+        render(<BareLayout model={load()} label="More tabs" />);
+        expect(screen.getByTestId("trigger")).toHaveAccessibleName("More tabs");
     });
 });

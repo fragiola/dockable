@@ -1,11 +1,6 @@
-import {
-    type AnyTypes,
-    DockableLabel,
-    type DockableTypes,
-    type TabOf,
-} from "@fragiola/dockable";
+import type { AnyTypes, DockableTypes, TabOf } from "@fragiola/dockable";
 import * as React from "react";
-import { useDockableContext, useLayoutContext } from "./context";
+import { useLayoutContext } from "./context";
 import { useTabOverflow } from "./hooks";
 import { useTabContainer } from "./TabSet";
 import {
@@ -39,14 +34,13 @@ export interface TabOverflowTriggerProps<T extends DockableTypes = AnyTypes>
  * engine reserves the space it takes in the strip. It renders no menu: make it your menu's trigger
  * (`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`, typed with
  * `<Dockable.TabOverflowTrigger<Types>>`), and select with `tab.select`, which brings the tab into
- * the strip.
+ * the strip. It has no name of its own: give it an `aria-label`.
  */
 export function TabOverflowTrigger<T extends DockableTypes = AnyTypes>(
     props: TabOverflowTriggerProps<T>,
 ) {
     const { children, ...rest } = props;
     const container = useTabContainer<T>("TabOverflowTrigger");
-    const { getLabel } = useDockableContext("TabOverflowTrigger");
     const { engine } = useLayoutContext("TabOverflowTrigger");
     const { hidden } = useTabOverflow(container);
     const id = container.id;
@@ -65,7 +59,6 @@ export function TabOverflowTrigger<T extends DockableTypes = AnyTypes>(
         ref,
         props: {
             type: "button",
-            "aria-label": getLabel?.(DockableLabel.Overflow_Menu_Tooltip),
             ...dataAttributes({
                 // FlexLayout's path for a tabset's overflow button
                 "layout-path": `${engine.path(id)}/button/overflow`,

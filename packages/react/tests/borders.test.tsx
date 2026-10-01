@@ -257,6 +257,33 @@ describe("Dockable.Borders", () => {
         expect(path("/border/bottom/s-1")).toBeNull();
     });
 
+    it("leaves a border's splitter unnamed, and names it through aria-label in renderSplitter", () => {
+        const { unmount } = render(<BorderLayout model={load(ideBorders)} />);
+        expect(element("/border/bottom/s-1")).not.toHaveAttribute("aria-label");
+        unmount();
+
+        render(
+            <BorderLayout
+                model={load(ideBorders)}
+                renderContent={(border) => (
+                    <Dockable.BorderContent
+                        node={border}
+                        renderSplitter={(node) => (
+                            <Dockable.Splitter
+                                node={node}
+                                aria-label="Resize"
+                            />
+                        )}
+                    />
+                )}
+            />,
+        );
+        expect(element("/border/bottom/s-1")).toHaveAttribute(
+            "aria-label",
+            "Resize",
+        );
+    });
+
     it("renders nothing but the main area when the model has no borders", () => {
         render(<BorderLayout model={load(twoTabsets)} />);
         expect(path("/borders")).not.toHaveAttribute("data-borders");

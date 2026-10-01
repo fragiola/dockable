@@ -42,7 +42,6 @@ const PORTED = [
     "src/popout/PopoutManager.ts",
     "src/splitter/SplitterController.ts",
     "src/keyboard/keymap.ts",
-    "src/labels/DockableLabel.ts",
     "src/paths.ts",
     "tests/keyboard/KeyMap.test.ts",
 ];

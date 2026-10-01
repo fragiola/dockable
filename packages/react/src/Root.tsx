@@ -20,7 +20,6 @@ import {
     type DockableContextValue,
     eraseEngine,
     eraseModel,
-    type GetLabel,
     LayoutContext,
     ModelContext,
     type PanelLayer,
@@ -51,11 +50,6 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
      * (`layout.load`). A new model identity creates a new engine.
      */
     model: Model<T>;
-    /**
-     * resolves label keys to text (accessible names); with no resolver the primitives render
-     * no text of their own
-     */
-    getLabel?: GetLabel | undefined;
     /** keyboard bindings, merged over `defaultKeyMap` */
     keyMap?: IKeyMap | undefined;
     /** true (default) to resize live while dragging a splitter; false to preview and commit on release */
@@ -96,7 +90,6 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
 export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     const {
         model: typedModel,
-        getLabel,
         keyMap,
         realtimeResize,
         tabDragSpeed,
@@ -277,13 +270,12 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             engine,
             model,
             revision,
-            getLabel,
             keyMap: resolvedKeyMap,
             layers,
             setLayer,
             popoutHooks,
         }),
-        [engine, model, revision, getLabel, resolvedKeyMap, layers, setLayer],
+        [engine, model, revision, resolvedKeyMap, layers, setLayer],
     );
     const layoutContext = React.useMemo(
         () => ({ layoutId: MAIN_LAYOUT, engine }),
