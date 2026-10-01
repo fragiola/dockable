@@ -2,23 +2,29 @@
 
 import {
     createModel,
-    getSplitterPath,
     type LayoutJson,
     type RowNode,
     type TabsetNode,
 } from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
-    useDockable,
-    useSplitter,
-} from "@fragiola/dockable-react";
+import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import * as styles from "./styles";
 
-type Types = { tabs: { card: { name: string } } };
+// A thin line with a framed handle on it: a pill with a border, a shadow and two grip lines,
+// centred on the splitter. The splitter itself stays 8px thick (the engine measures the element,
+// not its children), so the pill is wider than the bar and overflows it on both sides; the line is
+// the bar's `::before`. Hover, `data-dragging` and keyboard focus restyle the pill, read from the
+// splitter through `group-…/splitter:` classes.
 
+type Types = {
+    tabs: {
+        chart: { name: string; kind: ChartKind };
+        kpi: { name: string; seed: number };
+    };
+};
+
+// One column beside a row of two: the splitters run both ways.
 const json: LayoutJson<Types> = {
     version: 1,
     root: {
@@ -27,7 +33,10 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 weight: 35,
-                children: [{ component: "card", data: { name: "Library" } }],
+                children: [
+                    { component: "kpi", data: { name: "Revenue", seed: 3 } },
+                    { component: "kpi", data: { name: "Orders", seed: 9 } },
+                ],
             },
             {
                 type: "row",
@@ -37,15 +46,24 @@ const json: LayoutJson<Types> = {
                         type: "tabset",
                         weight: 60,
                         children: [
-                            { component: "card", data: { name: "Draft" } },
-                            { component: "card", data: { name: "Outline" } },
+                            {
+                                component: "chart",
+                                data: { name: "Traffic", kind: "area" },
+                            },
                         ],
                     },
                     {
                         type: "tabset",
                         weight: 40,
                         children: [
-                            { component: "card", data: { name: "Comments" } },
+                            {
+                                component: "chart",
+                                data: { name: "Channels", kind: "bar" },
+                            },
+                            {
+                                component: "chart",
+                                data: { name: "Share", kind: "pie" },
+                            },
                         ],
                     },
                 ],
@@ -54,24 +72,39 @@ const json: LayoutJson<Types> = {
     },
 };
 
-export default function SplitterWide() {
+export default function SplitterFramedHandle() {
+    // The model is the source of truth: create it once, the layout renders from it.
     const [model] = useState(() => createModel<Types>(json));
     return (
+        // The root needs a size: the wrapper gives it one, and the gutter around it.
         <div className={styles.frame}>
             <Dockable.Root model={model} className={styles.root}>
-                {/* every splitter of every row is the WideSplitter below */}
+                {/* The layout's rows and tabsets: the developer owns the recursion. */}
                 <Dockable.Row<Types>
-                    renderSplitter={(props) => <WideSplitter {...props} />}
+                    renderSplitter={(props) => <FramedSplitter {...props} />}
                 >
                     {renderNode}
                 </Dockable.Row>
+                {/* Every tab's content, positioned by the engine over its tabset. */}
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            {tab.component === "chart" ? (
+                                <ChartPanel
+                                    kind={tab.data.kind}
+                                    seed={tab.data.name.length}
+                                    title={tab.data.name}
+                                />
+                            ) : (
+                                <KpiPanel
+                                    label={tab.data.name}
+                                    seed={tab.data.seed}
+                                />
+                            )}
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
+                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
                 <Dockable.DropIndicator
                     className={styles.dropIndicator}
                     style={(state) => ({
@@ -89,7 +122,7 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
         return (
             <Dockable.Row
                 node={node}
-                renderSplitter={(props) => <WideSplitter {...props} />}
+                renderSplitter={(props) => <FramedSplitter {...props} />}
             >
                 {renderNode}
             </Dockable.Row>
@@ -127,44 +160,20 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
 }
 
 /**
- * A wide splitter: the element is 12px thick, and the engine measures it, so the panes leave that
- * much room between them and the whole bar is a grab area. It is built on the lower layer,
- * `useSplitter`, instead of `Dockable.Splitter`: the hook gives its state (`dragging`,
- * `orientation`) and the props of the separator element (the ref, `role`, the ARIA values, the
- * pointer and keyboard handlers, and the structural style that hides it while a tabset is
- * maximized). While you drag or focus it, a bubble shows `aria-valuetext`: where the splitter sits
- * in its row.
+ * The bar between two children of a row: a 1px line with a framed handle in the middle.
+ * `data-orientation` is the ARIA one: "vertical" is a bar between side-by-side panes.
  */
-function WideSplitter({ node, index }: RowSplitterProps<Types>) {
-    const { state, props } = useSplitter(node, index);
-    // the path (`/r0/s0`) comes from the row's own, which the engine knows by id
-    const { engine } = useDockable<Types>();
-    // the separator's orientation: "vertical" is a bar between side-by-side panes
-    const vertical = state.orientation === "vertical";
+function FramedSplitter(props: RowSplitterProps<Types>) {
     return (
-        // biome-ignore lint/a11y/useSemanticElements: a focusable separator widget with a grip; an <hr> cannot hold children
-        // biome-ignore lint/a11y/useFocusableInteractive: tabIndex={0} comes in props
-        <div
+        <Dockable.Splitter
             {...props}
-            // biome-ignore lint/a11y/useAriaPropsForRole: aria-valuenow and the rest come in props
-            role="separator"
-            // a splitter has no name of its own: the app gives it one
             aria-label="Resize"
-            data-layout-path={getSplitterPath(
-                engine.get("layout-path-by", { nodeId: node.id }),
-                index,
-            )}
-            data-orientation={state.orientation}
-            data-dragging={state.dragging ? "" : undefined}
-            className={styles.splitter(vertical)}
+            className={styles.splitter}
         >
-            <span
-                aria-hidden="true"
-                data-testid="splitter-readout"
-                className={styles.splitterReadout}
-            >
-                {props["aria-valuetext"]}
+            <span aria-hidden="true" className={styles.handle}>
+                <span className={styles.handleLine} />
+                <span className={styles.handleLine} />
             </span>
-        </div>
+        </Dockable.Splitter>
     );
 }

@@ -1,8 +1,10 @@
 import type { DropIndicatorState } from "@fragiola/dockable-react";
 import { cn } from "#/lib/cn";
 
-// How splitter-wide looks: one class string per part, read by index.tsx.
+// How splitter-framed-handle looks: one class string per part, read by index.tsx.
 
+/** The root needs a size; the gutter goes on this wrapper (padding on the root would not move
+ * its row, which is `position: absolute; inset: 0`). */
 export const frame = "flex min-h-0 flex-1 flex-col p-(--dk-gap)";
 
 export const root =
@@ -48,21 +50,40 @@ export const tabName = "truncate";
 export const tabMarker =
     "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]";
 
-// ─── the wide splitter ───
+/**
+ * 8px thick (`w-2`/`h-2`): what the engine measures, and the grab area. What you see is its
+ * `::before`, a 1px line along it, in the ring colour while dragged.
+ */
+export const splitter = cn(
+    "group/splitter relative z-10 flex shrink-0 items-center justify-center outline-none",
+    "before:absolute before:bg-palette-line before:transition-colors before:duration-(--dk-motion)",
+    "data-dragging:before:bg-palette-ring",
+    // side by side: a vertical bar
+    "data-[orientation=vertical]:w-2 data-[orientation=vertical]:cursor-ew-resize",
+    "data-[orientation=vertical]:before:inset-y-0 data-[orientation=vertical]:before:w-px",
+    // stacked: a horizontal bar
+    "data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:cursor-ns-resize",
+    "data-[orientation=horizontal]:before:inset-x-0 data-[orientation=horizontal]:before:h-px",
+);
 
-/** 12px thick (`w-3`/`h-3`, the engine measures it): a soft track that darkens on hover and
- * takes the ring colour while dragged. `vertical` is a bar between side-by-side panes. */
-export const splitter = (vertical: boolean) =>
-    cn(
-        "group/splitter relative z-10 flex shrink-0 items-center justify-center rounded-full bg-palette-soft outline-none",
-        "transition-colors duration-(--dk-motion) hover:bg-palette-line",
-        "data-dragging:bg-palette-ring/50 focus-visible:ring-2 focus-visible:ring-palette-ring",
-        vertical ? "w-3 cursor-ew-resize" : "h-3 cursor-ns-resize",
-    );
+/**
+ * The handle: a raised pill, wider than the bar it sits on (it overflows the splitter, which
+ * paints above the panes: `z-10`). Its frame darkens on hover, takes the ring colour while
+ * dragged, and shows a ring on keyboard focus.
+ */
+export const handle = cn(
+    "palette-raised pointer-events-none relative flex items-center justify-center gap-0.5 rounded-full",
+    "border border-palette-line bg-palette-base shadow-sm transition-colors duration-(--dk-motion)",
+    "group-hover/splitter:border-palette-accent",
+    "group-data-dragging/splitter:border-palette-ring group-data-dragging/splitter:bg-palette-soft",
+    "group-focus-visible/splitter:ring-2 group-focus-visible/splitter:ring-palette-ring",
+    "group-data-[orientation=vertical]/splitter:h-10 group-data-[orientation=vertical]/splitter:w-3.5 group-data-[orientation=vertical]/splitter:flex-row",
+    "group-data-[orientation=horizontal]/splitter:h-3.5 group-data-[orientation=horizontal]/splitter:w-10 group-data-[orientation=horizontal]/splitter:flex-col",
+);
 
-/** The bubble with `aria-valuetext`, centred on the bar while it is dragged or focused. */
-export const splitterReadout = cn(
-    "palette-blue pointer-events-none absolute start-1/2 top-1/2 hidden -translate-1/2 rounded-md bg-palette-base px-1.5 py-0.5 rtl:translate-x-1/2",
-    "text-xs font-medium tabular-nums text-palette-contrast shadow-sm",
-    "group-focus-visible/splitter:block group-data-dragging/splitter:block",
+/** The two grip lines on the pill, along the bar. */
+export const handleLine = cn(
+    "rounded-full bg-palette-accent/60",
+    "group-data-[orientation=vertical]/splitter:h-4 group-data-[orientation=vertical]/splitter:w-px",
+    "group-data-[orientation=horizontal]/splitter:h-px group-data-[orientation=horizontal]/splitter:w-4",
 );

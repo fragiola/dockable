@@ -1,8 +1,10 @@
 import type { DropIndicatorState } from "@fragiola/dockable-react";
 import { cn } from "#/lib/cn";
 
-// How splitter-wide looks: one class string per part, read by index.tsx.
+// How splitter-dotted-handle looks: one class string per part, read by index.tsx.
 
+/** The root needs a size; the gutter goes on this wrapper (padding on the root would not move
+ * its row, which is `position: absolute; inset: 0`). */
 export const frame = "flex min-h-0 flex-1 flex-col p-(--dk-gap)";
 
 export const root =
@@ -48,21 +50,24 @@ export const tabName = "truncate";
 export const tabMarker =
     "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]";
 
-// ─── the wide splitter ───
+/** 8px thick (`w-2`/`h-2`, the engine measures it): the whole bar is the grab area. */
+export const splitter = cn(
+    "group/splitter relative z-10 flex shrink-0 items-center justify-center rounded-full outline-none",
+    "transition-colors duration-(--dk-motion) hover:bg-palette-soft",
+    "focus-visible:ring-2 focus-visible:ring-palette-ring",
+    "data-[orientation=vertical]:w-2 data-[orientation=vertical]:cursor-ew-resize",
+    "data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:cursor-ns-resize",
+);
 
-/** 12px thick (`w-3`/`h-3`, the engine measures it): a soft track that darkens on hover and
- * takes the ring colour while dragged. `vertical` is a bar between side-by-side panes. */
-export const splitter = (vertical: boolean) =>
-    cn(
-        "group/splitter relative z-10 flex shrink-0 items-center justify-center rounded-full bg-palette-soft outline-none",
-        "transition-colors duration-(--dk-motion) hover:bg-palette-line",
-        "data-dragging:bg-palette-ring/50 focus-visible:ring-2 focus-visible:ring-palette-ring",
-        vertical ? "w-3 cursor-ew-resize" : "h-3 cursor-ns-resize",
-    );
+/** The dots line up along the bar: a column in a vertical splitter, a row in a horizontal one. */
+export const grip = cn(
+    "pointer-events-none flex gap-1",
+    "group-data-[orientation=vertical]/splitter:flex-col group-data-[orientation=horizontal]/splitter:flex-row",
+);
 
-/** The bubble with `aria-valuetext`, centred on the bar while it is dragged or focused. */
-export const splitterReadout = cn(
-    "palette-blue pointer-events-none absolute start-1/2 top-1/2 hidden -translate-1/2 rounded-md bg-palette-base px-1.5 py-0.5 rtl:translate-x-1/2",
-    "text-xs font-medium tabular-nums text-palette-contrast shadow-sm",
-    "group-focus-visible/splitter:block group-data-dragging/splitter:block",
+/** A dot: darker on hover, larger and in the ring colour while the splitter is dragged. */
+export const dot = cn(
+    "size-1 rounded-full bg-palette-line transition-[background-color,scale] duration-(--dk-motion)",
+    "group-hover/splitter:bg-palette-accent",
+    "group-data-dragging/splitter:scale-150 group-data-dragging/splitter:bg-palette-ring",
 );
