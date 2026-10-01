@@ -7,7 +7,6 @@ import { cn } from "#/lib/cn";
 import { PanelBody } from "../_kit/card";
 import { ChartPanel } from "../_kit/charts";
 import { ORDERS, TablePanel } from "../_kit/data";
-import * as styles from "../_kit/styles";
 
 // The factory: a tab's `component` picks what renders, and its `data` parameterises it. Both
 // are plain JSON, so a saved layout restores the same content. The registry below types each
@@ -103,7 +102,11 @@ function ContactForm({ values }: { values: ContactFormData["values"] }) {
                 <div className="flex items-center gap-3">
                     <button
                         type="submit"
-                        className={cn("palette-blue", styles.solidButton)}
+                        className={cn(
+                            "palette-blue inline-flex h-8 items-center gap-1.5 rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast",
+                            "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
+                            "disabled:pointer-events-none disabled:opacity-50",
+                        )}
                     >
                         Send
                     </button>
