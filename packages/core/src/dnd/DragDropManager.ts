@@ -794,7 +794,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         if (subject.kind === "tabset") {
             return {
                 command: "tabset.move",
-                payload: { tabset: subject.tabset.id, ...placement },
+                payload: { tabsetId: subject.tabset.id, ...placement },
             };
         }
         if (subject.kind === "new") {
@@ -824,7 +824,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         }
         return {
             command: "tab.move",
-            payload: { tab: subject.tab.id, ...placement },
+            payload: { tabId: subject.tab.id, ...placement },
         };
     }
 
@@ -871,7 +871,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                             subject.kind !== "tab" ||
                             state.mainEngine.adapter.model.can(
                                 "tab.close",
-                                { tab: subject.tab.id },
+                                { tabId: subject.tab.id },
                                 transfer,
                             ));
             this.verdicts.set(key, verdict);
@@ -1097,7 +1097,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         if (target.command === "tab.add") {
             const result = model.run("tab.add", target.payload);
             state.onNewTabDropped?.(
-                result.ok ? result.value.tab : undefined,
+                result.ok ? result.value.tabId : undefined,
                 event,
             );
         } else if (target.command === "tabset.move") {

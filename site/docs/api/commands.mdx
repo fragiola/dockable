@@ -39,11 +39,11 @@ Add a new tab. `component` names what the tab shows and `data` holds its state (
 | `index` | `integer` | no | for a center drop: the insertion index; -1 appends |
 | `select` | `boolean` | no | whether the tab is selected in its new place |
 
-**Result** (`{ tab: string }`)
+**Result** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
@@ -66,56 +66,56 @@ model.run("tab.add", {
 
 Select a tab, making it visible. In a tabset the tabset also becomes the active one; in a border the border's panel opens. Selecting the selected tab changes nothing.
 
-**Payload** (`{ tab: string }`)
+**Payload** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
-**Result** (`{ tab: string }`)
+**Result** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("tab.select", {
-    tab: "tab-1"
+    tabId: "tab-1"
 });
 ```
 
 ```json
-{ "command": "tab.select", "payload": {"tab":"tab-1"} }
+{ "command": "tab.select", "payload": {"tabId":"tab-1"} }
 ```
 
 ### `tab.close`
 
 Close a tab and remove it from the layout. Refused for a pinned tab or one whose enableClose is false.
 
-**Payload** (`{ tab: string }`)
+**Payload** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
-**Result** (`{ tab: string }`)
+**Result** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tab.close", {
-    tab: "tab-1"
+    tabId: "tab-1"
 });
 ```
 
 ```json
-{ "command": "tab.close", "payload": {"tab":"tab-1"} }
+{ "command": "tab.close", "payload": {"tabId":"tab-1"} }
 ```
 
 ### `tab.move`
@@ -126,30 +126,30 @@ Move a tab to another place: into a tabset or border at an index (location cente
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 | `to` | `string` | yes | a tabset, a row, a border, or a layout id (its root row) |
 | `location` | `"center" \| "top" \| "bottom" \| "left" \| "right"` | no | center (default) goes into the target; an edge of a tabset splits it; an edge of a row docks beside its children |
 | `index` | `integer` | no | for a center drop: the insertion index; -1 appends |
 | `select` | `boolean` | no | whether the tab is selected in its new place |
 
-**Result** (`{ tab: string }`)
+**Result** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tab.move", {
-    tab: "tab-1",
+    tabId: "tab-1",
     to: "tabset-2",
     location: "right"
 });
 ```
 
 ```json
-{ "command": "tab.move", "payload": {"tab":"tab-1","to":"tabset-2","location":"right"} }
+{ "command": "tab.move", "payload": {"tabId":"tab-1","to":"tabset-2","location":"right"} }
 ```
 
 ### `tab.update`
@@ -160,21 +160,21 @@ Replace a tab's data (and optionally switch its component). `data` is the whole 
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 | `component` | `string` | yes | the tab's component (its current one to keep it) |
 | `data` | `JSON` | no | the app's data (any JSON value) |
 
-**Result** (`{ tab: string }`)
+**Result** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("tab.update", {
-    tab: "tab-1",
+    tabId: "tab-1",
     component: "editor",
     data: {
         name: "b.ts",
@@ -184,66 +184,66 @@ model.run("tab.update", {
 ```
 
 ```json
-{ "command": "tab.update", "payload": {"tab":"tab-1","component":"editor","data":{"name":"b.ts","path":"/b.ts"}} }
+{ "command": "tab.update", "payload": {"tabId":"tab-1","component":"editor","data":{"name":"b.ts","path":"/b.ts"}} }
 ```
 
 ### `tab.pin`
 
 Pin (value true) or unpin a tab of a tabset. Pinned tabs sit at the start of the strip, cannot be closed and cannot be dragged out of their tabset.
 
-**Payload** (`{ tab: string; value: boolean }`)
+**Payload** (`{ tabId: string; value: boolean }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 | `value` | `boolean` | yes | true pins, false unpins |
 
-**Result** (`{ tab: string }`)
+**Result** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tab.pin", {
-    tab: "tab-1",
+    tabId: "tab-1",
     value: true
 });
 ```
 
 ```json
-{ "command": "tab.pin", "payload": {"tab":"tab-1","value":true} }
+{ "command": "tab.pin", "payload": {"tabId":"tab-1","value":true} }
 ```
 
 ### `tab.popout`
 
 Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts, is pinned or is already in a window.
 
-**Payload** (`{ tab: string; rect?: Rect }`)
+**Payload** (`{ tabId: string; rect?: Rect }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 | `rect` | `object` | no | the window's screen rect; without one, a 600x400 window offset 50px per open window (engine.popout passes the tab's place on screen) |
 
-**Result** (`{ window: string }`)
+**Result** (`{ windowId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `window` | `string` | yes | the new window's id |
+| `windowId` | `string` | yes | the new window's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tab.popout", {
-    tab: "tab-1"
+    tabId: "tab-1"
 });
 ```
 
 ```json
-{ "command": "tab.popout", "payload": {"tab":"tab-1"} }
+{ "command": "tab.popout", "payload": {"tabId":"tab-1"} }
 ```
 
 ### `tab.configure`
@@ -254,7 +254,7 @@ Change a tab's behaviour flags and size limits. A null value removes the tab's o
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 | `enableClose` | `boolean \| null` | no | whether the tab can be closed (null removes it: the layout default applies) |
 | `enableDrag` | `boolean \| null` | no | whether the tab can be dragged (null removes it: the layout default applies) |
 | `enablePopout` | `boolean \| null` | no | whether the tab can be popped out into a window (null removes it: the layout default applies) |
@@ -265,23 +265,23 @@ Change a tab's behaviour flags and size limits. A null value removes the tab's o
 | `borderWidth` | `number \| null` | no | its panel's width in a left or right border, in px (null removes it: the layout default applies) |
 | `borderHeight` | `number \| null` | no | its panel's height in a top or bottom border, in px (null removes it: the layout default applies) |
 
-**Result** (`{ tab: string }`)
+**Result** (`{ tabId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tab` | `string` | yes | the tab's id |
+| `tabId` | `string` | yes | the tab's id |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("tab.configure", {
-    tab: "tab-1",
+    tabId: "tab-1",
     enableClose: false
 });
 ```
 
 ```json
-{ "command": "tab.configure", "payload": {"tab":"tab-1","enableClose":false} }
+{ "command": "tab.configure", "payload": {"tabId":"tab-1","enableClose":false} }
 ```
 
 ## Tabsets
@@ -290,86 +290,86 @@ model.run("tab.configure", {
 
 Make a tabset the active one of its layout.
 
-**Payload** (`{ tabset: string }`)
+**Payload** (`{ tabsetId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 
-**Result** (`{ tabset: string }`)
+**Result** (`{ tabsetId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("tabset.activate", {
-    tabset: "tabset-1"
+    tabsetId: "tabset-1"
 });
 ```
 
 ```json
-{ "command": "tabset.activate", "payload": {"tabset":"tabset-1"} }
+{ "command": "tabset.activate", "payload": {"tabsetId":"tabset-1"} }
 ```
 
 ### `tabset.maximize`
 
 Maximize a tabset so it fills its layout (value true), or restore it (value false). Maximizing also makes it active. Refused when the tabset does not allow it or is the only tabset of its layout.
 
-**Payload** (`{ tabset: string; value: boolean }`)
+**Payload** (`{ tabsetId: string; value: boolean }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 | `value` | `boolean` | yes | true maximizes, false restores |
 
-**Result** (`{ tabset: string }`)
+**Result** (`{ tabsetId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tabset.maximize", {
-    tabset: "tabset-1",
+    tabsetId: "tabset-1",
     value: true
 });
 ```
 
 ```json
-{ "command": "tabset.maximize", "payload": {"tabset":"tabset-1","value":true} }
+{ "command": "tabset.maximize", "payload": {"tabsetId":"tabset-1","value":true} }
 ```
 
 ### `tabset.close`
 
 Close a tabset: its closable tabs close, and the tabset is removed once empty. Refused when the tabset's enableClose is false.
 
-**Payload** (`{ tabset: string }`)
+**Payload** (`{ tabsetId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 
-**Result** (`{ closed: string[] }`)
+**Result** (`{ closedTabIds: string[] }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `closed` | `string[]` | yes | the ids of the tabs that closed |
+| `closedTabIds` | `string[]` | yes | the ids of the tabs that closed |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tabset.close", {
-    tabset: "tabset-1"
+    tabsetId: "tabset-1"
 });
 ```
 
 ```json
-{ "command": "tabset.close", "payload": {"tabset":"tabset-1"} }
+{ "command": "tabset.close", "payload": {"tabsetId":"tabset-1"} }
 ```
 
 ### `tabset.move`
@@ -380,58 +380,58 @@ Move a whole tabset: merge its tabs into another tabset (location center), place
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 | `to` | `string` | yes | a tabset, a row, or a layout id (its root row) |
 | `location` | `"center" \| "top" \| "bottom" \| "left" \| "right"` | no | center (default) merges its tabs into the target; an edge of a tabset places it beside; an edge of a row docks it there |
 | `index` | `integer` | no | for a merge: where its tabs go; -1 appends |
 
-**Result** (`{ tabset: string }`)
+**Result** (`{ tabsetId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tabset.move", {
-    tabset: "tabset-1",
+    tabsetId: "tabset-1",
     to: "main",
     location: "bottom"
 });
 ```
 
 ```json
-{ "command": "tabset.move", "payload": {"tabset":"tabset-1","to":"main","location":"bottom"} }
+{ "command": "tabset.move", "payload": {"tabsetId":"tabset-1","to":"main","location":"bottom"} }
 ```
 
 ### `tabset.popout`
 
 Open a whole tabset in a new browser window. Refused when any of its tabs does not allow popouts, when it is empty, or when it is already in a window.
 
-**Payload** (`{ tabset: string; rect?: Rect }`)
+**Payload** (`{ tabsetId: string; rect?: Rect }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 | `rect` | `object` | no | the window's screen rect; without one, a 600x400 window offset 50px per open window (engine.popout passes the tabset's place on screen) |
 
-**Result** (`{ window: string }`)
+**Result** (`{ windowId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `window` | `string` | yes | the new window's id |
+| `windowId` | `string` | yes | the new window's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("tabset.popout", {
-    tabset: "tabset-1"
+    tabsetId: "tabset-1"
 });
 ```
 
 ```json
-{ "command": "tabset.popout", "payload": {"tabset":"tabset-1"} }
+{ "command": "tabset.popout", "payload": {"tabsetId":"tabset-1"} }
 ```
 
 ### `tabset.configure`
@@ -442,7 +442,7 @@ Change a tabset's behaviour flags, size limits or data. A null value removes the
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 | `enableDrop` | `boolean \| null` | no | whether tabs can be dropped into it (null removes it: the layout default applies) |
 | `enableDrag` | `boolean \| null` | no | whether the whole tabset can be dragged (null removes it: the layout default applies) |
 | `enableDivide` | `boolean \| null` | no | whether a drop on one of its edges can split it (null removes it: the layout default applies) |
@@ -456,23 +456,23 @@ Change a tabset's behaviour flags, size limits or data. A null value removes the
 | `maxHeight` | `number \| null` | no | the largest height, in px (null removes it: the layout default applies) |
 | `data` | `JSON` | no | the app's data (any JSON value) |
 
-**Result** (`{ tabset: string }`)
+**Result** (`{ tabsetId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabset` | `string` | yes | the tabset's id |
+| `tabsetId` | `string` | yes | the tabset's id |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("tabset.configure", {
-    tabset: "tabset-1",
+    tabsetId: "tabset-1",
     enableMaximize: false
 });
 ```
 
 ```json
-{ "command": "tabset.configure", "payload": {"tabset":"tabset-1","enableMaximize":false} }
+{ "command": "tabset.configure", "payload": {"tabsetId":"tabset-1","enableMaximize":false} }
 ```
 
 ## Rows
@@ -483,24 +483,24 @@ Set the relative weights of a row's children, one positive number per child in o
 
 It may run as a step of a continuous gesture: `model.run(…, { transient: true })`.
 
-**Payload** (`{ row: string; weights: number[] }`)
+**Payload** (`{ rowId: string; weights: number[] }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `row` | `string` | yes | the row's id |
+| `rowId` | `string` | yes | the row's id |
 | `weights` | `number[]` | yes | one positive weight per child, in order |
 
-**Result** (`{ row: string }`)
+**Result** (`{ rowId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `row` | `string` | yes | the row's id |
+| `rowId` | `string` | yes | the row's id |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("row.resize", {
-    row: "row-1",
+    rowId: "row-1",
     weights: [
         30,
         70
@@ -509,7 +509,7 @@ model.run("row.resize", {
 ```
 
 ```json
-{ "command": "row.resize", "payload": {"row":"row-1","weights":[30,70]} }
+{ "command": "row.resize", "payload": {"rowId":"row-1","weights":[30,70]} }
 ```
 
 ### `row.configure`
@@ -520,20 +520,20 @@ Set (or, with null, remove) a row's data.
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `row` | `string` | yes | the row's id |
+| `rowId` | `string` | yes | the row's id |
 | `data` | `JSON` | no | the app's data (any JSON value) |
 
-**Result** (`{ row: string }`)
+**Result** (`{ rowId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `row` | `string` | yes | the row's id |
+| `rowId` | `string` | yes | the row's id |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("row.configure", {
-    row: "row-1",
+    rowId: "row-1",
     data: {
         name: "Editors"
     }
@@ -541,7 +541,7 @@ model.run("row.configure", {
 ```
 
 ```json
-{ "command": "row.configure", "payload": {"row":"row-1","data":{"name":"Editors"}} }
+{ "command": "row.configure", "payload": {"rowId":"row-1","data":{"name":"Editors"}} }
 ```
 
 ## Borders
@@ -552,31 +552,31 @@ Set the size in px of a border's panel (of its selected tab when that tab has it
 
 It may run as a step of a continuous gesture: `model.run(…, { transient: true })`.
 
-**Payload** (`{ border: string; size: number }`)
+**Payload** (`{ borderId: string; size: number }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `border` | `string` | yes | the border's id (`border_<location>` unless the layout names it) |
+| `borderId` | `string` | yes | the border's id (`border_<location>` unless the layout names it) |
 | `size` | `number` | yes | the panel's new size, in px (kept within its limits) |
 
-**Result** (`{ border: string; size: number }`)
+**Result** (`{ borderId: string; size: number }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `border` | `string` | yes | the border's id |
+| `borderId` | `string` | yes | the border's id |
 | `size` | `number` | yes | the size it got, in px |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("border.resize", {
-    border: "border_left",
+    borderId: "border_left",
     size: 240
 });
 ```
 
 ```json
-{ "command": "border.resize", "payload": {"border":"border_left","size":240} }
+{ "command": "border.resize", "payload": {"borderId":"border_left","size":240} }
 ```
 
 ### `border.configure`
@@ -587,7 +587,7 @@ Open or close a border's panel (open), switch it between docked and overlay (mod
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `border` | `string` | yes | the border's id (`border_<location>` unless the layout names it) |
+| `borderId` | `string` | yes | the border's id (`border_<location>` unless the layout names it) |
 | `open` | `boolean` | no | open (true) or close (false) the border's panel |
 | `mode` | `"docked" \| "overlay" \| null` | no | docked (beside the layout) or overlay (over it) (null removes it: the layout default applies) |
 | `show` | `boolean \| null` | no | false hides the border entirely (null removes it: the layout default applies) |
@@ -600,23 +600,23 @@ Open or close a border's panel (open), switch it between docked and overlay (mod
 | `maxSize` | `number \| null` | no | its panel's largest size, in px (null removes it: the layout default applies) |
 | `data` | `JSON` | no | the app's data (any JSON value) |
 
-**Result** (`{ border: string }`)
+**Result** (`{ borderId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `border` | `string` | yes | the border's id |
+| `borderId` | `string` | yes | the border's id |
 
 **Errors**: `not_found`, `refused`, besides those every command can return.
 
 ```ts
 model.run("border.configure", {
-    border: "border_left",
+    borderId: "border_left",
     open: true
 });
 ```
 
 ```json
-{ "command": "border.configure", "payload": {"border":"border_left","open":true} }
+{ "command": "border.configure", "payload": {"borderId":"border_left","open":true} }
 ```
 
 ## Windows
@@ -625,28 +625,28 @@ model.run("border.configure", {
 
 Close a popout window layout: its tabs move back into the main layout's active tabset (its first tabset when none is active), and the window closes.
 
-**Payload** (`{ window: string }`)
+**Payload** (`{ windowId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `window` | `string` | yes | the window layout's id |
+| `windowId` | `string` | yes | the window layout's id |
 
-**Result** (`{ tabs: string[] }`)
+**Result** (`{ tabIds: string[] }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `tabs` | `string[]` | yes | the tabs moved back into the main layout |
+| `tabIds` | `string[]` | yes | the ids of the tabs moved back into the main layout |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("window.close", {
-    window: "window-1"
+    windowId: "window-1"
 });
 ```
 
 ```json
-{ "command": "window.close", "payload": {"window":"window-1"} }
+{ "command": "window.close", "payload": {"windowId":"window-1"} }
 ```
 
 ### `window.configure`
@@ -655,24 +655,24 @@ Record a popout window's screen rect (the engine does this when the window moves
 
 It may run as a step of a continuous gesture: `model.run(…, { transient: true })`.
 
-**Payload** (`{ window: string; rect: Rect }`)
+**Payload** (`{ windowId: string; rect: Rect }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `window` | `string` | yes | the window layout's id |
+| `windowId` | `string` | yes | the window layout's id |
 | `rect` | `object` | yes | the window's screen rect |
 
-**Result** (`{ window: string }`)
+**Result** (`{ windowId: string }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `window` | `string` | yes | the window's id |
+| `windowId` | `string` | yes | the window's id |
 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
 model.run("window.configure", {
-    window: "window-1",
+    windowId: "window-1",
     rect: {
         x: 100,
         y: 80,
@@ -683,7 +683,7 @@ model.run("window.configure", {
 ```
 
 ```json
-{ "command": "window.configure", "payload": {"window":"window-1","rect":{"x":100,"y":80,"width":800,"height":600}} }
+{ "command": "window.configure", "payload": {"windowId":"window-1","rect":{"x":100,"y":80,"width":800,"height":600}} }
 ```
 
 ## The layout
@@ -728,12 +728,12 @@ Replace the whole layout with a JSON v1 document (a saved layout, an undo step, 
 | --- | --- | --- | --- |
 | `layout` | `layout` | yes | a layout document (JSON v1) |
 
-**Result** (`{ added: string[]; removed: string[] }`)
+**Result** (`{ addedNodeIds: string[]; removedNodeIds: string[] }`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `added` | `string[]` | yes | ids only in the new layout |
-| `removed` | `string[]` | yes | ids only in the old layout |
+| `addedNodeIds` | `string[]` | yes | the ids of the nodes only in the new layout |
+| `removedNodeIds` | `string[]` | yes | the ids of the nodes only in the old layout |
 
 **Errors**: only those every command can return.
 
@@ -793,13 +793,13 @@ model.run("batch", {
         {
             command: "tab.close",
             payload: {
-                tab: "tab-1"
+                tabId: "tab-1"
             }
         },
         {
             command: "tab.close",
             payload: {
-                tab: "tab-2"
+                tabId: "tab-2"
             }
         }
     ]
@@ -807,5 +807,5 @@ model.run("batch", {
 ```
 
 ```json
-{ "command": "batch", "payload": {"commands":[{"command":"tab.close","payload":{"tab":"tab-1"}},{"command":"tab.close","payload":{"tab":"tab-2"}}]} }
+{ "command": "batch", "payload": {"commands":[{"command":"tab.close","payload":{"tabId":"tab-1"}},{"command":"tab.close","payload":{"tabId":"tab-2"}}]} }
 ```

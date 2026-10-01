@@ -397,7 +397,7 @@ describe("SplitterController ARIA", () => {
     it("is hidden while a tabset is maximized", () => {
         const { model, controller } = setup();
         expect(controller.isHidden()).toBe(false);
-        model.run("tabset.maximize", { tabset: "ts0", value: true });
+        model.run("tabset.maximize", { tabsetId: "ts0", value: true });
         expect(controller.isHidden()).toBe(true);
     });
 
@@ -470,7 +470,7 @@ describe("border splitters", () => {
         pointer("pointermove", document, 282); // 50px wider
         expect(actions.at(-1)).toMatchObject({
             command: "border.resize",
-            payload: { border: "border_left", size: 250 },
+            payload: { borderId: "border_left", size: 250 },
             transient: true,
         });
         pointer("pointermove", document, 900); // clamped by the bounds to the maximum

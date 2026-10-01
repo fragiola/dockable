@@ -430,7 +430,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
                 Math.min(resolved.maxSize, resolved.size + grow),
             );
             this.engine.adapter.model.run("border.resize", {
-                border: border.id,
+                borderId: border.id,
                 size,
             });
         } else if (row) {
@@ -467,7 +467,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             );
             if (weights.length > 0) {
                 this.engine.adapter.model.run("row.resize", {
-                    row: row.id,
+                    rowId: row.id,
                     weights,
                 });
             }
@@ -569,7 +569,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             );
             this.engine.adapter.model.run(
                 "border.resize",
-                { border: border.id, size },
+                { borderId: border.id, size },
                 { transient },
             );
         } else if (row) {
@@ -587,7 +587,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             if (weights.length === row.children.length) {
                 this.engine.adapter.model.run(
                     "row.resize",
-                    { row: row.id, weights },
+                    { rowId: row.id, weights },
                     { transient },
                 );
             }

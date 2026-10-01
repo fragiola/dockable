@@ -136,7 +136,7 @@ describe("tidy", () => {
 
     it("removes an empty tabset", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
-        must(model.run("tab.close", { tab: "Two" }));
+        must(model.run("tab.close", { tabId: "Two" }));
         expect(model.get("node", { node: "ts1" })).toBeUndefined();
     });
 
@@ -162,8 +162,8 @@ describe("tidy", () => {
                 ],
             },
         });
-        must(kept.run("tab.close", { tab: "Two" }));
-        must(kept.run("tab.close", { tab: "Three" }));
+        must(kept.run("tab.close", { tabId: "Two" }));
+        must(kept.run("tab.close", { tabId: "Three" }));
         expect(kept.get("node", { node: "b" })).toMatchObject({
             children: [],
             selected: -1,
@@ -176,15 +176,15 @@ describe("tidy", () => {
 
     it("clears the maximize of a removed tabset", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
-        must(model.run("tabset.maximize", { tabset: "ts1", value: true }));
-        must(model.run("tab.close", { tab: "Two" }));
+        must(model.run("tabset.maximize", { tabsetId: "ts1", value: true }));
+        must(model.run("tab.close", { tabId: "Two" }));
         expect(model.get("maximized-tabset")).toBeUndefined();
         expect(model.state.maximized).toBeUndefined();
     });
 
     it("gives an empty main layout a tabset", () => {
         const { model, text } = setup(tabsets(["One"]));
-        must(model.run("tab.close", { tab: "One" }));
+        must(model.run("tab.close", { tabId: "One" }));
         expect(text()).toBe("");
         const [only] = model.state.root.children;
         expect(only).toMatchObject({
@@ -197,18 +197,20 @@ describe("tidy", () => {
 
     it("removes an empty window", () => {
         const { model } = setup(tabsets(["One", "Two"]));
-        must(model.run("tab.configure", { tab: "Two", enablePopout: true }));
-        const { window } = must(model.run("tab.popout", { tab: "Two" }));
+        must(model.run("tab.configure", { tabId: "Two", enablePopout: true }));
+        const { windowId: window } = must(
+            model.run("tab.popout", { tabId: "Two" }),
+        );
         expect(model.get("window", { window })).toBeDefined();
-        must(model.run("tab.close", { tab: "Two" }));
+        must(model.run("tab.close", { tabId: "Two" }));
         expect(model.get("window", { window })).toBeUndefined();
         expect(model.state.windows).toEqual([]);
     });
 
     it("clears a dangling active tabset", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
-        must(model.run("tabset.activate", { tabset: "ts1" }));
-        must(model.run("tab.close", { tab: "Two" }));
+        must(model.run("tabset.activate", { tabsetId: "ts1" }));
+        must(model.run("tab.close", { tabId: "Two" }));
         expect(model.state.active).toBeUndefined();
         expect(model.get("active-tabset")).toBeUndefined();
     });

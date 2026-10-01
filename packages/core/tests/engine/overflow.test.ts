@@ -129,7 +129,7 @@ describe("tab overflow in the engine", () => {
 
     it("keeps the selected tab in the strip", () => {
         const s = setup();
-        s.engine.adapter.model.run("tab.select", { tab: "t3" });
+        s.engine.adapter.model.run("tab.select", { tabId: "t3" });
         s.layout(250);
         s.engine.run("measure-and-position");
         expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t2"]);

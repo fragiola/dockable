@@ -114,7 +114,7 @@ describe("loading JSON v1", () => {
             createId: (kind) => `${kind}:${++n}`,
         });
         const added = model.run("tab.add", { component: "x", to: "ts0" });
-        expect(added).toEqual({ ok: true, value: { tab: "tab:1" } });
+        expect(added).toEqual({ ok: true, value: { tabId: "tab:1" } });
     });
 
     it("keeps the active and maximized tabsets on their layouts", () => {
@@ -383,7 +383,7 @@ describe("toLayoutJson", () => {
         const model = createModel(tabsets(["One", "Two"], ["Three"]));
         const before = model.state;
         const one = model.get("tabs")[0]?.id ?? "";
-        model.run("tab.close", { tab: one });
+        model.run("tab.close", { tabId: one });
         const json = toLayoutJson(before);
         expect(json.version).toBe(1);
         expect(model.run("layout.load", { layout: json }).ok).toBe(true);

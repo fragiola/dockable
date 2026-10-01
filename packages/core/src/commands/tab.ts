@@ -29,9 +29,9 @@ import { dropOnBorder, dropOnRow, dropOnTabset } from "./dock";
 import { checkDrop, type DropTarget, resolveTarget } from "./rules";
 import type { CommandError } from "./types";
 
-const tabId = { ...idSchema, description: "the tab's id" } as const;
+const tabIdSchema = { ...idSchema, description: "the tab's id" } as const;
 
-const tabIdResult = object({ tab: describedId("tab") }, ["tab"]);
+const tabIdResult = object({ tabId: describedId("tab") }, ["tabId"]);
 
 /** Removes the keys whose value is undefined (the state holds no undefined fields). */
 export function compact<O extends object>(value: O): O {
@@ -87,7 +87,7 @@ export function place(
 export function attachedTab(
     draft: Draft,
     id: string,
-    path = "/tab",
+    path = "/tabId",
 ): AnyTab | CommandError {
     const tab = draft.tab(id);
     if (!tab || !draft.isAttached(id)) {
@@ -164,7 +164,7 @@ export const tabAdd = defineCommand({
             payload.select,
         );
         tidy(draft);
-        return ok({ tab: tab.id });
+        return ok({ tabId: tab.id });
     },
 });
 
@@ -172,11 +172,11 @@ export const tabSelect = defineCommand({
     name: "tab.select",
     description:
         "Select a tab, making it visible. In a tabset the tabset also becomes the active one; in a border the border's panel opens. Selecting the selected tab changes nothing.",
-    payloadSchema: object({ tab: tabId }, ["tab"]),
+    payloadSchema: object({ tabId: tabIdSchema }, ["tabId"]),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tab = attachedTab(draft, payload.tab);
+        const tab = attachedTab(draft, payload.tabId);
         if (isError(tab)) {
             return { ok: false, error: tab };
         }
@@ -194,7 +194,7 @@ export const tabSelect = defineCommand({
                 }
             }
         }
-        return ok({ tab: tab.id });
+        return ok({ tabId: tab.id });
     },
 });
 
@@ -202,20 +202,24 @@ export const tabClose = defineCommand({
     name: "tab.close",
     description:
         "Close a tab and remove it from the layout. Refused for a pinned tab or one whose enableClose is false.",
-    payloadSchema: object({ tab: tabId }, ["tab"]),
+    payloadSchema: object({ tabId: tabIdSchema }, ["tabId"]),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tab = attachedTab(draft, payload.tab);
+        const tab = attachedTab(draft, payload.tabId);
         if (isError(tab)) {
             return { ok: false, error: tab };
         }
         const resolved = resolveTab(draft.getDefaults(), tab);
         if (resolved.pinned) {
-            return fail("refused", `tab "${tab.id}" is pinned`, "/tab");
+            return fail("refused", `tab "${tab.id}" is pinned`, "/tabId");
         }
         if (!resolved.enableClose) {
-            return fail("refused", `tab "${tab.id}" cannot be closed`, "/tab");
+            return fail(
+                "refused",
+                `tab "${tab.id}" cannot be closed`,
+                "/tabId",
+            );
         }
         const where = draft.detach(tab.id);
         if (where) {
@@ -226,7 +230,7 @@ export const tabClose = defineCommand({
             }
         }
         tidy(draft);
-        return ok({ tab: tab.id });
+        return ok({ tabId: tab.id });
     },
 });
 
@@ -234,19 +238,19 @@ export const tabMove = defineCommand({
     name: "tab.move",
     description:
         "Move a tab to another place: into a tabset or border at an index (location center), beside a tabset (an edge location splits it), or to an edge of a layout (`to` a root row or a layout id, with an edge location). Refused where the tab or the target does not allow it.",
-    payloadSchema: object({ tab: tabId, ...placementProperties }, [
-        "tab",
+    payloadSchema: object({ tabId: tabIdSchema, ...placementProperties }, [
+        "tabId",
         "to",
     ]),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tab = attachedTab(draft, payload.tab);
+        const tab = attachedTab(draft, payload.tabId);
         if (isError(tab)) {
             return { ok: false, error: tab };
         }
         if (!resolveTab(draft.getDefaults(), tab).enableDrag) {
-            return fail("refused", `tab "${tab.id}" cannot be moved`, "/tab");
+            return fail("refused", `tab "${tab.id}" cannot be moved`, "/tabId");
         }
         const target = resolveTarget(draft, payload.to);
         if (isError(target)) {
@@ -271,7 +275,7 @@ export const tabMove = defineCommand({
             payload.select,
         );
         tidy(draft);
-        return ok({ tab: tab.id });
+        return ok({ tabId: tab.id });
     },
 });
 
@@ -281,7 +285,7 @@ export const tabUpdate = defineCommand({
         "Replace a tab's data (and optionally switch its component). `data` is the whole new value, not a patch; it is validated when the app registered a schema for the component.",
     payloadSchema: object(
         {
-            tab: tabId,
+            tabId: tabIdSchema,
             component: {
                 type: "string",
                 minLength: 1,
@@ -289,12 +293,12 @@ export const tabUpdate = defineCommand({
             },
             data: dataSchema,
         },
-        ["tab", "component"],
+        ["tabId", "component"],
     ),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft, validateData }) {
-        const tab = attachedTab(draft, payload.tab);
+        const tab = attachedTab(draft, payload.tabId);
         if (isError(tab)) {
             return { ok: false, error: tab };
         }
@@ -304,7 +308,7 @@ export const tabUpdate = defineCommand({
         }
         draft.set(tab.id, "component", payload.component);
         draft.set(tab.id, "data", cloneJson(payload.data));
-        return ok({ tab: tab.id });
+        return ok({ tabId: tab.id });
     },
 });
 
@@ -314,33 +318,33 @@ export const tabPin = defineCommand({
         "Pin (value true) or unpin a tab of a tabset. Pinned tabs sit at the start of the strip, cannot be closed and cannot be dragged out of their tabset.",
     payloadSchema: object(
         {
-            tab: tabId,
+            tabId: tabIdSchema,
             value: { ...booleanSchema, description: "true pins, false unpins" },
         },
-        ["tab", "value"],
+        ["tabId", "value"],
     ),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tab = attachedTab(draft, payload.tab);
+        const tab = attachedTab(draft, payload.tabId);
         if (isError(tab)) {
             return { ok: false, error: tab };
         }
         const parent = draft.parentOf(tab.id);
         if ((tab.pinned === true) === payload.value) {
-            return ok({ tab: tab.id });
+            return ok({ tabId: tab.id });
         }
         if (parent === undefined || draft.get(parent)?.type !== "tabset") {
             if (payload.value) {
                 return fail(
                     "refused",
                     "only a tab of a tabset can be pinned",
-                    "/tab",
+                    "/tabId",
                 );
             }
             // unpinning is always possible (outside a tabset there is no pinned run to leave)
             draft.set(tab.id, "pinned", undefined);
-            return ok({ tab: tab.id });
+            return ok({ tabId: tab.id });
         }
         const selected = selectedTabOf(draft, parent);
         draft.set(tab.id, "pinned", payload.value ? true : undefined);
@@ -354,7 +358,7 @@ export const tabPin = defineCommand({
                 ?.children.findIndex((child) => child.id === selected);
             draft.set(parent, "selected", index ?? -1);
         }
-        return ok({ tab: tab.id });
+        return ok({ tabId: tab.id });
     },
 });
 
@@ -364,19 +368,19 @@ export const tabPopout = defineCommand({
         "Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts, is pinned or is already in a window.",
     payloadSchema: object(
         {
-            tab: tabId,
+            tabId: tabIdSchema,
             rect: {
                 ...rectSchema,
                 description:
                     "the window's screen rect; without one, a 600x400 window offset 50px per open window (engine.popout passes the tab's place on screen)",
             },
         },
-        ["tab"],
+        ["tabId"],
     ),
-    resultSchema: object({ window: describedId("new window") }, ["window"]),
+    resultSchema: object({ windowId: describedId("new window") }, ["windowId"]),
     transient: false,
     reduce(payload, { draft }) {
-        const tab = attachedTab(draft, payload.tab);
+        const tab = attachedTab(draft, payload.tabId);
         if (isError(tab)) {
             return { ok: false, error: tab };
         }
@@ -384,7 +388,7 @@ export const tabPopout = defineCommand({
             return fail(
                 "refused",
                 `tab "${tab.id}" is already in a window`,
-                "/tab",
+                "/tabId",
             );
         }
         const resolved = resolveTab(draft.getDefaults(), tab);
@@ -392,11 +396,11 @@ export const tabPopout = defineCommand({
             return fail(
                 "refused",
                 `tab "${tab.id}" does not allow popouts`,
-                "/tab",
+                "/tabId",
             );
         }
         if (resolved.pinned) {
-            return fail("refused", `tab "${tab.id}" is pinned`, "/tab");
+            return fail("refused", `tab "${tab.id}" is pinned`, "/tabId");
         }
         const windowId = draft.newId("window");
         const row = newRow(draft);
@@ -409,7 +413,7 @@ export const tabPopout = defineCommand({
         );
         dropOnTabset(draft, tabset.id, tab.id, "center", 0, true);
         tidy(draft);
-        return ok({ window: windowId });
+        return ok({ windowId });
     },
 });
 
@@ -419,7 +423,7 @@ export const tabConfigure = defineCommand({
         "Change a tab's behaviour flags and size limits. A null value removes the tab's own value so the layout default applies.",
     payloadSchema: object(
         {
-            tab: tabId,
+            tabId: tabIdSchema,
             enableClose: nullable(tabFieldProperties.enableClose),
             enableDrag: nullable(tabFieldProperties.enableDrag),
             enablePopout: nullable(tabFieldProperties.enablePopout),
@@ -430,20 +434,20 @@ export const tabConfigure = defineCommand({
             borderWidth: nullable(tabFieldProperties.borderWidth),
             borderHeight: nullable(tabFieldProperties.borderHeight),
         },
-        ["tab"],
+        ["tabId"],
     ),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tab = attachedTab(draft, payload.tab);
+        const tab = attachedTab(draft, payload.tabId);
         if (isError(tab)) {
             return { ok: false, error: tab };
         }
         for (const [key, value] of Object.entries(payload)) {
-            if (key !== "tab" && value !== undefined) {
+            if (key !== "tabId" && value !== undefined) {
                 draft.set(tab.id, key, value === null ? undefined : value);
             }
         }
-        return ok({ tab: tab.id });
+        return ok({ tabId: tab.id });
     },
 });

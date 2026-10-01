@@ -5,17 +5,17 @@ import { must, setup, tab, tabsets } from "./harness";
 describe("selection", () => {
     it("close selects the next tab", () => {
         const { model, text } = setup(tabsets(["One", "Two", "Three"]));
-        must(model.run("tab.select", { tab: "Two" }));
-        must(model.run("tab.close", { tab: "Two" }));
+        must(model.run("tab.select", { tabId: "Two" }));
+        must(model.run("tab.close", { tabId: "Two" }));
         expect(text()).toBe("/ts0/t0[One],/ts0/t1[Three]*");
-        must(model.run("tab.close", { tab: "Three" }));
+        must(model.run("tab.close", { tabId: "Three" }));
         expect(text()).toBe("/ts0/t0[One]*");
     });
 
     it("close before the selected tab keeps it selected", () => {
         const { model, text } = setup(tabsets(["One", "Two", "Three"]));
-        must(model.run("tab.select", { tab: "Three" }));
-        must(model.run("tab.close", { tab: "One" }));
+        must(model.run("tab.select", { tabId: "Three" }));
+        must(model.run("tab.close", { tabId: "One" }));
         expect(text()).toBe("/ts0/t0[Two],/ts0/t1[Three]*");
     });
 
@@ -30,14 +30,14 @@ describe("selection", () => {
                 },
             ],
         });
-        must(model.run("tab.close", { tab: "A" }));
+        must(model.run("tab.close", { tabId: "A" }));
         // the index stays 2 and is clamped to the last tab (FlexLayout's BorderNode.remove)
         expect(text()).toBe("/b/left/t0[B],/b/left/t1[C]*,/ts0/t0[Main]*");
     });
 
     it("insert selects", () => {
         const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
-        must(model.run("tab.move", { tab: "Three", to: "ts0", index: 1 }));
+        must(model.run("tab.move", { tabId: "Three", to: "ts0", index: 1 }));
         expect(text()).toBe("/ts0/t0[One],/ts0/t1[Three]*,/ts0/t2[Two]");
     });
 
@@ -57,8 +57,8 @@ describe("selection", () => {
                 ],
             },
         });
-        must(model.run("tab.select", { tab: "Two" }));
-        must(model.run("tab.move", { tab: "Three", to: "ts0", index: 0 }));
+        must(model.run("tab.select", { tabId: "Two" }));
+        must(model.run("tab.move", { tabId: "Three", to: "ts0", index: 0 }));
         expect(text()).toBe("/ts0/t0[Three],/ts0/t1[One],/ts0/t2[Two]*");
         must(
             model.run("tab.add", {
@@ -84,7 +84,7 @@ describe("selection", () => {
                 },
             ],
         });
-        must(model.run("tab.move", { tab: "A", to: "ts0" }));
+        must(model.run("tab.move", { tabId: "A", to: "ts0" }));
         expect(text()).toBe("/b/left/t0[B],/ts0/t0[Main],/ts0/t1[A]*");
     });
 
@@ -96,8 +96,8 @@ describe("selection", () => {
                 { location: "right", selected: 0, children: [tab("B")] },
             ],
         });
-        must(model.run("tab.move", { tab: "One", to: "border_left" }));
-        must(model.run("tab.move", { tab: "Two", to: "border_right" }));
+        must(model.run("tab.move", { tabId: "One", to: "border_left" }));
+        must(model.run("tab.move", { tabId: "Two", to: "border_right" }));
         // the emptied tabset is removed and the main layout gets a new empty one
         expect(text()).toBe(
             "/b/left/t0[A],/b/left/t1[One],/b/right/t0[B],/b/right/t1[Two]*",
@@ -114,10 +114,10 @@ describe("selection", () => {
         const { model, text } = setup(
             tabsets(["One", "Two", "Three"], ["Four"]),
         );
-        must(model.run("tab.select", { tab: "Three" }));
+        must(model.run("tab.select", { tabId: "Three" }));
         must(
             model.run("tab.move", {
-                tab: "Two",
+                tabId: "Two",
                 to: "root",
                 location: "right",
             }),
@@ -132,8 +132,10 @@ describe("selection", () => {
         const { model, text } = setup(
             tabsets(["One", "Two"], ["Three", "Four"]),
         );
-        must(model.run("tab.select", { tab: "Two" }));
-        must(model.run("tabset.move", { tabset: "ts1", to: "ts0", index: 0 }));
+        must(model.run("tab.select", { tabId: "Two" }));
+        must(
+            model.run("tabset.move", { tabsetId: "ts1", to: "ts0", index: 0 }),
+        );
         expect(text()).toBe(
             "/ts0/t0[Three],/ts0/t1[Four],/ts0/t2[One],/ts0/t3[Two]*",
         );
@@ -141,7 +143,7 @@ describe("selection", () => {
 
     it("reorder forward", () => {
         const { model, text } = setup(tabsets(["One", "Two", "Three"]));
-        must(model.run("tab.move", { tab: "One", to: "ts0", index: 2 }));
+        must(model.run("tab.move", { tabId: "One", to: "ts0", index: 2 }));
         expect(text()).toBe("/ts0/t0[Two],/ts0/t1[One]*,/ts0/t2[Three]");
     });
 
@@ -150,12 +152,12 @@ describe("selection", () => {
             ...tabsets(["Main"]),
             borders: [{ location: "bottom", children: [tab("A"), tab("B")] }],
         });
-        must(model.run("tab.select", { tab: "B" }));
+        must(model.run("tab.select", { tabId: "B" }));
         expect(model.get("node", { node: "border_bottom" })).toMatchObject({
             selected: 1,
         });
         const before = model.state;
-        must(model.run("tab.select", { tab: "B" }));
+        must(model.run("tab.select", { tabId: "B" }));
         expect(model.state).toBe(before);
     });
 });

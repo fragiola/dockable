@@ -45,7 +45,7 @@ export function commands(model: Model<Types>): void {
         to: "ts0",
     });
     if (added.ok) {
-        const id: string = added.value.tab;
+        const id: string = added.value.tabId;
         use(id);
     }
     // a component without data needs none
@@ -62,39 +62,46 @@ export function commands(model: Model<Types>): void {
     // @ts-expect-error: not a component of the registry
     model.run("tab.add", { component: "table", data: {}, to: "ts0" });
     // @ts-expect-error: not a command
-    model.run("tab.nope", { tab: "x" });
-    // @ts-expect-error: tab.close takes `tab`, not `node`
-    model.run("tab.close", { node: "x" });
+    model.run("tab.nope", { tabId: "x" });
+    // @ts-expect-error: tab.close takes `tabId`, not `nodeId`
+    model.run("tab.close", { nodeId: "x" });
+    // @ts-expect-error: a payload names its ids: `tabId`, not `tab`
+    model.run("tab.close", { tab: "x" });
+    const popped = model.run("tab.popout", { tabId: "x" });
+    if (popped.ok) {
+        const window: string = popped.value.windowId;
+        use(window);
+    }
     model.run("tab.update", {
-        tab: "t",
+        tabId: "t",
         component: "editor",
         // @ts-expect-error: tab.update checks the data against the component
         data: { name: "x", series: [] },
     });
     model.run("tab.update", {
-        tab: "t",
+        tabId: "t",
         component: "editor",
         data: { name: "a", path: "/a", dirty: true },
     });
     // @ts-expect-error: maximize takes an explicit value, it is not a toggle
-    model.run("tabset.maximize", { tabset: "ts0" });
+    model.run("tabset.maximize", { tabsetId: "ts0" });
 
     // untrusted input is accepted as unknown and checked at runtime
     const dispatched = model.dispatch(JSON.parse("{}"));
     use(dispatched.ok);
-    const allowed: boolean = model.can("tab.close", { tab: "x" });
+    const allowed: boolean = model.can("tab.close", { tabId: "x" });
     use(allowed);
     // @ts-expect-error: can answers a boolean; the reason is check's
-    use(model.can("tab.close", { tab: "x" }).ok);
+    use(model.can("tab.close", { tabId: "x" }).ok);
     const checked = model.check("tab.add", { component: "empty", to: "ts0" });
     if (checked.ok) {
-        const id: string = checked.value.tab;
+        const id: string = checked.value.tabId;
         use(id);
     } else {
         use(checked.error.code);
     }
     // @ts-expect-error: check takes the command's payload
-    model.check("tab.close", { tabset: "x" });
+    model.check("tab.close", { tabsetId: "x" });
 }
 
 export function queries(model: Model<Types>): void {
@@ -173,10 +180,10 @@ export function middleware(model: Model<Types>): void {
     };
     const reads: Middleware<Types> = (ctx, next) => {
         if (ctx.command === "tab.close") {
-            const tab = ctx.get("node", { node: ctx.payload.tab });
+            const tab = ctx.get("node", { node: ctx.payload.tabId });
             const parentType: "row" | "tabset" | "border" | undefined = ctx.get(
                 "parent",
-                { node: ctx.payload.tab },
+                { node: ctx.payload.tabId },
             )?.type;
             use(tab?.id, parentType);
             // @ts-expect-error: a middleware reads only nodes and parents
@@ -233,7 +240,7 @@ export function middlewareNarrowing() {
     const model = createModel<Types>();
     model.use((ctx, next) => {
         if (ctx.command === "tab.close") {
-            const tab: string = ctx.payload.tab;
+            const tab: string = ctx.payload.tabId;
             void tab;
         } else if (ctx.command === "tab.add") {
             if (ctx.payload.component === "editor") {

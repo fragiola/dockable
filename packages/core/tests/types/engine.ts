@@ -16,24 +16,24 @@ export const engineSurface: Same<
 > = true;
 
 export function actions(engine: LayoutEngine): void {
-    const popped = engine.run("popout", { node: "t0" });
+    const popped = engine.run("popout", { nodeId: "t0" });
     if (popped.ok) {
-        const window: string = popped.value.window;
+        const window: string = popped.value.windowId;
         use(window);
     }
-    const docked = engine.check("dock-back", { node: "t0" });
+    const docked = engine.check("dock-back", { nodeId: "t0" });
     if (docked.ok) {
-        const tabs: string[] = docked.value.tabs;
+        const tabs: string[] = docked.value.tabIds;
         use(tabs);
     }
     const allowed: boolean = engine.can("focus-tabset", { direction: "next" });
     use(allowed, engine.run("measure-and-position"));
-    engine.run("close-overlay-border", { border: "left" });
+    engine.run("close-overlay-border", { borderId: "left" });
 
     // @ts-expect-error: a command changes the layout through model.run, never engine.run
-    engine.run("tab.close", { tab: "t0" });
+    engine.run("tab.close", { tabId: "t0" });
     // @ts-expect-error: popout takes `node`
-    engine.run("popout", { tab: "t0" });
+    engine.run("popout", { tabId: "t0" });
     // @ts-expect-error: popout needs its payload
     engine.run("popout");
     // @ts-expect-error: a direction is "next" or "previous"

@@ -160,7 +160,7 @@ export class DragGroup {
         // both sides must accept before anything changes
         if (
             !target.can("tab.add", add, { meta: { ...meta } }) ||
-            !source.can("tab.close", { tab: tabId }, { meta: { ...meta } })
+            !source.can("tab.close", { tabId: tabId }, { meta: { ...meta } })
         ) {
             return undefined;
         }
@@ -173,45 +173,45 @@ export class DragGroup {
             return undefined;
         }
         targetEngine.adapter.main.adapter.adoptMoveable(
-            added.value.tab,
+            added.value.tabId,
             moveable,
         );
         const closed = source.run(
             "tab.close",
-            { tab: tabId },
+            { tabId: tabId },
             { meta: { ...meta } },
         );
         if (!closed.ok) {
             // the source refused after all (its answer changed since the dry run): undo the add,
             // and the content goes back with the tab
             const back = targetEngine.adapter.main.adapter.takeMoveable(
-                added.value.tab,
+                added.value.tabId,
             );
             const undone = target.run(
                 "tab.close",
-                { tab: added.value.tab },
+                { tabId: added.value.tabId },
                 { meta: { ...meta } },
             );
             if (undone.ok) {
                 sourceEngine.adapter.main.adapter.adoptMoveable(tabId, back);
             } else {
                 targetEngine.adapter.main.adapter.adoptMoveable(
-                    added.value.tab,
+                    added.value.tabId,
                     back,
                 );
             }
             return undefined;
         }
         const transfer: Transfer = {
-            tab: added.value.tab,
+            tab: added.value.tabId,
             previousId: tabId,
             init: fields,
             from,
-            to: endOf(target, added.value.tab),
+            to: endOf(target, added.value.tabId),
         };
         for (const listener of [...this.listeners]) {
             listener(transfer);
         }
-        return added.value.tab;
+        return added.value.tabId;
     }
 }

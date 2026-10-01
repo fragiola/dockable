@@ -198,7 +198,7 @@ describe("LayoutEngine panel positioning", () => {
     it("hides panels of non-maximized tabsets while one is maximized", () => {
         const { model, engine, panels } = setup();
         engine.run("measure-and-position");
-        model.run("tabset.maximize", { tabset: "ts1", value: true });
+        model.run("tabset.maximize", { tabsetId: "ts1", value: true });
         engine.run("measure-and-position");
         expect(panels.t0.style.display).toBe("none");
         expect(panels.t2.style.display).toBe("");
@@ -209,10 +209,10 @@ describe("LayoutEngine and the model", () => {
     it("runs commands through the model, so middleware applies", () => {
         const { model, engine } = setup();
         const commands = recordCommands(model);
-        engine.adapter.model.run("tab.select", { tab: "t1" });
+        engine.adapter.model.run("tab.select", { tabId: "t1" });
         expect(model.get("selected-tab", { container: "ts0" })?.id).toBe("t1");
         expect(commands).toEqual([
-            { command: "tab.select", payload: { tab: "t1" } },
+            { command: "tab.select", payload: { tabId: "t1" } },
         ]);
     });
 
@@ -220,7 +220,7 @@ describe("LayoutEngine and the model", () => {
         const { model, engine } = setup();
         const listener = vi.fn();
         engine.adapter.subscribe(listener);
-        model.run("tab.move", { tab: "t2", to: "ts0" });
+        model.run("tab.move", { tabId: "t2", to: "ts0" });
         expect(listener).toHaveBeenCalled();
     });
 
@@ -231,7 +231,7 @@ describe("LayoutEngine and the model", () => {
         engine.adapter.subscribe(listener);
         model.run(
             "row.resize",
-            { row: "row", weights: [30, 70] },
+            { rowId: "row", weights: [30, 70] },
             { transient: true },
         );
         expect(listener).not.toHaveBeenCalled();
@@ -240,7 +240,7 @@ describe("LayoutEngine and the model", () => {
         expect(model.get("node", { node: "ts0" })).toMatchObject({
             weight: 30,
         });
-        model.run("row.resize", { row: "row", weights: [30, 70] });
+        model.run("row.resize", { rowId: "row", weights: [30, 70] });
         expect(listener).toHaveBeenCalled();
     });
 });
@@ -321,7 +321,10 @@ describe("LayoutEngine moveable elements", () => {
             },
         ];
         const result = model.run("layout.load", { layout: moved });
-        expect(result.ok && result.value.removed.sort()).toEqual(["t1", "ts1"]);
+        expect(result.ok && result.value.removedNodeIds.sort()).toEqual([
+            "t1",
+            "ts1",
+        ]);
         expect(engine.adapter.getMoveableElement("t0")).toBe(t0);
         expect(engine.adapter.getMoveableElement("t2")).toBe(t2);
         expect(t0.parentElement).toBe(panels.t0);
@@ -330,7 +333,7 @@ describe("LayoutEngine moveable elements", () => {
     it("releases the moveable of a tab the model no longer has", () => {
         const { model, engine } = setup();
         const t1 = engine.adapter.getMoveableElement("t1");
-        model.run("tab.close", { tab: "t1" });
+        model.run("tab.close", { tabId: "t1" });
         expect(engine.adapter.getMoveableElement("t1")).not.toBe(t1);
     });
 
@@ -341,7 +344,7 @@ describe("LayoutEngine moveable elements", () => {
         expect(engine.adapter.shouldRender("t0")).toBe(true);
         expect(engine.adapter.shouldRender("t1")).toBe(false); // not selected
         expect(engine.adapter.shouldRender("t1", false)).toBe(true); // render on demand off
-        model.run("tab.select", { tab: "t0" });
+        model.run("tab.select", { tabId: "t0" });
         expect(engine.adapter.shouldRender("t1")).toBe(true); // rendered before
     });
 });
@@ -378,7 +381,7 @@ describe("LayoutEngine registration bookkeeping", () => {
         expect(RecordingResizeObserver.instances).toHaveLength(1);
         const listener = vi.fn();
         engine.adapter.subscribe(listener);
-        model.run("tab.select", { tab: "t1" });
+        model.run("tab.select", { tabId: "t1" });
         expect(listener).toHaveBeenCalledTimes(1);
     });
 
@@ -389,10 +392,10 @@ describe("LayoutEngine registration bookkeeping", () => {
         engine.adapter.detachRoot();
         expect(RecordingResizeObserver.instances[0]?.disconnected).toBe(true);
         expect(root.querySelector(`[${MOVEABLES_HOME_ATTRIBUTE}]`)).toBeNull();
-        model.run("tab.select", { tab: "t1" });
+        model.run("tab.select", { tabId: "t1" });
         expect(listener).not.toHaveBeenCalled();
         engine.adapter.attachRoot(root);
-        model.run("tab.select", { tab: "t0" });
+        model.run("tab.select", { tabId: "t0" });
         expect(listener).toHaveBeenCalledTimes(1);
         expect(
             root.querySelectorAll(`[${MOVEABLES_HOME_ATTRIBUTE}]`),
@@ -408,12 +411,12 @@ describe("LayoutEngine keyboard focus", () => {
         engine.adapter.registerMeasurable("t0", "tabbutton", b0);
         engine.adapter.registerMeasurable("t2", "tabbutton", b2);
         b0.focus();
-        model.run("tabset.activate", { tabset: "ts0" });
+        model.run("tabset.activate", { tabsetId: "ts0" });
         expect(engine.can("focus-tabset", { direction: "next" })).toBe(true);
         expect(document.activeElement).toBe(b0); // a dry run moves nothing
         expect(engine.run("focus-tabset", { direction: "next" })).toEqual({
             ok: true,
-            value: { tabset: "ts1" },
+            value: { tabsetId: "ts1" },
         });
         expect(document.activeElement).toBe(b2);
         expect(model.get("active-tabset")?.id).toBe("ts1");

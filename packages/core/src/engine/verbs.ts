@@ -12,12 +12,12 @@ export interface EngineActionMap {
      * pops a tab, or a whole tabset, out into a window at its place on screen (`tab.popout` /
      * `tabset.popout`); refused where popouts are not supported
      */
-    popout: { payload: { node: string }; result: { window: string } };
+    popout: { payload: { nodeId: string }; result: { windowId: string } };
     /**
      * docks a tab, or a tabset, of a window back into the main layout's active tabset (its first
      * one otherwise): `window.close` when it is all its window holds, else `tab.move`s
      */
-    "dock-back": { payload: { node: string }; result: { tabs: string[] } };
+    "dock-back": { payload: { nodeId: string }; result: { tabIds: string[] } };
     /**
      * moves focus to the selected tab of the next or previous tabset of this layout (wrapping) and
      * activates that tabset (`tabset.activate`); refused when focus is not in the layout, or is in
@@ -25,12 +25,12 @@ export interface EngineActionMap {
      */
     "focus-tabset": {
         payload: { direction: "next" | "previous" };
-        result: { tabset: string };
+        result: { tabsetId: string };
     };
     /** closes an open border's panel (`border.configure`); focus in it goes back to its tab */
     "close-overlay-border": {
-        payload: { border: string };
-        result: { border: string };
+        payload: { borderId: string };
+        result: { borderId: string };
     };
     /**
      * measures the layout again and repositions the panels; call it after a change the engine

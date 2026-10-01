@@ -250,7 +250,7 @@ describe("overlay borders", () => {
         expect(s.selected()).toBe(-1);
         expect(s.commands.at(-1)).toEqual({
             command: "border.configure",
-            payload: { border: "border_left", open: false },
+            payload: { borderId: "border_left", open: false },
         });
     });
 
@@ -292,7 +292,7 @@ describe("overlay borders", () => {
             ),
         ).toBe(false);
 
-        s.engine.adapter.model.run("tab.select", { tab: "b0" });
+        s.engine.adapter.model.run("tab.select", { tabId: "b0" });
         button.focus();
         expect(
             s.engine.adapter.handleOverlayKeyDown(

@@ -2,9 +2,9 @@ import { dataSchema, describedId, idSchema, object } from "../schema/fragments";
 import { cloneJson } from "../state/clone";
 import { defineCommand, fail, ok } from "./define";
 
-const rowId = { ...idSchema, description: "the row's id" } as const;
+const rowIdSchema = { ...idSchema, description: "the row's id" } as const;
 
-const rowIdResult = object({ row: describedId("row") }, ["row"]);
+const rowIdResult = object({ rowId: describedId("row") }, ["rowId"]);
 
 export const rowResize = defineCommand({
     name: "row.resize",
@@ -12,21 +12,21 @@ export const rowResize = defineCommand({
         "Set the relative weights of a row's children, one positive number per child in order (the splitters issue this while dragged).",
     payloadSchema: object(
         {
-            row: rowId,
+            rowId: rowIdSchema,
             weights: {
                 type: "array",
                 items: { type: "number", exclusiveMinimum: 0 },
                 description: "one positive weight per child, in order",
             },
         },
-        ["row", "weights"],
+        ["rowId", "weights"],
     ),
     resultSchema: rowIdResult,
     transient: true,
     reduce(payload, { draft }) {
-        const row = draft.row(payload.row);
+        const row = draft.row(payload.rowId);
         if (!row || !draft.isAttached(row.id)) {
-            return fail("not_found", `no row "${payload.row}"`, "/row");
+            return fail("not_found", `no row "${payload.rowId}"`, "/rowId");
         }
         if (payload.weights.length !== row.children.length) {
             return fail(
@@ -41,20 +41,20 @@ export const rowResize = defineCommand({
                 draft.set(child.id, "weight", weight);
             }
         }
-        return ok({ row: row.id });
+        return ok({ rowId: row.id });
     },
 });
 
 export const rowConfigure = defineCommand({
     name: "row.configure",
     description: "Set (or, with null, remove) a row's data.",
-    payloadSchema: object({ row: rowId, data: dataSchema }, ["row"]),
+    payloadSchema: object({ rowId: rowIdSchema, data: dataSchema }, ["rowId"]),
     resultSchema: rowIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const row = draft.row(payload.row);
+        const row = draft.row(payload.rowId);
         if (!row || !draft.isAttached(row.id)) {
-            return fail("not_found", `no row "${payload.row}"`, "/row");
+            return fail("not_found", `no row "${payload.rowId}"`, "/rowId");
         }
         if (payload.data !== undefined) {
             draft.set(
@@ -63,6 +63,6 @@ export const rowConfigure = defineCommand({
                 payload.data === null ? undefined : cloneJson(payload.data),
             );
         }
-        return ok({ row: row.id });
+        return ok({ rowId: row.id });
     },
 });

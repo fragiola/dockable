@@ -23,15 +23,17 @@ import { checkDrop, resolveTarget } from "./rules";
 import { defaultWindowRect, isError, place } from "./tab";
 import type { CommandError } from "./types";
 
-const tabsetId = { ...idSchema, description: "the tabset's id" } as const;
+const tabsetIdSchema = { ...idSchema, description: "the tabset's id" } as const;
 
-const tabsetIdResult = object({ tabset: describedId("tabset") }, ["tabset"]);
+const tabsetIdResult = object({ tabsetId: describedId("tabset") }, [
+    "tabsetId",
+]);
 
 /** The tabset `id` in the tree, or a not_found error. */
 function attachedTabset(
     draft: Draft,
     id: string,
-    path = "/tabset",
+    path = "/tabsetId",
 ): AnyTabset | CommandError {
     const tabset = draft.tabset(id);
     if (!tabset || !draft.isAttached(id)) {
@@ -43,11 +45,11 @@ function attachedTabset(
 export const tabsetActivate = defineCommand({
     name: "tabset.activate",
     description: "Make a tabset the active one of its layout.",
-    payloadSchema: object({ tabset: tabsetId }, ["tabset"]),
+    payloadSchema: object({ tabsetId: tabsetIdSchema }, ["tabsetId"]),
     resultSchema: tabsetIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tabset = attachedTabset(draft, payload.tabset);
+        const tabset = attachedTabset(draft, payload.tabsetId);
         if (isError(tabset)) {
             return { ok: false, error: tabset };
         }
@@ -55,7 +57,7 @@ export const tabsetActivate = defineCommand({
         if (layout !== undefined) {
             draft.setActive(layout, tabset.id);
         }
-        return ok({ tabset: tabset.id });
+        return ok({ tabsetId: tabset.id });
     },
 });
 
@@ -65,38 +67,38 @@ export const tabsetMaximize = defineCommand({
         "Maximize a tabset so it fills its layout (value true), or restore it (value false). Maximizing also makes it active. Refused when the tabset does not allow it or is the only tabset of its layout.",
     payloadSchema: object(
         {
-            tabset: tabsetId,
+            tabsetId: tabsetIdSchema,
             value: {
                 ...booleanSchema,
                 description: "true maximizes, false restores",
             },
         },
-        ["tabset", "value"],
+        ["tabsetId", "value"],
     ),
     resultSchema: tabsetIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tabset = attachedTabset(draft, payload.tabset);
+        const tabset = attachedTabset(draft, payload.tabsetId);
         if (isError(tabset)) {
             return { ok: false, error: tabset };
         }
         const layout = draft.layoutOf(tabset.id);
         if (layout === undefined) {
-            return fail("not_found", `no tabset "${tabset.id}"`, "/tabset");
+            return fail("not_found", `no tabset "${tabset.id}"`, "/tabsetId");
         }
         const maximized = draft.getMaximized(layout) === tabset.id;
         if (!payload.value) {
             if (maximized) {
                 draft.setMaximized(layout, undefined);
             }
-            return ok({ tabset: tabset.id });
+            return ok({ tabsetId: tabset.id });
         }
         if (!maximized) {
             if (!resolveTabset(draft.getDefaults(), tabset).enableMaximize) {
                 return fail(
                     "refused",
                     `tabset "${tabset.id}" cannot be maximized`,
-                    "/tabset",
+                    "/tabsetId",
                 );
             }
             const root = draft.rootOf(layout);
@@ -109,13 +111,13 @@ export const tabsetMaximize = defineCommand({
                 return fail(
                     "refused",
                     `tabset "${tabset.id}" is the only tabset of its layout`,
-                    "/tabset",
+                    "/tabsetId",
                 );
             }
         }
         draft.setMaximized(layout, tabset.id);
         draft.setActive(layout, tabset.id);
-        return ok({ tabset: tabset.id });
+        return ok({ tabsetId: tabset.id });
     },
 });
 
@@ -123,20 +125,20 @@ export const tabsetClose = defineCommand({
     name: "tabset.close",
     description:
         "Close a tabset: its closable tabs close, and the tabset is removed once empty. Refused when the tabset's enableClose is false.",
-    payloadSchema: object({ tabset: tabsetId }, ["tabset"]),
+    payloadSchema: object({ tabsetId: tabsetIdSchema }, ["tabsetId"]),
     resultSchema: object(
         {
-            closed: {
+            closedTabIds: {
                 type: "array",
                 items: idSchema,
                 description: "the ids of the tabs that closed",
             },
         },
-        ["closed"],
+        ["closedTabIds"],
     ),
     transient: false,
     reduce(payload, { draft }) {
-        const tabset = attachedTabset(draft, payload.tabset);
+        const tabset = attachedTabset(draft, payload.tabsetId);
         if (isError(tabset)) {
             return { ok: false, error: tabset };
         }
@@ -145,7 +147,7 @@ export const tabsetClose = defineCommand({
             return fail(
                 "refused",
                 `tabset "${tabset.id}" cannot be closed`,
-                "/tabset",
+                "/tabsetId",
             );
         }
         const closed: string[] = [];
@@ -163,7 +165,7 @@ export const tabsetClose = defineCommand({
             draft.detach(tabset.id);
         }
         tidy(draft);
-        return ok({ closed });
+        return ok({ closedTabIds: closed });
     },
 });
 
@@ -173,7 +175,7 @@ export const tabsetMove = defineCommand({
         "Move a whole tabset: merge its tabs into another tabset (location center), place it beside a tabset (an edge), or dock it to an edge of a layout.",
     payloadSchema: object(
         {
-            tabset: tabsetId,
+            tabsetId: tabsetIdSchema,
             to: {
                 ...idSchema,
                 description: "a tabset, a row, or a layout id (its root row)",
@@ -188,12 +190,12 @@ export const tabsetMove = defineCommand({
                 description: "for a merge: where its tabs go; -1 appends",
             },
         },
-        ["tabset", "to"],
+        ["tabsetId", "to"],
     ),
     resultSchema: tabsetIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tabset = attachedTabset(draft, payload.tabset);
+        const tabset = attachedTabset(draft, payload.tabsetId);
         if (isError(tabset)) {
             return { ok: false, error: tabset };
         }
@@ -201,7 +203,7 @@ export const tabsetMove = defineCommand({
             return fail(
                 "refused",
                 `tabset "${tabset.id}" cannot be moved`,
-                "/tabset",
+                "/tabsetId",
             );
         }
         const target = resolveTarget(draft, payload.to);
@@ -232,7 +234,7 @@ export const tabsetMove = defineCommand({
             undefined,
         );
         tidy(draft);
-        return ok({ tabset: holder });
+        return ok({ tabsetId: holder });
     },
 });
 
@@ -242,19 +244,19 @@ export const tabsetPopout = defineCommand({
         "Open a whole tabset in a new browser window. Refused when any of its tabs does not allow popouts, when it is empty, or when it is already in a window.",
     payloadSchema: object(
         {
-            tabset: tabsetId,
+            tabsetId: tabsetIdSchema,
             rect: {
                 ...rectSchema,
                 description:
                     "the window's screen rect; without one, a 600x400 window offset 50px per open window (engine.popout passes the tabset's place on screen)",
             },
         },
-        ["tabset"],
+        ["tabsetId"],
     ),
-    resultSchema: object({ window: describedId("new window") }, ["window"]),
+    resultSchema: object({ windowId: describedId("new window") }, ["windowId"]),
     transient: false,
     reduce(payload, { draft }) {
-        const tabset = attachedTabset(draft, payload.tabset);
+        const tabset = attachedTabset(draft, payload.tabsetId);
         if (isError(tabset)) {
             return { ok: false, error: tabset };
         }
@@ -263,11 +265,15 @@ export const tabsetPopout = defineCommand({
             return fail(
                 "refused",
                 `tabset "${tabset.id}" is already in a window`,
-                "/tabset",
+                "/tabsetId",
             );
         }
         if (tabset.children.length === 0) {
-            return fail("refused", `tabset "${tabset.id}" is empty`, "/tabset");
+            return fail(
+                "refused",
+                `tabset "${tabset.id}" is empty`,
+                "/tabsetId",
+            );
         }
         const defaults = draft.getDefaults();
         if (
@@ -278,7 +284,7 @@ export const tabsetPopout = defineCommand({
             return fail(
                 "refused",
                 `a tab of tabset "${tabset.id}" does not allow popouts`,
-                "/tabset",
+                "/tabsetId",
             );
         }
         if (draft.getMaximized(layout) === tabset.id) {
@@ -293,7 +299,7 @@ export const tabsetPopout = defineCommand({
         );
         dropOnRow(draft, row.id, tabset.id, "center", 0);
         tidy(draft);
-        return ok({ window: windowId });
+        return ok({ windowId });
     },
 });
 
@@ -303,7 +309,7 @@ export const tabsetConfigure = defineCommand({
         "Change a tabset's behaviour flags, size limits or data. A null value removes the tabset's own value so the layout default applies (data: null removes the data).",
     payloadSchema: object(
         {
-            tabset: tabsetId,
+            tabsetId: tabsetIdSchema,
             enableDrop: nullable(tabsetFieldProperties.enableDrop),
             enableDrag: nullable(tabsetFieldProperties.enableDrag),
             enableDivide: nullable(tabsetFieldProperties.enableDivide),
@@ -317,17 +323,17 @@ export const tabsetConfigure = defineCommand({
             maxHeight: nullable(tabsetFieldProperties.maxHeight),
             data: dataSchema,
         },
-        ["tabset"],
+        ["tabsetId"],
     ),
     resultSchema: tabsetIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const tabset = attachedTabset(draft, payload.tabset);
+        const tabset = attachedTabset(draft, payload.tabsetId);
         if (isError(tabset)) {
             return { ok: false, error: tabset };
         }
         for (const [key, value] of Object.entries(payload)) {
-            if (key !== "tabset" && value !== undefined) {
+            if (key !== "tabsetId" && value !== undefined) {
                 draft.set(
                     tabset.id,
                     key,
@@ -335,6 +341,6 @@ export const tabsetConfigure = defineCommand({
                 );
             }
         }
-        return ok({ tabset: tabset.id });
+        return ok({ tabsetId: tabset.id });
     },
 });

@@ -143,9 +143,9 @@ describe("model.get", () => {
         const m = model();
         expect(m.get("active-tabset")?.id).toBe("ts1");
         expect(m.get("maximized-tabset")).toBeUndefined();
-        must(m.run("tabset.maximize", { tabset: "ts0", value: true }));
+        must(m.run("tabset.maximize", { tabsetId: "ts0", value: true }));
         expect(m.get("maximized-tabset")?.id).toBe("ts0");
-        must(m.run("tabset.activate", { tabset: "ts3" }));
+        must(m.run("tabset.activate", { tabsetId: "ts3" }));
         expect(m.get("active-tabset", { layout: "w0" })?.id).toBe("ts3");
         expect(m.get("maximized-tabset", { layout: "w0" })).toBeUndefined();
     });
@@ -192,9 +192,9 @@ describe("model.get", () => {
 
     it("reads the state committed last", () => {
         const m = model();
-        must(m.run("tab.select", { tab: "a" }));
+        must(m.run("tab.select", { tabId: "a" }));
         expect(m.get("selected-tab", { container: "ts0" })?.id).toBe("a");
-        must(m.run("tab.close", { tab: "b" }));
+        must(m.run("tab.close", { tabId: "b" }));
         expect(m.get("node", { node: "b" })).toBeUndefined();
     });
 });
@@ -215,15 +215,15 @@ describe("model.is", () => {
         expect(m.is("active", { tabset: "ts1" })).toBe(true);
         expect(m.is("active", { tabset: "ts0" })).toBe(false);
         expect(m.is("maximized", { tabset: "ts0" })).toBe(false);
-        must(m.run("tabset.maximize", { tabset: "ts0", value: true }));
+        must(m.run("tabset.maximize", { tabsetId: "ts0", value: true }));
         expect(m.is("maximized", { tabset: "ts0" })).toBe(true);
-        must(m.run("tabset.activate", { tabset: "ts3" }));
+        must(m.run("tabset.activate", { tabsetId: "ts3" }));
         expect(m.is("active", { tabset: "ts3" })).toBe(true);
     });
 
     it("hidden-by-maximize: every tabset and row off the maximized tabset's path", () => {
         const m = model();
-        must(m.run("tabset.maximize", { tabset: "ts1", value: true }));
+        must(m.run("tabset.maximize", { tabsetId: "ts1", value: true }));
         expect(m.is("hidden-by-maximize", { node: "ts0" })).toBe(true);
         expect(m.is("hidden-by-maximize", { node: "ts2" })).toBe(true);
         expect(m.is("hidden-by-maximize", { node: "r1" })).toBe(false);
@@ -246,7 +246,7 @@ describe("model.is", () => {
         expect(m.is("overlay", { border: "left" })).toBe(true);
         must(
             m.run("border.configure", {
-                border: "left",
+                borderId: "left",
                 open: false,
                 mode: "docked",
             }),

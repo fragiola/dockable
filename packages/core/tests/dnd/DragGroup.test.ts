@@ -270,7 +270,7 @@ describe("dragging between two models", () => {
     it("changes nothing for a tab that cannot close in its model", () => {
         const group = new DragGroup();
         const a = layout("a", { dragGroup: group });
-        a.model.run("tab.configure", { tab: "a0", enableClose: false });
+        a.model.run("tab.configure", { tabId: "a0", enableClose: false });
         const b = layout("b", { dragGroup: group });
         dragBetween(a, "a0", b);
         expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);

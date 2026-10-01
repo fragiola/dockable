@@ -260,7 +260,9 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
                 (layout) => layout.id === layoutId,
             )
         ) {
-            this.engine.adapter.model.run("window.close", { window: layoutId });
+            this.engine.adapter.model.run("window.close", {
+                windowId: layoutId,
+            });
         }
     }
 
@@ -406,7 +408,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             }
             this.engine.adapter.model.run(
                 "window.configure",
-                { window: entry.layoutId, rect },
+                { windowId: entry.layoutId, rect },
                 { transient: true },
             );
         };

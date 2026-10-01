@@ -173,18 +173,18 @@ export const layoutLoad = defineCommand({
     payloadSchema: layoutLoadSchema,
     resultSchema: object(
         {
-            added: {
+            addedNodeIds: {
                 type: "array",
                 items: idSchema,
-                description: "ids only in the new layout",
+                description: "the ids of the nodes only in the new layout",
             },
-            removed: {
+            removedNodeIds: {
                 type: "array",
                 items: idSchema,
-                description: "ids only in the old layout",
+                description: "the ids of the nodes only in the old layout",
             },
         },
-        ["added", "removed"],
+        ["addedNodeIds", "removedNodeIds"],
     ),
     transient: false,
     reduce(payload, { draft, loadLayout }) {
@@ -200,8 +200,8 @@ export const layoutLoad = defineCommand({
         }
         draft.reset(built.state, built.index);
         return ok({
-            added: [...after].filter((id) => !before.has(id)),
-            removed: [...before].filter((id) => !after.has(id)),
+            addedNodeIds: [...after].filter((id) => !before.has(id)),
+            removedNodeIds: [...before].filter((id) => !after.has(id)),
         });
     },
 });

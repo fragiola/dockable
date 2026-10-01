@@ -90,8 +90,8 @@ function setup(
         if (win) opened.push(win);
         return win;
     });
-    const result = model.run("tab.popout", { tab: "b" });
-    const layoutId = result.ok ? result.value.window : "";
+    const result = model.run("tab.popout", { tabId: "b" });
+    const layoutId = result.ok ? result.value.windowId : "";
     return {
         model,
         engine,
@@ -153,7 +153,7 @@ describe("opening", () => {
 
     it("closes the window of a layout that left the state", () => {
         const { model, manager, layoutId, opened } = setup();
-        model.run("tab.close", { tab: "b" });
+        model.run("tab.close", { tabId: "b" });
         expect(model.get("window", { window: layoutId })).toBeUndefined();
         expect(opened[0]?.close).toHaveBeenCalled();
         expect(manager.getOpenLayoutIds()).toEqual([]);
@@ -295,7 +295,7 @@ describe("opening", () => {
 describe("opening edge cases", () => {
     it("opens the window layouts of a loaded layout once the engine attaches", () => {
         const model = createModel(structuredClone(json));
-        model.run("tab.popout", { tab: "b" });
+        model.run("tab.popout", { tabId: "b" });
         engine = createLayoutEngine({
             model,
             popout: { supportsPopout: true },
@@ -353,7 +353,7 @@ describe("closing", () => {
         const { model, layout, layoutId, opened, manager } = setup({
             onPopoutClose,
         });
-        model.run("tabset.activate", { tabset: "ts1" });
+        model.run("tabset.activate", { tabsetId: "ts1" });
         const win = opened[0] as Window;
         await load(win);
         const windowLayout = layout();

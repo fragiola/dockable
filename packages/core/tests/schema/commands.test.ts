@@ -9,6 +9,7 @@ import type {
     ResultOf,
 } from "../../src/commands/types";
 import { layoutSchema } from "../../src/schema/layout";
+import type { JsonSchema } from "../../src/schema/types";
 import { validate } from "../../src/schema/validator";
 import type { AnyTypes } from "../../src/state/types";
 
@@ -35,131 +36,131 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
         },
         invalid: { component: "chart", to: "ts0", location: "middle" },
         path: "/location",
-        result: { tab: "tab-1" },
+        result: { tabId: "tab-1" },
     },
     "tab.select": {
-        valid: { tab: "t" },
+        valid: { tabId: "t" },
         invalid: {},
-        path: "/tab",
-        result: { tab: "t" },
+        path: "/tabId",
+        result: { tabId: "t" },
     },
     "tab.close": {
-        valid: { tab: "t" },
-        invalid: { tab: "" },
-        path: "/tab",
-        result: { tab: "t" },
+        valid: { tabId: "t" },
+        invalid: { tabId: "" },
+        path: "/tabId",
+        result: { tabId: "t" },
     },
     "tab.move": {
-        valid: { tab: "t", to: "ts1", location: "center", index: 2 },
-        invalid: { tab: "t", to: "ts1", index: -2 },
+        valid: { tabId: "t", to: "ts1", location: "center", index: 2 },
+        invalid: { tabId: "t", to: "ts1", index: -2 },
         path: "/index",
-        result: { tab: "t" },
+        result: { tabId: "t" },
     },
     "tab.update": {
-        valid: { tab: "t", component: "chart", data: { series: [1] } },
-        invalid: { tab: "t", data: {} },
+        valid: { tabId: "t", component: "chart", data: { series: [1] } },
+        invalid: { tabId: "t", data: {} },
         path: "/component",
-        result: { tab: "t" },
+        result: { tabId: "t" },
     },
     "tab.pin": {
-        valid: { tab: "t", value: true },
-        invalid: { tab: "t", value: "yes" },
+        valid: { tabId: "t", value: true },
+        invalid: { tabId: "t", value: "yes" },
         path: "/value",
-        result: { tab: "t" },
+        result: { tabId: "t" },
     },
     "tab.popout": {
-        valid: { tab: "t", rect },
-        invalid: { tab: "t", rect: { x: 0 } },
+        valid: { tabId: "t", rect },
+        invalid: { tabId: "t", rect: { x: 0 } },
         path: "/rect/y",
-        result: { window: "w" },
+        result: { windowId: "w" },
     },
     "tab.configure": {
-        valid: { tab: "t", enableClose: false, minWidth: null },
-        invalid: { tab: "t", enableClose: "no" },
+        valid: { tabId: "t", enableClose: false, minWidth: null },
+        invalid: { tabId: "t", enableClose: "no" },
         path: "/enableClose",
-        result: { tab: "t" },
+        result: { tabId: "t" },
     },
     "tabset.activate": {
-        valid: { tabset: "ts" },
-        invalid: { tabset: 1 },
-        path: "/tabset",
-        result: { tabset: "ts" },
+        valid: { tabsetId: "ts" },
+        invalid: { tabsetId: 1 },
+        path: "/tabsetId",
+        result: { tabsetId: "ts" },
     },
     "tabset.maximize": {
-        valid: { tabset: "ts", value: false },
-        invalid: { tabset: "ts" },
+        valid: { tabsetId: "ts", value: false },
+        invalid: { tabsetId: "ts" },
         path: "/value",
-        result: { tabset: "ts" },
+        result: { tabsetId: "ts" },
     },
     "tabset.close": {
-        valid: { tabset: "ts" },
-        invalid: { tabset: "ts", tab: "t" },
-        path: "/tab",
-        result: { closed: ["a"] },
+        valid: { tabsetId: "ts" },
+        invalid: { tabsetId: "ts", tabId: "t" },
+        path: "/tabId",
+        result: { closedTabIds: ["a"] },
     },
     "tabset.move": {
-        valid: { tabset: "ts", to: "row", location: "bottom" },
+        valid: { tabsetId: "ts", to: "row", location: "bottom" },
         invalid: { to: "row" },
-        path: "/tabset",
-        result: { tabset: "ts" },
+        path: "/tabsetId",
+        result: { tabsetId: "ts" },
     },
     "tabset.popout": {
-        valid: { tabset: "ts" },
-        invalid: { tabset: "ts", rect: {} },
+        valid: { tabsetId: "ts" },
+        invalid: { tabsetId: "ts", rect: {} },
         path: "/rect/x",
-        result: { window: "w" },
+        result: { windowId: "w" },
     },
     "tabset.configure": {
         valid: {
-            tabset: "ts",
+            tabsetId: "ts",
             enableDrop: false,
             data: { name: "x" },
             maxWidth: null,
         },
-        invalid: { tabset: "ts", minHeight: -1 },
+        invalid: { tabsetId: "ts", minHeight: -1 },
         path: "/minHeight",
-        result: { tabset: "ts" },
+        result: { tabsetId: "ts" },
     },
     "row.resize": {
-        valid: { row: "r", weights: [1, 2.5] },
-        invalid: { row: "r", weights: [1, -1] },
+        valid: { rowId: "r", weights: [1, 2.5] },
+        invalid: { rowId: "r", weights: [1, -1] },
         path: "/weights/1",
-        result: { row: "r" },
+        result: { rowId: "r" },
     },
     "row.configure": {
-        valid: { row: "r", data: null },
+        valid: { rowId: "r", data: null },
         invalid: { data: 1 },
-        path: "/row",
-        result: { row: "r" },
+        path: "/rowId",
+        result: { rowId: "r" },
     },
     "border.resize": {
-        valid: { border: "border_left", size: 120 },
-        invalid: { border: "border_left", size: "big" },
+        valid: { borderId: "border_left", size: 120 },
+        invalid: { borderId: "border_left", size: "big" },
         path: "/size",
-        result: { border: "border_left", size: 120 },
+        result: { borderId: "border_left", size: 120 },
     },
     "border.configure": {
         valid: {
-            border: "border_left",
+            borderId: "border_left",
             open: false,
             mode: "overlay",
             size: null,
         },
-        invalid: { border: "border_left", mode: "floating" },
+        invalid: { borderId: "border_left", mode: "floating" },
         path: "/mode",
-        result: { border: "border_left" },
+        result: { borderId: "border_left" },
     },
     "window.close": {
-        valid: { window: "w" },
+        valid: { windowId: "w" },
         invalid: {},
-        path: "/window",
-        result: { tabs: ["a", "b"] },
+        path: "/windowId",
+        result: { tabIds: ["a", "b"] },
     },
     "window.configure": {
-        valid: { window: "w", rect },
-        invalid: { window: "w", rect: { ...rect, width: -1 } },
+        valid: { windowId: "w", rect },
+        invalid: { windowId: "w", rect: { ...rect, width: -1 } },
         path: "/rect/width",
-        result: { window: "w" },
+        result: { windowId: "w" },
     },
     "layout.configure": {
         valid: {
@@ -195,13 +196,13 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
             },
         },
         path: "/layout/root/children/0/selected",
-        result: { added: ["a"], removed: [] },
+        result: { addedNodeIds: ["a"], removedNodeIds: [] },
     },
     batch: {
         valid: {
             commands: [
-                { command: "tab.select", payload: { tab: "t" } },
-                { command: "tab.close", payload: { tab: "t" } },
+                { command: "tab.select", payload: { tabId: "t" } },
+                { command: "tab.close", payload: { tabId: "t" } },
             ],
         },
         invalid: { commands: [{ command: "tab.select" }] },
@@ -293,5 +294,68 @@ describe("command schemas", () => {
                 ],
             }),
         ).toEqual([]);
+    });
+});
+
+/** A string field that holds an id: the shape of `idSchema` (`{ type: "string", minLength: 1 }`). */
+function isIdSchema(schema: JsonSchema | undefined): boolean {
+    return schema?.type === "string" && schema.minLength === 1;
+}
+
+/** The top-level fields of a payload or result schema that hold an id but are not named `*Id`. */
+function misnamedIdFields(schema: JsonSchema): string[] {
+    return Object.entries(schema.properties ?? {}).flatMap(([name, field]) => {
+        if (ID_FIELD_EXCEPTIONS.has(name)) {
+            return [];
+        }
+        if (isIdSchema(field) && !name.endsWith("Id")) {
+            return [name];
+        }
+        if (
+            field.type === "array" &&
+            isIdSchema(field.items) &&
+            !name.endsWith("Ids")
+        ) {
+            return [name];
+        }
+        return [];
+    });
+}
+
+// `to` is a placement target (a tabset, a row, a border or a layout), `id` is a new tab's own id,
+// and `component` is a key of the app's registry, not a node
+const ID_FIELD_EXCEPTIONS = new Set(["to", "id", "component"]);
+
+describe("id fields", () => {
+    it("every payload and result field holding an id is named `*Id` (`*Ids` for a list)", () => {
+        const misnamed = [...COMMAND_DEFINITIONS.values()].flatMap(
+            (definition) =>
+                [
+                    ...misnamedIdFields(definition.payloadSchema),
+                    ...misnamedIdFields(definition.resultSchema),
+                ].map((field) => `${definition.name}: ${field}`),
+        );
+        expect(misnamed).toEqual([]);
+    });
+
+    it("catches a misnamed id field", () => {
+        expect(
+            misnamedIdFields({
+                type: "object",
+                properties: {
+                    tab: { type: "string", minLength: 1 },
+                    tabs: {
+                        type: "array",
+                        items: { type: "string", minLength: 1 },
+                    },
+                    tabId: { type: "string", minLength: 1 },
+                    tabIds: {
+                        type: "array",
+                        items: { type: "string", minLength: 1 },
+                    },
+                    to: { type: "string", minLength: 1 },
+                },
+            }),
+        ).toEqual(["tab", "tabs"]);
     });
 });
