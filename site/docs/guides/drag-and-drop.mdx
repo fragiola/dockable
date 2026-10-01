@@ -66,6 +66,13 @@ Its state (also as attributes):
 The core never animates: the transition is yours, and `tabDragSpeed` only tells you the duration
 the layout was configured with.
 
+Since `className` takes the state, the indicator can say where a tab would land. `location` and
+`kind` give the side and whether the drop is at the layout's edge; which tabset is targeted is that
+tabset's own state (`useTabSet(node).state.dropTarget`, or `data-drop-target` on it). The example
+gives each region its colour and each kind of drop its fill:
+
+<Example id="drop-indicator-colours" />
+
 ### Stacking: give it a `z-index`
 
 Panels are portalled into the root **after** its other children. Absolutely positioned siblings

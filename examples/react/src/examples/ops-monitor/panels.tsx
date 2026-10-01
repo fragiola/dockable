@@ -14,7 +14,6 @@ import { Badge } from "#/components/atoms/badge";
 import { Chart } from "#/components/ui/chart";
 import { Progress } from "#/components/ui/progress";
 import { Table } from "#/components/ui/table";
-import { cn } from "#/lib/cn";
 import { useChartKey } from "../_kit/charts";
 import {
     type Level,
@@ -24,17 +23,10 @@ import {
     type Simulation,
     THRESHOLDS,
 } from "./simulation";
+import * as styles from "./styles";
 
 // The content of each tab. Every panel subscribes to the simulation and unsubscribes when it
 // unmounts (useSyncExternalStore does both).
-
-/** A status as a palette: the same mapping colours tabs, badges and log lines. */
-export const LEVEL_PALETTE: Record<Level | "info", string> = {
-    ok: "palette-green",
-    warning: "palette-orange",
-    critical: "palette-danger",
-    info: "",
-};
 
 /** What a service tab keeps in its `data`; `status` and `alerts` are written by its panel. */
 export interface ServiceData {
@@ -141,11 +133,11 @@ export function ServicePanel({
     const latest = state.latency[state.latency.length - 1] ?? 0;
 
     return (
-        <div ref={ref} className="flex h-full min-h-40 flex-col gap-2 p-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <div ref={ref} className={styles.servicePanel}>
+            <div className={styles.metrics}>
                 <Badge
                     data-testid="service-status"
-                    className={LEVEL_PALETTE[state.level]}
+                    className={styles.statusBadge(state.level)}
                 >
                     {state.level}
                 </Badge>
@@ -154,24 +146,20 @@ export function ServicePanel({
                     ["errors", `${state.errors}%`],
                     ["cpu", `${state.cpu}%`],
                 ].map(([term, value]) => (
-                    <span key={term} className="flex items-baseline gap-1.5">
-                        <span className="text-palette-accent/85">{term}</span>
-                        <span className="text-sm font-semibold tabular-nums">
-                            {value}
-                        </span>
+                    <span key={term} className={styles.metric}>
+                        <span className={styles.metricTerm}>{term}</span>
+                        <span className={styles.metricValue}>{value}</span>
                     </span>
                 ))}
             </div>
             {chartKey === null ? null : (
-                <div
-                    className={cn("min-h-0 flex-1", LEVEL_PALETTE[state.level])}
-                >
+                <div className={styles.chartArea(state.level)}>
                     {/* keyed on the theme and the level: the Fragiola chart reads its colours
                         when it mounts, so a palette change remounts it too */}
                     <Chart
                         key={`${chartKey}-${state.level}`}
                         option={option}
-                        className="h-full"
+                        className={styles.chart}
                     />
                 </div>
             )}
@@ -189,14 +177,14 @@ export function OverviewPanel({ simulation }: { simulation: Simulation }) {
         }
     };
     return (
-        <div className="p-3">
+        <div className={styles.overviewPanel}>
             <Table.Root>
                 <Table.Header>
                     <Table.Row>
                         <Table.Head>Service</Table.Head>
                         <Table.Head>Status</Table.Head>
-                        <Table.Head className="text-end">p95</Table.Head>
-                        <Table.Head className="w-1/3">CPU</Table.Head>
+                        <Table.Head className={styles.headEnd}>p95</Table.Head>
+                        <Table.Head className={styles.headCpu}>CPU</Table.Head>
                     </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -204,36 +192,34 @@ export function OverviewPanel({ simulation }: { simulation: Simulation }) {
                         const state = services[service.id];
                         return (
                             <Table.Row key={service.id}>
-                                <Table.Cell className="py-1.5">
+                                <Table.Cell className={styles.cell}>
                                     <button
                                         type="button"
                                         onClick={() => open(service.id)}
-                                        className="underline-offset-2 outline-none hover:underline focus-visible:underline"
+                                        className={styles.serviceLink}
                                     >
                                         {service.name}
                                     </button>
                                 </Table.Cell>
-                                <Table.Cell className="py-1.5">
+                                <Table.Cell className={styles.cell}>
                                     <Badge
-                                        className={LEVEL_PALETTE[state.level]}
+                                        className={styles.statusBadge(
+                                            state.level,
+                                        )}
                                     >
                                         {state.level}
                                     </Badge>
                                 </Table.Cell>
-                                <Table.Cell className="py-1.5 text-end tabular-nums">
+                                <Table.Cell className={styles.cellNumber}>
                                     {`${state.latency[state.latency.length - 1]} ms`}
                                 </Table.Cell>
-                                <Table.Cell className="py-1.5">
+                                <Table.Cell className={styles.cell}>
                                     <Progress.Root
                                         value={state.cpu}
                                         aria-label={`${service.name} CPU`}
-                                        className={
-                                            LEVEL_PALETTE[
-                                                state.cpu > 80
-                                                    ? "critical"
-                                                    : "ok"
-                                            ]
-                                        }
+                                        className={styles.cpuBar(
+                                            state.cpu > 80,
+                                        )}
                                     >
                                         <Progress.Track>
                                             <Progress.Indicator />
@@ -251,16 +237,9 @@ export function OverviewPanel({ simulation }: { simulation: Simulation }) {
 
 function EventLine({ event }: { event: OpsEvent }) {
     return (
-        <li className="flex gap-2">
-            <span className="text-palette-accent/85">{event.time}</span>
-            <span
-                className={cn(
-                    "w-16 shrink-0 uppercase",
-                    event.level === "info"
-                        ? "text-palette-accent/85"
-                        : `${LEVEL_PALETTE[event.level]} text-palette-accent`,
-                )}
-            >
+        <li className={styles.eventLine}>
+            <span className={styles.eventTime}>{event.time}</span>
+            <span className={styles.eventLevel(event.level)}>
                 {event.level}
             </span>
             <span>{event.text}</span>
@@ -286,7 +265,7 @@ export function EventsPanel({
         end.current?.scrollIntoView({ block: "nearest" });
     }, [last]);
     return (
-        <ol className="flex flex-col gap-0.5 p-3 font-mono text-xs leading-5">
+        <ol className={styles.eventsPanel}>
             {shown.map((event) => (
                 <EventLine key={event.id} event={event} />
             ))}
@@ -309,22 +288,16 @@ export function RunbookPanel({ simulation }: { simulation: Simulation }) {
     const [done, setDone] = useState<ReadonlySet<number>>(new Set());
     const failing = SERVICES.filter((s) => services[s.id].level === "critical");
     return (
-        <div className="flex flex-col gap-3 p-3 text-sm">
-            <p
-                className={cn(
-                    failing.length > 0
-                        ? "palette-danger text-palette-accent"
-                        : "text-palette-accent/85",
-                )}
-            >
+        <div className={styles.runbookPanel}>
+            <p className={styles.incidentStatus(failing.length > 0)}>
                 {failing.length > 0
                     ? `Active incident: ${failing.map((s) => s.name).join(", ")}`
                     : "No active incident."}
             </p>
-            <ol className="flex flex-col gap-1.5">
+            <ol className={styles.steps}>
                 {STEPS.map((step, index) => (
                     <li key={step}>
-                        <label className="flex items-start gap-2">
+                        <label className={styles.stepLabel}>
                             <input
                                 type="checkbox"
                                 checked={done.has(index)}
@@ -336,14 +309,9 @@ export function RunbookPanel({ simulation }: { simulation: Simulation }) {
                                         return next;
                                     })
                                 }
-                                className="mt-0.5 accent-(--palette-ring)"
+                                className={styles.stepCheck}
                             />
-                            <span
-                                className={cn(
-                                    done.has(index) &&
-                                        "text-palette-accent/85 line-through",
-                                )}
-                            >
+                            <span className={styles.stepText(done.has(index))}>
                                 {step}
                             </span>
                         </label>

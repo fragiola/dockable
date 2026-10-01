@@ -14,9 +14,9 @@ import { useEffect, useRef, useState } from "react";
 import { Clickable } from "#/components/atoms/clickable";
 import { AlertDialog } from "#/components/ui/alert-dialog";
 import { Tooltip } from "#/components/ui/tooltip";
-import { cn } from "#/lib/cn";
 import { Explorer } from "./explorer";
 import { EditorPanel, ProblemsPanel, TerminalPanel } from "./panels";
+import * as styles from "./styles";
 import { WorkbenchTabSet } from "./tabs";
 import {
     createWorkspace,
@@ -138,20 +138,20 @@ export default function IdeWorkbench() {
     };
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)">
+        <div className={styles.workbench}>
             {problem ? (
                 <div
                     role="alert"
                     data-testid="restore-problem"
-                    className="palette-orange flex shrink-0 items-start gap-3 border-b border-palette-line bg-palette-soft px-3 py-2 text-xs text-palette-contrast"
+                    className={styles.restoreProblem}
                 >
-                    <div className="min-w-0 flex-1">
+                    <div className={styles.restoreProblemBody}>
                         <p>
                             The saved layout could not be restored, so the
                             default one is shown: {problem.message}
                         </p>
                         {problem.issues.length > 0 ? (
-                            <ul className="mt-1 font-mono">
+                            <ul className={styles.restoreProblemIssues}>
                                 {problem.issues.map((issue) => (
                                     <li key={`${issue.path} ${issue.message}`}>
                                         {`${issue.path || "/"}: ${issue.message}`}
@@ -163,19 +163,16 @@ export default function IdeWorkbench() {
                     <button
                         type="button"
                         onClick={() => setProblem(undefined)}
-                        className="h-5 shrink-0 rounded-sm px-2 outline-none hover:bg-palette-base focus-visible:ring-1 focus-visible:ring-palette-ring"
+                        className={styles.restoreProblemDismiss}
                     >
                         Dismiss
                     </button>
                 </div>
             ) : null}
             {/* hairline splitters with a wider grab area, whatever the theme */}
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col [--dk-splitter-grab:7px] [--dk-splitter-size:1px]">
-                <div className="flex min-h-0 flex-1 flex-col p-(--dk-gap)">
-                    <Dockable.Root
-                        model={model}
-                        className="palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast"
-                    >
+            <div className={styles.stage}>
+                <div className={styles.frame}>
+                    <Dockable.Root model={model} className={styles.root}>
                         {/* the borders around the editors: a strip of tabs on each side that has
                             some, and the area where the selected tab's panel opens */}
                         <Dockable.Borders<Types>
@@ -197,26 +194,14 @@ export default function IdeWorkbench() {
                             {(tab) => (
                                 <Dockable.Panel
                                     node={tab}
-                                    // panels sit in a layer above the tabsets, whose overflow
-                                    // cannot clip them: the panel repeats the tabset's inner
-                                    // radius on its corners
-                                    className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
+                                    className={styles.panel}
                                 >
                                     {renderContent(tab)}
                                 </Dockable.Panel>
                             )}
                         </Dockable.Panels>
-                        {/* Panels are portalled into the root after the indicator: it needs a
-                            stacking order to paint above them. */}
                         <Dockable.DropIndicator
-                            className={(state) =>
-                                cn(
-                                    "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
-                                    state.kind === "edge"
-                                        ? "palette-orange bg-palette-base/25"
-                                        : "palette-blue bg-palette-base/20",
-                                )
-                            }
+                            className={styles.dropIndicator}
                             style={(state) => ({
                                 transitionDuration: `${state.tabDragSpeed}s`,
                             })}
@@ -225,9 +210,12 @@ export default function IdeWorkbench() {
                 </div>
             </div>
 
-            <footer className="palette-blue flex h-6 shrink-0 items-center gap-4 bg-palette-base px-3 text-xs text-palette-contrast">
-                <span className="flex items-center gap-1">
-                    <GitBranch aria-hidden="true" className="size-3.5" />
+            <footer className={styles.statusBar}>
+                <span className={styles.statusBranch}>
+                    <GitBranch
+                        aria-hidden="true"
+                        className={styles.statusBranchIcon}
+                    />
                     main
                 </span>
                 <span data-testid="unsaved-count">
@@ -235,7 +223,7 @@ export default function IdeWorkbench() {
                         ? "1 unsaved file"
                         : `${dirtyPaths.size} unsaved files`}
                 </span>
-                <span className="ms-auto">{activePath ?? ""}</span>
+                <span className={styles.statusPath}>{activePath ?? ""}</span>
             </footer>
 
             <AlertDialog.Root
@@ -273,7 +261,7 @@ export default function IdeWorkbench() {
                             </Clickable.Button>
                             <Clickable.Button
                                 size="sm"
-                                className="palette-blue"
+                                className={styles.saveButton}
                                 onClick={() => answer("save")}
                             >
                                 Save
@@ -317,44 +305,32 @@ const BORDER_ICONS: Partial<
 function Border({ node }: { node: BorderNode<Types> }) {
     const side = node.location === "left" || node.location === "right";
     return (
-        <Dockable.Border
-            node={node}
-            className={cn(
-                "palette-surface shrink-0 bg-palette-base text-palette-contrast",
-                // a side bar is as wide as its icon buttons
-                "data-[orientation=vertical]:w-10 data-[orientation=horizontal]:h-(--dk-tab-height)",
-                "data-[location=left]:border-e data-[location=right]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
-                "data-drop-target:bg-palette-soft",
-            )}
-        >
+        <Dockable.Border node={node} className={styles.border}>
             <Dockable.TabList<Types>
                 aria-label={`${node.location} panels`}
-                className="flex min-h-0 min-w-0 flex-1 gap-(--dk-tab-gap) p-1 data-[orientation=vertical]:flex-col"
+                className={styles.borderTabList}
             >
                 {(tab) => {
                     const Icon = BORDER_ICONS[tab.component];
                     const icon = Icon ? (
-                        <Icon aria-hidden="true" className="size-4 shrink-0" />
+                        <Icon
+                            aria-hidden="true"
+                            className={styles.borderTabIcon}
+                        />
                     ) : null;
                     return (
                         <Dockable.Tab
                             node={tab}
                             // an icon-only tab is named by its tab's name
                             aria-label={side ? tab.data.name : undefined}
-                            className={cn(
-                                "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-sm",
-                                "font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
-                                "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
-                                "data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40",
-                                // upright and centred in a side bar: no writing-mode, no rotation
-                                side ? "justify-center p-2" : "px-2 py-1",
-                            )}
+                            // upright and centred in a side bar
+                            className={styles.borderTab(side)}
                         >
                             {side ? (
                                 <Tooltip.Root>
                                     <Tooltip.Trigger
                                         render={<span />}
-                                        className="grid place-items-center"
+                                        className={styles.borderTabTooltip}
                                     >
                                         {icon}
                                     </Tooltip.Trigger>
@@ -385,20 +361,15 @@ function BorderContent({ node }: { node: BorderNode<Types> }) {
     return (
         <Dockable.BorderContent
             node={node}
-            className={cn(
-                "data-overlay:z-30 data-overlay:shadow-xl data-overlay:border-palette-line",
-                "data-overlay:data-[location=left]:border-e data-overlay:data-[location=right]:border-s",
-                "data-overlay:data-[location=top]:border-b data-overlay:data-[location=bottom]:border-t",
-            )}
+            className={styles.borderContent}
             renderSplitter={(border) => <Splitter node={border} />}
         />
     );
 }
 
 /**
- * The bar between two children of a row, or between a border's panel and the layout:
- * `--dk-splitter-size` thick (the engine measures it), with a wider grab area (`::after`) and a
- * grip for the themes that show one (`--dk-grip`).
+ * The bar between two children of a row, or between a border's panel and the layout, with a grip
+ * for the themes that show one.
  */
 function Splitter({
     node,
@@ -412,32 +383,9 @@ function Splitter({
             node={node}
             index={index}
             aria-label="Resize"
-            className={cn(
-                "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
-                // an overlay border's splitter lies over the layout, not a gutter: it gets the
-                // surface underneath, with the theme's splitter colour layered on top
-                "in-data-overlay:bg-palette-base in-data-overlay:bg-[image:linear-gradient(var(--dk-splitter-bg),var(--dk-splitter-bg))]",
-                "after:absolute after:transition-colors after:duration-(--dk-motion)",
-                "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
-                // side by side: a vertical bar
-                "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
-                "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
-                "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
-                "rtl:data-[orientation=vertical]:after:translate-x-1/2",
-                // stacked: a horizontal bar
-                "data-[orientation=horizontal]:h-(--dk-splitter-size) data-[orientation=horizontal]:cursor-ns-resize",
-                "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
-                "data-[orientation=horizontal]:after:h-(--dk-splitter-grab) data-[orientation=horizontal]:after:-translate-y-1/2",
-            )}
+            className={styles.splitter}
         >
-            <span
-                aria-hidden="true"
-                className={cn(
-                    "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
-                    "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
-                    "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
-                )}
-            />
+            <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
     );
 }

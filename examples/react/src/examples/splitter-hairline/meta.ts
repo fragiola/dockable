@@ -1,11 +1,11 @@
 import type { ExampleMeta } from "../meta-types";
 
 export default {
-    title: "Hairline splitter",
+    title: "Line splitter",
     description:
         "A VS Code-style 1px splitter with a wider invisible grab area, filled only while dragging or focused from the keyboard.",
-    level: "basic",
-    order: 3,
+    category: "splitters",
+    order: 2,
     features: [
         "renderSplitter",
         "data-dragging",

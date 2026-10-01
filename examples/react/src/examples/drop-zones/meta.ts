@@ -4,8 +4,8 @@ export default {
     title: "Drop zones",
     description:
         "Zones outside the layout that take a dragged tab: a trash can that closes it, a pad that opens it to the right, and one that pops it out into a window.",
-    level: "intermediate",
-    order: 15,
+    category: "drag-and-drop",
+    order: 4,
     features: [
         "Dockable.DropZone",
         "data-drop-active",

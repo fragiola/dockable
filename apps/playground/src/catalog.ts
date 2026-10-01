@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 import {
+    CATEGORIES,
+    CATEGORY_TITLES,
     type ExampleLayout,
     type ExampleMeta,
-    LEVEL_TITLES,
-    LEVELS,
 } from "#/examples/meta-types";
 import type { ItemRef, Kind } from "./view";
 
@@ -102,8 +102,8 @@ const exampleEntries: Entry[] = Object.entries(exampleModules)
                     kind: "example" as const,
                     id: slug,
                     title: meta.title,
-                    group: meta.level,
-                    groupTitle: LEVEL_TITLES[meta.level],
+                    group: meta.category,
+                    groupTitle: CATEGORY_TITLES[meta.category],
                     description: meta.description,
                     features: meta.features,
                     layout: meta.layout ?? "fill",
@@ -198,7 +198,10 @@ export const sections: Section[] = [
     section(
         "example",
         "Examples",
-        LEVELS.map((level) => ({ key: level, title: LEVEL_TITLES[level] })),
+        CATEGORIES.map((category) => ({
+            key: category,
+            title: CATEGORY_TITLES[category],
+        })),
         exampleEntries,
     ),
     section("scenario", "Scenarios", AREAS, scenarioEntries),

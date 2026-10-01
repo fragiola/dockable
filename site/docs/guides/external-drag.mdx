@@ -121,6 +121,12 @@ const onExternalDrag: OnExternalDrag<Types> = (event) => {
 <Dockable.Root model={model} onExternalDrag={onExternalDrag}>
 ```
 
+The example opens what you drop where you drop it, by kind: a CSV becomes a table (its rows are
+small JSON, so they go in the tab's data) with a chart beside it, an image a viewer (the `File`
+stays outside the model), and a saved layout replaces the current one. A layout from a file is
+untrusted, so it goes through `model.dispatch`, which validates it first: a broken file is an
+error result, never a broken layout. With no files at hand, "Open sample files" runs the same code.
+
 <Example id="drop-files" />
 
 Read the payload (`files`, `getData("text/uri-list")`, …) in `onDrop`: during the drag the browser

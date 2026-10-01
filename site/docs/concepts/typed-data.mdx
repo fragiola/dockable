@@ -115,6 +115,11 @@ if (tab?.component === "editor") {
 }
 ```
 
+A toolbar outside the layout can drive the tab the user is looking at this way: it narrows the
+selected tab of the active tabset on `component`, then writes the chart's new kind into its data.
+
+<Example id="active-tab-controls" />
+
 `tabset.configure`, `border.configure` and `row.configure` take `data` typed by the registry's
 `tabset`, `border` and `row` entries. The types behind them are exported for your own helpers:
 `PayloadOf<Types, "tab.add">` is a command's payload, `ResultOf<Types, "tab.add">` its result, and

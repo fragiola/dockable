@@ -1,17 +1,18 @@
 import type { ExampleMeta } from "../meta-types";
 
 export default {
-    title: "Drop files",
+    title: "Open files from your desktop",
     description:
-        "Drag files from your computer into the layout: each becomes a tab where you drop it. Text files show their content, images are previewed, anything else shows its size and type.",
-    level: "intermediate",
-    order: 14,
+        "Drop files from your computer where you want them to open: a CSV becomes a table and a chart, an image a viewer, and a saved layout replaces this one. Sample files work without any at hand.",
+    category: "external-integration",
+    order: 5,
     features: [
         "onExternalDrag",
         "DataTransfer",
-        "tab.add",
         "tab.update",
-        "onDrop",
+        "tab.add",
+        "model.dispatch",
+        "layout.load",
     ],
     docs: "/docs/guides/external-drag",
 } satisfies ExampleMeta;

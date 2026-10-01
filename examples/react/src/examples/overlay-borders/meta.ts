@@ -4,8 +4,8 @@ export default {
     title: "Overlay borders",
     description:
         "Borders whose panels slide over the layout instead of shrinking it, and close on a click elsewhere or Escape. Switch each border between split and overlay; an empty auto-hide border on the right appears while a tab is dragged near that edge.",
-    level: "intermediate",
-    order: 19,
+    category: "borders",
+    order: 2,
     features: [
         "mode: overlay",
         "border.configure",

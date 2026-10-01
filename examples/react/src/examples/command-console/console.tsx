@@ -7,7 +7,7 @@ import type {
     Model,
 } from "@fragiola/dockable";
 import { useEffect, useId, useState } from "react";
-import { cn } from "#/lib/cn";
+import * as styles from "./styles";
 import { fieldsOf, fromToolCall, toolName, toTools } from "./tools";
 
 // The console lives outside the layout and talks to the model only: `commands()` to list what it
@@ -82,11 +82,8 @@ export function CommandConsole<T extends DockableTypes = AnyTypes>({
     // the log lives here, so it keeps every change while the other views are shown
     const log = useCommandLog(model);
     return (
-        <section
-            aria-label="Command console"
-            className="palette-surface flex min-h-0 shrink-0 flex-col border-palette-line bg-palette-base max-md:h-72 max-md:border-t md:w-80 md:border-s"
-        >
-            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-palette-line px-2">
+        <section aria-label="Command console" className={styles.commandConsole}>
+            <div className={styles.viewBar}>
                 {(
                     [
                         ["console", "Console"],
@@ -99,18 +96,13 @@ export function CommandConsole<T extends DockableTypes = AnyTypes>({
                         type="button"
                         aria-pressed={view === value}
                         onClick={() => setView(value)}
-                        className={cn(
-                            "inline-flex h-7 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-2 text-xs text-palette-contrast",
-                            "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                            "disabled:pointer-events-none disabled:opacity-50",
-                            "aria-pressed:bg-palette-soft aria-pressed:text-palette-contrast",
-                        )}
+                        className={styles.viewButton}
                     >
                         {label}
                     </button>
                 ))}
             </div>
-            <div className="min-h-0 flex-1 overflow-auto">
+            <div className={styles.viewBody}>
                 {view === "console" ? (
                     <ConsoleView model={model} log={log} />
                 ) : view === "commands" ? (
@@ -155,8 +147,8 @@ function ConsoleView<T extends DockableTypes>({
     };
 
     return (
-        <div className="flex flex-col gap-3 p-3 text-sm">
-            <div className="flex flex-wrap gap-1">
+        <div className={styles.consoleView}>
+            <div className={styles.samples}>
                 {SAMPLES.map((sample) => (
                     <button
                         key={sample.label}
@@ -164,17 +156,13 @@ function ConsoleView<T extends DockableTypes>({
                         onClick={() =>
                             setInput(JSON.stringify(sample.input, null, 2))
                         }
-                        className={cn(
-                            "inline-flex h-7 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-2 text-xs text-palette-contrast",
-                            "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                            "disabled:pointer-events-none disabled:opacity-50",
-                        )}
+                        className={styles.sampleButton}
                     >
                         {sample.label}
                     </button>
                 ))}
             </div>
-            <label htmlFor={inputId} className="text-xs font-semibold">
+            <label htmlFor={inputId} className={styles.inputLabel}>
                 Command (JSON)
             </label>
             <textarea
@@ -184,20 +172,16 @@ function ConsoleView<T extends DockableTypes>({
                 onChange={(event) => setInput(event.target.value)}
                 spellCheck={false}
                 rows={6}
-                className="resize-y rounded-md border border-palette-line bg-palette-soft p-2 font-mono text-xs leading-5 text-palette-contrast outline-none focus-visible:ring-2 focus-visible:ring-palette-ring"
+                className={styles.input}
             />
-            <button
-                type="button"
-                onClick={run}
-                className={cn(
-                    "palette-blue inline-flex h-8 items-center gap-1.5 self-start rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast",
-                    "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
-                    "disabled:pointer-events-none disabled:opacity-50",
-                )}
-            >
+            <button type="button" onClick={run} className={styles.runButton}>
                 Run
             </button>
-            <output data-testid="result" aria-live="polite" className="block">
+            <output
+                data-testid="result"
+                aria-live="polite"
+                className={styles.result}
+            >
                 {parseError ? (
                     <ErrorBox
                         code="parse"
@@ -206,9 +190,9 @@ function ConsoleView<T extends DockableTypes>({
                         issues={[]}
                     />
                 ) : result === null ? null : result.ok ? (
-                    <div className="palette-green rounded-md border border-palette-line bg-palette-soft p-2">
-                        <p className="text-xs font-semibold">ok</p>
-                        <pre className="font-mono text-xs whitespace-pre-wrap">
+                    <div className={styles.success}>
+                        <p className={styles.successTitle}>ok</p>
+                        <pre className={styles.successValue}>
                             {JSON.stringify(result.value, null, 2)}
                         </pre>
                     </div>
@@ -222,16 +206,11 @@ function ConsoleView<T extends DockableTypes>({
                 )}
             </output>
             <div>
-                <h3 className="mb-1 text-xs font-semibold">
-                    Log (model.subscribe)
-                </h3>
-                <ol data-testid="log" className="flex flex-col gap-1">
+                <h3 className={styles.logTitle}>Log (model.subscribe)</h3>
+                <ol data-testid="log" className={styles.log}>
                     {log.map((entry) => (
-                        <li
-                            key={entry.id}
-                            className="truncate font-mono text-xs text-palette-accent"
-                        >
-                            <span className="text-palette-contrast">
+                        <li key={entry.id} className={styles.logEntry}>
+                            <span className={styles.logCommand}>
                                 {entry.command}
                             </span>{" "}
                             {entry.transient ? "(transient) " : ""}
@@ -256,25 +235,21 @@ function ErrorBox({
     issues: readonly { path: string; message: string }[];
 }) {
     return (
-        <div
-            role="alert"
-            className="palette-danger rounded-md border border-palette-line bg-palette-soft p-2 text-xs text-palette-accent"
-        >
+        <div role="alert" className={styles.error}>
             <p>
-                <span className="font-mono font-semibold">{code}</span>:{" "}
-                {message}
+                <span className={styles.errorCode}>{code}</span>: {message}
                 {path ? (
                     <>
                         {" at "}
-                        <code className="font-mono">{path}</code>
+                        <code className={styles.code}>{path}</code>
                     </>
                 ) : null}
             </p>
             {issues.length > 1 ? (
-                <ul className="mt-1 list-disc ps-4">
+                <ul className={styles.errorIssues}>
                     {issues.map((issue) => (
                         <li key={`${issue.path} ${issue.message}`}>
-                            <code className="font-mono">{issue.path}</code>{" "}
+                            <code className={styles.code}>{issue.path}</code>{" "}
                             {issue.message}
                         </li>
                     ))}
@@ -286,32 +261,35 @@ function ErrorBox({
 
 function CommandList<T extends DockableTypes>({ model }: { model: Model<T> }) {
     return (
-        <ul data-testid="command-list" className="flex flex-col">
+        <ul data-testid="command-list" className={styles.commandList}>
             {model.get("commands").map((command) => (
                 <li
                     key={command.name}
                     data-command={command.name}
-                    className="border-b border-palette-line p-3 text-xs"
+                    className={styles.command}
                 >
-                    <p className="font-mono text-sm font-semibold text-palette-contrast">
+                    <p className={styles.commandName}>
                         {command.name}
                         {command.transient ? (
-                            <span className="ms-2 font-sans text-xs font-normal text-palette-accent">
+                            <span className={styles.commandTransient}>
                                 transient-capable
                             </span>
                         ) : null}
                     </p>
-                    <p className="mt-1 text-palette-accent">
+                    <p className={styles.commandDescription}>
                         {command.description}
                     </p>
-                    <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono">
+                    <dl className={styles.commandFields}>
                         {fieldsOf(command.payloadSchema).map((field) => (
-                            <div key={field.name} className="contents">
+                            <div
+                                key={field.name}
+                                className={styles.commandField}
+                            >
                                 <dt title={field.description}>
                                     {field.name}
                                     {field.required ? "" : "?"}
                                 </dt>
-                                <dd className="truncate text-palette-accent">
+                                <dd className={styles.commandFieldType}>
                                     {field.type}
                                 </dd>
                             </div>
@@ -332,25 +310,22 @@ function ToolsView<T extends DockableTypes>({ model }: { model: Model<T> }) {
         input: { tab: "todo" },
     });
     return (
-        <div className="flex flex-col gap-3 p-3 text-xs">
-            <p className="text-palette-accent">
+        <div className={styles.toolsView}>
+            <p className={styles.toolsIntro}>
                 Each command is a name, a description and a JSON Schema: any
                 assistant that calls tools can drive the layout. Hand it these
                 definitions; when it calls one, turn the call back into a
                 command and pass it to{" "}
-                <code className="font-mono">model.dispatch</code>, which
+                <code className={styles.code}>model.dispatch</code>, which
                 validates it like any other untrusted JSON. No network call or
                 SDK is involved here.
             </p>
-            <pre
-                data-testid="tool-call"
-                className="rounded-md border border-palette-line bg-palette-soft p-2 font-mono whitespace-pre-wrap"
-            >
+            <pre data-testid="tool-call" className={styles.toolCall}>
                 {`${toolName("tab.select")}({ "tab": "todo" })\n→ model.dispatch(${JSON.stringify(example)})`}
             </pre>
             <pre
                 data-testid="tool-definitions"
-                className="overflow-auto rounded-md border border-palette-line bg-palette-soft p-2 font-mono"
+                className={styles.toolDefinitions}
             >
                 {JSON.stringify(tools, null, 2)}
             </pre>

@@ -5,7 +5,7 @@ import {
     listExampleSlugs,
     loadExamples,
 } from "../../../examples/react/scripts/examples-lib.ts";
-import { LEVELS } from "../../../examples/react/src/examples/meta-types.ts";
+import { CATEGORIES } from "../../../examples/react/src/examples/meta-types.ts";
 import {
     entries,
     exampleSlug,
@@ -30,13 +30,15 @@ describe("the catalog", () => {
         expect(listed.some((id) => id.startsWith("_"))).toBe(false);
     });
 
-    it("groups the examples by level, in LEVELS order", () => {
+    it("groups the examples by category, in CATEGORIES order", () => {
         const section = sections.find((s) => s.kind === "example");
-        const levels = section?.groups.map((g) => g.key) ?? [];
-        expect(levels).toEqual(LEVELS.filter((l) => levels.includes(l)));
+        const categories = section?.groups.map((g) => g.key) ?? [];
+        expect(categories).toEqual(
+            CATEGORIES.filter((c) => categories.includes(c)),
+        );
     });
 
-    it("orders examples within a level by `order`", () => {
+    it("orders examples within a category by `order`", () => {
         const section = sections.find((s) => s.kind === "example");
         for (const group of section?.groups ?? []) {
             const orders = group.entries.map(
@@ -46,11 +48,11 @@ describe("the catalog", () => {
         }
     });
 
-    it("carries each example's meta: title, level, features and layout", () => {
+    it("carries each example's meta: title, category, features and layout", () => {
         for (const example of examples) {
             const entry = findEntry({ kind: "example", id: example.slug });
             expect(entry?.title).toBe(example.meta.title);
-            expect(entry?.group).toBe(example.meta.level);
+            expect(entry?.group).toBe(example.meta.category);
             expect(entry?.features).toEqual(example.meta.features);
             expect(entry?.layout).toBe(example.meta.layout ?? "fill");
         }

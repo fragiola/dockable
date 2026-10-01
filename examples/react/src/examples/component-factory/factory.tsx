@@ -3,10 +3,10 @@
 import type { TabInit, TabNode } from "@fragiola/dockable";
 import { type ReactNode, useState } from "react";
 import { Input } from "#/components/atoms/fields";
-import { cn } from "#/lib/cn";
 import { PanelBody } from "../_kit/card";
 import { ChartPanel } from "../_kit/charts";
 import { ORDERS, TablePanel } from "../_kit/data";
+import * as styles from "./styles";
 
 // The factory: a tab's `component` picks what renders, and its `data` parameterises it. Both
 // are plain JSON, so a saved layout restores the same content. The registry below types each
@@ -54,23 +54,20 @@ function Markdown({ text }: { text: string }) {
                 const key = `${index}:${line}`;
                 if (line.startsWith("# ")) {
                     return (
-                        <h2 key={key} className="text-lg font-semibold">
+                        <h2 key={key} className={styles.markdownHeading}>
                             {line.slice(2)}
                         </h2>
                     );
                 }
                 if (line.startsWith("- ")) {
                     return (
-                        <p
-                            key={key}
-                            className="ps-3 before:me-2 before:content-['•']"
-                        >
+                        <p key={key} className={styles.markdownItem}>
                             {line.slice(2)}
                         </p>
                     );
                 }
                 return line ? (
-                    <p key={key} className="text-palette-accent/85">
+                    <p key={key} className={styles.markdownText}>
                         {line}
                     </p>
                 ) : null;
@@ -84,7 +81,7 @@ function ContactForm({ values }: { values: ContactFormData["values"] }) {
     return (
         <PanelBody title="Contact">
             <form
-                className="flex max-w-sm flex-col gap-3"
+                className={styles.form}
                 onSubmit={(event) => {
                     event.preventDefault();
                     setSent(true);
@@ -99,21 +96,11 @@ function ContactForm({ values }: { values: ContactFormData["values"] }) {
                     type="email"
                     defaultValue={values.email}
                 />
-                <div className="flex items-center gap-3">
-                    <button
-                        type="submit"
-                        className={cn(
-                            "palette-blue inline-flex h-8 items-center gap-1.5 rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast",
-                            "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
-                            "disabled:pointer-events-none disabled:opacity-50",
-                        )}
-                    >
+                <div className={styles.formActions}>
+                    <button type="submit" className={styles.submit}>
                         Send
                     </button>
-                    <span
-                        role="status"
-                        className="text-sm text-palette-accent/85"
-                    >
+                    <span role="status" className={styles.formStatus}>
                         {sent ? "Sent." : null}
                     </span>
                 </div>
@@ -130,7 +117,7 @@ export const FACTORY: {
         <ChartPanel
             kind={tab.data.kind}
             seed={tab.data.seed}
-            className="h-full"
+            className={styles.chart}
         />
     ),
     table: (tab) => {
@@ -161,7 +148,7 @@ export function renderFactory<K extends Kind>(tab: TabOfKind<K>): ReactNode {
     ) : (
         // a stored layout may name a component this build does not know
         <PanelBody title={tab.data.name}>
-            <p className="text-palette-accent/85">
+            <p className={styles.unknownComponent}>
                 {`No component named "${tab.component}".`}
             </p>
         </PanelBody>

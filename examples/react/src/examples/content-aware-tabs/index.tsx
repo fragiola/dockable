@@ -16,14 +16,14 @@ import {
 import { CircleCheck, CircleX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "#/components/atoms/badge";
-import { cn } from "#/lib/cn";
 import { PanelBody } from "../_kit/card";
+import * as styles from "./styles";
 
 // The tab follows its content. The content writes what the tab needs to know into the tab's
 // `data` (with a command, so it is in the model, the JSON and the undo history); the tab reads
 // `tab.data`, typed by its component, and exposes it as its own `data-*` attributes for the styles.
 
-type Status = "healthy" | "degraded" | "down";
+export type Status = "healthy" | "degraded" | "down";
 
 interface MonitorData {
     name: string;
@@ -40,13 +40,9 @@ interface DocumentData {
 type Types = { tabs: { monitor: MonitorData; document: DocumentData } };
 
 const STATUS = {
-    healthy: { palette: "palette-green", Icon: CircleCheck, text: "Healthy" },
-    degraded: {
-        palette: "palette-orange",
-        Icon: TriangleAlert,
-        text: "Degraded",
-    },
-    down: { palette: "palette-danger", Icon: CircleX, text: "Down" },
+    healthy: { Icon: CircleCheck, text: "Healthy" },
+    degraded: { Icon: TriangleAlert, text: "Degraded" },
+    down: { Icon: CircleX, text: "Down" },
 } as const;
 
 const monitor = (name: string, status: Status, incidents = 0) => ({
@@ -89,11 +85,8 @@ const json: LayoutJson<Types> = {
 export default function ContentAwareTabs() {
     const [model] = useState(() => createModel<Types>(json));
     return (
-        <div className="flex min-h-0 flex-1 flex-col p-(--dk-gap)">
-            <Dockable.Root
-                model={model}
-                className="palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast"
-            >
+        <div className={styles.frame}>
+            <Dockable.Root model={model} className={styles.root}>
                 <Dockable.Row<Types>
                     renderSplitter={(props) => <Splitter {...props} />}
                 >
@@ -101,12 +94,7 @@ export default function ContentAwareTabs() {
                 </Dockable.Row>
                 <Dockable.Panels<Types>>
                     {(tab) => (
-                        <Dockable.Panel
-                            node={tab}
-                            // panels sit in a layer above the tabsets, whose overflow cannot clip
-                            // them: the panel repeats the tabset's inner radius on its corners
-                            className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
-                        >
+                        <Dockable.Panel node={tab} className={styles.panel}>
                             {/* `tab.data` narrows on `tab.component`: each panel gets its own
                                 typed tab */}
                             {tab.component === "monitor" ? (
@@ -117,17 +105,9 @@ export default function ContentAwareTabs() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Panels are portalled into the root after the indicator: it needs a stacking
-                    order to paint above them. */}
+                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
                 <Dockable.DropIndicator
-                    className={(state) =>
-                        cn(
-                            "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
-                            state.kind === "edge"
-                                ? "palette-orange bg-palette-base/25"
-                                : "palette-blue bg-palette-base/20",
-                        )
-                    }
+                    className={styles.dropIndicator}
                     style={(state) => ({
                         transitionDuration: `${state.tabDragSpeed}s`,
                     })}
@@ -155,16 +135,11 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 /** A tabset: a card with the strip of status tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
-        <Dockable.TabSet
-            node={node}
-            className="palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)"
-        >
-            <div className="flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line">
+        <Dockable.TabSet node={node} className={styles.tabset}>
+            <div className={styles.strip}>
                 <Dockable.TabList<Types>
                     aria-label="Tabs"
-                    // the start padding is load-bearing: a tab flush with the tabset's edge could
-                    // not take a drop before it (that edge is the tabset's side drop)
-                    className="flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]"
+                    className={styles.tabList}
                 >
                     {(tab) => <StatusTab tab={tab} />}
                 </Dockable.TabList>
@@ -197,41 +172,27 @@ function StatusTab({ tab }: { tab: TabOf<Types> }) {
             node={tab}
             data-status={current}
             data-modified={dirty ? "" : undefined}
-            className={cn(
-                "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
-                "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
-                "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
-                "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
-                "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
-                status?.palette,
-                // the status palette colours the label, and the selected tab is a solid chip
-                "data-status:text-palette-accent data-status:data-selected:bg-palette-base data-status:data-selected:text-palette-contrast",
-            )}
+            className={styles.tab(current)}
         >
             {status ? (
-                <status.Icon aria-hidden className="size-3.5 shrink-0" />
+                <status.Icon aria-hidden className={styles.tabIcon} />
             ) : null}
-            <span className="truncate">{tab.data.name}</span>
-            {/* the active tabset's marker: `in-data-active:` reads the enclosing TabSet's
-                data-active, `group-data-selected/tab:` this tab's */}
-            <span
-                aria-hidden="true"
-                className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"
-            />
+            <span className={styles.tabName}>{tab.data.name}</span>
+            {/* the active tabset's marker */}
+            <span aria-hidden="true" className={styles.tabMarker} />
             {incidents ? (
                 <Badge
                     variant="solid"
                     aria-label={`${incidents} incidents`}
-                    // inverted on the selected (solid) tab
-                    className="px-1.5 py-0 tabular-nums in-data-selected:bg-palette-contrast in-data-selected:text-palette-base"
+                    className={styles.tabIncidents}
                 >
                     {incidents}
                 </Badge>
             ) : null}
             {dirty ? (
                 // the "modified" dot; its text is for screen readers only
-                <span className="size-2 shrink-0 rounded-full bg-current">
-                    <span className="sr-only">Modified</span>
+                <span className={styles.tabModified}>
+                    <span className={styles.srOnly}>Modified</span>
                 </span>
             ) : null}
         </Dockable.Tab>
@@ -259,23 +220,20 @@ function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
     };
     return (
         <PanelBody title={`${data.name} service`}>
-            <p className="text-palette-accent/85">
+            <p className={styles.monitorText}>
                 Set the service's health. The panel writes it into the tab's
                 data with a command; the tab reads it back.
             </p>
-            <fieldset className="flex flex-wrap gap-2">
-                <legend className="sr-only">Status</legend>
+            <fieldset className={styles.statusList}>
+                <legend className={styles.srOnly}>Status</legend>
                 {(Object.keys(STATUS) as Status[]).map((status) => (
                     <button
                         key={status}
                         type="button"
                         aria-pressed={data.status === status}
-                        className={cn(
-                            "inline-flex h-8 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-3 text-sm",
-                            "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                            "disabled:pointer-events-none disabled:opacity-50",
-                            // the current status is a solid button in its palette
-                            data.status === status && STATUS[status].palette,
+                        className={styles.statusButton(
+                            status,
+                            data.status === status,
                         )}
                         onClick={() => report(status)}
                     >
@@ -283,7 +241,7 @@ function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
                     </button>
                 ))}
             </fieldset>
-            <p className="text-sm text-palette-accent/85">
+            <p className={styles.incidents}>
                 {`Incidents so far: ${data.incidents}`}
             </p>
         </PanelBody>
@@ -306,7 +264,7 @@ function Editor({ tab }: { tab: TabNode<"document", DocumentData> }) {
         }
     };
     return (
-        <div className="flex h-full flex-col gap-2 p-3">
+        <div className={styles.editor}>
             <textarea
                 aria-label={`${tab.data.name} text`}
                 value={text}
@@ -314,16 +272,12 @@ function Editor({ tab }: { tab: TabNode<"document", DocumentData> }) {
                     setText(event.target.value);
                     setDirty(event.target.value !== saved);
                 }}
-                className="min-h-24 flex-1 resize-none rounded-md border border-palette-line bg-palette-soft p-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-palette-ring"
+                className={styles.editorText}
             />
             <div>
                 <button
                     type="button"
-                    className={cn(
-                        "palette-blue inline-flex h-8 items-center gap-1.5 rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast",
-                        "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.saveButton}
                     onClick={() => {
                         setSaved(text);
                         setDirty(false);
@@ -336,38 +290,15 @@ function Editor({ tab }: { tab: TabNode<"document", DocumentData> }) {
     );
 }
 
-/**
- * The bar between two children of a row: `--dk-splitter-size` thick (the engine measures it), with
- * a wider grab area (`::after`) and a grip for the themes that show one (`--dk-grip`).
- */
+/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter
             {...props}
             aria-label="Resize"
-            className={cn(
-                "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
-                "after:absolute after:transition-colors after:duration-(--dk-motion)",
-                "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
-                // side by side: a vertical bar
-                "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
-                "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
-                "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
-                "rtl:data-[orientation=vertical]:after:translate-x-1/2",
-                // stacked: a horizontal bar
-                "data-[orientation=horizontal]:h-(--dk-splitter-size) data-[orientation=horizontal]:cursor-ns-resize",
-                "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
-                "data-[orientation=horizontal]:after:h-(--dk-splitter-grab) data-[orientation=horizontal]:after:-translate-y-1/2",
-            )}
+            className={styles.splitter}
         >
-            <span
-                aria-hidden="true"
-                className={cn(
-                    "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
-                    "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
-                    "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
-                )}
-            />
+            <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
     );
 }

@@ -40,12 +40,25 @@ test("drops into a locked region are refused and change nothing", async ({
     ];
 
     // "Draft" does not belong to the reference region
+    const overlay = (layoutPath: string) =>
+        path(page, layoutPath).getByTestId("refused-overlay");
     await startDrag(page, path(page, "/ts1/tb0"));
-    for (const point of refused) {
+    for (const [index, point] of refused.entries()) {
         await moveDragTo(page, point);
         await expect(indicator).toBeHidden();
+        // over the tabset itself (not the layout's edge), the whole region turns red
+        if (index < 5) {
+            await expect(overlay("/ts0")).toBeVisible();
+            const covered = await overlay("/ts0").boundingBox();
+            const tabset = await box(page, "/ts0");
+            // inside the tabset's border, so a few pixels smaller at most
+            expect(covered?.width ?? 0).toBeGreaterThan(tabset.width - 6);
+            expect(covered?.height ?? 0).toBeGreaterThan(tabset.height - 6);
+        }
+        await expect(overlay("/ts1")).toBeHidden();
     }
     await page.mouse.up();
+    await expect(overlay("/ts0")).toBeHidden();
     expect(await tabs(page)).toEqual(before);
 
     // the console takes nothing: no merge (enableDrop) and no split (enableDivide)
@@ -57,8 +70,10 @@ test("drops into a locked region are refused and change nothing", async ({
     ]) {
         await moveDragTo(page, point);
         await expect(indicator).toBeHidden();
+        await expect(overlay("/ts2")).toBeVisible();
     }
     await page.mouse.up();
+    await expect(overlay("/ts2")).toBeHidden();
     expect(await tabs(page)).toEqual(before);
     // and its tabs cannot be dragged (enableDrag)
     await expect(path(page, "/ts2/tb0")).toHaveAttribute("draggable", "false");
@@ -79,6 +94,10 @@ test("a tab that belongs to the region can still be dropped there", async ({
     await startDrag(page, path(page, "/ts1/tb1")); // "API reference"
     await moveDragTo(page, await centre(path(page, "/ts0/content")));
     await expect(indicator).toBeVisible();
+    // an allowed drop shows nothing red
+    await expect(
+        path(page, "/ts0").getByTestId("refused-overlay"),
+    ).toBeHidden();
     await page.mouse.up();
     await expect(path(page, "/ts0/tabstrip").getByRole("tab")).toHaveText([
         "Spec",
@@ -103,8 +122,11 @@ test("a refused target marks the root and the tabset, and shows why", async ({
         "",
     );
     await expect(path(page, "/ts0")).toHaveAttribute("data-drop-refused", "");
+    await expect(path(page, "/ts0").getByTestId("refused-overlay")).toHaveText(
+        "Not allowed here",
+    );
     await expect(
-        page.getByTestId("stage").getByText("Not allowed here"),
+        path(page, "/ts0").getByTestId("refused-overlay"),
     ).toBeVisible();
 
     await page.mouse.up();
@@ -112,6 +134,6 @@ test("a refused target marks the root and the tabset, and shows why", async ({
         "data-drop-refused",
     );
     await expect(
-        page.getByTestId("stage").getByText("Not allowed here"),
+        path(page, "/ts0").getByTestId("refused-overlay"),
     ).toBeHidden();
 });

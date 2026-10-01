@@ -35,15 +35,31 @@ function renderSplitter(props: RowSplitterProps) {
 }
 ```
 
-A splitter renders its children, so a grip is an element inside it:
+<Example id="splitter-wide" />
+
+## A handle inside the splitter
+
+A splitter renders its children, so a handle is an element inside it. It reads the splitter's
+state from the splitter: a `group` class on the splitter, then `group-data-…` classes on the
+handle follow its orientation, hover and drag.
 
 ```tsx
-<Dockable.Splitter {...props} aria-label="Resize" className={splitterClassName}>
-    <span aria-hidden="true" className="grip" />
+<Dockable.Splitter {...props} aria-label="Resize" className="group/splitter …">
+    <span aria-hidden="true" className="flex gap-1 group-data-[orientation=vertical]/splitter:flex-col">
+        <span className="size-1 rounded-full bg-palette-line group-data-dragging/splitter:bg-palette-ring" />
+        <span className="size-1 rounded-full bg-palette-line group-data-dragging/splitter:bg-palette-ring" />
+        <span className="size-1 rounded-full bg-palette-line group-data-dragging/splitter:bg-palette-ring" />
+    </span>
 </Dockable.Splitter>
 ```
 
-<Example id="splitter-wide" />
+<Example id="splitter-dotted-handle" />
+
+The handle may be bigger than the splitter. The engine measures the splitter element itself, so
+a thin bar keeps the panes close together while a framed pill on it overflows to both sides. Give
+the splitter `relative z-10` so the overflow paints above the panels next to it:
+
+<Example id="splitter-framed-handle" />
 
 ## Hairline splitters with a wide grab area
 

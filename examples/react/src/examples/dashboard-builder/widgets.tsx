@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ChartPanel, series } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
+import * as styles from "./styles";
 
 /** The widget components: each is a tab component, whose data is the tab's name. */
 export type WidgetComponent =
@@ -96,16 +97,14 @@ function Kpi({ tab }: { tab: TabOf<Types> }) {
     const change = ((last - previous) / Math.max(previous, 1)) * 100;
     const up = change >= 0;
     return (
-        <div className="flex h-full flex-col justify-center gap-1 p-4">
-            <p className="text-sm text-palette-accent/85">{tab.data.name}</p>
-            <p className="text-3xl font-semibold tabular-nums">
+        <div className={styles.kpi}>
+            <p className={styles.kpiLabel}>{tab.data.name}</p>
+            <p className={styles.kpiValue}>
                 {tab.component === "kpi-revenue"
                     ? `$${last}k`
                     : `${(last / 100).toFixed(1)}%`}
             </p>
-            <p
-                className={`${up ? "palette-green" : "palette-danger"} text-sm text-palette-accent`}
-            >
+            <p className={styles.kpiChange(up)}>
                 {`${up ? "▲" : "▼"} ${Math.abs(change).toFixed(1)}% vs last month`}
             </p>
         </div>

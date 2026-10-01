@@ -4,8 +4,8 @@ import type { TabNode } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { cn } from "#/lib/cn";
 import { FILE_PATHS, PROBLEMS } from "./files";
+import * as styles from "./styles";
 import type { EditorData, Types, Workspace } from "./workspace";
 
 // The content of each kind of tab. Panels are never remounted when their tab moves, so the
@@ -55,15 +55,14 @@ export function EditorPanel({
     const lines = text.split("\n").length;
 
     return (
-        <div className="flex h-full flex-col">
-            <div className="flex h-7 shrink-0 items-center gap-1 border-b border-palette-line ps-3 pe-1 text-xs text-palette-accent/85">
+        <div className={styles.editor}>
+            <div className={styles.breadcrumbs}>
                 {path.split("/").map((part, index, parts) => (
-                    <span key={part} className="flex items-center gap-1">
+                    <span key={part} className={styles.crumb}>
                         {index > 0 ? <span aria-hidden="true">›</span> : null}
                         <span
-                            className={cn(
-                                index === parts.length - 1 &&
-                                    "text-palette-contrast",
+                            className={styles.crumbName(
+                                index === parts.length - 1,
                             )}
                         >
                             {part}
@@ -74,16 +73,13 @@ export function EditorPanel({
                     type="button"
                     onClick={save}
                     disabled={!dirty}
-                    className="ms-auto h-5 rounded-sm px-2 outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-1 focus-visible:ring-palette-ring disabled:opacity-50"
+                    className={styles.editorSave}
                 >
                     {dirty ? "Save" : "Saved"}
                 </button>
             </div>
-            <div className="flex min-h-0 flex-1 overflow-auto font-mono text-[13px] leading-5">
-                <pre
-                    aria-hidden="true"
-                    className="sticky start-0 m-0 shrink-0 bg-palette-base py-2 ps-4 pe-3 text-end text-palette-accent/60 select-none"
-                >
+            <div className={styles.editorBody}>
+                <pre aria-hidden="true" className={styles.lineNumbers}>
                     {Array.from({ length: lines }, (_, i) => i + 1).join("\n")}
                 </pre>
                 <textarea
@@ -97,7 +93,7 @@ export function EditorPanel({
                         workspace.write(path, event.target.value);
                     }}
                     onKeyDown={onKeyDown}
-                    className="min-h-full min-w-0 flex-1 resize-none bg-transparent py-2 pe-4 whitespace-pre text-palette-contrast outline-none [field-sizing:content]"
+                    className={styles.editorText}
                 />
             </div>
         </div>
@@ -143,22 +139,22 @@ export function TerminalPanel({ workspace }: { workspace: Workspace }) {
     };
 
     return (
-        <div className="flex min-h-full flex-col p-2 font-mono text-xs leading-5">
+        <div className={styles.terminal}>
             {lines.map((line, index) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: an append-only log
-                <div key={index} className="whitespace-pre-wrap">
+                <div key={index} className={styles.terminalLine}>
                     {line}
                 </div>
             ))}
             <form
-                className="flex items-center gap-2"
+                className={styles.terminalForm}
                 onSubmit={(event) => {
                     event.preventDefault();
                     run(input);
                     setInput("");
                 }}
             >
-                <span aria-hidden="true" className="text-palette-accent/85">
+                <span aria-hidden="true" className={styles.terminalPrompt}>
                     ~/counter-app $
                 </span>
                 <input
@@ -166,7 +162,7 @@ export function TerminalPanel({ workspace }: { workspace: Workspace }) {
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
                     spellCheck={false}
-                    className="min-w-0 flex-1 bg-transparent outline-none"
+                    className={styles.terminalInput}
                 />
             </form>
             <div ref={end} />
@@ -177,7 +173,7 @@ export function TerminalPanel({ workspace }: { workspace: Workspace }) {
 /** The linter's findings; clicking one opens its file. */
 export function ProblemsPanel({ onOpen }: { onOpen: (path: string) => void }) {
     return (
-        <ul className="py-1 text-[13px]">
+        <ul className={styles.problems}>
             {PROBLEMS.map((problem) => {
                 const Icon =
                     problem.severity === "error" ? CircleAlert : TriangleAlert;
@@ -186,19 +182,16 @@ export function ProblemsPanel({ onOpen }: { onOpen: (path: string) => void }) {
                         <button
                             type="button"
                             onClick={() => onOpen(problem.path)}
-                            className="flex w-full items-center gap-2 px-3 py-1 text-start outline-none hover:bg-palette-soft focus-visible:ring-1 focus-visible:ring-palette-ring focus-visible:ring-inset"
+                            className={styles.problem}
                         >
                             <Icon
                                 aria-label={problem.severity}
-                                className={cn(
-                                    problem.severity === "error"
-                                        ? "palette-danger"
-                                        : "palette-orange",
-                                    "size-3.5 shrink-0 text-palette-accent",
-                                )}
+                                className={styles.problemIcon(problem.severity)}
                             />
-                            <span className="truncate">{problem.message}</span>
-                            <span className="ms-auto shrink-0 text-xs text-palette-accent/85">
+                            <span className={styles.problemMessage}>
+                                {problem.message}
+                            </span>
+                            <span className={styles.problemLocation}>
                                 {`${problem.path}:${problem.line}`}
                             </span>
                         </button>

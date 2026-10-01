@@ -4,8 +4,8 @@ export default {
     title: "Component factory",
     description:
         "Each tab's component field selects its content (chart, table, markdown, form) and its typed data parameterises it. An Add menu creates any kind, and content mounts only when first shown.",
-    level: "intermediate",
-    order: 12,
+    category: "apps",
+    order: 1,
     features: [
         "typed data",
         "TabNode",

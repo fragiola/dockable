@@ -4,12 +4,11 @@ import type { TabInitOf, TabOf } from "@fragiola/dockable";
 import {
     ChartLine,
     ChartNoAxesColumn,
+    ChartPie,
     type LucideIcon,
-    NotebookPen,
     ScrollText,
     Table2,
 } from "lucide-react";
-import { Card } from "../_kit/card";
 import { ChartPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 
@@ -20,7 +19,7 @@ export type Types = {
         channels: { name: string };
         orders: { name: string };
         log: { name: string };
-        notes: { name: string };
+        share: { name: string };
     };
 };
 
@@ -58,10 +57,10 @@ export const WIDGETS: Widget[] = [
         icon: ScrollText,
     },
     {
-        component: "notes",
-        title: "Notes",
-        description: "A counter and a notes field",
-        icon: NotebookPen,
+        component: "share",
+        title: "Channel share",
+        description: "Each channel's share of orders",
+        icon: ChartPie,
     },
 ];
 
@@ -85,7 +84,7 @@ export function WidgetContent({ tab }: { tab: TabOf<Types> }) {
             return <TablePanel />;
         case "log":
             return <LogPanel />;
-        case "notes":
-            return <Card name={tab.data.name} />;
+        case "share":
+            return <ChartPanel kind="donut" seed={12} />;
     }
 }

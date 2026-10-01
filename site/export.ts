@@ -3,7 +3,7 @@
 //
 //   <out>/project.json               site/project.json
 //   <out>/docs/                      site/docs, as written (links are base-free)
-//   <out>/examples.json              the levels (meta-types.ts) and the themes (_themes/), with CSS
+//   <out>/examples.json              the categories as levels (meta-types.ts) and the themes (_themes/), with CSS
 //   <out>/embed/react/               the examples app (examples/react), built for
 //                                    <base>/embed/react/, with manifest.json and popout.html
 //

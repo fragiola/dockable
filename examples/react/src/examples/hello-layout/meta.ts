@@ -4,7 +4,7 @@ export default {
     title: "Hello layout",
     description:
         "The smallest themed layout: two tabsets side by side, splitters, and panels whose content survives every move.",
-    level: "basic",
+    category: "getting-started",
     order: 1,
     features: ["Root", "Row", "TabSet", "Panels", "createModel"],
     docs: "/docs/getting-started/first-layout",

@@ -6,9 +6,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
+    CATEGORIES,
     type ExampleMeta,
     LAYOUTS,
-    LEVELS,
 } from "../src/examples/meta-types.ts";
 
 export const APP_ROOT = resolve(import.meta.dirname, "..");
@@ -48,8 +48,8 @@ export function validateMeta(slug: string, value: unknown): ExampleMeta {
     if (typeof meta.description !== "string" || !meta.description) {
         fail("description is required");
     }
-    if (!LEVELS.includes(meta.level as never)) {
-        fail(`level must be one of ${LEVELS.join(", ")}`);
+    if (!CATEGORIES.includes(meta.category as never)) {
+        fail(`category must be one of ${CATEGORIES.join(", ")}`);
     }
     if (typeof meta.order !== "number") fail("order must be a number");
     if (
@@ -194,7 +194,8 @@ export async function loadExamples(): Promise<ExampleEntry[]> {
     }
     return entries.sort(
         (a, b) =>
-            LEVELS.indexOf(a.meta.level) - LEVELS.indexOf(b.meta.level) ||
+            CATEGORIES.indexOf(a.meta.category) -
+                CATEGORIES.indexOf(b.meta.category) ||
             a.meta.order - b.meta.order ||
             a.slug.localeCompare(b.slug),
     );

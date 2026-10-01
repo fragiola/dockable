@@ -8,7 +8,9 @@ import {
     importsOf,
     listExampleSlugs,
     loadExamples,
+    validateMeta,
 } from "../scripts/examples-lib.ts";
+import { CATEGORIES } from "../src/examples/meta-types.ts";
 
 // The example contract (DD6–DD8, and `#/` imports per §6 of the site export contract): every example has a valid meta.ts, is in
 // the manifest, imports only what a consumer can copy, the code panel lists exactly the
@@ -47,6 +49,39 @@ const KIT_FILES = [
     "undo.ts",
 ];
 
+/**
+ * Where an example's `.tsx` styles itself instead of reading `styles.ts`: a class string on a
+ * `className`, a string inside a `className={…}` expression, or a `cn()` call. Returns each
+ * offending snippet.
+ */
+function inlineClasses(source: string): string[] {
+    const found: string[] = [];
+    for (const match of source.matchAll(/\bcn\(/g)) {
+        found.push(source.slice(match.index, match.index + 40));
+    }
+    for (const match of source.matchAll(/\bclassName=/g)) {
+        const start = match.index + match[0].length;
+        const open = source[start];
+        if (open === '"' || open === "'") {
+            found.push(source.slice(match.index, match.index + 60));
+            continue;
+        }
+        if (open !== "{") continue;
+        // the expression up to its matching brace
+        let depth = 0;
+        let end = start;
+        for (; end < source.length; end++) {
+            if (source[end] === "{") depth++;
+            else if (source[end] === "}" && --depth === 0) break;
+        }
+        const expression = source.slice(start + 1, end);
+        if (/["'`]/.test(expression)) {
+            found.push(`className={${expression.slice(0, 60)}}`);
+        }
+    }
+    return found;
+}
+
 function walk(dir: string): string[] {
     return readdirSync(dir).flatMap((name) => {
         const path = join(dir, name);
@@ -65,10 +100,25 @@ describe("the examples", () => {
         expect(examples.map((e) => e.slug).sort()).toEqual(listExampleSlugs());
     });
 
-    it("have unique titles and orders within a level", () => {
+    it("each belong to a category, and a meta with an unknown one is rejected", () => {
+        for (const example of examples) {
+            expect(CATEGORIES, example.slug).toContain(example.meta.category);
+        }
+        const meta = { title: "T", description: "D", order: 1, features: [] };
+        expect(() =>
+            validateMeta("x", { ...meta, category: "intermediate" }),
+        ).toThrow(/category must be one of/);
+        expect(() =>
+            validateMeta("x", { ...meta, category: "tabs" }),
+        ).not.toThrow();
+    });
+
+    it("have unique titles and orders within a category", () => {
         const titles = examples.map((e) => e.meta.title);
         expect(new Set(titles).size).toBe(titles.length);
-        const orders = examples.map((e) => `${e.meta.level}:${e.meta.order}`);
+        const orders = examples.map(
+            (e) => `${e.meta.category}:${e.meta.order}`,
+        );
         expect(new Set(orders).size).toBe(orders.length);
     });
 
@@ -137,6 +187,39 @@ describe("the examples", () => {
         }
     });
 
+    it("keep their classes in styles.ts: no class string or cn() in a .tsx", () => {
+        for (const slug of listExampleSlugs()) {
+            expect(
+                statSync(join(EXAMPLES_DIR, slug, "styles.ts"), {
+                    throwIfNoEntry: false,
+                })?.isFile(),
+                `${slug}/styles.ts`,
+            ).toBe(true);
+            for (const file of walk(join(EXAMPLES_DIR, slug))) {
+                if (!file.endsWith(".tsx")) continue;
+                const source = readFileSync(file, "utf-8");
+                expect(
+                    inlineClasses(source),
+                    relative(EXAMPLES_DIR, file),
+                ).toEqual([]);
+            }
+        }
+    });
+
+    it("finds inline classes the styles.ts rule forbids", () => {
+        expect(inlineClasses('<div className="flex" />')).toHaveLength(1);
+        expect(inlineClasses("<div className={cn(a, b)} />")).toHaveLength(1);
+        expect(
+            inlineClasses('<div className={on ? "a" : styles.b} />'),
+        ).toHaveLength(1);
+        expect(inlineClasses("<div className={`x`} />")).toHaveLength(1);
+        expect(
+            inlineClasses(
+                "<div className={styles.tab} /><p className={styles.dot(tone)} />",
+            ),
+        ).toEqual([]);
+    });
+
     it("use the app's API only: never engine.adapter (an adapter's side)", () => {
         for (const file of walk(EXAMPLES_DIR)) {
             if (!/\.(ts|tsx)$/.test(file)) continue;
@@ -148,7 +231,30 @@ describe("the examples", () => {
     });
 });
 
+/**
+ * The examples that show the counter card (`_kit/card`'s `Card`): content that survives a move is
+ * their point. Every other example shows varied content (charts, KPIs, tables).
+ */
+const COUNTER_EXAMPLES = [
+    "hello-layout",
+    "popout",
+    "popout-drag",
+    "two-layouts",
+    "unstyled",
+];
+
 describe("the kit", () => {
+    it("lends the counter card only to the examples about surviving content", () => {
+        const users = listExampleSlugs().filter((slug) =>
+            walk(join(EXAMPLES_DIR, slug)).some((file) =>
+                /import\s*\{[^}]*\bCard\b[^}]*\}\s*from\s*"\.\.\/_kit\/card"/.test(
+                    readFileSync(file, "utf-8"),
+                ),
+            ),
+        );
+        expect(users).toEqual(COUNTER_EXAMPLES);
+    });
+
     it("holds only shared demo content and app logic", () => {
         expect(readdirSync(join(EXAMPLES_DIR, "_kit")).sort()).toEqual(
             [...KIT_FILES].sort(),
