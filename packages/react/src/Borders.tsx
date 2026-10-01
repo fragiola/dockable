@@ -66,7 +66,7 @@ export function Borders<T extends DockableTypes = AnyTypes>(
                 (b) => b.location === location,
             );
             const resolved = border
-                ? model.get("border-settings-by-id", { borderId: border.id })
+                ? model.get("border-settings-by", { borderId: border.id })
                 : undefined;
             if (
                 border &&

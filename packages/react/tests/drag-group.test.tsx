@@ -144,8 +144,8 @@ describe("Dockable.DragGroup", () => {
         dragTo("root-a", "a0", "root-b");
         await act(tick);
 
-        expect(a.get("node-by-id", { nodeId: "a0" })).toBeUndefined();
-        expect(b.get("node-by-id", { nodeId: "a0" })).toBeDefined();
+        expect(a.get("node-by", { id: "a0" })).toBeUndefined();
+        expect(b.get("node-by", { id: "a0" })).toBeDefined();
         const moved = screen.getByTestId("content-a0");
         expect(moved).toBe(content);
         expect(screen.getByTestId("root-b")).toContainElement(moved);
@@ -176,8 +176,8 @@ describe("Dockable.DragGroup", () => {
         render(<TwoLayouts a={a} b={b} grouped={false} />);
         await act(tick);
         dragTo("root-a", "a0", "root-b");
-        expect(a.get("node-by-id", { nodeId: "a0" })).toBeDefined();
-        expect(b.get("node-by-id", { nodeId: "a0" })).toBeUndefined();
+        expect(a.get("node-by", { id: "a0" })).toBeDefined();
+        expect(b.get("node-by", { id: "a0" })).toBeUndefined();
     });
 
     it("lets the target model's middleware veto the transfer", async () => {
@@ -196,8 +196,8 @@ describe("Dockable.DragGroup", () => {
         dragTo("root-a", "a0", "root-b");
         expect(transfers.length).toBeGreaterThan(0);
         expect(transfers[0]).toEqual({ tabId: "a0", from: a, to: b });
-        expect(a.get("node-by-id", { nodeId: "a0" })).toBeDefined();
-        expect(b.get("node-by-id", { nodeId: "a0" })).toBeUndefined();
+        expect(a.get("node-by", { id: "a0" })).toBeDefined();
+        expect(b.get("node-by", { id: "a0" })).toBeUndefined();
     });
 
     it("gives code the group: a transfer back from code keeps the content too", async () => {
@@ -301,7 +301,7 @@ describe("Dockable.DragGroup", () => {
                 index: -1,
             }),
         ).toBeUndefined();
-        expect(a.get("node-by-id", { nodeId: "a0" })).toBeDefined();
+        expect(a.get("node-by", { id: "a0" })).toBeDefined();
     });
 
     it("still renders content without a group, and removes a closed tab's content", async () => {

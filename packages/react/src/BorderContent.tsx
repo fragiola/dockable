@@ -55,8 +55,8 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
     // a left or right border: sized by width
     const horizontal = location === "left" || location === "right";
     const { size, minSize, maxSize } =
-        model.get("border-settings-by-id", { borderId: id }) ?? {};
-    const path = engine.get("layout-path-by-node-id", { nodeId: id });
+        model.get("border-settings-by", { borderId: id }) ?? {};
+    const path = engine.get("layout-path-by", { nodeId: id });
     const area = (
         <div
             key="area"
@@ -132,7 +132,7 @@ function overlayPosition<T extends DockableTypes>(
     style.top = 0;
     style.bottom = 0;
     for (const other of model.state.borders) {
-        const resolved = model.get("border-settings-by-id", {
+        const resolved = model.get("border-settings-by", {
             borderId: other.id,
         });
         if (

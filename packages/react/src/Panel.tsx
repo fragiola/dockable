@@ -113,8 +113,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
         keyMap,
     } = useDockableContext("Panel");
     const id = node.id;
-    const layoutId =
-        model.get("layout-id-by-node-id", { nodeId: id }) ?? MAIN_LAYOUT;
+    const layoutId = model.get("layout-id-by", { nodeId: id }) ?? MAIN_LAYOUT;
     const layer = layers.get(layoutId);
     const layoutEngine = layer?.engine ?? mainEngine;
 
@@ -166,11 +165,10 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const state: PanelState = { selected, visible };
 
     const onPointerDown = () => {
-        const tabset = model.get("node-parent-by-id", { nodeId: id });
+        const tabset = model.get("node-parent-by", { nodeId: id });
         if (
             tabset?.type === "tabset" &&
-            model.get("active-tabset-by-layout-id", { layoutId })?.id !==
-                tabset.id
+            model.get("active-tabset", { layoutId })?.id !== tabset.id
         ) {
             model.run("tabset.activate", { tabsetId: tabset.id });
         }
@@ -181,7 +179,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
         if (!event.defaultPrevented && matchesKey(event, focusToggleKey)) {
             const button = event.currentTarget.ownerDocument.getElementById(
-                mainEngine.get("tab-button-dom-id-by-tab-id", { tabId: id }),
+                mainEngine.get("tab-button-dom-id-by", { tabId: id }),
             );
             if (button) {
                 button.focus();
@@ -202,18 +200,17 @@ export function Panel<T extends DockableTypes = AnyTypes>(
             state,
             ref,
             props: {
-                id: mainEngine.get("tab-panel-dom-id-by-tab-id", { tabId: id }),
+                id: mainEngine.get("tab-panel-dom-id-by", { tabId: id }),
                 role: "tabpanel",
-                "aria-labelledby": mainEngine.get(
-                    "tab-button-dom-id-by-tab-id",
-                    { tabId: id },
-                ),
+                "aria-labelledby": mainEngine.get("tab-button-dom-id-by", {
+                    tabId: id,
+                }),
                 "aria-keyshortcuts": toAriaKeyShortcuts(focusToggleKey),
                 tabIndex: -1,
                 ...dataAttributes({
                     "layout-path": mainEngine.adapter
                         .engineOf(id)
-                        .get("layout-path-by-node-id", { nodeId: id }),
+                        .get("layout-path-by", { nodeId: id }),
                     selected,
                     visible,
                 }),

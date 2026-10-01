@@ -127,9 +127,7 @@ describe("Dockable.Popout", () => {
         render(<App model={model} />);
         const { win, layoutId } = await popOut(model, "t2");
 
-        expect(model.get("layout-id-by-node-id", { nodeId: "t2" })).toBe(
-            layoutId,
-        );
+        expect(model.get("layout-id-by", { nodeId: "t2" })).toBe(layoutId);
         const root = win.document.querySelector(`[${POPOUT_ATTRIBUTE}]`);
         expect(root?.getAttribute(POPOUT_ATTRIBUTE)).toBe(layoutId);
         const popout = root?.querySelector<HTMLElement>(
@@ -167,9 +165,7 @@ describe("Dockable.Popout", () => {
         await act(async () => {
             await tick();
         });
-        expect(model.get("layout-id-by-node-id", { nodeId: "t2" })).toBe(
-            MAIN_LAYOUT,
-        );
+        expect(model.get("layout-id-by", { nodeId: "t2" })).toBe(MAIN_LAYOUT);
         expect(document.contains(content)).toBe(true);
         expect(screen.getByTestId("inc-t2").textContent).toBe("count 1");
         expect(screen.getByTestId("input-t2")).toHaveValue("kept");
@@ -255,9 +251,7 @@ describe("Dockable.Popout", () => {
             win.document,
         );
         // closing the window docks the tab back
-        expect(model.get("layout-id-by-node-id", { nodeId: "t2" })).toBe(
-            MAIN_LAYOUT,
-        );
+        expect(model.get("layout-id-by", { nodeId: "t2" })).toBe(MAIN_LAYOUT);
         expect(model.state.windows).toHaveLength(0);
     });
 

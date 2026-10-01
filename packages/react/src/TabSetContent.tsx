@@ -35,7 +35,7 @@ export function TabSetContent(props: TabSetContentProps) {
         state,
         ref,
         props: dataAttributes({
-            "layout-path": `${engine.get("layout-path-by-node-id", { nodeId: id })}/content`,
+            "layout-path": `${engine.get("layout-path-by", { nodeId: id })}/content`,
             empty: state.empty,
         }),
         style: { flexGrow: 1, flexBasis: 0, minWidth: 0, minHeight: 0 },

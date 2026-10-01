@@ -58,7 +58,7 @@ export function Border<T extends DockableTypes = AnyTypes>(
         ref: strip.ref,
         props: {
             ...dataAttributes({
-                "layout-path": engine.get("layout-path-by-node-id", {
+                "layout-path": engine.get("layout-path-by", {
                     nodeId: node.id,
                 }),
                 ...borderAttributes(state),
