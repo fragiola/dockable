@@ -136,7 +136,8 @@ It shows three things, which are not interchangeable:
   `site/docs`. A file is all it takes: `<area>` is one of `AREAS` in `src/catalog.ts` (`layout`,
   `drag`, `borders`, `popout`, `api`), `<id>` is kebab-case, and the module has **only a default
   export** (anything else costs Fast Refresh); `tests/scenarios.test.ts` enforces it. A scenario
-  may import `#/examples/_kit/*` and `#/components/*`. When readers should see it, it becomes an
+  may import `#/examples/_kit/*` (shared demo content: cards, charts, data) and `#/components/*`,
+  and writes its own Dockable assembly, as the examples do. When readers should see it, it becomes an
   example in `examples/react`.
 - **Fixtures** (`fixtures/<name>/`) are the unstyled pages Playwright drives; the sidebar links
   them.

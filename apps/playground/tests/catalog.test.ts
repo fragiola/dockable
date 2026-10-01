@@ -99,7 +99,7 @@ describe("paths", () => {
         expect(exampleSlug(`${base}/hello-layout/index.tsx`)).toBe(
             "hello-layout",
         );
-        expect(exampleSlug(`${base}/_kit/layout.tsx`)).toBeUndefined();
+        expect(exampleSlug(`${base}/_kit/card.tsx`)).toBeUndefined();
         expect(exampleSlug(`${base}/meta-types.ts`)).toBeUndefined();
     });
 
