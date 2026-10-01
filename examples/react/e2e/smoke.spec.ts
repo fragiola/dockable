@@ -2,17 +2,18 @@ import { expect, test } from "@playwright/test";
 import { collectErrors, EXAMPLES, openExample, reset, THEMES } from "./helpers";
 
 // Every example mounts and logs no error, in the reference theme (the first of THEMES); a new
-// example folder is covered without touching this file. The themes change CSS only (their shapes
-// are checked in themes.spec.ts), so every theme runs on a representative set, not on every
-// example. `E2E_ALL_THEMES=1` runs every example in every theme.
+// example folder is covered without touching this file. A theme is CSS (its shape is checked in
+// themes.spec.ts) plus the kit's theme hooks (`_kit/theme.ts`, `_kit/charts.tsx`), so every theme
+// runs on a representative set that exercises both, not on every example. `E2E_ALL_THEMES=1`
+// runs every example in every theme.
 
 /** Examples run in every theme, chosen so that together they cover what a theme can break. */
 const REPRESENTATIVE = [
     "hello-layout", // the baseline: rows, tabsets, splitters
     "overlay-borders", // borders, docked and overlay
     "popout", // popout triggers
-    "overflow-select", // the tab overflow and a portalled select
-    "analytics-dashboard", // the theme-heavy one: charts, menus, selects
+    "overflow-select", // the tab overflow and a portalled select (the popup theme hook)
+    "analytics-dashboard", // the theme-heavy one: charts (the chart theme hook), menus, selects
 ];
 
 const slugs = new Set(EXAMPLES.map((example) => example.slug));
