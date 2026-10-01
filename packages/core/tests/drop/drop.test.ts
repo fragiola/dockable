@@ -188,7 +188,10 @@ describe("drop candidates", () => {
     });
 
     it("offers only the maximized tabset", () => {
-        const maximized = createModel({ ...model.toJSON(), maximized: "a" });
+        const maximized = createModel({
+            ...model.get("layout-json"),
+            maximized: "a",
+        });
         expect(
             dropCandidates(
                 maximized.state,

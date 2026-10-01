@@ -17,7 +17,7 @@ describe("tidy", () => {
                 ],
             },
         });
-        expect(model.get("empty")).toBeUndefined();
+        expect(model.get("node", { node: "empty" })).toBeUndefined();
         expect(model.state.root.children.map((c) => c.id)).toEqual(["a", "b"]);
     });
 
@@ -44,9 +44,11 @@ describe("tidy", () => {
                 ],
             },
         });
-        expect(model.get("r")).toBeUndefined();
-        expect(model.parentOf("b")?.id).toBe(model.state.root.id);
-        expect(model.get("b")).toMatchObject({ weight: 40 });
+        expect(model.get("node", { node: "r" })).toBeUndefined();
+        expect(model.get("parent", { node: "b" })?.id).toBe(
+            model.state.root.id,
+        );
+        expect(model.get("node", { node: "b" })).toMatchObject({ weight: 40 });
     });
 
     it("scales hoisted weights", () => {
@@ -126,15 +128,16 @@ describe("tidy", () => {
             },
         });
         expect(
-            model.get("b")?.type === "tabset" && model.get("b"),
+            model.get("node", { node: "b" })?.type === "tabset" &&
+                model.get("node", { node: "b" }),
         ).toMatchObject({ weight: 25 });
-        expect(model.get("c")).toMatchObject({ weight: 25 });
+        expect(model.get("node", { node: "c" })).toMatchObject({ weight: 25 });
     });
 
     it("removes an empty tabset", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
         must(model.run("tab.close", { tab: "Two" }));
-        expect(model.get("ts1")).toBeUndefined();
+        expect(model.get("node", { node: "ts1" })).toBeUndefined();
     });
 
     it("keeps an empty tabset that must stay", () => {
@@ -161,15 +164,21 @@ describe("tidy", () => {
         });
         must(kept.run("tab.close", { tab: "Two" }));
         must(kept.run("tab.close", { tab: "Three" }));
-        expect(kept.get("b")).toMatchObject({ children: [], selected: -1 });
-        expect(kept.get("c")).toMatchObject({ children: [], selected: -1 });
+        expect(kept.get("node", { node: "b" })).toMatchObject({
+            children: [],
+            selected: -1,
+        });
+        expect(kept.get("node", { node: "c" })).toMatchObject({
+            children: [],
+            selected: -1,
+        });
     });
 
     it("clears the maximize of a removed tabset", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
         must(model.run("tabset.maximize", { tabset: "ts1", value: true }));
         must(model.run("tab.close", { tab: "Two" }));
-        expect(model.maximizedTabset()).toBeUndefined();
+        expect(model.get("maximized-tabset")).toBeUndefined();
         expect(model.state.maximized).toBeUndefined();
     });
 
@@ -183,16 +192,16 @@ describe("tidy", () => {
             selected: -1,
             children: [],
         });
-        expect(model.activeTabset()?.id).toBe(only?.id);
+        expect(model.get("active-tabset")?.id).toBe(only?.id);
     });
 
     it("removes an empty window", () => {
         const { model } = setup(tabsets(["One", "Two"]));
         must(model.run("tab.configure", { tab: "Two", enablePopout: true }));
         const { window } = must(model.run("tab.popout", { tab: "Two" }));
-        expect(model.windowLayout(window)).toBeDefined();
+        expect(model.get("window", { window })).toBeDefined();
         must(model.run("tab.close", { tab: "Two" }));
-        expect(model.windowLayout(window)).toBeUndefined();
+        expect(model.get("window", { window })).toBeUndefined();
         expect(model.state.windows).toEqual([]);
     });
 
@@ -201,6 +210,6 @@ describe("tidy", () => {
         must(model.run("tabset.activate", { tabset: "ts1" }));
         must(model.run("tab.close", { tab: "Two" }));
         expect(model.state.active).toBeUndefined();
-        expect(model.activeTabset()).toBeUndefined();
+        expect(model.get("active-tabset")).toBeUndefined();
     });
 });

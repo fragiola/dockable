@@ -110,7 +110,7 @@ describe("tab commands", () => {
                 data: { path: "/b" },
             }),
         );
-        expect(model.get(id)).toMatchObject({
+        expect(model.get("node", { node: id })).toMatchObject({
             component: "editor",
             data: { path: "/b" },
         });
@@ -125,14 +125,14 @@ describe("tab commands", () => {
                 data: { name: "Uno" },
             }),
         );
-        expect(model.get("One")).toEqual({
+        expect(model.get("node", { node: "One" })).toEqual({
             type: "tab",
             id: "One",
             component: "other",
             data: { name: "Uno" },
         });
         must(model.run("tab.update", { tab: "One", component: "other" }));
-        expect(model.get("One")).not.toHaveProperty("data");
+        expect(model.get("node", { node: "One" })).not.toHaveProperty("data");
     });
 
     it("tab.close refuses a tab that cannot close (FlexLayout's DELETE_TAB did not)", () => {
@@ -163,13 +163,17 @@ describe("tab commands", () => {
                 minWidth: 40,
             }),
         );
-        expect(model.get("One")).toMatchObject({
+        expect(model.get("node", { node: "One" })).toMatchObject({
             enableDrag: false,
             minWidth: 40,
         });
         must(model.run("tab.configure", { tab: "One", enableDrag: null }));
-        expect(model.get("One")).not.toHaveProperty("enableDrag");
-        expect(model.get("One")).toMatchObject({ minWidth: 40 });
+        expect(model.get("node", { node: "One" })).not.toHaveProperty(
+            "enableDrag",
+        );
+        expect(model.get("node", { node: "One" })).toMatchObject({
+            minWidth: 40,
+        });
     });
 
     it("tab.popout opens a window with the tab, and refuses what cannot", () => {
@@ -185,10 +189,12 @@ describe("tab commands", () => {
         );
         const rect = { x: 10, y: 20, width: 300, height: 200 };
         const { window } = must(model.run("tab.popout", { tab: "Two", rect }));
-        expect(model.windowLayout(window)).toMatchObject({ rect });
-        expect(model.layoutOf("Two")).toBe(window);
+        expect(model.get("window", { window })).toMatchObject({ rect });
+        expect(model.get("layout-id", { node: "Two" })).toBe(window);
         expect(text()).toBe("/ts0/t0[One]*,/w0/ts0/t0[Two]*");
-        expect(model.activeTabset(window)?.children[0]?.id).toBe("Two");
+        expect(
+            model.get("active-tabset", { layout: window })?.children[0]?.id,
+        ).toBe("Two");
         expect(model.run("tab.popout", { tab: "Two" })).toMatchObject({
             ok: false,
             error: {
@@ -203,7 +209,7 @@ describe("tabset commands", () => {
     it("tabset.activate", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
         must(model.run("tabset.activate", { tabset: "ts1" }));
-        expect(model.activeTabset()?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
         expect(model.run("tabset.activate", { tabset: "One" })).toMatchObject({
             ok: false,
             error: { code: "not_found", path: "/tabset" },
@@ -214,10 +220,10 @@ describe("tabset commands", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
         must(model.run("tabset.maximize", { tabset: "ts1", value: true }));
         must(model.run("tabset.maximize", { tabset: "ts1", value: true }));
-        expect(model.maximizedTabset()?.id).toBe("ts1");
-        expect(model.activeTabset()?.id).toBe("ts1");
+        expect(model.get("maximized-tabset")?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
         must(model.run("tabset.maximize", { tabset: "ts1", value: false }));
-        expect(model.maximizedTabset()).toBeUndefined();
+        expect(model.get("maximized-tabset")).toBeUndefined();
         must(
             model.run("tabset.configure", {
                 tabset: "ts0",
@@ -274,7 +280,7 @@ describe("tabset commands", () => {
         });
         expect(text()).toBe("/ts0/t0[P]*,/ts1/t0[C]*,/ts1/t1[D]");
         must(model.run("tabset.close", { tabset: "ts1" }));
-        expect(model.get("ts1")).toBeUndefined();
+        expect(model.get("node", { node: "ts1" })).toBeUndefined();
         must(
             model.run("tabset.configure", {
                 tabset: "ts0",
@@ -294,8 +300,8 @@ describe("tabset commands", () => {
         });
         const { window } = must(model.run("tabset.popout", { tabset: "ts1" }));
         expect(text()).toBe("/ts0/t0[One]*,/w0/ts0/t0[Two]*,/w0/ts0/t1[Three]");
-        expect(model.layoutOf("ts1")).toBe(window);
-        expect(model.activeTabset(window)?.id).toBe("ts1");
+        expect(model.get("layout-id", { node: "ts1" })).toBe(window);
+        expect(model.get("active-tabset", { layout: window })?.id).toBe("ts1");
     });
 
     it("tabset.configure sets flags and data", () => {
@@ -307,12 +313,12 @@ describe("tabset commands", () => {
                 minHeight: 50,
             }),
         );
-        expect(model.get("ts0")).toMatchObject({
+        expect(model.get("node", { node: "ts0" })).toMatchObject({
             data: { name: "Editors" },
             minHeight: 50,
         });
         must(model.run("tabset.configure", { tabset: "ts0", data: null }));
-        expect(model.get("ts0")).not.toHaveProperty("data");
+        expect(model.get("node", { node: "ts0" })).not.toHaveProperty("data");
     });
 });
 
@@ -378,17 +384,29 @@ describe("border commands", () => {
             border: "border_left",
             size: 300,
         });
-        expect(model.get("border_left")).toMatchObject({ size: 300 });
-        expect(model.resolve(firstBorder(model)).size).toBe(300);
+        expect(model.get("node", { node: "border_left" })).toMatchObject({
+            size: 300,
+        });
+        expect(
+            model.get("border-settings", { border: firstBorder(model).id })
+                ?.size,
+        ).toBe(300);
     });
 
     it("border.resize sets the selected tab's own size when it has one", () => {
         const { model } = withBorder();
         must(model.run("tab.select", { tab: "B" }));
-        expect(model.resolve(firstBorder(model)).size).toBe(250);
+        expect(
+            model.get("border-settings", { border: firstBorder(model).id })
+                ?.size,
+        ).toBe(250);
         must(model.run("border.resize", { border: "border_left", size: 120 }));
-        expect(model.get("B")).toMatchObject({ borderWidth: 120 });
-        expect(model.get("border_left")).toMatchObject({ size: 150 });
+        expect(model.get("node", { node: "B" })).toMatchObject({
+            borderWidth: 120,
+        });
+        expect(model.get("node", { node: "border_left" })).toMatchObject({
+            size: 150,
+        });
     });
 
     it("border.configure opens, closes and switches the mode", () => {
@@ -400,7 +418,7 @@ describe("border commands", () => {
                 mode: "overlay",
             }),
         );
-        expect(model.get("border_left")).toMatchObject({
+        expect(model.get("node", { node: "border_left" })).toMatchObject({
             selected: 0,
             mode: "overlay",
         });
@@ -411,9 +429,16 @@ describe("border commands", () => {
                 mode: null,
             }),
         );
-        expect(model.get("border_left")).toMatchObject({ selected: -1 });
-        expect(model.get("border_left")).not.toHaveProperty("mode");
-        expect(model.resolve(firstBorder(model)).mode).toBe("docked");
+        expect(model.get("node", { node: "border_left" })).toMatchObject({
+            selected: -1,
+        });
+        expect(model.get("node", { node: "border_left" })).not.toHaveProperty(
+            "mode",
+        );
+        expect(
+            model.get("border-settings", { border: firstBorder(model).id })
+                ?.mode,
+        ).toBe("docked");
     });
 
     it("border.configure refuses to open an empty border", () => {
@@ -459,7 +484,7 @@ describe("window commands", () => {
             tabs: [
                 "Two",
                 model
-                    .tabs()
+                    .get("tabs")
                     .find(
                         (t) =>
                             t.data &&
@@ -476,7 +501,7 @@ describe("window commands", () => {
     it("window.close falls back to the first tabset", () => {
         const { model, text, window } = withWindow();
         must(model.run("tab.close", { tab: "Three" }));
-        expect(model.activeTabset()).toBeUndefined();
+        expect(model.get("active-tabset")).toBeUndefined();
         must(model.run("window.close", { window }));
         expect(text()).toBe("/ts0/t0[One],/ts0/t1[Two],/ts0/t2[Four]*");
     });
@@ -491,7 +516,7 @@ describe("window commands", () => {
                 { transient: true },
             ),
         );
-        expect(model.windowLayout(window)?.rect).toEqual(rect);
+        expect(model.get("window", { window })?.rect).toEqual(rect);
         expect(
             model.run("window.configure", { window: "main", rect }),
         ).toMatchObject({
@@ -521,7 +546,7 @@ describe("layout commands", () => {
             tab: { enablePopout: true, enableDrag: false },
             layout: { edgeDockMargin: 4 },
         });
-        expect(model.resolveLayout()).toEqual({
+        expect(model.get("layout-settings")).toEqual({
             rootOrientation: "horizontal",
             edgeDock: true,
             edgeDockMargin: 4,

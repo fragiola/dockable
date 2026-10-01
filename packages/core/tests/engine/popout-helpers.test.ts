@@ -37,9 +37,9 @@ describe("popout helpers", () => {
         const result = engine.popout("ts0");
         expect(commands.map((c) => c.command)).toEqual(["tabset.popout"]);
         const layout = result.ok ? result.value.window : "";
-        expect(model.windowLayout(layout)).toBeDefined();
-        expect(model.layoutOf("t0")).toBe(layout);
-        expect(model.layoutOf("t1")).toBe(layout);
+        expect(model.get("window", { window: layout })).toBeDefined();
+        expect(model.get("layout-id", { node: "t0" })).toBe(layout);
+        expect(model.get("layout-id", { node: "t1" })).toBe(layout);
         expect(engine.isInWindow("t0")).toBe(true);
         expect(engine.canPopout("t0")).toBe(false);
     });
@@ -50,18 +50,18 @@ describe("popout helpers", () => {
         model.run("tabset.activate", { tabset: "ts1" });
 
         engine.dockBack("t0");
-        expect(model.parentOf("t0")?.id).toBe("ts1");
+        expect(model.get("parent", { node: "t0" })?.id).toBe("ts1");
         expect(commands.at(-1)?.command).toBe("batch");
 
         // what is left is the whole window: it closes
         engine.dockBack("ts0");
         expect(commands.at(-1)?.command).toBe("window.close");
-        const ts1 = model.get("ts1");
+        const ts1 = model.get("node", { node: "ts1" });
         expect(ts1?.type === "tabset" && ts1.children.map((c) => c.id)).toEqual(
             ["t2", "t0", "t1"],
         );
         expect(model.state.windows).toEqual([]);
-        expect(model.layoutOf("t1")).toBe(MAIN_LAYOUT);
+        expect(model.get("layout-id", { node: "t1" })).toBe(MAIN_LAYOUT);
     });
 
     it("dockBack() keeps a pinned tab pinned: unpinned for the move, pinned again in the target", () => {
@@ -72,12 +72,14 @@ describe("popout helpers", () => {
 
         expect(engine.dockBack("t1").ok).toBe(true);
         expect(commands.at(-1)?.command).toBe("batch");
-        const ts1 = model.get("ts1");
+        const ts1 = model.get("node", { node: "ts1" });
         expect(ts1?.type === "tabset" && ts1.children.map((c) => c.id)).toEqual(
             ["t1", "t2"],
         );
-        expect(model.get("t1")).toMatchObject({ pinned: true });
-        expect(model.layoutOf("t0")).not.toBe(MAIN_LAYOUT);
+        expect(model.get("node", { node: "t1" })).toMatchObject({
+            pinned: true,
+        });
+        expect(model.get("layout-id", { node: "t0" })).not.toBe(MAIN_LAYOUT);
     });
 
     it("keeps a window's path number while it is open, whichever window closes first", () => {

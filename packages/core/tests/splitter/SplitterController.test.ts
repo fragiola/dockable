@@ -477,9 +477,13 @@ describe("border splitters", () => {
             command: "border.resize",
             transient: false,
         });
-        expect(model.get("border_left")).toMatchObject({ size: 300 });
+        expect(model.get("node", { node: "border_left" })).toMatchObject({
+            size: 300,
+        });
 
         key(controller, "ArrowLeft"); // towards the border's edge: it shrinks
-        expect(model.get("border_left")).toMatchObject({ size: 290 });
+        expect(model.get("node", { node: "border_left" })).toMatchObject({
+            size: 290,
+        });
     });
 });

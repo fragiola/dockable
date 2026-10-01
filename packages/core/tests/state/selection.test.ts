@@ -102,8 +102,12 @@ describe("selection", () => {
         expect(text()).toBe(
             "/b/left/t0[A],/b/left/t1[One],/b/right/t0[B],/b/right/t1[Two]*",
         );
-        expect(model.get("border_left")).toMatchObject({ selected: -1 });
-        expect(model.get("border_right")).toMatchObject({ selected: 1 });
+        expect(model.get("node", { node: "border_left" })).toMatchObject({
+            selected: -1,
+        });
+        expect(model.get("node", { node: "border_right" })).toMatchObject({
+            selected: 1,
+        });
     });
 
     it("row edge dock resets the source selection", () => {
@@ -147,7 +151,9 @@ describe("selection", () => {
             borders: [{ location: "bottom", children: [tab("A"), tab("B")] }],
         });
         must(model.run("tab.select", { tab: "B" }));
-        expect(model.get("border_bottom")).toMatchObject({ selected: 1 });
+        expect(model.get("node", { node: "border_bottom" })).toMatchObject({
+            selected: 1,
+        });
         const before = model.state;
         must(model.run("tab.select", { tab: "B" }));
         expect(model.state).toBe(before);

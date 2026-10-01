@@ -210,7 +210,7 @@ describe("LayoutEngine and the model", () => {
         const { model, engine } = setup();
         const commands = recordCommands(model);
         engine.run("tab.select", { tab: "t1" });
-        expect(model.selectedTab("ts0")?.id).toBe("t1");
+        expect(model.get("selected-tab", { container: "ts0" })?.id).toBe("t1");
         expect(commands).toEqual([
             { command: "tab.select", payload: { tab: "t1" } },
         ]);
@@ -237,7 +237,9 @@ describe("LayoutEngine and the model", () => {
         expect(listener).not.toHaveBeenCalled();
         expect(ts0.style.flexGrow).toBe(String(30 * 1000));
         expect(ts1.style.flexGrow).toBe(String(70 * 1000));
-        expect(model.get("ts0")).toMatchObject({ weight: 30 });
+        expect(model.get("node", { node: "ts0" })).toMatchObject({
+            weight: 30,
+        });
         model.run("row.resize", { row: "row", weights: [30, 70] });
         expect(listener).toHaveBeenCalled();
     });
@@ -403,7 +405,7 @@ describe("LayoutEngine keyboard focus", () => {
         model.run("tabset.activate", { tabset: "ts0" });
         expect(engine.focusAdjacentTabset(1)).toBe(true);
         expect(document.activeElement).toBe(b2);
-        expect(model.activeTabset()?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
         expect(engine.focusAdjacentTabset(1)).toBe(true);
         expect(document.activeElement).toBe(b0);
     });

@@ -1,8 +1,9 @@
-import { COMMAND_DEFINITIONS, COMMANDS } from "../commands/catalogue";
+import { COMMAND_DEFINITIONS } from "../commands/catalogue";
 import type { ReduceContext } from "../commands/define";
 import type {
     BatchStep,
     CommandContext,
+    CommandContextGetKey,
     CommandError,
     CommandEvent,
     CommandInfo,
@@ -16,43 +17,26 @@ import type {
 } from "../commands/types";
 import type { JsonSchema } from "../schema/types";
 import { validate } from "../schema/validator";
-import {
-    type BorderLike,
-    type ResolvedBorder,
-    type ResolvedLayout,
-    type ResolvedTab,
-    type ResolvedTabset,
-    resolveBorder,
-    resolveLayout,
-    resolveTab,
-    resolveTabset,
-    type TabLike,
-    type TabsetLike,
-} from "./defaults";
-import { Draft, deepFreeze } from "./draft";
+import { Draft } from "./draft";
 import { type CreateId, IdSource } from "./ids";
 import type { LayoutJson } from "./json";
+import { buildState, type DataSchemas, LayoutValidationError } from "./load";
 import {
-    buildState,
-    type DataSchemas,
-    LayoutValidationError,
-    stateToJson,
-} from "./load";
-import { type AnyNode, type AnyState, type NodeIndex, walk } from "./tree";
-import {
-    type AnyTypes,
-    type BorderNode,
-    type ComponentOf,
-    type DockableTypes,
-    type LayoutState,
-    MAIN_LAYOUT,
-    type Node,
-    type ParentNode,
-    type RowNode,
-    type TabNode,
-    type TabOf,
-    type TabsetNode,
-    type WindowLayout,
+    type ModelGetKey,
+    type ModelGetPayload,
+    type ModelGetResult,
+    type ModelIsKey,
+    type ModelIsPayload,
+    type QueryArgs,
+    queryGet,
+    queryIs,
+} from "./queries";
+import type { AnyState, NodeIndex } from "./tree";
+import type {
+    AnyTypes,
+    ComponentOf,
+    DockableTypes,
+    LayoutState,
 } from "./types";
 
 /** Options of {@link createModel}. */
@@ -80,91 +64,62 @@ export interface DispatchOptions {
  */
 export interface ModelHandle {
     dispatch(input: unknown, options?: DispatchOptions): CommandResult<unknown>;
-    commands(): readonly CommandInfo[];
-    toJSON(): unknown;
+    get(key: "commands"): readonly CommandInfo[];
+    get(key: "layout-json"): unknown;
 }
 
 /**
- * The layout model: an immutable state tree changed only by commands. Queries read the current
- * state; `run` (typed) and `dispatch` (untrusted JSON) apply commands through the middleware
- * chain; `subscribe` receives one event per commit. `run`, `dispatch`, `can`, `use` and `subscribe`
- * are bound: they can be passed around on their own.
+ * The layout model: the layout's data and its rules. An immutable state tree that only commands
+ * change, usable in plain Node (no DOM). Every member is one verb:
+ *
+ * - `run` changes the layout (a command, through the middleware chain); `dispatch` is `run` for
+ *   untrusted JSON;
+ * - `can` answers whether `run` would succeed; `check` returns what it would return;
+ * - `get` reads (`model.get("selected-tab", { container })`); `is` asks a yes/no question
+ *   (`model.is("maximized", { tabset })`);
+ * - `use` adds a middleware around every command; `subscribe` listens to every commit.
+ *
+ * Every method is bound: it can be passed around on its own.
  */
 export interface Model<T extends DockableTypes = AnyTypes> {
     /** the current state (immutable; a new object after every change) */
     readonly state: LayoutState<T>;
 
-    /** a node by id (O(1)) */
-    get(id: string): Node<T> | undefined;
-    /** a node's parent: a row, a tabset or a border */
-    parentOf(id: string): ParentNode<T> | undefined;
-    /** the layout a node is in: `MAIN_LAYOUT` or a window id */
-    layoutOf(id: string): string | undefined;
-    /** a layout's root row (default the main layout's) */
-    root(layout?: string): RowNode<T> | undefined;
-    /** a popout window's layout */
-    windowLayout(id: string): WindowLayout<T> | undefined;
-    /**
-     * the tabs of a layout when given (the main layout's include its borders'), else every tab of
-     * the model, the windows' included; in tree order
-     */
-    tabs(layout?: string): TabOf<T>[];
-    /** every tabset of a layout (default the main layout), in tree order */
-    tabsets(layout?: string): TabsetNode<T>[];
-    /** the selected tab of a tabset or border */
-    selectedTab(container: string): TabOf<T> | undefined;
-    /** a layout's active tabset (default the main layout's) */
-    activeTabset(layout?: string): TabsetNode<T> | undefined;
-    /** a layout's maximized tabset (default the main layout's) */
-    maximizedTabset(layout?: string): TabsetNode<T> | undefined;
-    /** whether a tabset or row is hidden because another tabset of its layout is maximized */
-    isHiddenByMaximize(id: string): boolean;
-    /** a node's behaviour fields, resolved through the defaults */
-    resolve(node: TabNode<string, unknown>): ResolvedTab;
-    resolve<U extends DockableTypes>(node: TabsetNode<U>): ResolvedTabset;
-    resolve<U extends DockableTypes>(node: BorderNode<U>): ResolvedBorder;
-    /** the layout-wide settings, resolved */
-    resolveLayout(): ResolvedLayout;
-    /** the state as a layout document (a writable copy) */
-    toJSON(): LayoutJson<T>;
-
-    /** runs a command (typed); never throws on bad input */
+    /** changes the layout: runs a command (typed) through the middleware chain; never throws on bad input */
     run<C extends CommandName>(
         command: C,
         payload: PayloadOf<T, C>,
         options?: RunOptions,
     ): CommandResult<ResultOf<T, C>>;
     /**
-     * runs a command given as untrusted JSON `{ command, payload, transient? }`, validated;
+     * `run` for a command given as untrusted JSON `{ command, payload, transient? }`, validated;
      * `options.meta` (the app's, not the input's) reaches middleware and listeners
      */
     dispatch(input: unknown, options?: DispatchOptions): CommandResult<unknown>;
-    /** what `run` would return, without committing or emitting anything */
+    /** whether `run` would succeed now (nothing is committed or emitted) */
     can<C extends CommandName>(
         command: C,
         payload: PayloadOf<T, C>,
         options?: RunOptions,
+    ): boolean;
+    /** what `run` would return (its value, or why it is refused), without committing or emitting */
+    check<C extends CommandName>(
+        command: C,
+        payload: PayloadOf<T, C>,
+        options?: RunOptions,
     ): CommandResult<ResultOf<T, C>>;
-    /** every command with its description and JSON Schemas */
-    commands(): readonly CommandInfo[];
-    /** adds a middleware (the first added runs outermost); returns the function that removes it */
+    /** reads from the current state: a node, its parent, the selected tab, settings, the JSON, … */
+    get<K extends ModelGetKey>(
+        key: K,
+        ...payload: QueryArgs<ModelGetPayload<T, K>>
+    ): ModelGetResult<T, K>;
+    /** asks a yes/no question about the current state */
+    is<K extends ModelIsKey>(key: K, payload: ModelIsPayload<K>): boolean;
+    /** adds a middleware around every command (the first added runs outermost); returns its remover */
     use(middleware: Middleware<T>): () => void;
-    /** adds a listener of commits; returns the function that removes it */
+    /** listens to every committed command (one event per commit); returns its remover */
     subscribe(listener: CommandListener<T>): () => void;
 }
-
-const COMMAND_INFO: readonly CommandInfo[] = Object.freeze(
-    COMMANDS.map((definition) =>
-        Object.freeze({
-            name: definition.name,
-            description: definition.description,
-            // the validator's own schemas: frozen, so no caller can change what validation means
-            payloadSchema: deepFreeze(definition.payloadSchema),
-            resultSchema: deepFreeze(definition.resultSchema),
-            transient: definition.transient,
-        }),
-    ),
-);
 
 function error(
     code: CommandError["code"],
@@ -241,8 +196,8 @@ interface Execution {
 }
 
 class LayoutModel<T extends DockableTypes> implements Model<T> {
-    private current: AnyState;
-    private index: NodeIndex;
+    /** the committed state and its index: what queries read and commands start from */
+    private readonly committed: { state: AnyState; index: NodeIndex };
     private readonly ids: IdSource;
     private readonly dataSchemas: DataSchemas | undefined;
     private readonly freeze: boolean;
@@ -259,8 +214,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         ids: IdSource,
         options: ModelOptions<T>,
     ) {
-        this.current = state;
-        this.index = index;
+        this.committed = { state, index };
         this.ids = ids;
         this.dataSchemas = options.dataSchemas as DataSchemas | undefined;
         this.freeze = options.freeze ?? true;
@@ -268,6 +222,9 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         this.run = this.run.bind(this);
         this.dispatch = this.dispatch.bind(this);
         this.can = this.can.bind(this);
+        this.check = this.check.bind(this);
+        this.get = this.get.bind(this);
+        this.is = this.is.bind(this);
         this.use = this.use.bind(this);
         this.subscribe = this.subscribe.bind(this);
     }
@@ -277,174 +234,26 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
     // ---------------------------------------------------------------------------------------------
 
     get state(): LayoutState<T> {
-        return this.current as unknown as LayoutState<T>;
+        return this.committed.state as unknown as LayoutState<T>;
     }
 
-    get(id: string): Node<T> | undefined {
-        return this.index.get(id) as Node<T> | undefined;
+    get<K extends ModelGetKey>(
+        key: K,
+        ...payload: QueryArgs<ModelGetPayload<T, K>>
+    ): ModelGetResult<T, K> {
+        return queryGet(this.committed, key, payload[0]) as ModelGetResult<
+            T,
+            K
+        >;
     }
 
-    parentOf(id: string): ParentNode<T> | undefined {
-        const parent = this.index.parent(id);
-        return parent === undefined
-            ? undefined
-            : (this.index.get(parent) as ParentNode<T> | undefined);
-    }
-
-    layoutOf(id: string): string | undefined {
-        const node = this.index.get(id);
-        if (!node) {
-            return undefined;
-        }
-        let top = id;
-        for (
-            let parent = this.index.parent(top);
-            parent !== undefined;
-            parent = this.index.parent(top)
-        ) {
-            top = parent;
-        }
-        if (this.index.get(top)?.type === "border") {
-            return MAIN_LAYOUT;
-        }
-        return this.index.layoutOfRoot(top);
-    }
-
-    root(layout: string = MAIN_LAYOUT): RowNode<T> | undefined {
-        if (layout === MAIN_LAYOUT) {
-            return this.state.root;
-        }
-        return this.windowLayout(layout)?.root;
-    }
-
-    windowLayout(id: string): WindowLayout<T> | undefined {
-        return this.state.windows.find(
-            (windowLayout) => windowLayout.id === id,
-        );
-    }
-
-    tabs(layout?: string): TabOf<T>[] {
-        const tabs: TabOf<T>[] = [];
-        const collect = (node: AnyNode) =>
-            walk(node, (visited) => {
-                if (visited.type === "tab") {
-                    tabs.push(visited as unknown as TabOf<T>);
-                }
-            });
-        const state = this.current;
-        if (layout === undefined || layout === MAIN_LAYOUT) {
-            collect(state.root);
-            for (const border of state.borders) {
-                collect(border);
-            }
-        }
-        for (const windowLayout of state.windows) {
-            if (layout === undefined || layout === windowLayout.id) {
-                collect(windowLayout.root);
-            }
-        }
-        return tabs;
-    }
-
-    tabsets(layout: string = MAIN_LAYOUT): TabsetNode<T>[] {
-        const tabsets: TabsetNode<T>[] = [];
-        const root = this.root(layout);
-        if (root) {
-            walk(root as unknown as AnyNode, (node) => {
-                if (node.type === "tabset") {
-                    tabsets.push(node as unknown as TabsetNode<T>);
-                }
-            });
-        }
-        return tabsets;
-    }
-
-    selectedTab(container: string): TabOf<T> | undefined {
-        const node = this.index.get(container);
-        if (node?.type !== "tabset" && node?.type !== "border") {
-            return undefined;
-        }
-        return node.selected < 0
-            ? undefined
-            : (node.children[node.selected] as TabOf<T> | undefined);
-    }
-
-    activeTabset(layout: string = MAIN_LAYOUT): TabsetNode<T> | undefined {
-        const id =
-            layout === MAIN_LAYOUT
-                ? this.state.active
-                : this.windowLayout(layout)?.active;
-        const node = id === undefined ? undefined : this.get(id);
-        return node?.type === "tabset" ? node : undefined;
-    }
-
-    maximizedTabset(layout: string = MAIN_LAYOUT): TabsetNode<T> | undefined {
-        const id =
-            layout === MAIN_LAYOUT
-                ? this.state.maximized
-                : this.windowLayout(layout)?.maximized;
-        const node = id === undefined ? undefined : this.get(id);
-        return node?.type === "tabset" ? node : undefined;
-    }
-
-    isHiddenByMaximize(id: string): boolean {
-        const node = this.index.get(id);
-        if (node?.type !== "tabset" && node?.type !== "row") {
-            return false;
-        }
-        const layout = this.layoutOf(id);
-        const maximized =
-            layout === undefined ? undefined : this.maximizedTabset(layout);
-        if (!maximized || maximized.id === id) {
-            return false;
-        }
-        for (
-            let parent = this.index.parent(maximized.id);
-            parent !== undefined;
-            parent = this.index.parent(parent)
-        ) {
-            if (parent === id) {
-                return false; // on the path to the maximized tabset
-            }
-        }
-        return true;
-    }
-
-    resolve(node: TabNode<string, unknown>): ResolvedTab;
-    resolve<U extends DockableTypes>(node: TabsetNode<U>): ResolvedTabset;
-    resolve<U extends DockableTypes>(node: BorderNode<U>): ResolvedBorder;
-    resolve(
-        node:
-            | ({ readonly type: "tab" } & TabLike)
-            | ({ readonly type: "tabset" } & TabsetLike)
-            | ({ readonly type: "border" } & BorderLike),
-    ): ResolvedTab | ResolvedTabset | ResolvedBorder {
-        const defaults = this.current.defaults;
-        switch (node.type) {
-            case "tab":
-                return resolveTab(defaults, node);
-            case "tabset":
-                return resolveTabset(defaults, node);
-            default:
-                return resolveBorder(defaults, node);
-        }
-    }
-
-    resolveLayout(): ResolvedLayout {
-        return resolveLayout(this.current.defaults);
-    }
-
-    toJSON(): LayoutJson<T> {
-        return stateToJson(this.current) as unknown as LayoutJson<T>;
+    is<K extends ModelIsKey>(key: K, payload: ModelIsPayload<K>): boolean {
+        return queryIs(this.committed, key, payload);
     }
 
     // ---------------------------------------------------------------------------------------------
     // the bus
     // ---------------------------------------------------------------------------------------------
-
-    commands(): readonly CommandInfo[] {
-        return COMMAND_INFO;
-    }
 
     use(middleware: Middleware<T>): () => void {
         this.middleware.push(middleware);
@@ -478,6 +287,14 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
     }
 
     can<C extends CommandName>(
+        command: C,
+        payload: PayloadOf<T, C>,
+        options?: RunOptions,
+    ): boolean {
+        return this.check(command, payload, options).ok;
+    }
+
+    check<C extends CommandName>(
         command: C,
         payload: PayloadOf<T, C>,
         options?: RunOptions,
@@ -574,7 +391,11 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
     ): CommandResult<unknown> {
         // a dry run commits nothing, not even the ids it generated
         const ids = dryRun ? this.ids.clone() : this.ids;
-        const draft = new Draft(this.current, this.index, ids);
+        const draft = new Draft(
+            this.committed.state,
+            this.committed.index,
+            ids,
+        );
         const execution: Execution = { steps: [], thrown: undefined };
         if (!dryRun) {
             this.inFlight++;
@@ -609,16 +430,16 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         if (!result.ok || dryRun) {
             return result;
         }
-        const before = this.current as unknown as LayoutState<T>;
+        const before = this.committed.state as unknown as LayoutState<T>;
         const committed = draft.commit(this.freeze);
-        this.current = committed.state;
-        this.index = committed.index;
+        this.committed.state = committed.state;
+        this.committed.index = committed.index;
         const event: CommandEvent<T> = {
             command: command as CommandName,
             payload: finalPayload,
             result: result.value,
             before,
-            after: this.current as unknown as LayoutState<T>,
+            after: this.committed.state as unknown as LayoutState<T>,
             transient: options.transient === true,
             meta: options.meta,
             ...(command === "batch" ? { commands: execution.steps } : {}),
@@ -667,13 +488,10 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
             transient: options.transient === true,
             inBatch,
             meta: options.meta,
-            state: this.current as unknown as LayoutState<T>,
-            get: (id) => draft.get(id) as Node<T> | undefined,
-            parentOf: (id) => {
-                const parent = draft.parentOf(id);
-                return parent === undefined
-                    ? undefined
-                    : (draft.get(parent) as ParentNode<T> | undefined);
+            state: this.committed.state as unknown as LayoutState<T>,
+            get: (key: CommandContextGetKey, { node }: { node: string }) => {
+                const id = key === "parent" ? draft.parentOf(node) : node;
+                return id === undefined ? undefined : draft.get(id);
             },
         } as CommandContext<T>;
 

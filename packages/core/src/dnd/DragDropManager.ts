@@ -419,7 +419,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         id: string,
         dragImage?: Element | null,
     ) => {
-        const node = this.engine.model.get(id);
+        const node = this.engine.model.get("node", { node: id });
         if (node?.type !== "tab" && node?.type !== "tabset") {
             return;
         }
@@ -436,7 +436,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         }
         let x = 10;
         let y = 10;
-        const parent = this.engine.model.parentOf(id);
+        const parent = this.engine.model.get("parent", { node: id });
         const inSideBorder =
             parent?.type === "border" &&
             (parent.location === "left" || parent.location === "right");
@@ -734,8 +734,8 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const layout = this.engine.layoutId;
         const settings = resolveLayout(this.state().defaults);
         const showEdges =
-            this.engine.model.maximizedTabset(layout) === undefined &&
-            settings.edgeDock;
+            this.engine.model.get("maximized-tabset", { layout }) ===
+                undefined && settings.edgeDock;
         const root = this.engine.getFreshDomRect();
         // the outline starts as a 1x1 rect at the pointer (a view may animate from it)
         this.setIndicator({
@@ -796,7 +796,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             // a drag group transfer: the target adds the tab (with its id when it is free)
             const tab = subject.tab;
             const { type: _type, ...fields } = tab;
-            const payload = this.engine.model.get(tab.id)
+            const payload = this.engine.model.get("node", { node: tab.id })
                 ? { ...fields, id: undefined }
                 : fields;
             return {
@@ -841,10 +841,10 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                     : undefined;
             verdict =
                 command.command === "tab.move"
-                    ? model.can("tab.move", command.payload).ok
+                    ? model.can("tab.move", command.payload)
                     : command.command === "tabset.move"
-                      ? model.can("tabset.move", command.payload).ok
-                      : model.can("tab.add", command.payload, transfer).ok &&
+                      ? model.can("tabset.move", command.payload)
+                      : model.can("tab.add", command.payload, transfer) &&
                         // a transfer also closes the tab in its own model: that must be allowed too
                         (transfer === undefined ||
                             subject.kind !== "tab" ||
@@ -852,7 +852,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                                 "tab.close",
                                 { tab: subject.tab.id },
                                 transfer,
-                            ).ok);
+                            ));
             this.verdicts.set(key, verdict);
         }
         return verdict;

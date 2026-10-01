@@ -52,10 +52,10 @@ export interface TransferRequest {
 }
 
 function endOf(model: Model<AnyTypes>, tab: string): TransferEnd {
-    const parent = model.parentOf(tab);
+    const parent = model.get("parent", { node: tab });
     return {
         model,
-        layoutId: model.layoutOf(tab) ?? "",
+        layoutId: model.get("layout-id", { node: tab }) ?? "",
         tabsetId: parent?.id,
         index: parent
             ? parent.children.findIndex((child) => child.id === tab)
@@ -114,7 +114,11 @@ export class DragGroup {
     transfer(request: TransferRequest): string | undefined {
         const source = this.engineOf(request.from);
         const target = this.engineOf(request.to);
-        if (!source || !target || !source.model.get(request.tab)) {
+        if (
+            !source ||
+            !target ||
+            !source.model.get("node", { node: request.tab })
+        ) {
             return undefined;
         }
         return this.transferTab(
@@ -141,12 +145,12 @@ export class DragGroup {
     ): string | undefined {
         const source = sourceEngine.model as unknown as Model<AnyTypes>;
         const target = targetEngine.model as unknown as Model<AnyTypes>;
-        const tab = source.get(tabId);
+        const tab = source.get("node", { node: tabId });
         if (source === target || tab?.type !== "tab") {
             return undefined;
         }
         const { type: _type, ...init } = tab;
-        const fields: TabInit = target.get(tabId)
+        const fields: TabInit = target.get("node", { node: tabId })
             ? { ...init, id: undefined }
             : init;
         const meta: TransferMeta = {
@@ -155,8 +159,8 @@ export class DragGroup {
         const add = { ...fields, to, location, index };
         // both sides must accept before anything changes
         if (
-            !target.can("tab.add", add, { meta: { ...meta } }).ok ||
-            !source.can("tab.close", { tab: tabId }, { meta: { ...meta } }).ok
+            !target.can("tab.add", add, { meta: { ...meta } }) ||
+            !source.can("tab.close", { tab: tabId }, { meta: { ...meta } })
         ) {
             return undefined;
         }

@@ -220,7 +220,7 @@ describe("overlay borders", () => {
                 clientY: y,
             });
         const selected = () => {
-            const border = s.model.get("border_left");
+            const border = s.model.get("node", { node: "border_left" });
             return border?.type === "border" ? border.selected : undefined;
         };
         return { ...s, area, press, selected };

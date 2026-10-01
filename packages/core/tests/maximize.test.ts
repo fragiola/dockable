@@ -36,7 +36,7 @@ const json: LayoutJson = {
 
 function setup() {
     const model = createModel(structuredClone(json));
-    const hidden = (id: string) => model.isHiddenByMaximize(id);
+    const hidden = (id: string) => model.is("hidden-by-maximize", { node: id });
     return { model, hidden };
 }
 
@@ -74,7 +74,7 @@ describe("model.isHiddenByMaximize", () => {
         expect(hidden("b")).toBe(false); // a tab: its panel follows the engine's visibility
         // a tabset popped out into a window is in another layout: no maximized tabset there
         model.run("tabset.popout", { tabset: "ts1" });
-        expect(model.layoutOf("ts1")).not.toBe(MAIN_LAYOUT);
+        expect(model.get("layout-id", { node: "ts1" })).not.toBe(MAIN_LAYOUT);
         expect(hidden("ts1")).toBe(false);
     });
 });

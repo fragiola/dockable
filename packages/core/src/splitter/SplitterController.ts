@@ -162,12 +162,12 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     }
 
     private row(): AnyRow | undefined {
-        const node = this.engine.model.get(this.nodeId);
+        const node = this.engine.model.get("node", { node: this.nodeId });
         return node?.type === "row" ? (node as unknown as AnyRow) : undefined;
     }
 
     private border(): AnyBorder | undefined {
-        const node = this.engine.model.get(this.nodeId);
+        const node = this.engine.model.get("node", { node: this.nodeId });
         return node?.type === "border"
             ? (node as unknown as AnyBorder)
             : undefined;
@@ -186,8 +186,9 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     isHidden(): boolean {
         return (
             !this.border() &&
-            this.engine.model.maximizedTabset(this.engine.layoutId) !==
-                undefined
+            this.engine.model.get("maximized-tabset", {
+                layout: this.engine.layoutId,
+            }) !== undefined
         );
     }
 

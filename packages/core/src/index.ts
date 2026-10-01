@@ -5,6 +5,7 @@ export type {
     BorderConfigurePayload,
     CommandContext,
     CommandContextBase,
+    CommandContextGetKey,
     CommandError,
     CommandErrorCode,
     CommandEvent,
@@ -145,6 +146,17 @@ export {
     type ModelHandle,
     type ModelOptions,
 } from "./state/model";
+export type {
+    ModelGetKey,
+    ModelGetMap,
+    ModelGetPayload,
+    ModelGetResult,
+    ModelIsKey,
+    ModelIsMap,
+    ModelIsPayload,
+    NoPayload,
+    QueryArgs,
+} from "./state/queries";
 export {
     type AnyTypes,
     type BorderDataOf,

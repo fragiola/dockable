@@ -98,7 +98,7 @@ function setup(
         root,
         manager: engine.getPopoutManager(),
         layoutId,
-        layout: () => model.windowLayout(layoutId),
+        layout: () => model.get("window", { window: layoutId }),
         opened,
         openSpy,
     };
@@ -110,7 +110,7 @@ describe("opening", () => {
         manager.sync();
         manager.sync();
         expect(openSpy).toHaveBeenCalledTimes(1);
-        const rect = model.windowLayout(layoutId)?.rect;
+        const rect = model.get("window", { window: layoutId })?.rect;
         // the name is scoped to the engine: two models may both have a "window-1"
         expect(openSpy).toHaveBeenCalledWith(
             `popout.html?id=${encodeURIComponent(layoutId)}`,
@@ -154,7 +154,7 @@ describe("opening", () => {
     it("closes the window of a layout that left the state", () => {
         const { model, manager, layoutId, opened } = setup();
         model.run("tab.close", { tab: "b" });
-        expect(model.windowLayout(layoutId)).toBeUndefined();
+        expect(model.get("window", { window: layoutId })).toBeUndefined();
         expect(opened[0]?.close).toHaveBeenCalled();
         expect(manager.getOpenLayoutIds()).toEqual([]);
     });
@@ -199,8 +199,8 @@ describe("opening", () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         const { model, layoutId } = setup({}, () => null);
         expect(warn).toHaveBeenCalled();
-        expect(model.windowLayout(layoutId)).toBeUndefined();
-        expect(model.layoutOf("b")).toBe(MAIN_LAYOUT);
+        expect(model.get("window", { window: layoutId })).toBeUndefined();
+        expect(model.get("layout-id", { node: "b" })).toBe(MAIN_LAYOUT);
     });
 
     it("gives the popout layout its own engine", async () => {
@@ -238,7 +238,7 @@ describe("opening", () => {
             value: 480,
         });
         win.dispatchEvent(new Event("resize"));
-        expect(model.windowLayout(layoutId)?.rect).toEqual({
+        expect(model.get("window", { window: layoutId })?.rect).toEqual({
             x: 120,
             y: 80,
             width: 640,
@@ -258,7 +258,7 @@ describe("opening", () => {
             (call) => call[1] === WINDOW_RECT_POLL_INTERVAL_MS,
         )?.[0];
         if (typeof poll !== "function") throw new Error("no rect poll");
-        const rect = model.windowLayout(layoutId)?.rect;
+        const rect = model.get("window", { window: layoutId })?.rect;
         const at = (name: string, value: number | undefined) =>
             Object.defineProperty(win, name, { configurable: true, value });
         at("screenLeft", rect?.x);
@@ -275,7 +275,7 @@ describe("opening", () => {
         at("screenLeft", 300);
         poll();
         expect(events).toEqual(["window.configure"]);
-        expect(model.windowLayout(layoutId)?.rect.x).toBe(300);
+        expect(model.get("window", { window: layoutId })?.rect.x).toBe(300);
     });
 
     it("names its windows apart from another model's with the same window ids", () => {
@@ -312,8 +312,8 @@ describe("opening edge cases", () => {
     it("docks the tabs back when popouts are not supported", () => {
         const { model, layoutId, openSpy } = setup({ supportsPopout: false });
         expect(openSpy).not.toHaveBeenCalled();
-        expect(model.windowLayout(layoutId)).toBeUndefined();
-        expect(model.layoutOf("b")).toBe(MAIN_LAYOUT);
+        expect(model.get("window", { window: layoutId })).toBeUndefined();
+        expect(model.get("layout-id", { node: "b" })).toBe(MAIN_LAYOUT);
     });
 
     it("hands a named window over to a new engine without closing it", async () => {
@@ -335,7 +335,9 @@ describe("opening edge cases", () => {
         expect(win.close).not.toHaveBeenCalled(); // the old manager let go without closing
         // the reload's beforeunload does not dock the layout back through the old manager
         win.dispatchEvent(new Event("beforeunload"));
-        expect(first.model.windowLayout(first.layoutId)).toBeDefined();
+        expect(
+            first.model.get("window", { window: first.layoutId }),
+        ).toBeDefined();
         expect(second.getPopoutManager().getWindow(first.layoutId)).toBe(win);
         second.dispose();
     });
@@ -361,8 +363,8 @@ describe("closing", () => {
             win.document,
         );
         expect(commands).toEqual(["window.close"]);
-        expect(model.windowLayout(layoutId)).toBeUndefined();
-        const ts1 = model.get("ts1");
+        expect(model.get("window", { window: layoutId })).toBeUndefined();
+        const ts1 = model.get("node", { node: "ts1" });
         expect(ts1?.type === "tabset" && ts1.children.map((c) => c.id)).toEqual(
             ["c", "b"],
         );
@@ -374,7 +376,7 @@ describe("closing", () => {
         const win = opened[0] as Window;
         await load(win);
         win.dispatchEvent(new Event("beforeunload"));
-        const ts0 = model.get("ts0");
+        const ts0 = model.get("node", { node: "ts0" });
         expect(ts0?.type === "tabset" && ts0.children.map((c) => c.id)).toEqual(
             ["a", "b"],
         );
@@ -386,7 +388,7 @@ describe("closing", () => {
         await load(win);
         manager.close(layoutId);
         win.dispatchEvent(new Event("beforeunload"));
-        expect(model.windowLayout(layoutId)).toBeDefined();
+        expect(model.get("window", { window: layoutId })).toBeDefined();
     });
 
     it("the main window unloading closes every popout", () => {

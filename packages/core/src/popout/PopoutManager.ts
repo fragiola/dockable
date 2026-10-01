@@ -317,7 +317,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
     }
 
     private layoutOf(layoutId: string): WindowLayout<T> | undefined {
-        return this.engine.model.windowLayout(layoutId);
+        return this.engine.model.get("window", { window: layoutId });
     }
 
     private onLoad(entry: PopoutEntry<T>) {
@@ -450,7 +450,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
      * so their content (and the framework state rendered into it) outlives the window
      */
     private rescueContent(layoutId: string) {
-        for (const tab of this.engine.model.tabs(layoutId)) {
+        for (const tab of this.engine.model.get("tabs", { layout: layoutId })) {
             this.engine.releaseMoveable(tab.id);
         }
     }
