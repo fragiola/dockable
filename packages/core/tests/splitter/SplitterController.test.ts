@@ -164,7 +164,7 @@ describe("SplitterController pointer drag", () => {
                 width: 0,
                 height: 0,
             },
-            range: engine.get("size-limits", { node: id }),
+            range: engine.get("size-limits-by-node-id", { nodeId: id }),
         }));
         const bounds = splitterBounds(
             children,
@@ -479,12 +479,16 @@ describe("border splitters", () => {
             command: "border.resize",
             transient: false,
         });
-        expect(model.get("node", { node: "border_left" })).toMatchObject({
+        expect(
+            model.get("node-by-id", { nodeId: "border_left" }),
+        ).toMatchObject({
             size: 300,
         });
 
         key(controller, "ArrowLeft"); // towards the border's edge: it shrinks
-        expect(model.get("node", { node: "border_left" })).toMatchObject({
+        expect(
+            model.get("node-by-id", { nodeId: "border_left" }),
+        ).toMatchObject({
             size: 290,
         });
     });

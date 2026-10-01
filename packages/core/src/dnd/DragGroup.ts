@@ -52,10 +52,10 @@ export interface TransferRequest {
 }
 
 function endOf(model: Model<AnyTypes>, tab: string): TransferEnd {
-    const parent = model.get("parent", { node: tab });
+    const parent = model.get("node-parent-by-id", { nodeId: tab });
     return {
         model,
-        layoutId: model.get("layout-id", { node: tab }) ?? "",
+        layoutId: model.get("layout-id-by-node-id", { nodeId: tab }) ?? "",
         tabsetId: parent?.id,
         index: parent
             ? parent.children.findIndex((child) => child.id === tab)
@@ -117,7 +117,7 @@ export class DragGroup {
         if (
             !source ||
             !target ||
-            !source.adapter.model.get("node", { node: request.tab })
+            !source.adapter.model.get("node-by-id", { nodeId: request.tab })
         ) {
             return undefined;
         }
@@ -145,12 +145,12 @@ export class DragGroup {
     ): string | undefined {
         const source = sourceEngine.adapter.model as unknown as Model<AnyTypes>;
         const target = targetEngine.adapter.model as unknown as Model<AnyTypes>;
-        const tab = source.get("node", { node: tabId });
+        const tab = source.get("node-by-id", { nodeId: tabId });
         if (source === target || tab?.type !== "tab") {
             return undefined;
         }
         const { type: _type, ...init } = tab;
-        const fields: TabInit = target.get("node", { node: tabId })
+        const fields: TabInit = target.get("node-by-id", { nodeId: tabId })
             ? { ...init, id: undefined }
             : init;
         const meta: TransferMeta = {
@@ -160,7 +160,7 @@ export class DragGroup {
         // both sides must accept before anything changes
         if (
             !target.can("tab.add", add, { meta: { ...meta } }) ||
-            !source.can("tab.close", { tabId: tabId }, { meta: { ...meta } })
+            !source.can("tab.close", { tabId }, { meta: { ...meta } })
         ) {
             return undefined;
         }
@@ -178,7 +178,7 @@ export class DragGroup {
         );
         const closed = source.run(
             "tab.close",
-            { tabId: tabId },
+            { tabId },
             { meta: { ...meta } },
         );
         if (!closed.ok) {

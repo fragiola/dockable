@@ -159,10 +159,16 @@ describe("LayoutEngine measure pass", () => {
         const { engine } = setup();
         engine.run("measure-and-position");
         engine.adapter.prepare();
-        expect(engine.get("path", { node: "ts1" })).toBe("/ts1");
-        expect(engine.get("path", { node: "t2" })).toBe("/ts1/t0");
+        expect(engine.get("layout-path-by-node-id", { nodeId: "ts1" })).toBe(
+            "/ts1",
+        );
+        expect(engine.get("layout-path-by-node-id", { nodeId: "t2" })).toBe(
+            "/ts1/t0",
+        );
         // a tabset's minimum height includes its strip
-        expect(engine.get("size-limits", { node: "ts0" }).minHeight).toBe(31);
+        expect(
+            engine.get("size-limits-by-node-id", { nodeId: "ts0" }).minHeight,
+        ).toBe(31);
     });
 });
 
@@ -191,8 +197,8 @@ describe("LayoutEngine panel positioning", () => {
         expect(panels.t0.style.display).toBe("");
         expect(panels.t1.style.display).toBe("none");
         expect(panels.t2.style.display).toBe("");
-        expect(engine.is("panel-visible", { tab: "t0" })).toBe(true);
-        expect(engine.is("panel-visible", { tab: "t1" })).toBe(false);
+        expect(engine.is("tab-panel-visible", { tabId: "t0" })).toBe(true);
+        expect(engine.is("tab-panel-visible", { tabId: "t1" })).toBe(false);
     });
 
     it("hides panels of non-maximized tabsets while one is maximized", () => {
@@ -210,7 +216,9 @@ describe("LayoutEngine and the model", () => {
         const { model, engine } = setup();
         const commands = recordCommands(model);
         engine.adapter.model.run("tab.select", { tabId: "t1" });
-        expect(model.get("selected-tab", { container: "ts0" })?.id).toBe("t1");
+        expect(
+            model.get("selected-tab-by-tabset-id", { tabsetId: "ts0" })?.id,
+        ).toBe("t1");
         expect(commands).toEqual([
             { command: "tab.select", payload: { tabId: "t1" } },
         ]);
@@ -237,7 +245,7 @@ describe("LayoutEngine and the model", () => {
         expect(listener).not.toHaveBeenCalled();
         expect(ts0.style.flexGrow).toBe(String(30 * 1000));
         expect(ts1.style.flexGrow).toBe(String(70 * 1000));
-        expect(model.get("node", { node: "ts0" })).toMatchObject({
+        expect(model.get("node-by-id", { nodeId: "ts0" })).toMatchObject({
             weight: 30,
         });
         model.run("row.resize", { rowId: "row", weights: [30, 70] });
@@ -419,7 +427,7 @@ describe("LayoutEngine keyboard focus", () => {
             value: { tabsetId: "ts1" },
         });
         expect(document.activeElement).toBe(b2);
-        expect(model.get("active-tabset")?.id).toBe("ts1");
+        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
         expect(engine.run("focus-tabset", { direction: "previous" }).ok).toBe(
             true,
         );

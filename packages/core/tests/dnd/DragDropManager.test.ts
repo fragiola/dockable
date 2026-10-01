@@ -92,7 +92,7 @@ function setup(
 type Setup = ReturnType<typeof setup>;
 
 function children(s: Setup, tabset: string): string[] {
-    const node = s.model.get("node", { node: tabset });
+    const node = s.model.get("node-by-id", { nodeId: tabset });
     return node?.type === "tabset" ? node.children.map((c) => c.id) : [];
 }
 
@@ -629,7 +629,9 @@ describe("add drags (a consumer element dragged in)", () => {
             location: "center",
         });
         const added = children(s, "ts1")[1];
-        expect(s.model.get("node", { node: added ?? "" })).toMatchObject({
+        expect(
+            s.model.get("node-by-id", { nodeId: added ?? "" }),
+        ).toMatchObject({
             component: "chart",
             data: { name: "Revenue" },
         });
@@ -722,7 +724,9 @@ describe("external drags (onExternalDrag)", () => {
         const drop = dragEvent("drop", 312, 185, foreign());
         s.root.dispatchEvent(drop);
         const added = children(s, "ts1")[1];
-        expect(s.model.get("node", { node: added ?? "" })).toMatchObject({
+        expect(
+            s.model.get("node-by-id", { nodeId: added ?? "" }),
+        ).toMatchObject({
             data: { name: "report.csv" },
         });
         expect(onDrop).toHaveBeenCalledWith(added, drop);
@@ -967,7 +971,7 @@ describe("drop zones", () => {
         const drop = dragEvent("drop", 0, 0);
         z.element.dispatchEvent(drop);
         expect(z.onDrop).toHaveBeenCalledWith(
-            { kind: "tab", tab: s.model.get("node", { node: "t0" }) },
+            { kind: "tab", tab: s.model.get("node-by-id", { nodeId: "t0" }) },
             drop,
         );
         expect(z.onOverChange).toHaveBeenLastCalledWith(false);

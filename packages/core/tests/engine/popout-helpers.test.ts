@@ -37,10 +37,14 @@ describe("popout helpers", () => {
         const result = engine.run("popout", { nodeId: "ts0" });
         expect(commands.map((c) => c.command)).toEqual(["tabset.popout"]);
         const layout = result.ok ? result.value.windowId : "";
-        expect(model.get("window", { window: layout })).toBeDefined();
-        expect(model.get("layout-id", { node: "t0" })).toBe(layout);
-        expect(model.get("layout-id", { node: "t1" })).toBe(layout);
-        expect(model.is("in-window", { node: "t0" })).toBe(true);
+        expect(model.get("window-by-id", { windowId: layout })).toBeDefined();
+        expect(model.get("layout-id-by-node-id", { nodeId: "t0" })).toBe(
+            layout,
+        );
+        expect(model.get("layout-id-by-node-id", { nodeId: "t1" })).toBe(
+            layout,
+        );
+        expect(model.is("node-in-window", { nodeId: "t0" })).toBe(true);
         expect(engine.can("popout", { nodeId: "t0" })).toBe(false);
     });
 
@@ -50,18 +54,22 @@ describe("popout helpers", () => {
         model.run("tabset.activate", { tabsetId: "ts1" });
 
         engine.run("dock-back", { nodeId: "t0" });
-        expect(model.get("parent", { node: "t0" })?.id).toBe("ts1");
+        expect(model.get("node-parent-by-id", { nodeId: "t0" })?.id).toBe(
+            "ts1",
+        );
         expect(commands.at(-1)?.command).toBe("batch");
 
         // what is left is the whole window: it closes
         engine.run("dock-back", { nodeId: "ts0" });
         expect(commands.at(-1)?.command).toBe("window.close");
-        const ts1 = model.get("node", { node: "ts1" });
+        const ts1 = model.get("node-by-id", { nodeId: "ts1" });
         expect(ts1?.type === "tabset" && ts1.children.map((c) => c.id)).toEqual(
             ["t2", "t0", "t1"],
         );
         expect(model.state.windows).toEqual([]);
-        expect(model.get("layout-id", { node: "t1" })).toBe(MAIN_LAYOUT);
+        expect(model.get("layout-id-by-node-id", { nodeId: "t1" })).toBe(
+            MAIN_LAYOUT,
+        );
     });
 
     it('run("dock-back") keeps a pinned tab pinned: unpinned for the move, pinned again in the target', () => {
@@ -72,14 +80,16 @@ describe("popout helpers", () => {
 
         expect(engine.run("dock-back", { nodeId: "t1" }).ok).toBe(true);
         expect(commands.at(-1)?.command).toBe("batch");
-        const ts1 = model.get("node", { node: "ts1" });
+        const ts1 = model.get("node-by-id", { nodeId: "ts1" });
         expect(ts1?.type === "tabset" && ts1.children.map((c) => c.id)).toEqual(
             ["t1", "t2"],
         );
-        expect(model.get("node", { node: "t1" })).toMatchObject({
+        expect(model.get("node-by-id", { nodeId: "t1" })).toMatchObject({
             pinned: true,
         });
-        expect(model.get("layout-id", { node: "t0" })).not.toBe(MAIN_LAYOUT);
+        expect(model.get("layout-id-by-node-id", { nodeId: "t0" })).not.toBe(
+            MAIN_LAYOUT,
+        );
     });
 
     it("keeps a window's path number while it is open, whichever window closes first", () => {
@@ -92,7 +102,7 @@ describe("popout helpers", () => {
             const sub = engine.adapter.createPopoutEngine(layoutId);
             engines.push(sub);
             sub.adapter.prepare();
-            return sub.get("path", { node: id });
+            return sub.get("layout-path-by-node-id", { nodeId: id });
         };
         expect(pathIn(one, "t0")).toMatch(/^\/sublayout1\//);
         expect(pathIn(two, "t2")).toMatch(/^\/sublayout2\//);
@@ -132,11 +142,11 @@ describe("DOM ids", () => {
     it("are scoped per engine, so two models with the same ids stay apart on one page", () => {
         const a = setup().engine;
         const b = setup().engine;
-        expect(a.get("tab-button-id", { tab: "t0" })).not.toBe(
-            b.get("tab-button-id", { tab: "t0" }),
+        expect(a.get("tab-button-dom-id-by-tab-id", { tabId: "t0" })).not.toBe(
+            b.get("tab-button-dom-id-by-tab-id", { tabId: "t0" }),
         );
-        expect(a.get("tab-panel-id", { tab: "t0" })).not.toBe(
-            b.get("tab-panel-id", { tab: "t0" }),
+        expect(a.get("tab-panel-dom-id-by-tab-id", { tabId: "t0" })).not.toBe(
+            b.get("tab-panel-dom-id-by-tab-id", { tabId: "t0" }),
         );
         // popout engines share their main engine's scope
         const popped = a.run("popout", { nodeId: "t0" });
@@ -144,8 +154,8 @@ describe("DOM ids", () => {
             popped.ok ? popped.value.windowId : "",
         );
         engines.push(sub);
-        expect(sub.get("tab-button-id", { tab: "t0" })).toBe(
-            a.get("tab-button-id", { tab: "t0" }),
+        expect(sub.get("tab-button-dom-id-by-tab-id", { tabId: "t0" })).toBe(
+            a.get("tab-button-dom-id-by-tab-id", { tabId: "t0" }),
         );
     });
 
@@ -155,10 +165,10 @@ describe("DOM ids", () => {
             idScope: "r1-",
         });
         engines.push(engine);
-        expect(engine.get("tab-button-id", { tab: "t 0" })).toBe(
-            "dockable-r1-tabbutton-t_0",
-        );
-        expect(engine.get("tab-panel-id", { tab: "t0" })).toBe(
+        expect(
+            engine.get("tab-button-dom-id-by-tab-id", { tabId: "t 0" }),
+        ).toBe("dockable-r1-tabbutton-t_0");
+        expect(engine.get("tab-panel-dom-id-by-tab-id", { tabId: "t0" })).toBe(
             "dockable-r1-tab-t0",
         );
     });

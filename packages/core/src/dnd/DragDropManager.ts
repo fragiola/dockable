@@ -419,7 +419,9 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         id: string,
         dragImage?: Element | null,
     ) => {
-        const node = this.engine.adapter.model.get("node", { node: id });
+        const node = this.engine.adapter.model.get("node-by-id", {
+            nodeId: id,
+        });
         if (node?.type !== "tab" && node?.type !== "tabset") {
             return;
         }
@@ -436,7 +438,9 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         }
         let x = 10;
         let y = 10;
-        const parent = this.engine.adapter.model.get("parent", { node: id });
+        const parent = this.engine.adapter.model.get("node-parent-by-id", {
+            nodeId: id,
+        });
         const inSideBorder =
             parent?.type === "border" &&
             (parent.location === "left" || parent.location === "right");
@@ -743,8 +747,9 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const layout = this.engine.layoutId;
         const settings = resolveLayout(this.state().defaults);
         const showEdges =
-            this.engine.adapter.model.get("maximized-tabset", { layout }) ===
-                undefined && settings.edgeDock;
+            this.engine.adapter.model.get("maximized-tabset-by-layout-id", {
+                layoutId: layout,
+            }) === undefined && settings.edgeDock;
         const root = this.engine.adapter.getFreshDomRect();
         // the outline starts as a 1x1 rect at the pointer (a view may animate from it)
         this.setIndicator({
@@ -812,8 +817,8 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             // a drag group transfer: the target adds the tab (with its id when it is free)
             const tab = subject.tab;
             const { type: _type, ...fields } = tab;
-            const payload = this.engine.adapter.model.get("node", {
-                node: tab.id,
+            const payload = this.engine.adapter.model.get("node-by-id", {
+                nodeId: tab.id,
             })
                 ? { ...fields, id: undefined }
                 : fields;

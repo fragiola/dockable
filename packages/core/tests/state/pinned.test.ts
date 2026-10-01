@@ -28,7 +28,7 @@ describe("pinned tabs", () => {
         expect(text()).toBe("/ts0/t0[P1],/ts0/t1[P2],/ts0/t2[B]*,/ts0/t3[A]");
         // a pinned tab never leaves it
         must(model.run("tab.move", { tabId: "P1", to: "ts0", index: 4 }));
-        expect(model.get("tabs").map((t) => t.id)).toEqual([
+        expect(model.get("all-tabs").map((t) => t.id)).toEqual([
             "P2",
             "P1",
             "B",
@@ -58,7 +58,7 @@ describe("pinned tabs", () => {
         must(model.run("tab.select", { tabId: "B" }));
         must(model.run("tab.pin", { tabId: "C", value: true }));
         expect(text()).toBe("/ts0/t0[P],/ts0/t1[C],/ts0/t2[A],/ts0/t3[B]*");
-        expect(model.get("node", { node: "C" })).toMatchObject({
+        expect(model.get("node-by-id", { nodeId: "C" })).toMatchObject({
             pinned: true,
         });
     });
@@ -83,7 +83,9 @@ describe("pinned tabs", () => {
         });
         must(model.run("tab.pin", { tabId: "P1", value: false }));
         expect(text()).toBe("/ts0/t0[P2],/ts0/t1[P1]*,/ts0/t2[A]");
-        expect(model.get("node", { node: "P1" })).not.toHaveProperty("pinned");
+        expect(model.get("node-by-id", { nodeId: "P1" })).not.toHaveProperty(
+            "pinned",
+        );
     });
 
     it("cannot be closed, popped out or pinned in a border", () => {

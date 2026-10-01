@@ -287,7 +287,7 @@ export interface RunOptions {
 }
 
 /** What a middleware's `ctx.get` reads. */
-export type CommandContextGetKey = "node" | "parent";
+export type CommandContextGetKey = "node-by-id" | "node-parent-by-id";
 
 /** What a middleware sees of any command. */
 export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
@@ -300,13 +300,15 @@ export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
     /** the committed state the command applies to */
     readonly state: LayoutState<T>;
     /**
-     * reads a node (`"node"`) or its parent (`"parent"`) as the command sees it: inside a batch,
-     * after the batch's earlier commands
+     * reads a node (`"node-by-id"`) or its parent (`"node-parent-by-id"`) as the command sees it:
+     * inside a batch, after the batch's earlier commands
      */
     get<K extends CommandContextGetKey>(
         key: K,
-        payload: { node: string },
-    ): K extends "parent" ? ParentNode<T> | undefined : Node<T> | undefined;
+        payload: { nodeId: string },
+    ): K extends "node-parent-by-id"
+        ? ParentNode<T> | undefined
+        : Node<T> | undefined;
 }
 
 /**

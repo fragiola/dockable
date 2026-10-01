@@ -102,10 +102,14 @@ describe("selection", () => {
         expect(text()).toBe(
             "/b/left/t0[A],/b/left/t1[One],/b/right/t0[B],/b/right/t1[Two]*",
         );
-        expect(model.get("node", { node: "border_left" })).toMatchObject({
+        expect(
+            model.get("node-by-id", { nodeId: "border_left" }),
+        ).toMatchObject({
             selected: -1,
         });
-        expect(model.get("node", { node: "border_right" })).toMatchObject({
+        expect(
+            model.get("node-by-id", { nodeId: "border_right" }),
+        ).toMatchObject({
             selected: 1,
         });
     });
@@ -153,7 +157,9 @@ describe("selection", () => {
             borders: [{ location: "bottom", children: [tab("A"), tab("B")] }],
         });
         must(model.run("tab.select", { tabId: "B" }));
-        expect(model.get("node", { node: "border_bottom" })).toMatchObject({
+        expect(
+            model.get("node-by-id", { nodeId: "border_bottom" }),
+        ).toMatchObject({
             selected: 1,
         });
         const before = model.state;

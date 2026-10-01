@@ -17,7 +17,7 @@ describe("tidy", () => {
                 ],
             },
         });
-        expect(model.get("node", { node: "empty" })).toBeUndefined();
+        expect(model.get("node-by-id", { nodeId: "empty" })).toBeUndefined();
         expect(model.state.root.children.map((c) => c.id)).toEqual(["a", "b"]);
     });
 
@@ -44,11 +44,13 @@ describe("tidy", () => {
                 ],
             },
         });
-        expect(model.get("node", { node: "r" })).toBeUndefined();
-        expect(model.get("parent", { node: "b" })?.id).toBe(
+        expect(model.get("node-by-id", { nodeId: "r" })).toBeUndefined();
+        expect(model.get("node-parent-by-id", { nodeId: "b" })?.id).toBe(
             model.state.root.id,
         );
-        expect(model.get("node", { node: "b" })).toMatchObject({ weight: 40 });
+        expect(model.get("node-by-id", { nodeId: "b" })).toMatchObject({
+            weight: 40,
+        });
     });
 
     it("scales hoisted weights", () => {
@@ -128,16 +130,18 @@ describe("tidy", () => {
             },
         });
         expect(
-            model.get("node", { node: "b" })?.type === "tabset" &&
-                model.get("node", { node: "b" }),
+            model.get("node-by-id", { nodeId: "b" })?.type === "tabset" &&
+                model.get("node-by-id", { nodeId: "b" }),
         ).toMatchObject({ weight: 25 });
-        expect(model.get("node", { node: "c" })).toMatchObject({ weight: 25 });
+        expect(model.get("node-by-id", { nodeId: "c" })).toMatchObject({
+            weight: 25,
+        });
     });
 
     it("removes an empty tabset", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
         must(model.run("tab.close", { tabId: "Two" }));
-        expect(model.get("node", { node: "ts1" })).toBeUndefined();
+        expect(model.get("node-by-id", { nodeId: "ts1" })).toBeUndefined();
     });
 
     it("keeps an empty tabset that must stay", () => {
@@ -164,11 +168,11 @@ describe("tidy", () => {
         });
         must(kept.run("tab.close", { tabId: "Two" }));
         must(kept.run("tab.close", { tabId: "Three" }));
-        expect(kept.get("node", { node: "b" })).toMatchObject({
+        expect(kept.get("node-by-id", { nodeId: "b" })).toMatchObject({
             children: [],
             selected: -1,
         });
-        expect(kept.get("node", { node: "c" })).toMatchObject({
+        expect(kept.get("node-by-id", { nodeId: "c" })).toMatchObject({
             children: [],
             selected: -1,
         });
@@ -178,7 +182,7 @@ describe("tidy", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
         must(model.run("tabset.maximize", { tabsetId: "ts1", value: true }));
         must(model.run("tab.close", { tabId: "Two" }));
-        expect(model.get("maximized-tabset")).toBeUndefined();
+        expect(model.get("maximized-tabset-by-layout-id")).toBeUndefined();
         expect(model.state.maximized).toBeUndefined();
     });
 
@@ -192,7 +196,7 @@ describe("tidy", () => {
             selected: -1,
             children: [],
         });
-        expect(model.get("active-tabset")?.id).toBe(only?.id);
+        expect(model.get("active-tabset-by-layout-id")?.id).toBe(only?.id);
     });
 
     it("removes an empty window", () => {
@@ -201,9 +205,9 @@ describe("tidy", () => {
         const { windowId: window } = must(
             model.run("tab.popout", { tabId: "Two" }),
         );
-        expect(model.get("window", { window })).toBeDefined();
+        expect(model.get("window-by-id", { windowId: window })).toBeDefined();
         must(model.run("tab.close", { tabId: "Two" }));
-        expect(model.get("window", { window })).toBeUndefined();
+        expect(model.get("window-by-id", { windowId: window })).toBeUndefined();
         expect(model.state.windows).toEqual([]);
     });
 
@@ -212,6 +216,6 @@ describe("tidy", () => {
         must(model.run("tabset.activate", { tabsetId: "ts1" }));
         must(model.run("tab.close", { tabId: "Two" }));
         expect(model.state.active).toBeUndefined();
-        expect(model.get("active-tabset")).toBeUndefined();
+        expect(model.get("active-tabset-by-layout-id")).toBeUndefined();
     });
 });
