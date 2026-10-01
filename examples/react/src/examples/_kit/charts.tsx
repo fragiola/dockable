@@ -16,6 +16,14 @@ import { cn } from "#/lib/cn";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
 
+/** The slices of a pie or donut chart. */
+const CHANNELS = ["Direct", "Search", "Social", "Email", "Referral"];
+
+/** The kinds of chart {@link ChartPanel} draws. */
+export const CHART_KINDS = ["line", "bar", "area", "pie", "donut"] as const;
+
+export type ChartKind = (typeof CHART_KINDS)[number];
+
 /** A deterministic pseudo-random series, so the examples look the same on every load. */
 export function series(seed: number, length = MONTHS.length, scale = 100) {
     let value = seed;
@@ -63,6 +71,50 @@ export function useChartKey(ref: RefObject<HTMLElement | null>) {
     return key;
 }
 
+/** The ECharts option of a chart kind: two monthly series, or the share of each channel. */
+function chartOption(kind: ChartKind, seed: number): EChartsOption {
+    if (kind === "pie" || kind === "donut") {
+        return {
+            tooltip: {
+                trigger: "item",
+                valueFormatter: (value) => `${value}%`,
+            },
+            legend: { bottom: 0, icon: "circle", itemWidth: 8, itemHeight: 8 },
+            series: [
+                {
+                    type: "pie",
+                    // a donut leaves the middle empty; both stay clear of the legend
+                    radius: kind === "donut" ? ["45%", "70%"] : "70%",
+                    center: ["50%", "45%"],
+                    // the legend names the slices: no labels to collide in a narrow panel
+                    label: { show: false },
+                    itemStyle: { borderWidth: 2, borderColor: "transparent" },
+                    data: CHANNELS.map((name, index) => ({
+                        name,
+                        value: (series(seed, CHANNELS.length)[index] ?? 0) + 10,
+                    })),
+                },
+            ],
+        };
+    }
+    const type = kind === "bar" ? "bar" : "line";
+    return {
+        grid: { left: 36, right: 16, top: 16, bottom: 28 },
+        tooltip: { trigger: "axis" },
+        xAxis: { type: "category", data: MONTHS },
+        yAxis: { type: "value" },
+        series: [
+            {
+                type,
+                smooth: kind !== "bar",
+                areaStyle: kind === "area" ? { opacity: 0.2 } : undefined,
+                data: series(seed),
+            },
+            { type, smooth: kind !== "bar", data: series(seed + 11) },
+        ],
+    };
+}
+
 /** A Fragiola chart that fills its panel and follows the example theme. */
 export function ChartPanel({
     kind = "line",
@@ -70,35 +122,14 @@ export function ChartPanel({
     title,
     className,
 }: {
-    kind?: "line" | "bar" | "area";
+    kind?: ChartKind;
     seed?: number;
     title?: ReactNode;
     className?: string;
 }) {
     const ref = useRef<HTMLDivElement | null>(null);
     const chartKey = useChartKey(ref);
-    const option = useMemo<EChartsOption>(
-        () => ({
-            grid: { left: 36, right: 16, top: 16, bottom: 28 },
-            tooltip: { trigger: "axis" },
-            xAxis: { type: "category", data: MONTHS },
-            yAxis: { type: "value" },
-            series: [
-                {
-                    type: kind === "bar" ? "bar" : "line",
-                    smooth: kind !== "bar",
-                    areaStyle: kind === "area" ? { opacity: 0.2 } : undefined,
-                    data: series(seed),
-                },
-                {
-                    type: kind === "bar" ? "bar" : "line",
-                    smooth: kind !== "bar",
-                    data: series(seed + 11),
-                },
-            ],
-        }),
-        [kind, seed],
-    );
+    const option = useMemo(() => chartOption(kind, seed), [kind, seed]);
     return (
         <div
             ref={ref}
@@ -110,6 +141,78 @@ export function ChartPanel({
                     key={chartKey}
                     option={option}
                     className="min-h-0 flex-1"
+                />
+            )}
+        </div>
+    );
+}
+
+/**
+ * A KPI: a figure, its change since last month (green up, red down) and a sparkline of the last
+ * eight months, all from one seed.
+ */
+export function KpiPanel({
+    label,
+    seed = 7,
+    unit = "",
+    className,
+}: {
+    label: ReactNode;
+    seed?: number;
+    unit?: string;
+    className?: string;
+}) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const chartKey = useChartKey(ref);
+    const values = useMemo(() => series(seed, MONTHS.length, 1000), [seed]);
+    const last = values.at(-1) ?? 0;
+    const previous = values.at(-2) ?? 0;
+    const delta =
+        previous === 0 ? 0 : Math.round(((last - previous) / previous) * 100);
+    const option = useMemo<EChartsOption>(
+        () => ({
+            grid: { left: 0, right: 0, top: 4, bottom: 0 },
+            xAxis: { type: "category", show: false, data: MONTHS },
+            yAxis: { type: "value", show: false },
+            series: [
+                {
+                    type: "line",
+                    smooth: true,
+                    symbol: "none",
+                    areaStyle: { opacity: 0.15 },
+                    data: values,
+                },
+            ],
+        }),
+        [values],
+    );
+    return (
+        <div
+            ref={ref}
+            className={cn(
+                "flex h-full min-h-32 flex-col justify-center gap-1 p-4",
+                className,
+            )}
+        >
+            <span className="text-sm text-palette-accent/85">{label}</span>
+            <span className="flex items-baseline gap-2">
+                <span className="text-3xl font-semibold tabular-nums">
+                    {`${unit}${last.toLocaleString("en-US")}`}
+                </span>
+                <span
+                    className={cn(
+                        "rounded-full bg-palette-base px-2 py-0.5 text-xs font-medium tabular-nums text-palette-contrast",
+                        delta >= 0 ? "palette-green" : "palette-danger",
+                    )}
+                >
+                    {`${delta >= 0 ? "+" : ""}${delta}%`}
+                </span>
+            </span>
+            {chartKey === null ? null : (
+                <Chart
+                    key={chartKey}
+                    option={option}
+                    className="h-24 max-h-[50%] min-h-12"
                 />
             )}
         </div>
