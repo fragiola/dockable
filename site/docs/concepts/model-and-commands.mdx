@@ -225,7 +225,8 @@ model.get("layout-id-by", { nodeId: "readme" }); // MAIN_LAYOUT, or a window id
 model.get("root-row"); // a layout's root row (default the main layout)
 model.get("all-tabs"); // every tab, in tree order: TabOf<Types>[]
 model.get("tabsets"); // a layout's tabsets
-model.get("selected-tab-by", { tabsetId: "editors" }); // a tabset's (or border's) selected tab
+model.get("selected-tab-by", { tabsetId: "editors" }); // a tabset's selected tab
+model.get("selected-tab-by", { borderId: "left" }); // a border's (none while it is closed)
 model.get("active-tabset"); // the active tabset of a layout
 model.get("maximized-tabset"); // the maximized tabset of a layout
 model.get("tab-settings-by", { tabId: "readme" }); // a tab's flags, resolved through the defaults

@@ -59,7 +59,7 @@ A key and its payload read as one sentence, so a call reads without the referenc
   `Ids` (`tabIds`). That holds for every payload and result, commands included:
   `model.run("tab.close", { tabId })` returns `{ tabId }`. Two fields are not references and
   keep their names: `to`, where a tab or a tabset goes (a tabset, a row, a border or a layout),
-  and a node's own `id` (a new node's, or the one a `get` key returns).
+  and an entity's own `id` (a new node's, or the one a `get` key returns: a node's, a window's).
 - **A `get` key names what it returns; the payload says whose.** A key that takes an id ends in
   `-by`, and the payload's field completes it: `id` when it is the id of what the key returns
   (`node-by { id }`, `window-by { id }`), `<entity>Id` otherwise (`node-parent-by { nodeId }`,
