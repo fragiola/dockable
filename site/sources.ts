@@ -7,8 +7,8 @@ import { join } from "node:path";
 import { buildManifest } from "../examples/react/scripts/manifest.ts";
 import { THEMES } from "../examples/react/src/examples/_themes/themes.ts";
 import {
-    LEVEL_TITLES,
-    LEVELS,
+    CATEGORIES,
+    CATEGORY_TITLES,
 } from "../examples/react/src/examples/meta-types.ts";
 import {
     type DocsConfig,
@@ -34,10 +34,13 @@ export function readConfig(): DocsConfig {
     return readJson<DocsConfig>(join(DOCS_DIR, "config.json"));
 }
 
-/** examples.json: the levels of meta-types.ts and the themes of _themes/themes.ts, with their CSS. */
+/**
+ * examples.json: the categories of meta-types.ts (the contract's `levels`) and the themes of
+ * _themes/themes.ts, with their CSS.
+ */
 export function buildExamplesConfig(): ExamplesConfig {
     return {
-        levels: LEVELS.map((id) => ({ id, title: LEVEL_TITLES[id] })),
+        levels: CATEGORIES.map((id) => ({ id, title: CATEGORY_TITLES[id] })),
         themes: THEMES.map((theme) => ({
             name: theme.name,
             title: theme.title,

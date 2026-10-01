@@ -4,7 +4,7 @@ export default {
     title: "Focused tab",
     description:
         "The focused tab, the selected tab of the active tabset, at full opacity with a frame in the ring colour; every other tab faded to half. Click another tabset and the focus moves; keyboard focus shows as a dashed frame.",
-    level: "basic",
+    category: "tabs",
     order: 7,
     features: [
         "data-active",

@@ -8,7 +8,9 @@ import {
     importsOf,
     listExampleSlugs,
     loadExamples,
+    validateMeta,
 } from "../scripts/examples-lib.ts";
+import { CATEGORIES } from "../src/examples/meta-types.ts";
 
 // The example contract (DD6–DD8, and `#/` imports per §6 of the site export contract): every example has a valid meta.ts, is in
 // the manifest, imports only what a consumer can copy, the code panel lists exactly the
@@ -65,10 +67,25 @@ describe("the examples", () => {
         expect(examples.map((e) => e.slug).sort()).toEqual(listExampleSlugs());
     });
 
-    it("have unique titles and orders within a level", () => {
+    it("each belong to a category, and a meta with an unknown one is rejected", () => {
+        for (const example of examples) {
+            expect(CATEGORIES, example.slug).toContain(example.meta.category);
+        }
+        const meta = { title: "T", description: "D", order: 1, features: [] };
+        expect(() =>
+            validateMeta("x", { ...meta, category: "intermediate" }),
+        ).toThrow(/category must be one of/);
+        expect(() =>
+            validateMeta("x", { ...meta, category: "tabs" }),
+        ).not.toThrow();
+    });
+
+    it("have unique titles and orders within a category", () => {
         const titles = examples.map((e) => e.meta.title);
         expect(new Set(titles).size).toBe(titles.length);
-        const orders = examples.map((e) => `${e.meta.level}:${e.meta.order}`);
+        const orders = examples.map(
+            (e) => `${e.meta.category}:${e.meta.order}`,
+        );
         expect(new Set(orders).size).toBe(orders.length);
     });
 

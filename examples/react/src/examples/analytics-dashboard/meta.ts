@@ -4,8 +4,8 @@ export default {
     title: "Analytics dashboard",
     description:
         "Charts, KPIs and a table under shared filters: add widgets from a menu, a KPI tab turns red below its target, maximize a chart or pop it out to a second screen, and undo or redo any layout change.",
-    level: "advanced",
-    order: 2,
+    category: "apps",
+    order: 3,
     features: [
         "component factory",
         "typed data",

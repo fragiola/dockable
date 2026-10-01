@@ -6,12 +6,31 @@ rendered alone by this app at `index.html?id=<folder>`.
 ```
 src/examples/
   <slug>/index.tsx     the example (default export, "use client")
-  <slug>/meta.ts       title, description, level, order, features, docs link, layout, height
+  <slug>/meta.ts       title, description, category, order, features, docs link, layout, height
   <slug>/*.ts(x)       optional sibling files, shown in the code panel
   _kit/                shared demo content and app logic (cards, charts, tables, the rename
                        field, the undo manager); no Dockable assembly, no styles
   _themes/             the five themes (one CSS file each, values only) and their list
 ```
+
+## Categories
+
+The gallery groups examples by the feature they show (`CATEGORIES` in `meta-types.ts`, in sidebar
+order; the site export contract calls a category a `level`). An example belongs where a reader
+looking for its feature would search, and `order` is its place inside the category.
+
+| category | what belongs in it |
+|---|---|
+| `getting-started` | the first layouts: the smallest themed one, the unstyled one |
+| `tabs` | what a tab and a tabset do: close, rename, pin, menus, overflow, focus, keyboard, maximize |
+| `splitters` | one splitter customisation per example: size, line, handle |
+| `drag-and-drop` | the drag inside the layout: indicators, highlights, drop zones, refused drops |
+| `borders` | side bars with tabs: split, overlay, orientation |
+| `popouts` | windows: pop out, drag between windows, several monitors |
+| `styling` | theming that is not about one part |
+| `model-api` | the model from code: commands, `can`/`check`, middleware, events, history, persistence |
+| `external-integration` | app UI outside the layout driving it: toolbars, sidebars, files from the desktop |
+| `apps` | whole applications that combine many features |
 
 ## Adding an example
 

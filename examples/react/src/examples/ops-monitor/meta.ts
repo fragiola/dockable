@@ -4,8 +4,8 @@ export default {
     title: "Ops monitor",
     description:
         "A live operations console: simulated metrics stream in, service tabs are coloured and badged by their alert level, the overview tab is pinned, the incident region is locked, and the keyboard moves between tabsets.",
-    level: "advanced",
-    order: 3,
+    category: "apps",
+    order: 5,
     features: [
         "typed data",
         "tab.update",

@@ -18,6 +18,7 @@ export interface ManifestExample {
     id: string;
     title: string;
     description: string;
+    /** the example's category id (the contract calls a category a level) */
     level: string;
     order: number;
     features: string[];
@@ -60,12 +61,12 @@ export async function buildManifest(): Promise<Manifest> {
             id: slug,
             title: meta.title,
             description: meta.description,
-            level: meta.level,
+            level: meta.category,
             order: meta.order,
             features: meta.features,
             ...(meta.docs ? { docs: meta.docs } : {}),
             layout: meta.layout ?? "fill",
-            height: meta.height ?? DEFAULT_HEIGHT[meta.level],
+            height: meta.height ?? DEFAULT_HEIGHT[meta.category],
             files,
             registry,
             packages: [...BASE_PACKAGES, ...packages],
