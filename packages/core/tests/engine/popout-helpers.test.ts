@@ -21,7 +21,7 @@ function setup(supportsPopout = true) {
 }
 
 describe("popout helpers", () => {
-    it("canPopout: supported, and the model accepts it", () => {
+    it('can("popout"): supported, and the model accepts it', () => {
         const { model, engine } = setup();
         expect(engine.can("popout", { node: "t0" })).toBe(true);
         expect(engine.can("popout", { node: "ts1" })).toBe(true);
@@ -32,7 +32,7 @@ describe("popout helpers", () => {
         expect(unsupported.engine.can("popout", { node: "t2" })).toBe(false);
     });
 
-    it("popout() pops a tab or a whole tabset into a window layout with a command", () => {
+    it('run("popout") pops a tab or a whole tabset into a window layout with a command', () => {
         const { model, engine, commands } = setup();
         const result = engine.run("popout", { node: "ts0" });
         expect(commands.map((c) => c.command)).toEqual(["tabset.popout"]);
@@ -44,7 +44,7 @@ describe("popout helpers", () => {
         expect(engine.can("popout", { node: "t0" })).toBe(false);
     });
 
-    it("dockBack() moves a tab (or the rest of its window) into the main layout's active tabset", () => {
+    it('run("dock-back") moves a tab (or the rest of its window) into the main layout\'s active tabset', () => {
         const { model, engine, commands } = setup();
         engine.run("popout", { node: "ts0" });
         model.run("tabset.activate", { tabset: "ts1" });
@@ -64,7 +64,7 @@ describe("popout helpers", () => {
         expect(model.get("layout-id", { node: "t1" })).toBe(MAIN_LAYOUT);
     });
 
-    it("dockBack() keeps a pinned tab pinned: unpinned for the move, pinned again in the target", () => {
+    it('run("dock-back") keeps a pinned tab pinned: unpinned for the move, pinned again in the target', () => {
         const { model, engine, commands } = setup();
         model.run("tab.pin", { tab: "t1", value: true });
         engine.run("popout", { node: "ts0" });

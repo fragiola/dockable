@@ -40,7 +40,7 @@ function setup() {
     return { model, hidden };
 }
 
-describe("model.isHiddenByMaximize", () => {
+describe('model.is("hidden-by-maximize")', () => {
     it("hides nothing while no tabset is maximized", () => {
         const { hidden } = setup();
         for (const id of ["root", "ts0", "r1", "ts1", "ts2"]) {

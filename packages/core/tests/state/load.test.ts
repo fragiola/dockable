@@ -125,7 +125,7 @@ describe("loading JSON v1", () => {
         expect(model.state.active).toBe("ts1");
     });
 
-    it("round-trips: createModel(model.toJSON()) has an equal state", () => {
+    it('round-trips: createModel(model.get("layout-json")) has an equal state', () => {
         const model = createModel({
             version: 1,
             defaults: {

@@ -668,7 +668,7 @@ describe("state", () => {
         expect(render(model)).toBe("/ts0/t0[Three]*,/ts0/t1[One],/ts0/t2[Two]");
     });
 
-    it("isHiddenByMaximize hides the other tabsets and the rows off the path", () => {
+    it('is("hidden-by-maximize") hides the other tabsets and the rows off the path', () => {
         const model = createModel({
             version: 1,
             root: {
