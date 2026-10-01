@@ -24,7 +24,7 @@ export function TabSetContent(props: TabSetContentProps) {
     const id = tabset.id;
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(id, "tabsetcontent", element);
+            engine.adapter.registerMeasurable(id, "tabsetcontent", element);
         },
         [engine, id],
     );
@@ -35,7 +35,7 @@ export function TabSetContent(props: TabSetContentProps) {
         state,
         ref,
         props: dataAttributes({
-            "layout-path": `${engine.path(id)}/content`,
+            "layout-path": `${engine.get("path", { node: id })}/content`,
             empty: state.empty,
         }),
         style: { flexGrow: 1, flexBasis: 0, minWidth: 0, minHeight: 0 },

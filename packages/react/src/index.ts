@@ -11,7 +11,7 @@ export type {
     EdgeIndicatorState,
 } from "./EdgeIndicator";
 export {
-    type TabSetDropState,
+    type DragProps,
     type TabSetState,
     type UseBorderOptions,
     type UseBorderResult,
@@ -22,6 +22,7 @@ export {
     type UseDropZoneOptions,
     type UseDropZoneResult,
     type UseSplitterResult,
+    type UseSplitterState,
     type UseTabOverflowResult,
     type UseTabSetResult,
     useBorder,
@@ -33,7 +34,6 @@ export {
     useSplitter,
     useTabOverflow,
     useTabSet,
-    useTabSetDropState,
 } from "./hooks";
 export type { PanelProps, PanelState } from "./Panel";
 export type { PanelsProps } from "./Panels";

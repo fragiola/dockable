@@ -43,53 +43,29 @@ export function Splitter<T extends DockableTypes = AnyTypes>(
 ) {
     const { node, index = 0, children, ...rest } = props;
     const { engine } = useLayoutContext("Splitter");
-    const { controller, state, aria, hidden, ref } = useSplitter(node, index);
-    const horizontal = aria.orientation === "vertical";
-
-    const structural: React.CSSProperties = {};
-    if (node.type === "border") {
-        // an overlay border's content ignores presses (pointer-events: none), except its splitter
-        structural.pointerEvents = "auto";
-    }
-    if (hidden) {
-        structural.display = "none";
-    }
-    if (state.previewOffset !== undefined) {
-        structural.transform = horizontal
-            ? `translateX(${state.previewOffset}px)`
-            : `translateY(${state.previewOffset}px)`;
-    }
+    const { state, props: separator } = useSplitter(node, index);
+    const { ref, style, ...separatorProps } = separator;
 
     const splitterState: SplitterState = {
-        ...state,
-        orientation: aria.orientation,
+        dragging: state.dragging,
+        previewOffset: state.previewOffset,
+        orientation: state.orientation,
     };
     return useRenderElement("div", rest, {
         state: splitterState,
         ref,
         props: {
-            role: "separator",
-            "aria-orientation": aria.orientation,
-            "aria-valuenow": aria.valueNow,
-            "aria-valuemin": aria.valueMin,
-            "aria-valuemax": aria.valueMax,
-            "aria-valuetext": aria.valueText,
-            tabIndex: 0,
+            ...separatorProps,
             ...dataAttributes({
-                "layout-path": getSplitterPath(engine.path(node.id), index),
-                orientation: aria.orientation,
+                "layout-path": getSplitterPath(
+                    engine.get("path", { node: node.id }),
+                    index,
+                ),
+                orientation: state.orientation,
                 dragging: state.dragging,
             }),
-            onPointerDown: (event: React.PointerEvent<HTMLElement>) =>
-                controller.onPointerDown(event.nativeEvent),
-            onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
-                controller.onKeyDown(event.nativeEvent);
-                if (event.nativeEvent.defaultPrevented) {
-                    event.preventDefault();
-                }
-            },
             children,
         },
-        style: structural,
+        style,
     });
 }

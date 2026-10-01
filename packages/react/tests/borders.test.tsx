@@ -214,7 +214,9 @@ describe("Dockable.Borders", () => {
         const bottom = model.state.borders.find(
             (border) => border.location === "bottom",
         );
-        expect(bottom && model.resolve(bottom).size).toBe(130);
+        expect(
+            bottom && model.get("border-settings", { border: bottom.id })?.size,
+        ).toBe(130);
         expect(path("/border/bottom/area")?.style.height).toBe("130px");
     });
 

@@ -33,22 +33,23 @@ import {
 } from "./context";
 
 export interface UseDockableResult<T extends DockableTypes = AnyTypes> {
-    /** the model of the enclosing `Dockable.Root` */
+    /**
+     * the model of the enclosing `Dockable.Root`: the layout's data and its rules. Change the layout
+     * with `model.run("tab.close", { tab })`, read it with `model.get`/`model.is`
+     */
     model: Model<T>;
-    /** runs a command on the model (`model.run`), through its middleware */
-    run: Model<T>["run"];
-    /** the engine of the layout this component renders in (the main layout or a popout's) */
+    /**
+     * the engine of the layout this component renders in (the main layout's, or a popout
+     * window's): screen actions (`engine.run("popout", { node })`) and view facts (`engine.get`)
+     */
     engine: LayoutEngine<T>;
-    /** the main layout's engine */
-    mainEngine: LayoutEngine<T>;
-    /** the id of the layout this component renders in */
+    /** the id of the layout this component renders in: `"main"` or a window's id */
     layoutId: string;
 }
 
 /**
- * The lower layer: the model, the engine and the layout of the enclosing `Dockable.Root`. Pass the
- * model's registry as the type argument (`useDockable<Types>()`); a child cannot infer it through
- * context. Change the layout with `run("tab.close", { tab })`.
+ * The model, the engine and the layout of the enclosing `Dockable.Root`. Pass the model's registry
+ * as the type argument (`useDockable<Types>()`); a child cannot infer it through context.
  */
 export function useDockable<
     T extends DockableTypes = AnyTypes,
@@ -58,9 +59,7 @@ export function useDockable<
     const model = typedModel<T>(context.model);
     return {
         model,
-        run: model.run,
         engine: typedEngine<T>(layout.engine),
-        mainEngine: typedEngine<T>(context.engine),
         layoutId: layout.layoutId,
     };
 }
@@ -70,7 +69,7 @@ export function useDockable<
  * changes (`isEqual`, `Object.is` by default). The selector runs once per state; keep it pure.
  *
  * ```ts
- * const count = useModelState<Types, number>((state, model) => model.tabs().length);
+ * const count = useModelState<Types, number>((state, model) => model.get("tabs").length);
  * ```
  */
 export function useModelState<T extends DockableTypes = AnyTypes, S = unknown>(
@@ -178,7 +177,7 @@ export function useTabSetDropState<T extends DockableTypes>(
     engine: LayoutEngine<T>,
     tabsetId: string,
 ): TabSetDropState {
-    const manager = engine.getDragDropManager();
+    const manager = engine.adapter.getDragDropManager();
     const key = React.useSyncExternalStore(
         manager.subscribe,
         () => {
@@ -216,11 +215,15 @@ export function useTabSetDropState<T extends DockableTypes>(
 }
 
 export interface UseTabSetResult {
+    /** what the tabset shows as `data-*` */
     state: TabSetState;
-    /** callback ref for the tabset's element (measured as the tabset) */
-    ref: React.RefCallback<HTMLElement>;
-    /** makes the tabset active on a primary pointer press */
-    onPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+    /** what goes on the tabset's element */
+    props: {
+        /** callback ref (measured as the tabset) */
+        ref: React.RefCallback<HTMLElement>;
+        /** makes the tabset active on a primary pointer press */
+        onPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+    };
 }
 
 function isAuxEvent(event: React.PointerEvent | React.MouseEvent) {
@@ -233,7 +236,10 @@ function isAuxEvent(event: React.PointerEvent | React.MouseEvent) {
     );
 }
 
-/** The lower layer of `Dockable.TabSet`: its state, measurement ref and activation handler. */
+/**
+ * The lower layer of `Dockable.TabSet`: its state, and the props for its element (the measurement
+ * ref and the activation handler).
+ */
 export function useTabSet<T extends DockableTypes>(
     node: TabsetNode<T>,
 ): UseTabSetResult {
@@ -241,11 +247,12 @@ export function useTabSet<T extends DockableTypes>(
     const { engine, layoutId } = useLayoutContext("useTabSet");
     const id = node.id;
     const drop = useTabSetDropState(engine, id);
-    const active = model.activeTabset(layoutId)?.id === id;
+    const active = model.get("active-tabset", { layout: layoutId })?.id === id;
     const state: TabSetState = {
         active,
-        maximized: model.maximizedTabset(layoutId)?.id === id,
-        hidden: model.isHiddenByMaximize(id),
+        maximized:
+            model.get("maximized-tabset", { layout: layoutId })?.id === id,
+        hidden: model.is("hidden-by-maximize", { node: id }),
         empty: node.children.length === 0,
         dropTarget: drop.target,
         dropLocation: drop.location,
@@ -253,16 +260,19 @@ export function useTabSet<T extends DockableTypes>(
     };
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(id, "tabset", element);
+            engine.adapter.registerMeasurable(id, "tabset", element);
         },
         [engine, id],
     );
     const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
-        if (!isAuxEvent(event) && model.activeTabset(layoutId)?.id !== id) {
-            engine.run("tabset.activate", { tabset: id });
+        if (
+            !isAuxEvent(event) &&
+            model.get("active-tabset", { layout: layoutId })?.id !== id
+        ) {
+            model.run("tabset.activate", { tabset: id });
         }
     };
-    return { state, ref, onPointerDown };
+    return { state, props: { ref, onPointerDown } };
 }
 
 export interface BorderState {
@@ -290,12 +300,16 @@ export interface UseBorderOptions {
 }
 
 export interface UseBorderResult {
+    /** what the border shows as `data-*` */
     state: BorderState;
-    /** callback ref for the border's strip (measured as the border's tab header) */
-    ref: React.RefCallback<HTMLElement>;
+    /** what goes on the border's strip */
+    props: {
+        /** callback ref (measured as the border's tab header) */
+        ref: React.RefCallback<HTMLElement>;
+    };
 }
 
-/** The lower layer of `Dockable.Border`: its state and measurement ref. */
+/** The lower layer of `Dockable.Border`: its state, and the props for its strip. */
 export function useBorder<T extends DockableTypes>(
     node: BorderNode<T>,
     options: UseBorderOptions = {},
@@ -310,7 +324,7 @@ export function useBorder<T extends DockableTypes>(
         location,
         orientation: vertical ? "vertical" : "horizontal",
         open: node.selected !== -1,
-        overlay: model.resolve(node).mode === "overlay",
+        overlay: model.is("overlay", { border: id }),
         empty: node.children.length === 0,
         tabDirection:
             location === "left" ? (options.tabDirection ?? "up") : undefined,
@@ -319,20 +333,20 @@ export function useBorder<T extends DockableTypes>(
     };
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(id, "borderheader", element);
+            engine.adapter.registerMeasurable(id, "borderheader", element);
         },
         [engine, id],
     );
-    return { state, ref };
+    return { state, props: { ref } };
 }
 
 export interface UseTabOverflowResult<T extends DockableTypes = AnyTypes> {
     /** some of the container's tabs do not fit, so they are hidden */
     overflowing: boolean;
     /** the hidden tabs, in model order: what an overflow menu lists */
-    hidden: TabOf<T>[];
+    hiddenTabs: TabOf<T>[];
     /** the tabs that stay in the strip, in model order */
-    visible: TabOf<T>[];
+    visibleTabs: TabOf<T>[];
 }
 
 /**
@@ -346,15 +360,15 @@ export function useTabOverflow<T extends DockableTypes>(
     const { engine } = useLayoutContext("useTabOverflow");
     const id = container.id;
     const hiddenIds = React.useSyncExternalStore(
-        engine.subscribeOverflow,
-        () => engine.getHiddenTabs(id),
-        () => engine.getHiddenTabs(id),
+        engine.adapter.subscribeOverflow,
+        () => engine.adapter.getHiddenTabs(id),
+        () => engine.adapter.getHiddenTabs(id),
     );
     const hiddenSet = new Set(hiddenIds);
     return {
         overflowing: hiddenIds.length > 0,
-        hidden: container.children.filter((tab) => hiddenSet.has(tab.id)),
-        visible: container.children.filter((tab) => !hiddenSet.has(tab.id)),
+        hiddenTabs: container.children.filter((tab) => hiddenSet.has(tab.id)),
+        visibleTabs: container.children.filter((tab) => !hiddenSet.has(tab.id)),
     };
 }
 
@@ -362,25 +376,46 @@ export function useTabOverflow<T extends DockableTypes>(
 export function useTabHidden(containerId: string, tabId: string): boolean {
     const { engine } = useLayoutContext("useTabHidden");
     return React.useSyncExternalStore(
-        engine.subscribeOverflow,
-        () => engine.getHiddenTabs(containerId).includes(tabId),
+        engine.adapter.subscribeOverflow,
+        () => engine.adapter.getHiddenTabs(containerId).includes(tabId),
         () => false,
     );
 }
 
-export interface UseSplitterResult {
-    controller: SplitterController;
-    state: SplitterState;
-    aria: SplitterAria;
+export interface UseSplitterState extends SplitterState {
+    /** `"vertical"` for a splitter between side by side children (the separator's orientation) */
+    orientation: SplitterAria["orientation"];
     /** row splitters are hidden while a tabset is maximized */
     hidden: boolean;
-    /** callback ref for the splitter's element */
-    ref: React.RefCallback<HTMLElement>;
+}
+
+export interface UseSplitterResult {
+    /** what the splitter shows as `data-*` */
+    state: UseSplitterState;
+    /**
+     * what goes on the splitter's element: the ref, `role="separator"` and its ARIA values, focus,
+     * the pointer and key handlers, and the structural style (hidden, and the outline preview)
+     */
+    props: {
+        ref: React.RefCallback<HTMLElement>;
+        role: "separator";
+        tabIndex: 0;
+        "aria-orientation": SplitterAria["orientation"];
+        "aria-valuenow": number | undefined;
+        "aria-valuemin": number | undefined;
+        "aria-valuemax": number | undefined;
+        "aria-valuetext": string | undefined;
+        onPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+        onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
+        style: React.CSSProperties;
+    };
+    /** the headless controller behind it (drag and keyboard resizing), for a custom gesture */
+    controller: SplitterController;
 }
 
 /**
- * The lower layer of `Dockable.Splitter`: a headless controller for the splitter before child
- * `index` (1-based) of `node` (a row, or a border with no index), its drag state and ARIA values.
+ * The lower layer of `Dockable.Splitter`: the splitter before child `index` (1-based) of `node` (a
+ * row, or a border with no index). Spread `props` on the separator element.
  */
 export function useSplitter<T extends DockableTypes>(
     node: RowNode<T> | BorderNode<T>,
@@ -404,12 +439,44 @@ export function useSplitter<T extends DockableTypes>(
         },
         [controller],
     );
+    const aria = controller.getAria();
+    const hidden = controller.isHidden();
+    const style: React.CSSProperties = {};
+    if (node.type === "border") {
+        // an overlay border's content ignores presses (pointer-events: none), except its splitter
+        style.pointerEvents = "auto";
+    }
+    if (hidden) {
+        style.display = "none";
+    }
+    if (state.previewOffset !== undefined) {
+        style.transform =
+            aria.orientation === "vertical"
+                ? `translateX(${state.previewOffset}px)`
+                : `translateY(${state.previewOffset}px)`;
+    }
     return {
+        state: { ...state, orientation: aria.orientation, hidden },
+        props: {
+            ref,
+            role: "separator",
+            tabIndex: 0,
+            "aria-orientation": aria.orientation,
+            "aria-valuenow": aria.valueNow,
+            "aria-valuemin": aria.valueMin,
+            "aria-valuemax": aria.valueMax,
+            "aria-valuetext": aria.valueText,
+            onPointerDown: (event) =>
+                controller.onPointerDown(event.nativeEvent),
+            onKeyDown: (event) => {
+                controller.onKeyDown(event.nativeEvent);
+                if (event.nativeEvent.defaultPrevented) {
+                    event.preventDefault();
+                }
+            },
+            style,
+        },
         controller,
-        state,
-        aria: controller.getAria(),
-        hidden: controller.isHidden(),
-        ref,
     };
 }
 
@@ -422,21 +489,31 @@ export function useDragState(): DragState | undefined {
     );
 }
 
-export interface UseDragNodeResult {
-    /** whether the element is draggable: the node's `enableDrag` */
+/** What goes on a draggable element. */
+export interface DragProps {
+    /** whether the element is draggable */
     draggable: boolean;
     onDragStart: (event: React.DragEvent<HTMLElement>) => void;
     onDragEnd: (event: React.DragEvent<HTMLElement>) => void;
-    /** callback ref for the element used as the drag image (the dragged element by default) */
+    /**
+     * callback ref for the element the browser snapshots as the drag image: the dragged element
+     * itself, unless you attach it to another one
+     */
     ref: React.RefCallback<HTMLElement>;
-    /** this node is being dragged */
-    dragging: boolean;
+}
+
+export interface UseDragNodeResult {
+    state: {
+        /** this node is being dragged */
+        dragging: boolean;
+    };
+    /** what goes on the dragged element (`draggable` is the node's `enableDrag`) */
+    props: DragProps;
 }
 
 /**
  * The lower layer of a draggable part: wires a tab or a tabset to the core's drag-and-drop
- * machine. Spread `draggable`, `onDragStart` and `onDragEnd` on the element and attach `ref` to the
- * element the browser should snapshot as the drag image.
+ * machine. Spread `props` on the dragged element.
  */
 export function useDragNode<T extends DockableTypes>(
     node: TabOf<T> | TabsetNode<T>,
@@ -447,12 +524,15 @@ export function useDragNode<T extends DockableTypes>(
     const dragState = useDragState();
     const id = node.id;
     const enabled = () => {
-        const current = model.get(id);
+        const current = model.get("node", { node: id });
         if (current?.type === "tab") {
-            return model.resolve(current).enableDrag;
+            return model.get("tab-settings", { tab: id })?.enableDrag ?? false;
         }
         if (current?.type === "tabset") {
-            return model.resolve(current).enableDrag;
+            return (
+                model.get("tabset-settings", { tabset: id })?.enableDrag ??
+                false
+            );
         }
         return false;
     };
@@ -463,7 +543,7 @@ export function useDragNode<T extends DockableTypes>(
             return;
         }
         event.stopPropagation(); // a tab drag must not also start a tabset drag
-        engine
+        engine.adapter
             .getDragDropManager()
             .startDrag(
                 event.nativeEvent,
@@ -472,22 +552,21 @@ export function useDragNode<T extends DockableTypes>(
             );
     };
     const onDragEnd = () => {
-        engine.getDragDropManager().onDragEnded();
+        engine.adapter.getDragDropManager().onDragEnded();
     };
     const ref = React.useCallback((element: HTMLElement | null) => {
         imageRef.current = element;
     }, []);
 
     return {
-        draggable: enabled(),
-        onDragStart,
-        onDragEnd,
-        ref,
-        // this model's drag only: models of a drag group may share ids
-        dragging:
-            dragState !== undefined &&
-            dragState.subjectOf(model) !== undefined &&
-            dragState.dragId === id,
+        state: {
+            // this model's drag only: models of a drag group may share ids
+            dragging:
+                dragState !== undefined &&
+                dragState.subjectOf(model) !== undefined &&
+                dragState.dragId === id,
+        },
+        props: { draggable: enabled(), onDragStart, onDragEnd, ref },
     };
 }
 
@@ -506,21 +585,18 @@ export interface UseDragSourceOptions<T extends DockableTypes = AnyTypes> {
 }
 
 export interface UseDragSourceResult {
-    /** whether the element is draggable */
-    draggable: boolean;
-    onDragStart: (event: React.DragEvent<HTMLElement>) => void;
-    onDragEnd: (event: React.DragEvent<HTMLElement>) => void;
-    /** callback ref for the element used as the drag image (the dragged element by default) */
-    ref: React.RefCallback<HTMLElement>;
-    /** a drag started by this source is in progress */
-    dragging: boolean;
+    state: {
+        /** a drag started by this source is in progress */
+        dragging: boolean;
+    };
+    /** what goes on the source element (`draggable` is false while `disabled`) */
+    props: DragProps;
 }
 
 /**
  * The lower layer of `Dockable.DragSource`: turns any element, inside or outside the layout (a
  * sidebar item, a palette entry), into a source of new tabs. Dropping it on the layout runs
- * `tab.add` through the model's middleware. Spread `draggable`, `onDragStart` and `onDragEnd` on
- * the element.
+ * `tab.add` through the model's middleware. Spread `props` on the element.
  */
 export function useDragSource<T extends DockableTypes>(
     options: UseDragSourceOptions<T>,
@@ -562,11 +638,10 @@ export function useDragSource<T extends DockableTypes>(
     }, []);
 
     return {
-        draggable: !disabled,
-        onDragStart,
-        onDragEnd,
-        ref,
-        dragging: dragState !== undefined && dragState === started.current,
+        state: {
+            dragging: dragState !== undefined && dragState === started.current,
+        },
+        props: { draggable: !disabled, onDragStart, onDragEnd, ref },
     };
 }
 
@@ -584,18 +659,23 @@ export interface UseDropZoneOptions<T extends DockableTypes = AnyTypes> {
 }
 
 export interface UseDropZoneResult {
-    /** callback ref for the zone's element */
-    ref: React.RefCallback<HTMLElement>;
-    /** a drag the zone takes is over it */
-    over: boolean;
-    /** a drag the zone would take is in progress */
-    active: boolean;
+    state: {
+        /** a drag the zone takes is over it */
+        over: boolean;
+        /** a drag the zone would take is in progress */
+        active: boolean;
+    };
+    /** what goes on the zone's element */
+    props: {
+        /** callback ref */
+        ref: React.RefCallback<HTMLElement>;
+    };
 }
 
 /**
  * The lower layer of `Dockable.DropZone`: makes an element, inside or outside the layout, a place
  * where a drag of the layout can be dropped for the consumer to handle (a trash can, an "open to
- * the right" pad). Attach `ref` to the element.
+ * the right" pad). Spread `props` on the element.
  */
 export function useDropZone<T extends DockableTypes>(
     options: UseDropZoneOptions<T>,
@@ -625,5 +705,8 @@ export function useDropZone<T extends DockableTypes>(
     const subject = dragState?.subjectOf(model);
     const active =
         subject !== undefined && (options.accepts?.(subject) ?? true);
-    return { ref: setElement, over: over && active, active };
+    return {
+        state: { over: over && active, active },
+        props: { ref: setElement },
+    };
 }

@@ -113,7 +113,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
         keyMap,
     } = useDockableContext("Panel");
     const id = node.id;
-    const layoutId = model.layoutOf(id) ?? MAIN_LAYOUT;
+    const layoutId = model.get("layout-id", { node: id }) ?? MAIN_LAYOUT;
     const layer = layers.get(layoutId);
     const layoutEngine = layer?.engine ?? mainEngine;
 
@@ -130,7 +130,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
                 lastPanel.current = element;
             }
             setPanelElement(element);
-            layoutEngine.registerTabPanel(id, element);
+            layoutEngine.adapter.registerTabPanel(id, element);
         },
         [layoutEngine, id],
     );
@@ -139,9 +139,9 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     // is not mounted yet) park it, so it stays in the document
     React.useLayoutEffect(() => {
         if (panelElement) {
-            mainEngine.attachMoveable(id, panelElement, { scrollable });
+            mainEngine.adapter.attachMoveable(id, panelElement, { scrollable });
         } else if (lastPanel.current) {
-            mainEngine.releaseMoveable(id, lastPanel.current, {
+            mainEngine.adapter.releaseMoveable(id, lastPanel.current, {
                 remountInWindow,
             });
         }
@@ -150,7 +150,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     // on unmount only: park the content so its DOM survives
     React.useLayoutEffect(
         () => () => {
-            mainEngine.releaseMoveable(
+            mainEngine.adapter.releaseMoveable(
                 latest.current.id,
                 lastPanel.current ?? undefined,
                 { remountInWindow: latest.current.remountInWindow },
@@ -159,20 +159,21 @@ export function Panel<T extends DockableTypes = AnyTypes>(
         [mainEngine],
     );
 
-    const container = model.parentOf(id);
+    const container = model.get("parent", { node: id });
     const selected =
-        container !== undefined && model.selectedTab(container.id)?.id === id;
+        container !== undefined &&
+        model.get("selected-tab", { container: container.id })?.id === id;
     // the engine's own rule, so the state always matches what it displays
-    const visible = mainEngine.isPanelVisible(id);
+    const visible = mainEngine.is("panel-visible", { tab: id });
     const state: PanelState = { selected, visible };
 
     const onPointerDown = () => {
-        const tabset = model.parentOf(id);
+        const tabset = model.get("parent", { node: id });
         if (
             tabset?.type === "tabset" &&
-            model.activeTabset(layoutId)?.id !== tabset.id
+            model.get("active-tabset", { layout: layoutId })?.id !== tabset.id
         ) {
-            layoutEngine.run("tabset.activate", { tabset: tabset.id });
+            model.run("tabset.activate", { tabset: tabset.id });
         }
     };
 
@@ -181,7 +182,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
         if (!event.defaultPrevented && matchesKey(event, focusToggleKey)) {
             const button = event.currentTarget.ownerDocument.getElementById(
-                mainEngine.tabButtonId(id),
+                mainEngine.get("tab-button-id", { tab: id }),
             );
             if (button) {
                 button.focus();
@@ -202,13 +203,15 @@ export function Panel<T extends DockableTypes = AnyTypes>(
             state,
             ref,
             props: {
-                id: mainEngine.tabPanelId(id),
+                id: mainEngine.get("tab-panel-id", { tab: id }),
                 role: "tabpanel",
-                "aria-labelledby": mainEngine.tabButtonId(id),
+                "aria-labelledby": mainEngine.get("tab-button-id", { tab: id }),
                 "aria-keyshortcuts": toAriaKeyShortcuts(focusToggleKey),
                 tabIndex: -1,
                 ...dataAttributes({
-                    "layout-path": mainEngine.engineOf(id).path(id),
+                    "layout-path": mainEngine.adapter
+                        .engineOf(id)
+                        .get("path", { node: id }),
                     selected,
                     visible,
                 }),
@@ -221,7 +224,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
         },
     );
 
-    const moveable = mainEngine.getMoveableElement(id);
+    const moveable = mainEngine.adapter.getMoveableElement(id);
     // with remountInWindow the content is keyed by its layout, so it remounts when it changes
     // window
     const windowKey = remountInWindow ? `:${layoutId}` : "";

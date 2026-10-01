@@ -52,13 +52,13 @@ export function Border<T extends DockableTypes = AnyTypes>(
 ) {
     const { node, tabDirection, children, ...rest } = props;
     const { engine } = useLayoutContext("Border");
-    const { state, ref } = useBorder(node, { tabDirection });
+    const { state, props: strip } = useBorder(node, { tabDirection });
     const element = useRenderElement("div", rest, {
         state,
-        ref,
+        ref: strip.ref,
         props: {
             ...dataAttributes({
-                "layout-path": engine.path(node.id),
+                "layout-path": engine.get("path", { node: node.id }),
                 ...borderAttributes(state),
                 "tab-direction": state.tabDirection,
                 "drop-target": state.dropTarget,

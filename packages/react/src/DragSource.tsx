@@ -51,22 +51,21 @@ export function DragSource<T extends DockableTypes = AnyTypes>(
 ) {
     const { model, tab, onDrop, disabled, children, ...rest } = props;
     const drag = useDragSource({ model, tab, onDrop, disabled });
+    const { ref, ...dragProps } = drag.props;
     const state: DragSourceState = {
-        dragging: drag.dragging,
+        dragging: drag.state.dragging,
         disabled: disabled === true,
     };
     return useRenderElement("div", rest, {
         state,
-        ref: drag.ref,
+        ref,
         props: {
             ...dataAttributes({
                 dragging: state.dragging,
                 disabled: state.disabled,
             }),
             "aria-disabled": state.disabled || undefined,
-            draggable: drag.draggable,
-            onDragStart: drag.onDragStart,
-            onDragEnd: drag.onDragEnd,
+            ...dragProps,
             children,
         },
     });

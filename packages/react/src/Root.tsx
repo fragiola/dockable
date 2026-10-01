@@ -111,7 +111,7 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         () => createLayoutEngine({ model: typedModel, idScope }),
         [typedModel, idScope],
     );
-    typedEngine.setOptions({
+    typedEngine.adapter.setOptions({
         realtimeResize,
         tabDragSpeed,
         onExternalDrag,
@@ -139,18 +139,18 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     // never reaches a layout that is gone; the setup re-joins after a StrictMode remount
     React.useEffect(() => dragGroup?.group.join(engine), [dragGroup, engine]);
     const dragState = useDragState();
-    const manager = engine.getDragDropManager();
+    const manager = engine.adapter.getDragDropManager();
     const refused = React.useSyncExternalStore(
         manager.subscribe,
         () => manager.getIndicatorState().refused,
         () => false,
     );
     const revision = React.useSyncExternalStore(
-        engine.subscribe,
-        engine.getSnapshot,
-        engine.getSnapshot,
+        engine.adapter.subscribe,
+        engine.adapter.getSnapshot,
+        engine.adapter.getSnapshot,
     );
-    engine.prepare();
+    engine.adapter.prepare();
 
     const [rootElement, setRootElement] = React.useState<HTMLElement | null>(
         null,
@@ -161,10 +161,10 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
                 return;
             }
             // attached in the commit, before any panel renders and creates a moveable element
-            engine.attachRoot(element);
+            engine.adapter.attachRoot(element);
             setRootElement(element);
             return () => {
-                engine.detachRoot();
+                engine.adapter.detachRoot();
                 setRootElement(null);
             };
         },
@@ -174,7 +174,7 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     // the measure-and-position cycle, after every commit (children registered their elements
     // during the commit, before this effect)
     React.useLayoutEffect(() => {
-        engine.sync();
+        engine.run("measure-and-position");
     });
 
     const resolvedKeyMap = React.useMemo(() => resolveKeyMap(keyMap), [keyMap]);
@@ -191,12 +191,12 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             if (event.defaultPrevented) {
                 return; // content that handled the key keeps it
             }
-            const delta = matchesKey(event, focusNextTabset)
-                ? 1
+            const direction = matchesKey(event, focusNextTabset)
+                ? "next"
                 : matchesKey(event, focusPreviousTabset)
-                  ? -1
-                  : 0;
-            if (delta !== 0 && engine.focusAdjacentTabset(delta)) {
+                  ? "previous"
+                  : undefined;
+            if (direction && engine.run("focus-tabset", { direction }).ok) {
                 event.preventDefault();
             }
         };
@@ -212,11 +212,11 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         }
         const doc = rootElement.ownerDocument;
         const onPointerDown = (event: PointerEvent) => {
-            engine.handleOverlayPointerDown(event);
+            engine.adapter.handleOverlayPointerDown(event);
         };
         const onKeyDown = (event: KeyboardEvent) => {
             if (!event.defaultPrevented) {
-                engine.handleOverlayKeyDown(event, closeOverlayBorder);
+                engine.adapter.handleOverlayKeyDown(event, closeOverlayBorder);
             }
         };
         // capture: splitters and buttons stop the propagation of their presses
@@ -283,7 +283,9 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     );
 
     const state: RootState = {
-        maximized: model.maximizedTabset(MAIN_LAYOUT) !== undefined,
+        maximized:
+            model.get("maximized-tabset", { layout: MAIN_LAYOUT }) !==
+            undefined,
         dragging: dragState !== undefined && dragState.mainEngine === engine,
         refused,
     };

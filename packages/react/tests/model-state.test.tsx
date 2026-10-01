@@ -14,7 +14,7 @@ describe("useModelState", () => {
         const renders: number[] = [];
         function TabCount() {
             const count = useModelState<Types, number>(
-                (_state, m) => m.tabs().length,
+                (_state, m) => m.get("tabs").length,
             );
             renders.push(count);
             return <output data-testid="count">{count}</output>;
@@ -48,7 +48,7 @@ describe("useModelState", () => {
         const seen: string[][] = [];
         function Names() {
             const names = useModelState<Types, string[]>(
-                (_state, m) => m.tabs().map((tab) => tab.data.name),
+                (_state, m) => m.get("tabs").map((tab) => tab.data.name),
                 (a, b) => a.join() === b.join(),
             );
             seen.push(names);
@@ -82,7 +82,7 @@ describe("useModelState, selectors and contexts", () => {
         function Name({ id }: { id: string }) {
             const name = useModelState<Types, string | undefined>(
                 (_state, m) => {
-                    const tab = m.get(id);
+                    const tab = m.get("node", { node: id });
                     return tab?.type === "tab" ? tab.data.name : undefined;
                 },
             );
@@ -107,7 +107,7 @@ describe("useModelState, selectors and contexts", () => {
         const model = freshModel();
         function Count() {
             const count = useModelState<Types, number>(
-                (_state, m) => m.tabs().length,
+                (_state, m) => m.get("tabs").length,
             );
             return <output data-testid="grouped-count">{count}</output>;
         }
@@ -208,10 +208,15 @@ describe("useDockable", () => {
         await act(async () => {});
         expect(result?.model).toBe(model);
         expect(result?.layoutId).toBe("main");
-        expect(result?.engine).toBe(result?.mainEngine);
+        expect(result && Object.keys(result).sort()).toEqual([
+            "engine",
+            "layoutId",
+            "model",
+        ]);
+        expect(result?.engine.is("main-layout")).toBe(true);
         await act(async () => {
-            result?.run("tab.select", { tab: "t1" });
+            result?.model.run("tab.select", { tab: "t1" });
         });
-        expect(model.selectedTab("ts0")?.id).toBe("t1");
+        expect(model.get("selected-tab", { container: "ts0" })?.id).toBe("t1");
     });
 });

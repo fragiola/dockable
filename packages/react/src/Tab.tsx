@@ -68,19 +68,20 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const id = node.id;
 
     const drag = useDragNode(node);
-    const dragRef = drag.ref;
+    const { ref: dragRef, ...dragProps } = drag.props;
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
             selfRef.current = element;
             dragRef(element); // the tab itself is the drag image
-            engine.registerMeasurable(id, "tabbutton", element);
+            engine.adapter.registerMeasurable(id, "tabbutton", element);
         },
         [engine, id, dragRef],
     );
 
-    const container = model.parentOf(id);
+    const container = model.get("parent", { node: id });
     const containerId = container?.id ?? "";
-    const isSelected = () => model.selectedTab(containerId)?.id === id;
+    const isSelected = () =>
+        model.get("selected-tab", { container: containerId })?.id === id;
     const selected = isSelected();
     // keep exactly one tab stop in the tablist even when the tabset has no selected tab
     const tabbable =
@@ -92,13 +93,13 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const inBorder = container?.type === "border";
     const select = () => {
         if (!isSelected()) {
-            engine.run("tab.select", { tab: id });
+            model.run("tab.select", { tab: id });
         }
     };
     // a click on a border's selected tab closes the border's panel (FlexLayout's toggle)
     const onClick = () => {
         if (inBorder && isSelected()) {
-            engine.run("border.configure", {
+            model.run("border.configure", {
                 border: containerId,
                 open: false,
             });
@@ -106,7 +107,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
             select();
         }
     };
-    const closeable = () => model.can("tab.close", { tab: id }).ok;
+    const closeable = () => model.can("tab.close", { tab: id });
 
     const focusAdjacentTab = (to: number | "first" | "last") => {
         const self = selfRef.current;
@@ -126,14 +127,15 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         if (next?.hasAttribute("data-overflow-hidden")) {
             // a tab hidden by tab overflow: select it, which brings it into the strip, then focus it
             const target = model
-                .parentOf(id)
+                .get("parent", { node: id })
                 ?.children.find(
                     (tab) =>
                         tab.type === "tab" &&
-                        engine.tabButtonId(tab.id) === next.id,
+                        engine.get("tab-button-id", { tab: tab.id }) ===
+                            next.id,
                 );
             if (target) {
-                engine.run("tab.select", { tab: target.id });
+                model.run("tab.select", { tab: target.id });
                 self.ownerDocument.defaultView?.requestAnimationFrame(() =>
                     self.ownerDocument.getElementById(next.id)?.focus(),
                 );
@@ -151,7 +153,9 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
             return;
         }
         const focusPanel = () =>
-            focusFirstIn(doc.getElementById(engine.tabPanelId(id)));
+            focusFirstIn(
+                doc.getElementById(engine.get("tab-panel-id", { tab: id })),
+            );
         if (isSelected()) {
             focusPanel();
         } else {
@@ -182,7 +186,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
             if (!focusAdjacentTab(1)) {
                 focusAdjacentTab(-1);
             }
-            engine.run("tab.close", { tab: id });
+            model.run("tab.close", { tab: id });
             event.preventDefault();
         } else if (hasModifier(event)) {
             // modified arrows are left for keymap bindings (e.g. tabset cycling)
@@ -205,7 +209,8 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         [
             toAriaKeyShortcuts(keyMap.focusTabToggle),
             // the hint follows the tab's own rule; the key itself asks the model (`closeable`)
-            model.resolve(node).enableClose && node.pinned !== true
+            model.get("tab-settings", { tab: node.id })?.enableClose &&
+            node.pinned !== true
                 ? toAriaKeyShortcuts(keyMap.closeTab)
                 : undefined,
         ]
@@ -216,32 +221,32 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const state: TabState = {
         selected,
         pinned: node.pinned === true,
-        dragging: drag.dragging,
+        dragging: drag.state.dragging,
         // supported, and the model accepts `tab.popout` for it now
-        popoutEnabled: engine.canPopout(id),
+        popoutEnabled: engine.can("popout", { node: id }),
         overflowHidden,
     };
     return useRenderElement("div", rest, {
         state,
         ref,
         props: {
-            id: engine.tabButtonId(id),
+            id: engine.get("tab-button-id", { tab: id }),
             role: "tab",
             "aria-selected": selected,
-            "aria-controls": engine.tabPanelId(id),
+            "aria-controls": engine.get("tab-panel-id", { tab: id }),
             "aria-keyshortcuts": keyShortcuts,
             tabIndex: tabbable ? 0 : -1,
             ...dataAttributes({
-                "layout-path": getTabButtonPath(engine.path(id)),
+                "layout-path": getTabButtonPath(
+                    engine.get("path", { node: id }),
+                ),
                 selected,
                 pinned: state.pinned,
                 dragging: state.dragging,
                 "popout-enabled": state.popoutEnabled,
                 "overflow-hidden": state.overflowHidden,
             }),
-            draggable: drag.draggable,
-            onDragStart: drag.onDragStart,
-            onDragEnd: drag.onDragEnd,
+            ...dragProps,
             onClick,
             onKeyDown,
             children,

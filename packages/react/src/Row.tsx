@@ -56,17 +56,18 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
     const { node, children, renderSplitter, splitter = true, ...rest } = props;
     const { model } = useDockableContext("Row");
     const { engine, layoutId } = useLayoutContext("Row");
-    const row = node ?? typedModel<T>(model).root(layoutId);
+    const row =
+        node ?? typedModel<T>(model).get("root-row", { layout: layoutId });
     if (!row) {
         throw new Error(`Dockable.Row: layout "${layoutId}" has no root row`);
     }
     const id = row.id;
     const root = node === undefined;
-    const horizontal = engine.rowOrientation(id) === "horizontal";
+    const horizontal = engine.adapter.rowOrientation(id) === "horizontal";
 
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            engine.registerMeasurable(id, "row", element);
+            engine.adapter.registerMeasurable(id, "row", element);
         },
         [engine, id],
     );
@@ -93,9 +94,9 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
         orientation: horizontal ? "horizontal" : "vertical",
         root,
         // a maximized tabset fills the layout: the rows off its path give up their space
-        hidden: model.isHiddenByMaximize(id),
+        hidden: model.is("hidden-by-maximize", { node: id }),
     };
-    const range = engine.minMax(id);
+    const range = engine.get("size-limits", { node: id });
     const structural: React.CSSProperties = {
         display: state.hidden ? "none" : "flex",
         flexDirection: horizontal ? "row" : "column",
@@ -118,7 +119,7 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
         ref,
         props: {
             ...dataAttributes({
-                "layout-path": root ? "/row" : engine.path(id),
+                "layout-path": root ? "/row" : engine.get("path", { node: id }),
                 orientation: state.orientation,
                 root,
             }),

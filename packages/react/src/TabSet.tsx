@@ -30,7 +30,10 @@ export function useTabContainer<T extends DockableTypes = AnyTypes>(
     const id = React.useContext(TabContainerContext);
     const { model } = useDockableContext(part);
     // the container of the registry the part's caller declares (`<Dockable.TabList<Types>>`)
-    const container = id === null ? undefined : typedModel<T>(model).get(id);
+    const container =
+        id === null
+            ? undefined
+            : typedModel<T>(model).get("node", { node: id });
     if (container?.type !== "tabset" && container?.type !== "border") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet or Dockable.Border`,
@@ -42,7 +45,7 @@ export function useTabContainer<T extends DockableTypes = AnyTypes>(
 export function useTabSetNode(part: string): TabsetNode {
     const id = React.useContext(TabSetContext);
     const { model } = useDockableContext(part);
-    const tabset = id === null ? undefined : model.get(id);
+    const tabset = id === null ? undefined : model.get("node", { node: id });
     if (tabset?.type !== "tabset") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet`,
@@ -66,15 +69,15 @@ export function TabSet<T extends DockableTypes = AnyTypes>(
 ) {
     const { node, children, ...rest } = props;
     const { engine } = useLayoutContext("TabSet");
-    const { state, ref, onPointerDown } = useTabSet(node);
-    const range = engine.minMax(node.id);
+    const { state, props: tabset } = useTabSet(node);
+    const range = engine.get("size-limits", { node: node.id });
 
     const element = useRenderElement("div", rest, {
         state,
-        ref,
+        ref: tabset.ref,
         props: {
             ...dataAttributes({
-                "layout-path": engine.path(node.id),
+                "layout-path": engine.get("path", { node: node.id }),
                 active: state.active,
                 maximized: state.maximized,
                 empty: state.empty,
@@ -82,7 +85,7 @@ export function TabSet<T extends DockableTypes = AnyTypes>(
                 "drop-location": state.dropLocation,
                 "drop-refused": state.dropRefused,
             }),
-            onPointerDown,
+            onPointerDown: tabset.onPointerDown,
             children,
         },
         style: {

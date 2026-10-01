@@ -37,7 +37,7 @@ export interface EdgeIndicatorProps
 export function EdgeIndicator(props: EdgeIndicatorProps) {
     const { edge, children, ...rest } = props;
     const { engine } = useLayoutContext("EdgeIndicator");
-    const manager = engine.getDragDropManager();
+    const manager = engine.adapter.getDragDropManager();
     const indicator = React.useSyncExternalStore(
         manager.subscribe,
         manager.getIndicatorState,
@@ -45,7 +45,8 @@ export function EdgeIndicator(props: EdgeIndicatorProps) {
     );
     const visible = indicator.dragging && indicator.showEdges;
     const rect = visible
-        ? engine.edgeBands().find((band) => band.location === edge)?.rect
+        ? engine.adapter.edgeBands().find((band) => band.location === edge)
+              ?.rect
         : undefined;
     const state: EdgeIndicatorState = {
         edge,

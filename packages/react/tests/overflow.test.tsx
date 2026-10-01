@@ -35,10 +35,10 @@ const json: LayoutJson<Types> = {
 const load = (): Model<Types> => createModel<Types>(structuredClone(json));
 
 function Menu({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { hidden } = useTabOverflow(tabset);
+    const { hiddenTabs } = useTabOverflow(tabset);
     return (
         <ul data-testid="menu">
-            {hidden.map((tab) => (
+            {hiddenTabs.map((tab) => (
                 <li key={tab.id}>{tab.data.name}</li>
             ))}
         </ul>
@@ -224,7 +224,7 @@ describe("Dockable.TabOverflowTrigger follows the primitive contract", () => {
         expect(trigger).toHaveClass("more", "more-1");
         expect(trigger).toHaveAttribute("aria-haspopup", "menu");
         expect(trigger.style.opacity).toBe("1");
-        expect(seen?.hidden.map((tab) => tab.id)).toEqual(["d"]);
+        expect(seen?.hiddenTabs.map((tab) => tab.id)).toEqual(["d"]);
         fireEvent.click(trigger);
         expect(onClick).toHaveBeenCalled();
     });

@@ -571,7 +571,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     private createAdapter(): LayoutEngineAdapter<T> {
         const engine = this;
-        return Object.freeze({
+        return {
             get model() {
                 return engine.model;
             },
@@ -668,7 +668,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             getOnExternalDrag: () => this.getOnExternalDrag(),
             getTabDragSpeed: () => this.getTabDragSpeed(),
             getPopoutManager: () => this.getPopoutManager(),
-        });
+        };
     }
 
     /** the engine of a popout window's layout (it shares this main engine's view state) */

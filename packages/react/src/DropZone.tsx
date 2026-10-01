@@ -47,10 +47,10 @@ export function DropZone<T extends DockableTypes = AnyTypes>(
 ) {
     const { model, accepts, onDrop, children, ...rest } = props;
     const zone = useDropZone({ model, accepts, onDrop });
-    const state: DropZoneState = { over: zone.over, active: zone.active };
+    const state: DropZoneState = zone.state;
     return useRenderElement("div", rest, {
         state,
-        ref: zone.ref,
+        ref: zone.props.ref,
         props: {
             ...dataAttributes({
                 "drop-over": state.over,
