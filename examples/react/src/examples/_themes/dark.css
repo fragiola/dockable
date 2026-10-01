@@ -1,15 +1,24 @@
 /* Theme "dark" — The same shapes as Light, on dark palettes.
 
    One file per theme, selected by data-example-theme="dark" on any element
-   (the docs put it on the example stage; an app would put it on <body>).
-   It declares:
-     1. shape tokens (--dk-*) that the example kit's class names read;
+   (the docs put it on <body>, as an app would). A theme only sets values; it styles
+   no markup. It declares:
+     1. shape tokens (--dk-*) that the examples' class names read: fonts and sizes
+        (--dk-font, --dk-tab-font, --dk-tab-size, --dk-tab-height), radii (--dk-radius,
+        --dk-tab-radius), spacing (--dk-gap, --dk-tab-gap, --dk-strip-padding), the
+        tabset's border and shadow (--dk-border, --dk-shadow), the splitter
+        (--dk-splitter-size, --dk-splitter-grab, --dk-splitter-bg, --dk-grip), the
+        drop indicator's line (--dk-indicator-style), motion (--dk-motion), the line
+        between tabs (--dk-tab-divider), the active-tab marker's display
+        (--dk-tab-marker) and the panels' background image (--dk-panel-texture);
      2. the Fragiola palettes the examples use, each with all SIX roles
         (base, soft, line, contrast, accent, ring). A palette that omitted one
         would inherit it from the page and leak across the theme boundary;
-     3. the chart series derivation and the hover direction for this scheme;
-     4. a few plain-CSS flourishes keyed on data-* and ARIA, the same hooks
-        any stylesheet can use.
+     3. on every palette, the chart series derivation and the colour tokens that
+        depend on the palette: the selected tab (--dk-tab-selected-bg,
+        --dk-tab-selected-fg), the tab strip (--dk-strip-bg) and the active
+        tabset's border (--dk-tabset-active-line). They are declared per palette
+        so that var(--palette-…) resolves against the palette the element sits in.
 
    Specificity: the palette rules are ":root [data-example-theme="dark"] .palette-x", which ties
    with Fragiola's own ":root[data-theme] .palette-x" and wins by coming
@@ -35,6 +44,9 @@
     --dk-strip-padding: 0.375rem;
     --dk-indicator-style: solid;
     --dk-motion: 150ms;
+    --dk-tab-divider: 0px;
+    --dk-tab-marker: block;
+    --dk-panel-texture: none;
 }
 
 :root [data-example-theme="dark"] .palette-surface,
@@ -121,4 +133,8 @@
     --chart-ramp-3: oklch(from var(--palette-base) 0.64 0.15 h);
     --chart-ramp-4: oklch(from var(--palette-base) 0.72 0.15 h);
     --chart-ramp-5: oklch(from var(--palette-base) 0.8 0.15 h);
+    --dk-tab-selected-bg: var(--palette-soft);
+    --dk-tab-selected-fg: var(--palette-contrast);
+    --dk-strip-bg: transparent;
+    --dk-tabset-active-line: var(--palette-line);
 }

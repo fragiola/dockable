@@ -18,7 +18,6 @@ import { Tooltip } from "#/components/ui/tooltip";
 import { PanelBody } from "../_kit/card";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
-import { useStageTheme } from "../_kit/theme";
 
 // Stop drops into part of the layout, in two layers:
 //
@@ -158,7 +157,6 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
 
 /** A lock on locked tabsets, with a Fragiola tooltip saying why. */
 function LockBadge({ tabset }: { tabset: TabsetNode<Types> }) {
-    const [themeRef, theme] = useStageTheme();
     if (!LOCKED.has(tabset.id)) {
         return null;
     }
@@ -169,13 +167,12 @@ function LockBadge({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <Tooltip.Root>
             <Tooltip.Trigger
-                ref={themeRef}
                 aria-label={`Locked: ${why}`}
                 className={styles.iconButton}
             >
                 <Lock aria-hidden className="size-3.5" />
             </Tooltip.Trigger>
-            <Tooltip.Content data-example-theme={theme}>{why}</Tooltip.Content>
+            <Tooltip.Content>{why}</Tooltip.Content>
         </Tooltip.Root>
     );
 }

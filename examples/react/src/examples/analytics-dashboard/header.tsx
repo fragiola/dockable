@@ -2,12 +2,11 @@
 
 import type { Model } from "@fragiola/dockable";
 import { Plus, Redo2, Undo2 } from "lucide-react";
-import { useRef } from "react";
+
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
 import { Select } from "#/components/ui/select";
 import { cn } from "#/lib/cn";
 import * as styles from "../_kit/styles";
-import { usePopupTheme } from "../_kit/theme";
 import type { UndoManager, UndoSnapshot } from "../_kit/undo";
 import { type Filters, REGIONS, type Types, WIDGETS } from "./data";
 
@@ -46,12 +45,10 @@ export function Header({
     undo: UndoManager<Types>;
     history: UndoSnapshot<Types>;
 }) {
-    const ref = useRef<HTMLElement | null>(null);
-    const popupTheme = usePopupTheme(ref);
     const selectTrigger = "h-8 w-40 py-0 text-sm";
 
     return (
-        <header ref={ref} className={cn(styles.toolbar, "gap-3")}>
+        <header className={cn(styles.toolbar, "gap-3")}>
             <h1 className="me-auto text-sm font-semibold">Sales overview</h1>
 
             <Select.Root
@@ -67,7 +64,7 @@ export function Header({
                 <Select.Trigger aria-label="Region" className={selectTrigger}>
                     <Select.Value />
                 </Select.Trigger>
-                <Select.Content {...popupTheme}>
+                <Select.Content>
                     {REGION_ITEMS.map((item) => (
                         <Select.Item key={item.value} value={item.value}>
                             {item.label}
@@ -92,7 +89,7 @@ export function Header({
                 >
                     <Select.Value />
                 </Select.Trigger>
-                <Select.Content {...popupTheme}>
+                <Select.Content>
                     {RANGE_ITEMS.map((item) => (
                         <Select.Item key={item.value} value={item.value}>
                             {item.label}
@@ -131,7 +128,7 @@ export function Header({
                     <Plus aria-hidden="true" className="size-4" />
                     Add widget
                 </DropdownMenu.Trigger>
-                <DropdownMenu.Content align="end" {...popupTheme}>
+                <DropdownMenu.Content align="end">
                     {WIDGETS.map((widget, index) => (
                         <DropdownMenu.Item
                             key={widget.label}

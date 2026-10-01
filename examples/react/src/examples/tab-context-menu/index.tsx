@@ -15,7 +15,6 @@ import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import { RenameField } from "../_kit/rename-field";
 import * as styles from "../_kit/styles";
-import { useStageTheme } from "../_kit/theme";
 
 // A Fragiola ContextMenu on every tab. The package provides the commands and `model.can`, which
 // says whether a command would apply; the menu (and its text) is the consumer's. The tab IS the
@@ -67,7 +66,6 @@ function MenuTab({
     setEditing: (id: string | null) => void;
 }) {
     const { model, run, engine, layoutId } = useDockable<Types>();
-    const [themeRef, theme] = useStageTheme();
     // Rename opens the inline field once the menu has closed and handed focus back to the tab
     const renameOnClose = useRef(false);
 
@@ -116,7 +114,6 @@ function MenuTab({
             <Dockable.Tab
                 node={tab}
                 data-kit-tab=""
-                ref={themeRef}
                 render={<ContextMenu.Trigger />}
                 className={styles.tab}
                 // no drag while its name is being edited (text selection in the field)
@@ -135,7 +132,7 @@ function MenuTab({
                     ) : undefined}
                 </TabParts>
             </Dockable.Tab>
-            <ContextMenu.Content data-example-theme={theme}>
+            <ContextMenu.Content>
                 <ContextMenu.Item
                     disabled={!model.can("tab.close", { tab: tab.id }).ok}
                     onClick={() => run("tab.close", { tab: tab.id })}

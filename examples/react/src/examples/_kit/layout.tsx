@@ -15,7 +15,7 @@ import {
     type RowSplitterProps,
 } from "@fragiola/dockable-react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import { cn } from "#/lib/cn";
 import { labels } from "./labels";
 import * as styles from "./styles";
@@ -330,58 +330,6 @@ export function KitEdgeIndicators() {
 /** The popout host page, served next to the app under its base (Vite's `BASE_URL`). */
 export const popoutURL = `${import.meta.env.BASE_URL}popout.html`;
 
-/**
- * Keeps each open popout on the example's theme. The page's own `<html>`/`<body>` attributes
- * (light/dark, the body's palette class) are mirrored by the core (`popoutMirrorRoot` on the root);
- * the example theme lives on the docs stage, not on the page's root, so the kit copies it into the
- * popout's `<body>` on open and whenever it changes. An app that themes `<html>` or `<body>` needs
- * only `popoutMirrorRoot`.
- */
-function usePopoutTheme(root: React.RefObject<HTMLElement | null>) {
-    const documents = useRef(new Set<Document>());
-
-    const apply = useCallback(
-        (doc: Document) => {
-            const theme = root.current?.closest<HTMLElement>(
-                "[data-example-theme]",
-            )?.dataset.exampleTheme;
-            if (theme) {
-                doc.body.dataset.exampleTheme = theme;
-            }
-        },
-        [root],
-    );
-
-    useEffect(() => {
-        const themed = root.current?.closest("[data-example-theme]");
-        if (!themed) {
-            return;
-        }
-        const observer = new MutationObserver(() => {
-            for (const doc of documents.current) {
-                apply(doc);
-            }
-        });
-        observer.observe(themed, { attributeFilter: ["data-example-theme"] });
-        return () => observer.disconnect();
-    }, [root, apply]);
-
-    const onOpen = useCallback(
-        (_layout: unknown, _window: Window, doc: Document) => {
-            documents.current.add(doc);
-            apply(doc);
-        },
-        [apply],
-    );
-    const onClose = useCallback(
-        (_layout: unknown, _window: Window, doc: Document) => {
-            documents.current.delete(doc);
-        },
-        [],
-    );
-    return { onOpen, onClose };
-}
-
 export interface DockLayoutProps<T extends DockableTypes = AnyTypes>
     extends RenderNodeOptions<T> {
     /**
@@ -427,16 +375,14 @@ export function DockLayout<T extends DockableTypes = AnyTypes>(
         ...options
     } = props;
     const { renderNode, renderSplitter } = createRenderNode(options);
-    const rootRef = useRef<HTMLDivElement | null>(null);
-    const popoutTheme = usePopoutTheme(rootRef);
 
     return (
         <div className={styles.frame}>
             <Dockable.Root
-                ref={rootRef}
                 model={model}
                 popoutURL={popoutURL}
-                // the page's light/dark and body palette class, into each popout (kept in sync)
+                // <html> and <body>'s attributes (light/dark, the example theme) into each popout,
+                // kept in sync
                 popoutMirrorRoot
                 className={cn(styles.root, className)}
                 {...rootProps}
@@ -473,11 +419,7 @@ export function DockLayout<T extends DockableTypes = AnyTypes>(
                         transitionDuration: `${state.tabDragSpeed}s`,
                     })}
                 />
-                <Dockable.Popout<T>
-                    onOpen={popoutTheme.onOpen}
-                    onClose={popoutTheme.onClose}
-                    className={styles.root}
-                >
+                <Dockable.Popout<T> className={styles.root}>
                     {() => (
                         <>
                             <Dockable.Row<T> renderSplitter={renderSplitter}>

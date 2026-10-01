@@ -1,10 +1,16 @@
 "use client";
 
 import type { EChartsOption } from "echarts";
-import { type ReactNode, useMemo, useRef } from "react";
+import {
+    type ReactNode,
+    type RefObject,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import { Chart } from "#/components/ui/chart";
 import { cn } from "#/lib/cn";
-import { useExampleTheme } from "./theme";
 
 // Demo content: a Fragiola UI chart that fills its panel and follows the example theme.
 
@@ -17,6 +23,29 @@ export function series(seed: number, length = MONTHS.length, scale = 100) {
         value = (value * 9301 + 49297) % 233280;
         return Math.round((value / 233280) * scale);
     });
+}
+
+/**
+ * Whether the element is in the document yet. A panel's content is portalled into the tab's
+ * moveable element, which the engine attaches to the layout after the first commit; a Fragiola
+ * chart reads its colours from its own element when it mounts (and again on every theme change),
+ * so it must not mount before then. Checked once per frame until it is.
+ */
+export function useInDocument(ref: RefObject<HTMLElement | null>) {
+    const [inDocument, setInDocument] = useState(false);
+    useEffect(() => {
+        let frame = 0;
+        const check = () => {
+            if (ref.current?.isConnected) {
+                setInDocument(true);
+            } else {
+                frame = requestAnimationFrame(check);
+            }
+        };
+        check();
+        return () => cancelAnimationFrame(frame);
+    }, [ref]);
+    return inDocument;
 }
 
 /** A Fragiola chart that fills its panel and follows the example theme. */
@@ -32,7 +61,7 @@ export function ChartPanel({
     className?: string;
 }) {
     const ref = useRef<HTMLDivElement | null>(null);
-    const theme = useExampleTheme(ref);
+    const inDocument = useInDocument(ref);
     const option = useMemo<EChartsOption>(
         () => ({
             grid: { left: 36, right: 16, top: 16, bottom: 28 },
@@ -61,9 +90,8 @@ export function ChartPanel({
             className={cn("flex h-full min-h-40 flex-col p-3", className)}
         >
             {title ? <h2 className="px-1 pb-2 text-sm">{title}</h2> : null}
-            {/* drawn once the theme is known: the chart reads its colours on mount */}
-            {theme ? (
-                <Chart key={theme} option={option} className="min-h-0 flex-1" />
+            {inDocument ? (
+                <Chart option={option} className="min-h-0 flex-1" />
             ) : null}
         </div>
     );

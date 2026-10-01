@@ -17,7 +17,6 @@ import { Select } from "#/components/ui/select";
 import { Card } from "../_kit/card";
 import { DockLayout, KitTab, tabName } from "../_kit/layout";
 import * as styles from "../_kit/styles";
-import { useStageTheme } from "../_kit/theme";
 
 // Only the tabs that do not fit leave the strip: the engine measures the tab list and hides them
 // (tab overflow), keeping the selected tab in view, and Dockable.TabOverflowTrigger (rendered only
@@ -62,7 +61,6 @@ const json: LayoutJson<Types> = {
 function OverflowStrip({ tabset }: { tabset: TabsetNode<Types> }) {
     const { run } = useDockable<Types>();
     const { hidden } = useTabOverflow(tabset);
-    const [themeRef, theme] = useStageTheme();
     // a tab with no name (an icon-only tab) is named by its altName in the menu
     const label = (tab: TabOf<Types>) => tab.data.name || tab.data.altName;
 
@@ -86,7 +84,6 @@ function OverflowStrip({ tabset }: { tabset: TabsetNode<Types> }) {
                 {/* the package's trigger (measured, shown only while tabs are hidden), rendered
                     as the Select's trigger */}
                 <Dockable.TabOverflowTrigger
-                    ref={themeRef}
                     aria-label={`${hidden.length} more tabs`}
                     render={
                         <Select.Trigger className="my-1 me-1 h-auto w-auto shrink-0 gap-1 self-center px-2 py-0.5 text-xs" />
@@ -94,7 +91,7 @@ function OverflowStrip({ tabset }: { tabset: TabsetNode<Types> }) {
                 >
                     {`+${hidden.length}`}
                 </Dockable.TabOverflowTrigger>
-                <Select.Content data-example-theme={theme}>
+                <Select.Content>
                     {hidden.map((tab) => (
                         <Select.Item key={tab.id} value={tab.id}>
                             {label(tab)}

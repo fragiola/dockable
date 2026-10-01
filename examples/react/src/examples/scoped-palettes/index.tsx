@@ -17,7 +17,6 @@ import { ChartPanel } from "../_kit/charts";
 import { CustomTabSet, tabsetShape } from "../_kit/custom-tabs";
 import { DockLayout, KitTab } from "../_kit/layout";
 import * as styles from "../_kit/styles";
-import { useStageTheme } from "../_kit/theme";
 
 // Fragiola palettes, scoped per tabset. A palette class sets six roles (base, soft, line,
 // contrast, accent, ring) as CSS variables, and every `bg-palette-*`/`text-palette-*` inside
@@ -89,17 +88,15 @@ function paletteOf(node: ParentNode<Types> | undefined): string {
 /** The tabset's palette picker: a Fragiola DropdownMenu with a radio group. */
 function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
     const { run } = useDockable<Types>();
-    const [themeRef, theme] = useStageTheme();
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger
-                ref={themeRef}
                 aria-label="Tabset palette"
                 className={styles.iconButton}
             >
                 <Palette aria-hidden className="size-3.5" />
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content data-example-theme={theme} align="end">
+            <DropdownMenu.Content align="end">
                 <DropdownMenu.Group>
                     <DropdownMenu.Label>Palette</DropdownMenu.Label>
                     <DropdownMenu.RadioGroup

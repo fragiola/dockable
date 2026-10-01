@@ -33,8 +33,8 @@ Two rules keep palettes from leaking: define **all six roles** for every palette
 
 ## Shape: tokens
 
-Colour is not the only thing a theme changes. The examples' themes also set **shape tokens**
-that the kit's class names read:
+Colour is not the only thing a theme changes. The examples' themes also set **shape tokens**,
+which each example's class names read where you can see them:
 
 ```css
 [data-example-theme="ide"] {
@@ -56,6 +56,22 @@ that the kit's class names read:
 Splitter thickness is a token too: the engine **measures** the splitter element, so a theme can
 change it freely and the split maths follows.
 
+A theme file only sets **values**: palettes and tokens, never rules on the markup. Whatever an
+example looks like is in its own class names; the theme only changes what they resolve to. A token
+whose value is a colour role (the selected tab's background, say) is declared on every palette
+class rather than on the theme's element, so `var(--palette-soft)` resolves against the palette the
+tab sits in:
+
+```css
+:root [data-example-theme="ide"] [class*="palette-"] {
+    --dk-tab-selected-bg: var(--palette-base); /* the selected tab merges with its panel */
+}
+```
+
+```tsx
+<Dockable.Tab className="data-selected:bg-(--dk-tab-selected-bg)" … />
+```
+
 ## Scoping a theme to an element
 
 The palettes normally key off `:root[data-theme]`. To theme one region (a docs stage, a panel, a
@@ -74,7 +90,8 @@ preview), scope the selectors to an attribute on any element:
 ```
 
 Every example on this site runs in five such themes (Light, Dark, IDE, Paper, Terminal) switched
-without a reload: the markup never changes, only the attribute on the stage.
+without a reload: the markup never changes, only the attribute, which the site puts on `<body>` so
+that menus portalled into `<body>` and popout windows take it too.
 
 ## Themes and popouts
 

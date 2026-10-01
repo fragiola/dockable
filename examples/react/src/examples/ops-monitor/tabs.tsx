@@ -10,11 +10,10 @@ import {
     type LucideIcon,
     ScrollText,
 } from "lucide-react";
-import { useRef } from "react";
+
 import { Tooltip } from "#/components/ui/tooltip";
 import { cn } from "#/lib/cn";
 import * as styles from "../_kit/styles";
-import { usePopupTheme } from "../_kit/theme";
 import { LEVEL_PALETTE, type Types } from "./panels";
 
 // The console's tabsets. A service tab reads the status its panel wrote into its data and
@@ -99,8 +98,6 @@ function MonitorTab({ tab }: { tab: TabOf<Types> }) {
 
 export function MonitorTabSet({ node }: { node: TabsetNode<Types> }) {
     const locked = node.id === INCIDENT_TABSET;
-    const header = useRef<HTMLDivElement | null>(null);
-    const popupTheme = usePopupTheme(header);
     return (
         <Dockable.TabSet
             node={node}
@@ -108,7 +105,7 @@ export function MonitorTabSet({ node }: { node: TabsetNode<Types> }) {
             data-locked={locked ? "" : undefined}
             className={cn(styles.tabset, "data-locked:border-dashed")}
         >
-            <div ref={header} className={styles.tabsetHeader}>
+            <div className={styles.tabsetHeader}>
                 <Dockable.TabList<Types>
                     data-kit-tablist=""
                     aria-label={locked ? "Incident" : "Monitors"}
@@ -125,10 +122,7 @@ export function MonitorTabSet({ node }: { node: TabsetNode<Types> }) {
                             >
                                 <Lock aria-hidden="true" className="size-3.5" />
                             </Tooltip.Trigger>
-                            <Tooltip.Content
-                                className="palette-surface"
-                                {...popupTheme}
-                            >
+                            <Tooltip.Content className="palette-surface">
                                 Locked: only incident tabs can be dropped here
                             </Tooltip.Content>
                         </Tooltip.Root>

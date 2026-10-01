@@ -7,13 +7,12 @@ import {
     useTabOverflow,
 } from "@fragiola/dockable-react";
 import { Bug, Maximize2, Minimize2, SquareTerminal, X } from "lucide-react";
-import { useRef } from "react";
+
 import { ContextMenu } from "#/components/ui/context-menu";
 import { Select } from "#/components/ui/select";
 import { cn } from "#/lib/cn";
 import { labels } from "../_kit/labels";
 import * as styles from "../_kit/styles";
-import { usePopupTheme } from "../_kit/theme";
 import { FileIcon } from "./explorer";
 import { editorData, type Types } from "./workspace";
 
@@ -55,11 +54,9 @@ function TabIcon({ tab }: { tab: TabOf<Types> }) {
 function WorkbenchTab({
     tab,
     tabset,
-    popupTheme,
 }: {
     tab: TabOf<Types>;
     tabset: TabsetNode<Types>;
-    popupTheme: ReturnType<typeof usePopupTheme>;
 }) {
     const { model } = useDockable<Types>();
     const siblings = tabset.children;
@@ -120,7 +117,7 @@ function WorkbenchTab({
                     className={styles.tabMarker}
                 />
             </Dockable.Tab>
-            <ContextMenu.Content {...popupTheme}>
+            <ContextMenu.Content>
                 <ContextMenu.Item disabled={!canClose} onClick={close}>
                     Close
                 </ContextMenu.Item>
@@ -186,9 +183,7 @@ function WorkbenchTab({
 
 export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
     const { model, layoutId } = useDockable<Types>();
-    const list = useRef<HTMLDivElement | null>(null);
     const { hidden } = useTabOverflow(node);
-    const popupTheme = usePopupTheme(list);
     const maximized = model.maximizedTabset(layoutId)?.id === node.id;
 
     return (
@@ -200,17 +195,10 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
             <div className={styles.tabsetHeader}>
                 <Dockable.TabList<Types>
                     data-kit-tablist=""
-                    ref={list}
                     aria-label={node.id === "panel" ? "Panel" : "Editors"}
                     className={styles.tabList}
                 >
-                    {(tab) => (
-                        <WorkbenchTab
-                            tab={tab}
-                            tabset={node}
-                            popupTheme={popupTheme}
-                        />
-                    )}
+                    {(tab) => <WorkbenchTab tab={tab} tabset={node} />}
                 </Dockable.TabList>
                 <div className={styles.tabsetActions}>
                     {/* the tabs that do not fit, one click away (rendered only while there are some) */}
@@ -231,7 +219,7 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                         >
                             {`+${hidden.length}`}
                         </Dockable.TabOverflowTrigger>
-                        <Select.Content {...popupTheme}>
+                        <Select.Content>
                             {hidden.map((tab) => (
                                 <Select.Item key={tab.id} value={tab.id}>
                                     {tab.data.name}

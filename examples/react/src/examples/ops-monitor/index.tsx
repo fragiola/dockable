@@ -10,13 +10,12 @@ import {
     veto,
 } from "@fragiola/dockable";
 import { Siren } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Select } from "#/components/ui/select";
 import { Switch } from "#/components/ui/switch";
 import { cn } from "#/lib/cn";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
-import { usePopupTheme } from "../_kit/theme";
 import {
     EventsPanel,
     OverviewPanel,
@@ -136,8 +135,6 @@ export default function OpsMonitor() {
     });
     const [live, setLive] = useState(true);
     const [target, setTarget] = useState<ServiceId>("payments");
-    const toolbar = useRef<HTMLDivElement | null>(null);
-    const popupTheme = usePopupTheme(toolbar);
 
     // the stream: started while live, and always stopped on unmount
     useEffect(
@@ -168,7 +165,7 @@ export default function OpsMonitor() {
 
     return (
         <div className="flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)">
-            <div ref={toolbar} className={styles.toolbar}>
+            <div className={styles.toolbar}>
                 <div className="flex items-center gap-2 text-sm">
                     <Switch.Root
                         checked={live}
@@ -202,7 +199,7 @@ export default function OpsMonitor() {
                     >
                         <Select.Value />
                     </Select.Trigger>
-                    <Select.Content {...popupTheme}>
+                    <Select.Content>
                         {SERVICES.map((s) => (
                             <Select.Item key={s.id} value={s.id}>
                                 {s.name}

@@ -49,27 +49,44 @@ test("lists the site's examples and the fixtures, and opens an example from the 
 test("switches the example theme live, and restores it from the URL", async ({
     page,
 }) => {
-    const stage = await openExample(page, "example=hello-layout");
-    await expect(stage).toHaveAttribute("data-example-theme", "light");
+    await openExample(page, "example=hello-layout");
+    // the example theme is on <body>, as in the embed (popups and popouts take it from there)
+    const body = page.locator("body");
+    await expect(body).toHaveAttribute("data-example-theme", "light");
     const layout = findPath(page, "/layout").first();
     // a class that compiled to nothing fails silently: assert computed values, not class names
     const light = await backgroundOf(layout);
     expect(light).not.toBe("rgba(0, 0, 0, 0)");
 
     await page.getByRole("button", { name: "Terminal" }).click();
-    await expect(stage).toHaveAttribute("data-example-theme", "terminal");
+    await expect(body).toHaveAttribute("data-example-theme", "terminal");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect.poll(() => backgroundOf(layout)).not.toBe(light);
     await expect(page).toHaveURL(/theme=terminal/);
 
     await page.reload();
-    await expect(page.getByTestId("stage")).toHaveAttribute(
-        "data-example-theme",
-        "terminal",
-    );
+    await expect(body).toHaveAttribute("data-example-theme", "terminal");
     await expect(
         page.getByRole("button", { name: "Terminal" }),
     ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the shell keeps its own palette whatever the example theme", async ({
+    page,
+}) => {
+    // dark and ide share the dark scheme: the shell looks the same, the example does not
+    await openExample(page, "example=hello-layout&theme=dark");
+    const shell = await backgroundOf(page.locator("body"));
+    const example = await backgroundOf(findPath(page, "/layout").first());
+    await page.getByRole("button", { name: "IDE" }).click();
+    await expect(page.locator("body")).toHaveAttribute(
+        "data-example-theme",
+        "ide",
+    );
+    await expect
+        .poll(() => backgroundOf(findPath(page, "/layout").first()))
+        .not.toBe(example);
+    expect(await backgroundOf(page.locator("body"))).toBe(shell);
 });
 
 test("an example works in the stage: a tab dragged into the other tabset", async ({

@@ -7,7 +7,6 @@ import { Clickable } from "#/components/atoms/clickable";
 import { AlertDialog } from "#/components/ui/alert-dialog";
 import { Tooltip } from "#/components/ui/tooltip";
 import { type BorderOptions, DockLayout } from "../_kit/layout";
-import { usePopupTheme } from "../_kit/theme";
 import { Explorer } from "./explorer";
 import { EditorPanel, ProblemsPanel, TerminalPanel } from "./panels";
 import { WorkbenchTabSet } from "./tabs";
@@ -51,10 +50,7 @@ function inSideBorder(model: Model<Types>, tab: TabOf<Types>) {
  * named by `aria-label` and a tooltip (the kit's vertical labels are replaced). The bottom border's
  * tabs keep their icon and name.
  */
-function borderOptions(
-    model: Model<Types>,
-    popupTheme: ReturnType<typeof usePopupTheme>,
-): BorderOptions<Types> {
+function borderOptions(model: Model<Types>): BorderOptions<Types> {
     return {
         renderBorderTab: (tab) => {
             const Icon = BORDER_ICONS[tab.component];
@@ -77,9 +73,7 @@ function borderOptions(
                     >
                         {icon}
                     </Tooltip.Trigger>
-                    <Tooltip.Content {...popupTheme}>
-                        {tab.data.name}
-                    </Tooltip.Content>
+                    <Tooltip.Content>{tab.data.name}</Tooltip.Content>
                 </Tooltip.Root>
             );
         },
@@ -106,9 +100,7 @@ export default function IdeWorkbench() {
     // tabs waiting for an answer to "save changes?", and the ones already answered
     const [pending, setPending] = useState<string[]>([]);
     const confirmed = useRef(new Set<string>());
-    const container = useRef<HTMLDivElement | null>(null);
-    const popupTheme = usePopupTheme(container);
-    const borders = borderOptions(model, popupTheme);
+    const borders = borderOptions(model);
 
     // The policy: closing a modified editor asks first. The middleware sees every `tab.close`,
     // from any button, menu or key; it vetoes the close and queues the question, and the dialog
@@ -202,10 +194,7 @@ export default function IdeWorkbench() {
     };
 
     return (
-        <div
-            ref={container}
-            className="flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)"
-        >
+        <div className="flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)">
             {problem ? (
                 <div
                     role="alert"
@@ -267,7 +256,7 @@ export default function IdeWorkbench() {
             >
                 <AlertDialog.Portal>
                     <AlertDialog.Backdrop />
-                    <AlertDialog.Content {...popupTheme}>
+                    <AlertDialog.Content>
                         <AlertDialog.Header>
                             <AlertDialog.Title>
                                 {`Save changes to ${pendingData?.name ?? ""}?`}

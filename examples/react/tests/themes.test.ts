@@ -5,8 +5,9 @@ import { THEMES } from "../src/examples/_themes/themes";
 import { blend, contrast, oklchToSrgb, parseOklch, type RGB } from "./color";
 
 // The theme contract (DD10): every palette of every theme declares the six
-// roles, every theme declares the same palettes and shape tokens, and text
-// meets WCAG AA on the surfaces it is drawn on.
+// roles, every theme declares the same palettes and shape tokens, text
+// meets WCAG AA on the surfaces it is drawn on, and a theme only sets values:
+// it styles no markup, so everything an example looks like is in its own code.
 
 const DIR = join(import.meta.dirname, "../src/examples/_themes");
 const ROLES = ["base", "soft", "line", "contrast", "accent", "ring"] as const;
@@ -28,6 +29,14 @@ const TOKENS = [
     "strip-padding",
     "indicator-style",
     "motion",
+    "tab-divider",
+    "tab-marker",
+    "panel-texture",
+    // per palette: they read the palette the element sits in
+    "tab-selected-bg",
+    "tab-selected-fg",
+    "strip-bg",
+    "tabset-active-line",
 ];
 const NEUTRAL = ["surface", "raised"];
 
@@ -55,6 +64,23 @@ function parse(name: string): { palettes: Palettes; tokens: Set<string> } {
     return { palettes, tokens };
 }
 
+/** Every rule of a theme file: its selectors and the properties it declares. */
+function rules(name: string): { selectors: string[]; properties: string[] }[] {
+    const css = readFileSync(join(DIR, `${name}.css`), "utf-8").replace(
+        /\/\*[\s\S]*?\*\//g,
+        "",
+    );
+    return [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(([, head, body]) => ({
+        selectors: (head ?? "")
+            .split(",")
+            .map((s) => s.trim().replace(/\s+/g, " ")),
+        properties: (body ?? "")
+            .split(";")
+            .map((declaration) => declaration.split(":")[0]?.trim() ?? "")
+            .filter(Boolean),
+    }));
+}
+
 function color(roles: Map<string, string>, role: string): RGB {
     return oklchToSrgb(parseOklch(roles.get(role) ?? ""));
 }
@@ -62,7 +88,35 @@ function color(roles: Map<string, string>, role: string): RGB {
 const parsed = THEMES.map((theme) => ({ theme, ...parse(theme.name) }));
 const reference = parsed[0];
 
-describe.each(parsed)("theme $theme.name", ({ palettes, tokens }) => {
+describe.each(parsed)("theme $theme.name", ({ theme, palettes, tokens }) => {
+    it("only sets values: custom properties on the theme and on its palettes", () => {
+        const scope = `[data-example-theme="${theme.name}"]`;
+        const allowed = [
+            scope,
+            new RegExp(
+                String.raw`^:root \[data-example-theme="${theme.name}"\] ?(\.palette-[a-z-]+|\[class\*="palette-"\])$`,
+            ),
+        ];
+        for (const rule of rules(theme.name)) {
+            for (const selector of rule.selectors) {
+                expect(
+                    allowed.some((pattern) =>
+                        typeof pattern === "string"
+                            ? pattern === selector
+                            : pattern.test(selector),
+                    ),
+                    selector,
+                ).toBe(true);
+            }
+            for (const property of rule.properties) {
+                expect(
+                    property.startsWith("--") || property === "color-scheme",
+                    `${rule.selectors[0]}: ${property}`,
+                ).toBe(true);
+            }
+        }
+    });
+
     it("declares the same palettes as the others", () => {
         expect([...palettes.keys()].sort()).toEqual(
             [...(reference?.palettes.keys() ?? [])].sort(),

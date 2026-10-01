@@ -25,31 +25,30 @@ export function examplesResolve(
 
 /**
  * Applies `?theme=` before the first paint (§5.1): the scheme on `<html>` (`data-theme`, `.dark`)
- * for the Fragiola palettes and, with `stage`, the example theme on the element of that id (it
- * must be in index.html so the script can reach it). Missing or unknown → the first light theme.
- * The theme list comes from src/examples/_themes/themes.ts, so the two cannot drift.
+ * for the Fragiola palettes, and the example theme on `<body>` (`data-example-theme`), so
+ * everything in the document takes it: the example, the menus and dialogs portalled into
+ * `<body>`, and popout windows (`popoutMirrorRoot` copies `<body>`'s attributes into them).
+ * Missing or unknown → the first light theme. The theme list comes from
+ * src/examples/_themes/themes.ts, so the two cannot drift.
  */
-export function prePaintTheme({ stage }: { stage?: string } = {}): Plugin {
+export function prePaintTheme(): Plugin {
     const schemes = Object.fromEntries(
         THEMES.map((theme) => [theme.name, theme.scheme]),
     );
     const fallback = THEMES.find((theme) => theme.scheme === "light")?.name;
-    const onStage =
-        stage === undefined
-            ? ""
-            : `\n    document.getElementById(${JSON.stringify(stage)}).dataset.exampleTheme = theme;`;
     const script = `(() => {
     const schemes = ${JSON.stringify(schemes)};
     const asked = new URLSearchParams(location.search).get("theme");
     const theme = asked && Object.hasOwn(schemes, asked) ? asked : ${JSON.stringify(fallback)};
     const html = document.documentElement;
     html.dataset.theme = schemes[theme];
-    html.classList.toggle("dark", schemes[theme] === "dark");${onStage}
+    html.classList.toggle("dark", schemes[theme] === "dark");
+    document.body.dataset.exampleTheme = theme;
 })();`;
     return {
         name: "pre-paint-theme",
         transformIndexHtml: () => [
-            { tag: "script", children: script, injectTo: "body" },
+            { tag: "script", children: script, injectTo: "body-prepend" },
         ],
     };
 }

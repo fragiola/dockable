@@ -60,9 +60,10 @@ test("the theme is applied before the first paint, and follows the site's messag
         id: "hello-layout",
         theme: "paper",
     });
-    const stage = frame.getByTestId("stage");
+    // the example theme is on the frame's <body>, its scheme on <html>
+    const body = frame.locator("body");
     const html = frame.locator("html");
-    await expect(stage).toHaveAttribute("data-example-theme", "paper");
+    await expect(body).toHaveAttribute("data-example-theme", "paper");
     await expect(html).toHaveAttribute("data-theme", "light");
 
     // mark the frame's window: a reload would lose the mark
@@ -89,7 +90,7 @@ test("the theme is applied before the first paint, and follows the site's messag
         }, theme);
 
     await send("terminal");
-    await expect(stage).toHaveAttribute("data-example-theme", "terminal");
+    await expect(body).toHaveAttribute("data-example-theme", "terminal");
     await expect(html).toHaveAttribute("data-theme", "dark");
     await expect(html).toHaveClass(/\bdark\b/);
     await expect.poll(floor).not.toBe(before);
@@ -97,7 +98,7 @@ test("the theme is applied before the first paint, and follows the site's messag
     // an unknown theme is ignored
     await send("nope");
     await page.waitForTimeout(100);
-    await expect(stage).toHaveAttribute("data-example-theme", "terminal");
+    await expect(body).toHaveAttribute("data-example-theme", "terminal");
 
     const marked = await page.evaluate(
         () =>
@@ -119,7 +120,7 @@ test("a missing or unknown theme falls back to the first light theme", async ({
     ];
     for (const query of queries) {
         const frame = await openHosted(page, query);
-        await expect(frame.getByTestId("stage")).toHaveAttribute(
+        await expect(frame.locator("body")).toHaveAttribute(
             "data-example-theme",
             "light",
         );

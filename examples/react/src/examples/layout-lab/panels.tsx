@@ -156,12 +156,10 @@ export function VetoControl({
     veto,
     commands,
     onChange,
-    popupTheme,
 }: {
     veto: Veto;
     commands: readonly CommandInfo[];
     onChange: (veto: Veto) => void;
-    popupTheme: { "data-example-theme": string | undefined };
 }) {
     const items = commands.map((info) => ({
         value: info.name,
@@ -198,7 +196,7 @@ export function VetoControl({
                 >
                     <Select.Value />
                 </Select.Trigger>
-                <Select.Content {...popupTheme}>
+                <Select.Content>
                     {items.map((item) => (
                         <Select.Item
                             key={item.value}

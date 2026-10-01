@@ -33,15 +33,23 @@ also commented in the example's code, since users copy it.
 
 ## 2. Site and Fragiola UI (not package gaps)
 
-- **Popups outside the themed stage.** Fragiola menus, selects, tooltips and dialogs portal into
-  `document.body`, outside `[data-example-theme]`. `_kit/theme.ts` (`usePopupTheme`,
-  `useStageTheme`) puts the attribute on the popup. An app that themes `<html>`/`<body>` does not
-  need it. Fragiola UI: a `container` prop on the `*.Content` parts would also let a menu opened
-  in a popout window render there (today it opens in the main document).
-- **Theme flourishes and custom markup.** The ide/paper/terminal flourishes target the kit's
-  `data-kit-*` markers only, so an example's own markup (e.g. `unstyled`) is left alone.
-  Themes that restyle the selected tab should not assume the tab's palette is neutral
-  (`ops-monitor` colours the status on the icon, a line and the badge instead).
+- **Popups and popouts take the example theme from the document.** The embed and the playground
+  put `data-example-theme` on `<body>` (`examples/react/vite.shared.ts`, `src/embed/messages.ts`,
+  `apps/playground/src/view.ts`), so Fragiola menus, selects, tooltips and dialogs portalled into
+  `document.body`, and popout windows (`popoutMirrorRoot` copies `<body>`'s attributes), are themed
+  with no code in the examples. The playground's shell keeps its own palette (`palette-shell`).
+  Fragiola UI: a `container` prop on the `*.Content` parts would still let a menu opened in a
+  popout window render there (today it opens in the main document).
+- **Themes set values only.** A theme file declares the palettes and the `--dk-*` tokens; it styles
+  no markup (`tests/themes.test.ts`), so everything an example looks like is in its own code.
+  Looks that are not a value (terminal's bracketed labels, paper's floating pills, ide's marker on
+  top) were dropped; the selected tab, the strip, the line between tabs, the active marker, the
+  active tabset's border and the panel texture are tokens.
+- **A chart waits for its panel to be in the document.** A panel's content is portalled into the
+  tab's moveable element, which the engine attaches after the first commit, and a Fragiola chart
+  reads its colours from its own element when it mounts. `_kit/charts.tsx` (`useInDocument`)
+  renders the chart once the element is connected. The chart re-reads its colours when `<html>`'s
+  `data-theme` is written, which the hosts do on every theme switch, the scheme unchanged included.
 - **The examples manifest** follows imports with a line-anchored regex, so import lines inside
   strings are ignored. A TypeScript parser would be exact, but TypeScript 7 has no JS API.
 - **`fumadocs-typescript`** cannot run (same reason): the API prop tables are written by hand and
@@ -50,7 +58,7 @@ also commented in the example's code, since users copy it.
 ## 3. Fixed in the kit during the Epic
 
 - Charts drew blank: a panel's content is attached to the layout after the first commit, so
-  `useExampleTheme` now retries each frame until the themed ancestor exists.
+  `useInDocument` (`_kit/charts.tsx`) renders the chart once its element is in the document.
 - The splitter grip read the enclosing `Row`'s `data-orientation` (`in-data-*`); it now reads its
   own (`group-data-*/splitter`).
 

@@ -16,7 +16,6 @@ import {
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
-import { useStageTheme } from "../_kit/theme";
 import { type Kind, renderFactory, TEMPLATES, type Types } from "./factory";
 
 // Tabs whose `component` field selects their content (see factory.tsx). Content renders on
@@ -71,17 +70,15 @@ const KINDS: { kind: Kind; title: string }[] = [
 /** The "Add" menu of a tabset: a new tab of any kind, with its own data. */
 function AddMenu({ tabset }: { tabset: TabsetNode<Types> }) {
     const { run } = useDockable<Types>();
-    const [themeRef, theme] = useStageTheme();
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger
-                ref={themeRef}
                 aria-label="Add a tab"
                 className={styles.iconButton}
             >
                 <Plus aria-hidden className="size-3.5" />
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content data-example-theme={theme} align="end">
+            <DropdownMenu.Content align="end">
                 {KINDS.map(({ kind, title }) => (
                     <DropdownMenu.Item
                         key={kind}

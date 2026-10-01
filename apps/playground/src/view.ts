@@ -14,8 +14,8 @@ import {
 //   &code=1                the source panel
 //   &inspect=1             the Inspector (for an entry that registers a model)
 //
-// The pre-paint script (examples/react/vite.shared.ts) puts the theme's scheme on <html> before
-// the first paint; `applyScheme` owns it afterwards. The example theme itself goes on the stage.
+// The pre-paint script (examples/react/vite.shared.ts) puts the theme's scheme on <html> and the
+// example theme on <body> before the first paint; `applyTheme` owns both afterwards.
 
 export const KINDS = ["example", "scenario"] as const;
 export type Kind = (typeof KINDS)[number];
@@ -56,13 +56,18 @@ export function sameItem(a: ItemRef | null, b: ItemRef | null): boolean {
 }
 
 /**
- * The theme's scheme on <html> (`data-theme`, `.dark`): the Fragiola palettes of the shell and of
- * anything portalled out of the stage follow it, as in the embed.
+ * The theme on the document, as in the embed: its scheme on <html> (`data-theme`, `.dark`) for the
+ * Fragiola palettes, its name on <body> (`data-example-theme`) for the example, the popups it
+ * portals into <body> and its popout windows (which mirror <body>). The shell keeps its own
+ * palette (`palette-shell`, src/styles.css), which no example theme overrides.
  */
-export function applyScheme(theme: ThemeName) {
+export function applyTheme(theme: ThemeName) {
     const scheme =
         THEMES.find((entry) => entry.name === theme)?.scheme ?? "light";
     const html = document.documentElement;
+    // written on every switch, even when the scheme is unchanged (light → paper): a Fragiola chart
+    // re-reads its colours when this attribute is written, and the example theme changed them
     html.dataset.theme = scheme;
     html.classList.toggle("dark", scheme === "dark");
+    document.body.dataset.exampleTheme = theme;
 }

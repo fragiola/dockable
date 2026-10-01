@@ -43,7 +43,7 @@ export const THEMES = [
         name: "paper",
         title: "Paper",
         description:
-            "Warm and spacious: cards with gutters, pill tabs, wide splitters with a grip.",
+            "Warm and spacious: cards with gutters, rounded tabs, wide splitters with a grip.",
         scheme: "light",
         swatch: [
             "oklch(0.955 0.014 85)",
@@ -56,7 +56,7 @@ export const THEMES = [
         name: "terminal",
         title: "Terminal",
         description:
-            "Phosphor green on black: monospace, bracketed tabs, blocky splitters.",
+            "Phosphor green on black: monospace, inverted tabs, blocky splitters.",
         scheme: "dark",
         swatch: [
             "oklch(0.13 0.012 150)",

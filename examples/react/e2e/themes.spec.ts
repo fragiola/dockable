@@ -61,3 +61,44 @@ test("the themes paint different floors, whatever the page theme", async ({
     }
     expect(seen.size).toBe(5);
 });
+
+test("a menu portalled into <body> takes the example theme", async ({
+    page,
+}) => {
+    // ide and dark share the dark scheme: only the example theme (on <body>) tells them apart
+    const background = async (theme: "ide" | "dark") => {
+        await openExample(page, "component-factory", { theme });
+        await page.getByRole("button", { name: "Add a tab" }).first().click();
+        const menu = page.getByRole("menu");
+        await expect(menu).toBeVisible();
+        return menu.evaluate((el) => getComputedStyle(el).backgroundColor);
+    };
+    expect(await background("ide")).not.toBe(await background("dark"));
+});
+
+test("a chart follows a theme switch that keeps the scheme", async ({
+    page,
+}) => {
+    // light and paper share the light scheme: the chart must still re-read its colours. The
+    // first stroked path is a grid line, drawn in the palette's line colour.
+    await openExample(page, "maximize", { theme: "light" });
+    const stroke = () =>
+        page
+            .locator("[_echarts_instance_] path[stroke]")
+            .first()
+            .getAttribute("stroke");
+    // read once the panel is in the document: a colour, not the empty default
+    await expect.poll(stroke).toMatch(/^#[0-9a-f]{6}$/i);
+    const light = await stroke();
+    await page.evaluate(() =>
+        window.postMessage(
+            { type: "fragiola:example:theme", theme: "paper" },
+            location.origin,
+        ),
+    );
+    await expect(page.locator("body")).toHaveAttribute(
+        "data-example-theme",
+        "paper",
+    );
+    await expect.poll(stroke).not.toBe(light);
+});

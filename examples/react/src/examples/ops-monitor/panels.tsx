@@ -15,7 +15,7 @@ import { Chart } from "#/components/ui/chart";
 import { Progress } from "#/components/ui/progress";
 import { Table } from "#/components/ui/table";
 import { cn } from "#/lib/cn";
-import { useExampleTheme } from "../_kit/theme";
+import { useInDocument } from "../_kit/charts";
 import {
     type Level,
     type OpsEvent,
@@ -85,7 +85,7 @@ export function ServicePanel({
     const config = tab.data;
     const state = useSimulation(simulation).services[config.service];
     const ref = useRef<HTMLDivElement | null>(null);
-    const theme = useExampleTheme(ref);
+    const inDocument = useInDocument(ref);
 
     useEffect(() => {
         if (config.status !== state.level || config.alerts !== state.alerts) {
@@ -162,13 +162,14 @@ export function ServicePanel({
                     </span>
                 ))}
             </div>
-            {theme ? (
+            {inDocument ? (
                 <div
                     className={cn("min-h-0 flex-1", LEVEL_PALETTE[state.level])}
                 >
-                    {/* keyed on theme and level: the Fragiola chart reads its colours on mount */}
+                    {/* keyed on the level: the Fragiola chart reads its colours on mount and when
+                        the page theme is written, not when its palette class changes */}
                     <Chart
-                        key={`${theme}-${state.level}`}
+                        key={state.level}
                         option={option}
                         className="h-full"
                     />

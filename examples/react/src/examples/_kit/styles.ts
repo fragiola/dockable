@@ -22,6 +22,7 @@ export const root =
 export const tabset = [
     "palette-raised bg-palette-base text-palette-contrast",
     "rounded-(--dk-radius) border-(length:--dk-border) border-palette-line shadow-(--dk-shadow)",
+    "data-active:border-(--dk-tabset-active-line)",
 ].join(" ");
 
 /** The strip row: the tab list plus the tabset's own buttons. */
@@ -34,7 +35,7 @@ export const tabsetHeader =
  * walking-skeleton report), so the list always keeps a few pixels (`ps-1` minimum).
  */
 export const tabList =
-    "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]";
+    "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]";
 
 /**
  * `Dockable.Tab`. The selected tab takes the `soft` role; the dragged one fades.
@@ -46,7 +47,8 @@ export const tab = [
     "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
     "outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
     "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
-    "data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40",
+    "border-e-(length:--dk-tab-divider) border-palette-line",
+    "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
 ].join(" ");
 
 /** The tab's label: truncates, so a long name never breaks the strip. */
@@ -54,7 +56,7 @@ export const tabLabel = "truncate";
 
 /** The active-tabset marker inside the selected tab: shown only when its tabset is active. */
 export const tabMarker =
-    "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:block";
+    "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]";
 
 /** A small icon button inside a tab or a tabset header (close, pop out, maximize, …). */
 export const iconButton = [
@@ -70,7 +72,7 @@ export const tabsetActions = "flex items-center gap-0.5 pe-1";
 /** `Dockable.Panel`: repeats the tabset's inner radius on its bottom corners, since panels live in
  * a layer above the tabsets and their `overflow` cannot clip them (gap 2). */
 export const panel =
-    "palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base text-palette-contrast";
+    "palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast";
 
 /**
  * `Dockable.Splitter`: the visible part is `--dk-splitter-size` thick, the grab area (`::after`,

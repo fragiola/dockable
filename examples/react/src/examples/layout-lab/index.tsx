@@ -13,7 +13,6 @@ import { Card } from "../_kit/card";
 import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
-import { usePopupTheme } from "../_kit/theme";
 import { UndoManager } from "../_kit/undo";
 import {
     appendToLog,
@@ -77,8 +76,6 @@ export default function LayoutLab() {
         enabled: false,
         command: "tab.select",
     });
-    const toolbar = useRef<HTMLDivElement | null>(null);
-    const popupTheme = usePopupTheme(toolbar);
 
     // every command passes here first: log it, and apply it unless it is the vetoed one. The
     // middleware is installed once and reads the current choice from a ref.
@@ -136,7 +133,7 @@ export default function LayoutLab() {
                 }
             />
             <div className="flex min-w-0 flex-1 flex-col">
-                <div ref={toolbar} className={styles.toolbar}>
+                <div className={styles.toolbar}>
                     <div className="flex items-center">
                         <button
                             type="button"
@@ -173,7 +170,6 @@ export default function LayoutLab() {
                             veto={veto}
                             commands={model.commands()}
                             onChange={setVeto}
-                            popupTheme={popupTheme}
                         />
                     </div>
                 </div>

@@ -35,24 +35,29 @@ export function reportHeight(id: string, content: HTMLElement): () => void {
     return () => observer.disconnect();
 }
 
-/** Applies an example theme: its scheme on `<html>`, its name on the stage. */
-export function applyTheme(stage: HTMLElement, theme: ThemeName) {
+/**
+ * Applies an example theme: its scheme on `<html>`, its name on `<body>`, where the example, the
+ * popups portalled into `<body>` and popout windows (which mirror `<body>`) all find it.
+ */
+export function applyTheme(theme: ThemeName) {
     const scheme =
         THEMES.find((entry) => entry.name === theme)?.scheme ?? "light";
     const html = document.documentElement;
+    // written on every switch, even when the scheme is unchanged (light → paper): a Fragiola chart
+    // re-reads its colours when this attribute is written, and the example theme changed them
     html.dataset.theme = scheme;
     html.classList.toggle("dark", scheme === "dark");
-    stage.dataset.exampleTheme = theme;
+    document.body.dataset.exampleTheme = theme;
 }
 
 /** Follows the site's theme messages; an unknown theme is ignored. Returns a cleanup. */
-export function followTheme(stage: HTMLElement): () => void {
+export function followTheme(): () => void {
     const onMessage = (event: MessageEvent) => {
         if (event.origin !== location.origin || event.source !== window.parent)
             return;
         const data = event.data as { type?: unknown; theme?: unknown } | null;
         if (data?.type === THEME && isThemeName(data.theme)) {
-            applyTheme(stage, data.theme);
+            applyTheme(data.theme);
         }
     };
     window.addEventListener("message", onMessage);
