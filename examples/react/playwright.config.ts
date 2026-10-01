@@ -13,7 +13,8 @@ export default defineConfig({
     fullyParallel: true,
     forbidOnly: CI,
     retries: CI ? 2 : 0,
-    // native HTML5 drags are timing sensitive (see the playground config)
+    // native HTML5 drags are timing sensitive (see the playground config); in CI this suite has
+    // its own job, in parallel with the playground's shards
     workers: CI ? 2 : 4,
     reporter: CI ? [["line"], ["html", { open: "never" }]] : "line",
     use: {

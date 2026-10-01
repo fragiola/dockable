@@ -1,13 +1,24 @@
-# CI: the same three jobs in every Fragiola project repo.
+# CI: the Fragiola project jobs, with the Playwright suites split out of Checks.
 #
-#   Checks            Biome, TypeScript, the unit tests, the build and the Playwright suites.
+#   Checks            Biome, TypeScript, the unit tests and the build (with the .d.ts check).
+#   E2E               the Playwright suites, in parallel jobs: the playground in two shards and
+#                     the examples app. Native HTML5 drags flake under contention, so each
+#                     machine keeps the configs' CI workers (1 and 2): the parallelism comes from
+#                     the jobs and shards, not from workers. The playground's dev server serves
+#                     the packages from source, so its jobs build nothing; the examples suite
+#                     builds the embed against the packages' dist, so its job builds the packages.
 #   Site export       fragiola.com builds /dockable from `pnpm site:export` (contract v1.2,
 #                     fragiola/www CONTRACT.md), built and validated the way www's deploy runs
 #                     it: it fails on anything www would reject.
-#   Trigger www build after a push to main passes, asks fragiola/www to rebuild fragiola.com
-#                     (a repository_dispatch of type "project-updated"). It needs the
+#   Trigger www build on a push to main, asks fragiola/www to rebuild fragiola.com (a
+#                     repository_dispatch of type "project-updated"). It needs the
 #                     WWW_DISPATCH_TOKEN secret: a fine-grained token with Contents: read &
 #                     write on fragiola/www. Without the secret the step is skipped, not failed.
+#
+# Tests run only on pull requests (and on a manual run). A push to main runs nothing but the www
+# trigger: with one coordinator merging one PR at a time, main is what its PR tested. Revisit
+# this when PRs merge concurrently (or from out-of-date branches): then main can differ from
+# every tested head, and the checks should run again before the trigger (`needs`).
 
 name: CI
 
@@ -27,6 +38,7 @@ concurrency:
 jobs:
   checks:
     name: Checks
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,24 +61,64 @@ jobs:
 
       - run: pnpm build
 
+  e2e:
+    name: E2E (${{ matrix.name }})
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: playground 1/2
+            id: playground-1
+            package: playground
+            dir: apps/playground
+            args: --shard=1/2
+          - name: playground 2/2
+            id: playground-2
+            package: playground
+            dir: apps/playground
+            args: --shard=2/2
+          - name: examples
+            id: examples
+            package: examples-react
+            dir: examples/react
+            args: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The examples suite builds the embed against the packages' dist (its playwright.config.ts).
+      - name: Build the packages
+        if: matrix.package == 'examples-react'
+        run: pnpm --filter "./packages/*" build
+
       - name: Install Playwright Chromium
-        working-directory: apps/playground
+        working-directory: ${{ matrix.dir }}
         run: pnpm exec playwright install --with-deps chromium
 
-      - run: pnpm e2e
+      - name: Run Playwright
+        run: pnpm --filter ${{ matrix.package }} run e2e ${{ matrix.args }}
 
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: |
-            apps/playground/playwright-report/
-            examples/react/playwright-report/
+          name: playwright-report-${{ matrix.id }}
+          path: ${{ matrix.dir }}/playwright-report/
           retention-days: 14
 
   site-export:
     name: Site export
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +137,6 @@ jobs:
   trigger-www-build:
     name: Trigger www build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [checks, site-export]
     runs-on: ubuntu-latest
     env:
       WWW_DISPATCH_TOKEN: ${{ secrets.WWW_DISPATCH_TOKEN }}
