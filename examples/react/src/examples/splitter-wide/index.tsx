@@ -5,6 +5,7 @@ import {
     getSplitterPath,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import {
@@ -14,10 +15,22 @@ import {
     useSplitter,
 } from "@fragiola/dockable-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { KpiPanel } from "../_kit/charts";
 import * as styles from "./styles";
 
-type Types = { tabs: { card: { name: string } } };
+// A writing app's panes: the library's word count, the draft, its outline and the comments.
+type Types = {
+    tabs: {
+        stats: { name: string; label: string; seed: number };
+        draft: { name: string; paragraphs: string[] };
+        outline: { name: string; headings: string[] };
+        comments: {
+            name: string;
+            comments: { author: string; text: string }[];
+        };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -27,7 +40,16 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 weight: 35,
-                children: [{ component: "card", data: { name: "Library" } }],
+                children: [
+                    {
+                        component: "stats",
+                        data: {
+                            name: "Library",
+                            label: "Words written",
+                            seed: 13,
+                        },
+                    },
+                ],
             },
             {
                 type: "row",
@@ -37,15 +59,54 @@ const json: LayoutJson<Types> = {
                         type: "tabset",
                         weight: 60,
                         children: [
-                            { component: "card", data: { name: "Draft" } },
-                            { component: "card", data: { name: "Outline" } },
+                            {
+                                component: "draft",
+                                data: {
+                                    name: "Draft",
+                                    paragraphs: [
+                                        "The harbour was quiet the morning the ferry did not come. Nobody said so at first; the gulls said it for them.",
+                                        "By noon the café had run out of bread, and the conversation had moved from the weather to the mainland, and from the mainland to whoever had last seen the captain.",
+                                    ],
+                                },
+                            },
+                            {
+                                component: "outline",
+                                data: {
+                                    name: "Outline",
+                                    headings: [
+                                        "The missing ferry",
+                                        "The café at noon",
+                                        "The captain's house",
+                                        "Night crossing",
+                                    ],
+                                },
+                            },
                         ],
                     },
                     {
                         type: "tabset",
                         weight: 40,
                         children: [
-                            { component: "card", data: { name: "Comments" } },
+                            {
+                                component: "comments",
+                                data: {
+                                    name: "Comments",
+                                    comments: [
+                                        {
+                                            author: "Ada",
+                                            text: "Lovely opening line.",
+                                        },
+                                        {
+                                            author: "Grace",
+                                            text: "Name the café?",
+                                        },
+                                        {
+                                            author: "Alan",
+                                            text: "The second paragraph could be split in two.",
+                                        },
+                                    ],
+                                },
+                            },
                         ],
                     },
                 ],
@@ -68,7 +129,7 @@ export default function SplitterWide() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -81,6 +142,49 @@ export default function SplitterWide() {
             </Dockable.Root>
         </div>
     );
+}
+
+/** A tab's content, by component: the data carries what it shows. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "stats":
+            return <KpiPanel label={tab.data.label} seed={tab.data.seed} />;
+        case "draft":
+            return (
+                <PanelBody title={tab.data.name}>
+                    {tab.data.paragraphs.map((paragraph) => (
+                        <p key={paragraph} className={styles.paragraph}>
+                            {paragraph}
+                        </p>
+                    ))}
+                </PanelBody>
+            );
+        case "outline":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <ol className={styles.outline}>
+                        {tab.data.headings.map((heading) => (
+                            <li key={heading}>{heading}</li>
+                        ))}
+                    </ol>
+                </PanelBody>
+            );
+        case "comments":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <ul className={styles.comments}>
+                        {tab.data.comments.map((comment) => (
+                            <li key={comment.text}>
+                                <span className={styles.commentAuthor}>
+                                    {comment.author}
+                                </span>{" "}
+                                {comment.text}
+                            </li>
+                        ))}
+                    </ul>
+                </PanelBody>
+            );
+    }
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */

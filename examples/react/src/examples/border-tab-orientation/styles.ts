@@ -35,6 +35,16 @@ export const root =
 export const panel =
     "palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast";
 
+/** The demo content: the side panels' lists and text, and the document's chart (a fixed height
+ * inside the scrolling document). */
+export const list = "flex flex-col gap-1.5 text-sm text-palette-accent/85";
+
+export const query = "text-sm font-medium";
+
+export const text = "max-w-prose text-sm leading-6 text-palette-accent/85";
+
+export const documentChart = "h-64 px-0";
+
 /** Panels are portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(

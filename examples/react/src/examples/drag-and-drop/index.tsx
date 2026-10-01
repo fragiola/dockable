@@ -10,7 +10,8 @@ import {
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
+import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // Drag tabs between tabsets and to the layout's edges. The drop indicator is styled from its state:
@@ -19,8 +20,15 @@ import * as styles from "./styles";
 // `tabDragSpeed`. During a drag the edge indicators (Dockable.EdgeIndicator) mark the four bands
 // where a drop docks to an edge.
 
-// What the layout holds: one component, named in its data.
-type Types = { tabs: { card: { name: string } } };
+// What the layout holds: one component per kind of content, each named in its data.
+type Types = {
+    tabs: {
+        chart: { name: string; kind: ChartKind; seed: number };
+        kpi: { name: string; seed: number };
+        table: { name: string };
+        log: { name: string };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -31,9 +39,15 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { component: "card", data: { name: "Drag me" } },
-                    { component: "card", data: { name: "Or me" } },
-                    { component: "card", data: { name: "Me too" } },
+                    {
+                        component: "chart",
+                        data: { name: "Drag me", kind: "area", seed: 4 },
+                    },
+                    { component: "kpi", data: { name: "Or me", seed: 15 } },
+                    {
+                        component: "chart",
+                        data: { name: "Me too", kind: "donut", seed: 9 },
+                    },
                 ],
             },
             {
@@ -43,13 +57,13 @@ const json: LayoutJson<Types> = {
                     {
                         type: "tabset",
                         children: [
-                            { component: "card", data: { name: "Inbox" } },
+                            { component: "table", data: { name: "Inbox" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { component: "card", data: { name: "Outbox" } },
+                            { component: "log", data: { name: "Outbox" } },
                         ],
                     },
                 ],
@@ -92,7 +106,22 @@ export default function DragAndDrop() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            {tab.component === "chart" ? (
+                                <ChartPanel
+                                    kind={tab.data.kind}
+                                    seed={tab.data.seed}
+                                    title={tab.data.name}
+                                />
+                            ) : tab.component === "kpi" ? (
+                                <KpiPanel
+                                    label={tab.data.name}
+                                    seed={tab.data.seed}
+                                />
+                            ) : tab.component === "table" ? (
+                                <TablePanel />
+                            ) : (
+                                <LogPanel />
+                            )}
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>

@@ -14,11 +14,21 @@ import {
 } from "@fragiola/dockable-react";
 import { Inbox, Lock, X } from "lucide-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
+import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // What the layout holds: each tab component and the type of its data.
-type Types = { tabs: { card: { name: string } } };
+type Types = {
+    tabs: {
+        chart: { name: string; kind: ChartKind; seed: number };
+        kpi: { name: string; seed: number };
+        doc: { name: string; text: string };
+        table: { name: string };
+        log: { name: string };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -31,12 +41,21 @@ const json: LayoutJson<Types> = {
                 children: [
                     // this one has no close button, and ignores middle-click and Ctrl+Delete
                     {
-                        component: "card",
-                        data: { name: "Home" },
+                        component: "chart",
+                        data: { name: "Home", kind: "area", seed: 3 },
                         enableClose: false,
                     },
-                    { component: "card", data: { name: "Report" } },
-                    { component: "card", data: { name: "Draft" } },
+                    {
+                        component: "chart",
+                        data: { name: "Report", kind: "bar", seed: 17 },
+                    },
+                    {
+                        component: "doc",
+                        data: {
+                            name: "Draft",
+                            text: "Q3 planning: ship the billing page, then the team settings. Close this tab when the plan is agreed.",
+                        },
+                    },
                 ],
             },
             {
@@ -48,14 +67,17 @@ const json: LayoutJson<Types> = {
                         // an empty tabset stays, and shows a hint, instead of disappearing
                         deleteWhenEmpty: false,
                         children: [
-                            { component: "card", data: { name: "Inbox" } },
+                            { component: "table", data: { name: "Inbox" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { component: "card", data: { name: "Logs" } },
-                            { component: "card", data: { name: "Metrics" } },
+                            { component: "log", data: { name: "Logs" } },
+                            {
+                                component: "kpi",
+                                data: { name: "Metrics", seed: 21 },
+                            },
                         ],
                     },
                 ],
@@ -77,7 +99,7 @@ export default function CloseTabs() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -106,6 +128,32 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
         );
     }
     return <TabSet node={node} />;
+}
+
+/** A tab's content: `tab.data` and the component narrow together. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.data.name}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.data.name} seed={tab.data.seed} />;
+        case "doc":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <p className={styles.panelText}>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "table":
+            return <TablePanel />;
+        case "log":
+            return <LogPanel />;
+    }
 }
 
 function TabSet({ node }: { node: TabsetNode<Types> }) {

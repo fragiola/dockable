@@ -17,7 +17,9 @@ import {
     Trash2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { ChartPanel, KpiPanel } from "../_kit/charts";
+import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // Drop zones: elements outside the layout that take a dragged tab. While a drag the zone takes is
@@ -25,7 +27,14 @@ import * as styles from "./styles";
 // layout hides its outline). A drop calls `onDrop` with what is dragged: nothing moves by itself,
 // the zone runs the command it stands for on the model (so its middleware sees it).
 
-type Types = { tabs: { card: { name: string } } };
+type Types = {
+    tabs: {
+        table: { name: string };
+        note: { name: string; text: string };
+        chart: { name: string; seed: number };
+        kpi: { name: string; seed: number };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -37,12 +46,21 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { component: "card", data: { name: "Inbox" } },
-                    { component: "card", data: { name: "Drafts" } },
+                    { component: "table", data: { name: "Inbox" } },
+                    {
+                        component: "note",
+                        data: {
+                            name: "Drafts",
+                            text: "Reply to Grace about the pending order, and send Alan his invoice.",
+                        },
+                    },
                     // cannot be closed: the trash does not take it
                     {
-                        component: "card",
-                        data: { name: "Pinned note" },
+                        component: "note",
+                        data: {
+                            name: "Pinned note",
+                            text: "This tab cannot be closed: the trash does not take it.",
+                        },
                         enableClose: false,
                     },
                 ],
@@ -51,8 +69,11 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { component: "card", data: { name: "Calendar" } },
-                    { component: "card", data: { name: "Contacts" } },
+                    {
+                        component: "chart",
+                        data: { name: "Calendar", seed: 11 },
+                    },
+                    { component: "kpi", data: { name: "Contacts", seed: 6 } },
                 ],
             },
         ],
@@ -91,7 +112,7 @@ export default function DropZones() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                <Card name={tab.data.name} />
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -215,6 +236,30 @@ function Zone({
             {label}
         </Dockable.DropZone>
     );
+}
+
+/** A tab's content: `tab.data` and the component narrow together. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "table":
+            return <TablePanel />;
+        case "note":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <p className={styles.panelText}>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind="bar"
+                    seed={tab.data.seed}
+                    title={tab.data.name}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.data.name} seed={tab.data.seed} />;
+    }
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */

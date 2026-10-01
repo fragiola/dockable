@@ -7,6 +7,7 @@ import {
     type RowNode,
     type TabOf,
     type TabsetNode,
+    type TabUpdatePayload,
 } from "@fragiola/dockable";
 import {
     Dockable,
@@ -15,7 +16,9 @@ import {
 } from "@fragiola/dockable-react";
 import { useRef, useState } from "react";
 import { ContextMenu } from "#/components/ui/context-menu";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
+import { LogPanel, TablePanel } from "../_kit/data";
 import { RenameField } from "../_kit/rename-field";
 import * as styles from "./styles";
 
@@ -23,7 +26,16 @@ import * as styles from "./styles";
 // says whether a command would apply; the menu (and its text) is the consumer's. The tab IS the
 // menu's trigger: `render` puts the Dockable.Tab's props onto ContextMenu.Trigger's element.
 
-type Types = { tabs: { card: { name: string } } };
+// What the layout holds: one component per kind of content, each named in its data.
+type Types = {
+    tabs: {
+        note: { name: string; text: string };
+        chart: { name: string; kind: ChartKind; seed: number };
+        kpi: { name: string; seed: number };
+        log: { name: string };
+        table: { name: string };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -36,28 +48,76 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { component: "card", data: { name: "Overview" } },
                     {
-                        component: "card",
-                        data: { name: "Settings" },
+                        component: "note",
+                        data: {
+                            name: "Overview",
+                            text: "Right-click a tab (or long-press it) for its menu.",
+                        },
+                    },
+                    {
+                        component: "note",
+                        data: {
+                            name: "Settings",
+                            text: "This tab cannot be closed: Close is disabled in its menu.",
+                        },
                         // not closable: `tab.close` refuses it, so Close is disabled in its menu
                         enableClose: false,
                     },
-                    { component: "card", data: { name: "Activity" } },
-                    { component: "card", data: { name: "Reports" } },
+                    { component: "log", data: { name: "Activity" } },
+                    {
+                        component: "chart",
+                        data: { name: "Reports", kind: "bar", seed: 21 },
+                    },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
                 children: [
-                    { component: "card", data: { name: "Inbox" } },
-                    { component: "card", data: { name: "Drafts" } },
+                    { component: "table", data: { name: "Inbox" } },
+                    { component: "kpi", data: { name: "Drafts", seed: 6 } },
                 ],
             },
         ],
     },
 };
+
+/** The `tab.update` that renames a tab: the new data is the whole value, so it keeps the rest. */
+function renamed(tab: TabOf<Types>, name: string): TabUpdatePayload<Types> {
+    switch (tab.component) {
+        case "note":
+            return {
+                tabId: tab.id,
+                component: "note",
+                data: { ...tab.data, name },
+            };
+        case "chart":
+            return {
+                tabId: tab.id,
+                component: "chart",
+                data: { ...tab.data, name },
+            };
+        case "kpi":
+            return {
+                tabId: tab.id,
+                component: "kpi",
+                data: { ...tab.data, name },
+            };
+        case "log":
+            return {
+                tabId: tab.id,
+                component: "log",
+                data: { ...tab.data, name },
+            };
+        case "table":
+            return {
+                tabId: tab.id,
+                component: "table",
+                data: { ...tab.data, name },
+            };
+    }
+}
 
 // the popout host page, served next to the app under its base
 const popoutURL = `${import.meta.env.BASE_URL}popout.html`;
@@ -98,12 +158,28 @@ export default function TabContextMenu() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name}>
-                                <p className={styles.hint}>
-                                    Right-click a tab (or long-press it) for its
-                                    menu.
-                                </p>
-                            </Card>
+                            {tab.component === "note" ? (
+                                <PanelBody title={tab.data.name}>
+                                    <p className={styles.hint}>
+                                        {tab.data.text}
+                                    </p>
+                                </PanelBody>
+                            ) : tab.component === "chart" ? (
+                                <ChartPanel
+                                    kind={tab.data.kind}
+                                    seed={tab.data.seed}
+                                    title={tab.data.name}
+                                />
+                            ) : tab.component === "kpi" ? (
+                                <KpiPanel
+                                    label={tab.data.name}
+                                    seed={tab.data.seed}
+                                />
+                            ) : tab.component === "log" ? (
+                                <LogPanel />
+                            ) : (
+                                <TablePanel />
+                            )}
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -202,11 +278,7 @@ function MenuTab({
         tabset !== undefined &&
         model.get("maximized-tabset", { layoutId })?.id === tabset.id;
     const rename = (name: string) =>
-        model.run("tab.update", {
-            tabId: tab.id,
-            component: tab.component,
-            data: { ...tab.data, name },
-        });
+        model.run("tab.update", renamed(tab, name));
     // several closes are one command (one change event, one undo step): all apply or none
     const closeAll = (tabs: readonly TabOf<Types>[]) =>
         model.run("batch", {
@@ -272,11 +344,7 @@ function MenuTab({
                 <ContextMenu.Item
                     // renaming is `tab.update` (the name is the tab's data): a middleware may veto it
                     disabled={
-                        !model.can("tab.update", {
-                            tabId: tab.id,
-                            component: tab.component,
-                            data: tab.data,
-                        })
+                        !model.can("tab.update", renamed(tab, tab.data.name))
                     }
                     onClick={() => {
                         renameOnClose.current = true;

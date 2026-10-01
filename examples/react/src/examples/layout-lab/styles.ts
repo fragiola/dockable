@@ -52,6 +52,9 @@ export const root =
 export const panel =
     "palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast";
 
+/** A card's text, in a panel. */
+export const cardText = "max-w-prose text-sm leading-6 text-palette-accent/85";
+
 /** Panels are portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(

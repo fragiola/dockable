@@ -15,7 +15,8 @@ import {
 } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Card, PanelBody } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { CHART_KINDS, type ChartKind, ChartPanel } from "../_kit/charts";
 import { UndoManager } from "../_kit/undo";
 import * as styles from "./styles";
 
@@ -24,8 +25,14 @@ import * as styles from "./styles";
 // step; undo and redo load it back into the same model (`layout.load`), so mounted content is
 // kept. A splitter drag, many transient `row.resize` commands, is a single step.
 
-// What the layout holds: demo cards and the live JSON, each named in its data.
-type Types = { tabs: { card: { name: string }; json: { name: string } } };
+// What the layout holds: the live JSON, short documents and charts, each named in its data.
+type Types = {
+    tabs: {
+        json: { name: string };
+        doc: { name: string; text: string };
+        chart: { name: string; kind: ChartKind; seed: number };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -37,15 +44,30 @@ const json: LayoutJson<Types> = {
                 weight: 50,
                 children: [
                     { component: "json", data: { name: "Layout JSON" } },
-                    { component: "card", data: { name: "Welcome" } },
+                    {
+                        component: "doc",
+                        data: {
+                            name: "Welcome",
+                            text: "Move a tab, drag a splitter, add or close tabs: each edit is a step in the history above.",
+                        },
+                    },
                 ],
             },
             {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { component: "card", data: { name: "Notes" } },
-                    { component: "card", data: { name: "Tasks" } },
+                    {
+                        component: "doc",
+                        data: {
+                            name: "Notes",
+                            text: "Selecting a tab or a tabset is navigation, not an edit: it adds no step.",
+                        },
+                    },
+                    {
+                        component: "chart",
+                        data: { name: "Tasks", kind: "bar", seed: 4 },
+                    },
                 ],
             },
         ],
@@ -166,8 +188,16 @@ export default function UndoRedo() {
                             <Dockable.Panel node={tab} className={styles.panel}>
                                 {tab.component === "json" ? (
                                     <LayoutJsonPanel />
+                                ) : tab.component === "doc" ? (
+                                    <PanelBody title={tab.data.name}>
+                                        <p>{tab.data.text}</p>
+                                    </PanelBody>
                                 ) : (
-                                    <Card name={tab.data.name} />
+                                    <ChartPanel
+                                        kind={tab.data.kind}
+                                        seed={tab.data.seed}
+                                        title={tab.data.name}
+                                    />
                                 )}
                             </Dockable.Panel>
                         )}
@@ -271,9 +301,16 @@ function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
                 className={styles.iconButton}
                 onClick={() => {
                     added += 1;
+                    // a new chart, of the next kind in turn
                     model.run("tab.add", {
-                        component: "card",
-                        data: { name: `Tab ${added}` },
+                        component: "chart",
+                        data: {
+                            name: `Tab ${added}`,
+                            kind:
+                                CHART_KINDS[added % CHART_KINDS.length] ??
+                                "line",
+                            seed: added * 3,
+                        },
                         to: tabset.id,
                     });
                 }}

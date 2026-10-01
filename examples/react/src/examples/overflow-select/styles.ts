@@ -16,6 +16,18 @@ export const root =
 export const panel =
     "palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast";
 
+/** A file's text, as an editor shows it: monospace, kept as written. */
+export const source =
+    "m-0 p-4 font-mono text-xs leading-5 whitespace-pre text-palette-contrast";
+
+/** The Problems list: one line per problem, its file and position in the accent colour. */
+export const problems =
+    "m-0 flex list-none flex-col gap-1 p-4 font-mono text-xs";
+
+export const problem = "flex gap-3";
+
+export const problemWhere = "shrink-0 text-palette-accent/85";
+
 /** Panels are portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(

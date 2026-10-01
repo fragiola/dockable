@@ -8,10 +8,18 @@ import {
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { LogPanel } from "../_kit/data";
 import * as styles from "./styles";
 
-type Types = { tabs: { card: { name: string } } };
+// An editor's panes: a file tree, two source files and a terminal.
+type Types = {
+    tabs: {
+        files: { name: string; files: string[] };
+        source: { name: string; code: string };
+        terminal: { name: string };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -21,7 +29,21 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 weight: 25,
-                children: [{ component: "card", data: { name: "Explorer" } }],
+                children: [
+                    {
+                        component: "files",
+                        data: {
+                            name: "Explorer",
+                            files: [
+                                "src/main.ts",
+                                "src/utils.ts",
+                                "src/styles.css",
+                                "package.json",
+                                "tsconfig.json",
+                            ],
+                        },
+                    },
+                ],
             },
             {
                 type: "row",
@@ -31,15 +53,40 @@ const json: LayoutJson<Types> = {
                         type: "tabset",
                         weight: 70,
                         children: [
-                            { component: "card", data: { name: "main.ts" } },
-                            { component: "card", data: { name: "utils.ts" } },
+                            {
+                                component: "source",
+                                data: {
+                                    name: "main.ts",
+                                    code: [
+                                        'import { formatTotal } from "./utils";',
+                                        "",
+                                        "const orders = await fetchOrders();",
+                                        "console.log(formatTotal(orders));",
+                                    ].join("\n"),
+                                },
+                            },
+                            {
+                                component: "source",
+                                data: {
+                                    name: "utils.ts",
+                                    code: [
+                                        "export function formatTotal(orders: Order[]) {",
+                                        "    const total = orders.reduce((sum, o) => sum + o.amount, 0);",
+                                        '    return "$" + total.toFixed(2);',
+                                        "}",
+                                    ].join("\n"),
+                                },
+                            },
                         ],
                     },
                     {
                         type: "tabset",
                         weight: 30,
                         children: [
-                            { component: "card", data: { name: "Terminal" } },
+                            {
+                                component: "terminal",
+                                data: { name: "Terminal" },
+                            },
                         ],
                     },
                 ],
@@ -62,7 +109,21 @@ export default function SplitterHairline() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            {tab.component === "files" ? (
+                                <PanelBody title={tab.data.name}>
+                                    <ul className={styles.fileList}>
+                                        {tab.data.files.map((file) => (
+                                            <li key={file}>{file}</li>
+                                        ))}
+                                    </ul>
+                                </PanelBody>
+                            ) : tab.component === "source" ? (
+                                <pre className={styles.code}>
+                                    {tab.data.code}
+                                </pre>
+                            ) : (
+                                <LogPanel />
+                            )}
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>

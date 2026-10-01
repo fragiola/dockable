@@ -17,11 +17,17 @@ import {
 } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { Tooltip } from "#/components/ui/tooltip";
-import { Card, PanelBody } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 type Types = {
-    tabs: { keys: { name: string }; card: { name: string } };
+    tabs: {
+        keys: { name: string };
+        doc: { name: string; text: string };
+        table: { name: string };
+        log: { name: string };
+    };
     // a tabset's name is its tab list's accessible name (the TabSet below reads `data.name`)
     tabset: { name: string };
 };
@@ -38,10 +44,19 @@ const json: LayoutJson<Types> = {
                 weight: 55,
                 children: [
                     { component: "keys", data: { name: "Keys" } },
-                    { component: "card", data: { name: "Readme" } },
                     {
-                        component: "card",
-                        data: { name: "License" },
+                        component: "doc",
+                        data: {
+                            name: "Readme",
+                            text: "Every part of the layout is reachable without a mouse: the tab strips, the splitters and each tab's content. The Keys tab lists them all.",
+                        },
+                    },
+                    {
+                        component: "doc",
+                        data: {
+                            name: "License",
+                            text: "MIT. Permission is hereby granted, free of charge, to any person obtaining a copy of this software, to deal in the software without restriction.",
+                        },
                         enableClose: false,
                     },
                 ],
@@ -51,8 +66,8 @@ const json: LayoutJson<Types> = {
                 data: { name: "Tools" },
                 weight: 45,
                 children: [
-                    { component: "card", data: { name: "Search" } },
-                    { component: "card", data: { name: "History" } },
+                    { component: "table", data: { name: "Search" } },
+                    { component: "log", data: { name: "History" } },
                 ],
             },
         ],
@@ -94,8 +109,14 @@ export default function Keyboard() {
                             <Dockable.Panel node={tab} className={styles.panel}>
                                 {tab.component === "keys" ? (
                                     <KeysPanel />
+                                ) : tab.component === "doc" ? (
+                                    <PanelBody title={tab.data.name}>
+                                        <p>{tab.data.text}</p>
+                                    </PanelBody>
+                                ) : tab.component === "table" ? (
+                                    <TablePanel />
                                 ) : (
-                                    <Card name={tab.data.name} />
+                                    <LogPanel />
                                 )}
                             </Dockable.Panel>
                         )}

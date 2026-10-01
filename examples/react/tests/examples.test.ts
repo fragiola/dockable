@@ -231,7 +231,30 @@ describe("the examples", () => {
     });
 });
 
+/**
+ * The examples that show the counter card (`_kit/card`'s `Card`): content that survives a move is
+ * their point. Every other example shows varied content (charts, KPIs, tables).
+ */
+const COUNTER_EXAMPLES = [
+    "hello-layout",
+    "popout",
+    "popout-drag",
+    "two-layouts",
+    "unstyled",
+];
+
 describe("the kit", () => {
+    it("lends the counter card only to the examples about surviving content", () => {
+        const users = listExampleSlugs().filter((slug) =>
+            walk(join(EXAMPLES_DIR, slug)).some((file) =>
+                /import\s*\{[^}]*\bCard\b[^}]*\}\s*from\s*"\.\.\/_kit\/card"/.test(
+                    readFileSync(file, "utf-8"),
+                ),
+            ),
+        );
+        expect(users).toEqual(COUNTER_EXAMPLES);
+    });
+
     it("holds only shared demo content and app logic", () => {
         expect(readdirSync(join(EXAMPLES_DIR, "_kit")).sort()).toEqual(
             [...KIT_FILES].sort(),

@@ -12,7 +12,8 @@ import {
     useTabSet,
 } from "@fragiola/dockable-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
+import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // No drop outline at all (the root has no `Dockable.DropIndicator`): the targets show themselves.
@@ -20,8 +21,14 @@ import * as styles from "./styles";
 // `data-drop-location` (center, top, bottom, left, right); a drop into its tab strip also gives the
 // insertion index. The styles read only those.
 
-// What the layout holds: one component, named in its data.
-type Types = { tabs: { card: { name: string } } };
+// What the layout holds: one component per kind of content, each named in its data.
+type Types = {
+    tabs: {
+        chart: { name: string; kind: ChartKind; seed: number };
+        kpi: { name: string; seed: number; unit?: string };
+        table: { name: string };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -32,9 +39,15 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 40,
                 children: [
-                    { component: "card", data: { name: "Alpha" } },
-                    { component: "card", data: { name: "Beta" } },
-                    { component: "card", data: { name: "Gamma" } },
+                    {
+                        component: "chart",
+                        data: { name: "Alpha", kind: "line", seed: 3 },
+                    },
+                    { component: "kpi", data: { name: "Beta", seed: 11 } },
+                    {
+                        component: "chart",
+                        data: { name: "Gamma", kind: "pie", seed: 17 },
+                    },
                 ],
             },
             {
@@ -44,14 +57,20 @@ const json: LayoutJson<Types> = {
                     {
                         type: "tabset",
                         children: [
-                            { component: "card", data: { name: "Delta" } },
-                            { component: "card", data: { name: "Epsilon" } },
+                            {
+                                component: "chart",
+                                data: { name: "Delta", kind: "bar", seed: 8 },
+                            },
+                            { component: "table", data: { name: "Epsilon" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { component: "card", data: { name: "Zeta" } },
+                            {
+                                component: "kpi",
+                                data: { name: "Zeta", seed: 25, unit: "$" },
+                            },
                         ],
                     },
                 ],
@@ -74,7 +93,21 @@ export default function DropTargetHighlight() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            {tab.component === "chart" ? (
+                                <ChartPanel
+                                    kind={tab.data.kind}
+                                    seed={tab.data.seed}
+                                    title={tab.data.name}
+                                />
+                            ) : tab.component === "kpi" ? (
+                                <KpiPanel
+                                    label={tab.data.name}
+                                    seed={tab.data.seed}
+                                    unit={tab.data.unit}
+                                />
+                            ) : (
+                                <TablePanel />
+                            )}
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>

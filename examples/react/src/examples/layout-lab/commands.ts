@@ -1,9 +1,19 @@
 import type { CommandName, LayoutJson } from "@fragiola/dockable";
+import type { ChartKind } from "../_kit/charts";
 
 // The lab's registry and starting layout, and the log of the commands its middleware sees.
 
-/** What the layout holds: one tab component, named in its data. */
-export type Types = { tabs: { card: { name: string } } };
+/**
+ * What the layout holds: a card of text, a chart of a kind and a log, each named in its data.
+ * Edit a tab's `component` or `data` in the JSON and Apply: the panel follows.
+ */
+export type Types = {
+    tabs: {
+        card: { name: string; text?: string };
+        chart: { name: string; kind: ChartKind };
+        log: { name: string };
+    };
+};
 
 export const initialLayout: LayoutJson<Types> = {
     version: 1,
@@ -20,9 +30,19 @@ export const initialLayout: LayoutJson<Types> = {
                     {
                         id: "welcome",
                         component: "card",
-                        data: { name: "Welcome" },
+                        data: {
+                            name: "Welcome",
+                            text: "This layout is the JSON on the left: edit a tab's name, component or data and Apply.",
+                        },
                     },
-                    { id: "notes", component: "card", data: { name: "Notes" } },
+                    {
+                        id: "notes",
+                        component: "card",
+                        data: {
+                            name: "Notes",
+                            text: "Undo and redo load the previous layout back into the same model.",
+                        },
+                    },
                 ],
             },
             {
@@ -36,8 +56,8 @@ export const initialLayout: LayoutJson<Types> = {
                         children: [
                             {
                                 id: "inspector",
-                                component: "card",
-                                data: { name: "Inspector" },
+                                component: "chart",
+                                data: { name: "Inspector", kind: "bar" },
                             },
                         ],
                     },
@@ -47,7 +67,7 @@ export const initialLayout: LayoutJson<Types> = {
                         children: [
                             {
                                 id: "console",
-                                component: "card",
+                                component: "log",
                                 data: { name: "Console" },
                             },
                         ],

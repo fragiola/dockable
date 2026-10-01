@@ -11,7 +11,7 @@ import {
 import { Dockable, type SplitterProps } from "@fragiola/dockable-react";
 import { FileCode2, ListTree, Search, SquareTerminal } from "lucide-react";
 import { useState } from "react";
-import { Card, PanelBody } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
 import { LogPanel } from "../_kit/data";
 import * as styles from "./styles";
 
@@ -29,9 +29,31 @@ type Types = {
         search: Named;
         terminal: Named;
         outline: Named;
-        card: Named;
+        editor: Named & { source: string };
     };
 };
+
+// What the two editor tabs show.
+const APP_SOURCE = `import { createStore } from "./store";
+
+export function createApp(root: HTMLElement) {
+    const store = createStore({ theme: "light" });
+    render(root, store.state);
+    return { store, mount: () => render(root, store.state) };
+}`;
+
+const STORE_SOURCE = `export function createStore<S>(initial: S) {
+    let state = initial;
+    const listeners = new Set<(state: S) => void>();
+    return {
+        get state() { return state; },
+        set(next: S) {
+            state = next;
+            for (const listener of listeners) listener(state);
+        },
+        subscribe: (listener: (state: S) => void) => listeners.add(listener),
+    };
+}`;
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -65,8 +87,14 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 children: [
-                    { component: "card", data: { name: "app.ts" } },
-                    { component: "card", data: { name: "store.ts" } },
+                    {
+                        component: "editor",
+                        data: { name: "app.ts", source: APP_SOURCE },
+                    },
+                    {
+                        component: "editor",
+                        data: { name: "store.ts", source: STORE_SOURCE },
+                    },
                 ],
             },
         ],
@@ -236,8 +264,8 @@ function Content({ tab }: { tab: TabOf<Types> }) {
                     <p className={styles.outline}>createApp · render · mount</p>
                 </PanelBody>
             );
-        case "card":
-            return <Card name={tab.data.name} />;
+        case "editor":
+            return <pre className={styles.source}>{tab.data.source}</pre>;
     }
 }
 

@@ -38,12 +38,14 @@ test("a widget dropped at the layout edge docks a new tabset", async ({
     const stage = await openExample(page, "widget-sidebar");
     const layout = await path(page, "/layout").boundingBox();
     if (!layout) throw new Error("no layout");
-    await dragTo(page, stage.getByRole("button", { name: /Notes/ }), {
+    await dragTo(page, stage.getByRole("button", { name: /Channel share/ }), {
         x: layout.x + layout.width - 4,
         y: layout.y + layout.height / 2,
     });
     await expect(stage.getByRole("tablist")).toHaveCount(3);
-    await expect(stage.getByRole("tab", { name: "Notes" })).toBeVisible();
+    await expect(
+        stage.getByRole("tab", { name: "Channel share" }),
+    ).toBeVisible();
 });
 
 test("pressing a widget adds it to the active tabset (the keyboard path)", async ({

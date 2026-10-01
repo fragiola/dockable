@@ -111,6 +111,10 @@ functions in the same file, below the default export.
   portalled after it), the splitter's `::after` grab area, `in-data-active:` on the active marker.
   What is not a class stays in the `.tsx`: `aria-*`, `data-*`, structural `style` props (the
   indicator's `transitionDuration`), what renders when.
+- **Content that fits the story.** Tabs show the kit's charts (`ChartPanel`: line, bar, area,
+  pie, donut), KPIs (`KpiPanel`), tables and logs, typed in the registry (`chart: { name, kind }`).
+  The counter card (`Card`) is for the few examples whose point is content that survives a move
+  (`tests/examples.test.ts` lists them).
 - **Accessible names inline**: `aria-label="Resize"` on each splitter (through `renderSplitter`),
   on each icon button, on each tab list.
 - **Tokens, not values that differ per theme**: radius, sizes, fonts, the selected tab and the

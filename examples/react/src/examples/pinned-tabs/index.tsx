@@ -4,7 +4,6 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
-    type TabJson,
     type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
@@ -24,15 +23,24 @@ import {
     X,
 } from "lucide-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
+import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // Pinned tabs: kept at the start of the strip by the model, shown as icons, and not closable
 // (`model.can("tab.close", …)` refuses a pinned tab). The styles read `data-pinned` on the tab.
 // Whether a tab offers the pin button is the app's choice: here, `enablePin` in its data.
 
+// Every component carries the tab's name, its icon when pinned, and whether it offers the pin.
+type TabData = { name: string; icon?: string; enablePin: boolean };
 type Types = {
-    tabs: { card: { name: string; icon?: string; enablePin: boolean } };
+    tabs: {
+        chart: TabData & { kind: ChartKind; seed: number };
+        kpi: TabData & { seed: number; unit?: string };
+        table: TabData;
+        doc: TabData & { text: string };
+    };
 };
 
 const ICONS: Record<string, LucideIcon> = {
@@ -40,12 +48,6 @@ const ICONS: Record<string, LucideIcon> = {
     mail: Mail,
     calendar: Calendar,
 };
-
-const tab = (name: string, icon?: string, pinned = false): TabJson<Types> => ({
-    component: "card",
-    pinned,
-    data: { name, enablePin: true, ...(icon ? { icon } : {}) },
-});
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -56,17 +58,73 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    tab("Home", "home", true),
-                    tab("Mail", "mail", true),
-                    tab("Calendar", "calendar"),
-                    tab("Report.pdf"),
-                    tab("Budget.xlsx"),
+                    {
+                        component: "chart",
+                        pinned: true,
+                        data: {
+                            name: "Home",
+                            icon: "home",
+                            enablePin: true,
+                            kind: "area",
+                            seed: 4,
+                        },
+                    },
+                    {
+                        component: "table",
+                        pinned: true,
+                        data: { name: "Mail", icon: "mail", enablePin: true },
+                    },
+                    {
+                        component: "chart",
+                        data: {
+                            name: "Calendar",
+                            icon: "calendar",
+                            enablePin: true,
+                            kind: "bar",
+                            seed: 12,
+                        },
+                    },
+                    {
+                        component: "chart",
+                        data: {
+                            name: "Report.pdf",
+                            enablePin: true,
+                            kind: "donut",
+                            seed: 8,
+                        },
+                    },
+                    {
+                        component: "kpi",
+                        data: {
+                            name: "Budget.xlsx",
+                            enablePin: true,
+                            seed: 15,
+                            unit: "$",
+                        },
+                    },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
-                children: [tab("Notes"), tab("Drafts")],
+                children: [
+                    {
+                        component: "doc",
+                        data: {
+                            name: "Notes",
+                            enablePin: true,
+                            text: "Pin or unpin the selected tab with the pin button in the header.",
+                        },
+                    },
+                    {
+                        component: "doc",
+                        data: {
+                            name: "Drafts",
+                            enablePin: true,
+                            text: "A pinned tab moves to the start of the strip and loses its close button.",
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -85,12 +143,7 @@ export default function PinnedTabs() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name}>
-                                <p className={styles.panelText}>
-                                    Pin or unpin the selected tab with the pin
-                                    button in the header.
-                                </p>
-                            </Card>
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -148,6 +201,36 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
             <Dockable.TabSetContent />
         </Dockable.TabSet>
     );
+}
+
+/** A tab's content: `tab.data` and the component narrow together. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.data.name}
+                />
+            );
+        case "kpi":
+            return (
+                <KpiPanel
+                    label={tab.data.name}
+                    seed={tab.data.seed}
+                    unit={tab.data.unit}
+                />
+            );
+        case "table":
+            return <TablePanel />;
+        case "doc":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <p className={styles.panelText}>{tab.data.text}</p>
+                </PanelBody>
+            );
+    }
 }
 
 /** The inside of a tab: an icon when pinned (the name is kept for screen readers). */

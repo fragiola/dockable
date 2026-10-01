@@ -11,8 +11,9 @@ import {
 import { Dockable, type SplitterProps } from "@fragiola/dockable-react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
-import { Card } from "../_kit/card";
-import { LogPanel } from "../_kit/data";
+import { PanelBody } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
+import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // Overlay borders (`mode: "overlay"`) open over the layout instead of beside it, and close on a
@@ -22,7 +23,15 @@ import * as styles from "./styles";
 // indicators (Dockable.EdgeIndicator) mark where a drop docks to an edge instead.
 
 // What the layout holds: each tab component and the type of its data.
-type Types = { tabs: { card: { name: string }; log: { name: string } } };
+type Types = {
+    tabs: {
+        kpi: { name: string; seed: number };
+        doc: { name: string; text: string };
+        chart: { name: string; kind: ChartKind };
+        table: { name: string };
+        log: { name: string };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -32,8 +41,14 @@ const json: LayoutJson<Types> = {
             location: "left",
             mode: "overlay",
             children: [
-                { component: "card", data: { name: "Inbox" } },
-                { component: "card", data: { name: "Drafts" } },
+                { component: "kpi", data: { name: "Inbox", seed: 17 } },
+                {
+                    component: "doc",
+                    data: {
+                        name: "Drafts",
+                        text: "Hi team, the release notes are attached. Let me know before Friday if anything is missing.",
+                    },
+                },
             ],
         },
         {
@@ -55,14 +70,23 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { component: "card", data: { name: "Message" } },
-                    { component: "card", data: { name: "Calendar" } },
+                    {
+                        component: "doc",
+                        data: {
+                            name: "Message",
+                            text: "The left and bottom borders open over this layout without resizing it. Press elsewhere in the layout, or Escape, to close them.",
+                        },
+                    },
+                    {
+                        component: "chart",
+                        data: { name: "Calendar", kind: "bar" },
+                    },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
-                children: [{ component: "card", data: { name: "Contacts" } }],
+                children: [{ component: "table", data: { name: "Contacts" } }],
             },
         ],
     },
@@ -129,10 +153,25 @@ export default function OverlayBorders() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "log" ? (
-                                    <LogPanel />
+                                {tab.component === "kpi" ? (
+                                    <KpiPanel
+                                        label={tab.data.name}
+                                        seed={tab.data.seed}
+                                    />
+                                ) : tab.component === "doc" ? (
+                                    <PanelBody title={tab.data.name}>
+                                        <p>{tab.data.text}</p>
+                                    </PanelBody>
+                                ) : tab.component === "chart" ? (
+                                    <ChartPanel
+                                        kind={tab.data.kind}
+                                        seed={tab.data.name.length}
+                                        title={tab.data.name}
+                                    />
+                                ) : tab.component === "table" ? (
+                                    <TablePanel />
                                 ) : (
-                                    <Card name={tab.data.name} />
+                                    <LogPanel />
                                 )}
                             </Dockable.Panel>
                         )}

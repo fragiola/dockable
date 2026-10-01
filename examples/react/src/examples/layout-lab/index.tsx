@@ -14,7 +14,9 @@ import {
 } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { CHART_KINDS, ChartPanel } from "../_kit/charts";
+import { LogPanel } from "../_kit/data";
 import { UndoManager } from "../_kit/undo";
 import {
     appendToLog,
@@ -89,9 +91,13 @@ export default function LayoutLab() {
         const target = model.get("active-tabset") ?? model.get("tabsets")[0];
         if (!target) return;
         added += 1;
+        // a chart, of the next kind each time
         model.run("tab.add", {
-            component: "card",
-            data: { name: `Tab ${added}` },
+            component: "chart",
+            data: {
+                name: `Chart ${added}`,
+                kind: CHART_KINDS[added % CHART_KINDS.length] ?? "line",
+            },
             to: target.id,
         });
     };
@@ -179,7 +185,22 @@ export default function LayoutLab() {
                                     node={tab}
                                     className={styles.panel}
                                 >
-                                    <Card name={tab.data.name} />
+                                    {tab.component === "chart" ? (
+                                        <ChartPanel
+                                            kind={tab.data.kind}
+                                            seed={tab.data.name.length}
+                                            title={tab.data.name}
+                                        />
+                                    ) : tab.component === "log" ? (
+                                        <LogPanel />
+                                    ) : (
+                                        <PanelBody title={tab.data.name}>
+                                            <p className={styles.cardText}>
+                                                {tab.data.text ??
+                                                    "A card: its name and text come from its data."}
+                                            </p>
+                                        </PanelBody>
+                                    )}
                                 </Dockable.Panel>
                             )}
                         </Dockable.Panels>

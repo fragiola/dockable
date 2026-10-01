@@ -75,12 +75,12 @@ export const swatch = (palette: string) =>
         "size-3 rounded-full border border-palette-line bg-palette-base",
     );
 
-/** A panel's content repeats its tabset's palette (panels cannot inherit it); a chart fills the
- * panel, a card grows from it. */
-export const content = (palette: string, chart: boolean) =>
+/** A panel's content repeats its tabset's palette (panels cannot inherit it); a chart or a KPI
+ * fills the panel, text and a log grow from it. */
+export const content = (palette: string, fill: boolean) =>
     cn(
         palette,
-        chart ? "h-full" : "min-h-full",
+        fill ? "h-full" : "min-h-full",
         "bg-palette-soft text-palette-accent",
     );
 

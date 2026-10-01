@@ -16,7 +16,7 @@ import {
 } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { Select } from "#/components/ui/select";
-import { Card } from "../_kit/card";
+import { LogPanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // Only the tabs that do not fit leave the strip: the engine measures the tab list and hides them
@@ -24,13 +24,25 @@ import * as styles from "./styles";
 // while tabs are hidden) is the trigger of a Fragiola Select listing just those. Picking one
 // selects it, which brings it into the strip; another tab goes to the select in its place.
 
-// What the layout holds: file tabs, named in their data. `altName` names a tab in the select when
-// it has no name of its own (an icon-only tab).
-type Types = { tabs: { file: { name: string; altName?: string } } };
+// What the layout holds: an editor's tabs, named in their data. A file carries its text, the
+// terminal is a log, and Problems lists what is wrong where. `altName` names a tab in the select
+// when it has no name of its own (an icon-only tab).
+type Types = {
+    tabs: {
+        file: { name: string; altName?: string; source: string };
+        terminal: { name: string; altName?: string };
+        problems: {
+            name: string;
+            altName?: string;
+            items: { where: string; message: string }[];
+        };
+    };
+};
 
-const file = (name: string): TabJson<Types> => ({
+/** A file tab, its text given line by line. */
+const file = (name: string, ...lines: string[]): TabJson<Types> => ({
     component: "file",
-    data: { name },
+    data: { name, source: lines.join("\n") },
 });
 
 const json: LayoutJson<Types> = {
@@ -42,18 +54,85 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 65,
                 children: [
-                    file("main.ts"),
-                    file("App.tsx"),
-                    file("layout.tsx"),
-                    file("styles.css"),
-                    file("api.ts"),
-                    file("README.md"),
+                    file(
+                        "main.ts",
+                        'import { createElement } from "react";',
+                        'import { createRoot } from "react-dom/client";',
+                        'import { App } from "./App";',
+                        "",
+                        'const root = document.getElementById("root");',
+                        "if (root) createRoot(root).render(createElement(App));",
+                    ),
+                    file(
+                        "App.tsx",
+                        'import { Layout } from "./layout";',
+                        'import "./styles.css";',
+                        "",
+                        "export function App() {",
+                        "    return <Layout />;",
+                        "}",
+                    ),
+                    file(
+                        "layout.tsx",
+                        'import { createModel } from "@fragiola/dockable";',
+                        'import { Dockable } from "@fragiola/dockable-react";',
+                        'import { useState } from "react";',
+                        "",
+                        "export function Layout() {",
+                        "    const [model] = useState(() => createModel(json));",
+                        "    return <Dockable.Root model={model} />;",
+                        "}",
+                    ),
+                    file(
+                        "styles.css",
+                        ":root {",
+                        "    color-scheme: light dark;",
+                        "}",
+                        "",
+                        '[data-layout-path="/layout"] {',
+                        "    height: 100dvh;",
+                        "}",
+                    ),
+                    file(
+                        "api.ts",
+                        "export async function orders() {",
+                        '    const response = await fetch("/api/orders");',
+                        "    return response.json();",
+                        "}",
+                    ),
+                    file(
+                        "README.md",
+                        "# Workspace",
+                        "",
+                        "A tabbed editor built with Dockable.",
+                        "",
+                        "- `pnpm dev` starts it",
+                        "- `pnpm test` runs the tests",
+                    ),
                 ],
             },
             {
                 type: "tabset",
                 weight: 35,
-                children: [file("Terminal"), file("Problems")],
+                children: [
+                    { component: "terminal", data: { name: "Terminal" } },
+                    {
+                        component: "problems",
+                        data: {
+                            name: "Problems",
+                            items: [
+                                {
+                                    where: "layout.tsx 6:51",
+                                    message: "Cannot find name 'json'.",
+                                },
+                                {
+                                    where: "api.ts 3:12",
+                                    message: "The response is not checked.",
+                                },
+                            ],
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -76,7 +155,29 @@ export default function OverflowSelect() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            {tab.component === "file" ? (
+                                <pre className={styles.source}>
+                                    {tab.data.source}
+                                </pre>
+                            ) : tab.component === "terminal" ? (
+                                <LogPanel />
+                            ) : (
+                                <ul className={styles.problems}>
+                                    {tab.data.items.map((item) => (
+                                        <li
+                                            key={item.where}
+                                            className={styles.problem}
+                                        >
+                                            <span
+                                                className={styles.problemWhere}
+                                            >
+                                                {item.where}
+                                            </span>
+                                            {item.message}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>

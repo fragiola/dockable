@@ -9,11 +9,19 @@ import {
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { PanelBottom, PanelTop } from "lucide-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
+import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // What the layout holds: each tab component and the type of its data.
-type Types = { tabs: { card: { name: string } } };
+type Types = {
+    tabs: {
+        table: { name: string };
+        chart: { name: string; kind: ChartKind; seed: number };
+        log: { name: string };
+        kpi: { name: string; seed: number };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -24,17 +32,23 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { component: "card", data: { name: "Sheet 1" } },
-                    { component: "card", data: { name: "Sheet 2" } },
-                    { component: "card", data: { name: "Sheet 3" } },
+                    { component: "table", data: { name: "Sheet 1" } },
+                    {
+                        component: "chart",
+                        data: { name: "Sheet 2", kind: "bar", seed: 5 },
+                    },
+                    {
+                        component: "chart",
+                        data: { name: "Sheet 3", kind: "donut", seed: 12 },
+                    },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
                 children: [
-                    { component: "card", data: { name: "Console" } },
-                    { component: "card", data: { name: "Watch" } },
+                    { component: "log", data: { name: "Console" } },
+                    { component: "kpi", data: { name: "Watch", seed: 21 } },
                 ],
             },
         ],
@@ -102,7 +116,22 @@ export default function TabsAtBottom() {
                                 node={tab}
                                 className={styles.panel(bottom)}
                             >
-                                <Card name={tab.data.name} />
+                                {tab.component === "table" ? (
+                                    <TablePanel />
+                                ) : tab.component === "chart" ? (
+                                    <ChartPanel
+                                        kind={tab.data.kind}
+                                        seed={tab.data.seed}
+                                        title={tab.data.name}
+                                    />
+                                ) : tab.component === "log" ? (
+                                    <LogPanel />
+                                ) : (
+                                    <KpiPanel
+                                        label={tab.data.name}
+                                        seed={tab.data.seed}
+                                    />
+                                )}
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>

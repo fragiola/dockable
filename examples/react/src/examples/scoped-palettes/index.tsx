@@ -17,8 +17,9 @@ import {
 import { Palette } from "lucide-react";
 import { useState } from "react";
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
-import { Card } from "../_kit/card";
-import { ChartPanel } from "../_kit/charts";
+import { PanelBody } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
+import { LogPanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // Fragiola palettes, scoped per tabset. A palette class sets six roles (base, soft, line,
@@ -42,7 +43,12 @@ const DEFAULT_PALETTE = "palette-raised";
 
 // What the layout holds: each tab component's data, and the tabsets' data (their palette).
 type Types = {
-    tabs: { chart: { name: string }; card: { name: string } };
+    tabs: {
+        chart: { name: string; kind: ChartKind };
+        kpi: { name: string; seed: number };
+        note: { name: string; text: string };
+        log: { name: string };
+    };
     tabset: { palette: string };
 };
 
@@ -56,8 +62,17 @@ const json: LayoutJson<Types> = {
                 weight: 50,
                 data: { palette: "palette-blue" },
                 children: [
-                    { component: "chart", data: { name: "Trend" } },
-                    { component: "card", data: { name: "Notes" } },
+                    {
+                        component: "chart",
+                        data: { name: "Trend", kind: "area" },
+                    },
+                    {
+                        component: "note",
+                        data: {
+                            name: "Notes",
+                            text: "Pick a palette from the tabset's menu: the tabs, this panel and its charts take its colours.",
+                        },
+                    },
                 ],
             },
             {
@@ -68,13 +83,16 @@ const json: LayoutJson<Types> = {
                         type: "tabset",
                         data: { palette: "palette-orange" },
                         children: [
-                            { component: "card", data: { name: "Alerts" } },
+                            { component: "log", data: { name: "Alerts" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { component: "card", data: { name: "Plain" } },
+                            {
+                                component: "kpi",
+                                data: { name: "Plain", seed: 6 },
+                            },
                         ],
                     },
                 ],
@@ -217,19 +235,31 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     const palette = useModelState<Types, string>((_, model) =>
         paletteOf(model.get("node-parent-by", { nodeId: tab.id })),
     );
-    const chart = tab.component === "chart";
+    // a chart or a KPI fills the panel; text and a log grow from it
+    const fill = tab.component === "chart" || tab.component === "kpi";
     return (
-        <div data-palette={palette} className={styles.content(palette, chart)}>
+        <div data-palette={palette} className={styles.content(palette, fill)}>
+            {/* a chart derives its series from the palette: redraw it when that changes */}
             {tab.component === "chart" ? (
-                // the chart derives its series from the palette: redraw it when that changes
                 <ChartPanel
                     key={palette}
-                    kind="area"
+                    kind={tab.data.kind}
                     seed={5}
                     className={styles.chart}
                 />
+            ) : tab.component === "kpi" ? (
+                <KpiPanel
+                    key={palette}
+                    label={tab.data.name}
+                    seed={tab.data.seed}
+                    className={styles.chart}
+                />
+            ) : tab.component === "note" ? (
+                <PanelBody title={tab.data.name}>
+                    <p>{tab.data.text}</p>
+                </PanelBody>
             ) : (
-                <Card name={tab.data.name} />
+                <LogPanel />
             )}
         </div>
     );

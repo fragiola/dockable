@@ -90,6 +90,9 @@ export const searchInput =
 
 export const outline = "text-sm text-palette-accent/85";
 
+/** An editor tab's source: monospace, kept on its lines, scrolled by the panel. */
+export const source = "p-4 font-mono text-xs leading-relaxed";
+
 /** `--dk-splitter-size` thick (the engine measures it), with a wider grab area (`::after`). */
 export const splitter = cn(
     "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",

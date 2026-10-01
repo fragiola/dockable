@@ -14,13 +14,20 @@ import {
 } from "@fragiola/dockable-react";
 import { RotateCcw, Save, Upload } from "lucide-react";
 import { useState } from "react";
-import { Card, PanelBody } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 const STORAGE_KEY = "dockable-example:save-restore";
 
-// What the layout holds: demo cards and the live JSON, each named in its data.
-type Types = { tabs: { card: { name: string }; json: { name: string } } };
+// What the layout holds: the live JSON, short documents and a table, each named in its data.
+type Types = {
+    tabs: {
+        json: { name: string };
+        doc: { name: string; text: string };
+        table: { name: string };
+    };
+};
 
 // Explicit ids: a reset or a restore keeps every tab whose id survives, content and all.
 const defaultJson: LayoutJson<Types> = {
@@ -34,10 +41,20 @@ const defaultJson: LayoutJson<Types> = {
                 children: [
                     {
                         id: "welcome",
-                        component: "card",
-                        data: { name: "Welcome" },
+                        component: "doc",
+                        data: {
+                            name: "Welcome",
+                            text: "Move tabs or drag a splitter, then save. Reset brings back the default layout; Restore loads the saved one.",
+                        },
                     },
-                    { id: "notes", component: "card", data: { name: "Notes" } },
+                    {
+                        id: "notes",
+                        component: "doc",
+                        data: {
+                            name: "Notes",
+                            text: "The tabs have explicit ids: a reset or a restore keeps every tab whose id survives, content and all.",
+                        },
+                    },
                 ],
             },
             {
@@ -51,7 +68,7 @@ const defaultJson: LayoutJson<Types> = {
                     },
                     {
                         id: "inspector",
-                        component: "card",
+                        component: "table",
                         data: { name: "Inspector" },
                     },
                 ],
@@ -165,8 +182,12 @@ export default function SaveRestore() {
                             <Dockable.Panel node={tab} className={styles.panel}>
                                 {tab.component === "json" ? (
                                     <JsonPanel />
+                                ) : tab.component === "doc" ? (
+                                    <PanelBody title={tab.data.name}>
+                                        <p>{tab.data.text}</p>
+                                    </PanelBody>
                                 ) : (
-                                    <Card name={tab.data.name} />
+                                    <TablePanel />
                                 )}
                             </Dockable.Panel>
                         )}

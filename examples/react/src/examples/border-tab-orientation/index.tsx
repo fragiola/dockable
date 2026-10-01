@@ -19,7 +19,9 @@ import {
     Search,
 } from "lucide-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { type ChartKind, ChartPanel } from "../_kit/charts";
+import { LogPanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // A side border's tabs read vertically here by default (writing-mode, and half a turn more on a
@@ -27,15 +29,16 @@ import * as styles from "./styles";
 // Dockable.Border only lays its tab list out as a column, and exposes `data-orientation` and
 // `data-tab-direction` for your CSS. The toggle below swaps class names, nothing else.
 
-// What the layout holds: each tab component and the type of its data.
+// What the layout holds: each tab component and the type of its data. The side panels serve a
+// report: its outline, a search through it, bookmarks, notes and the alerts behind its figures.
 type Types = {
     tabs: {
-        outline: { name: string };
-        search: { name: string };
-        bookmarks: { name: string };
-        notes: { name: string };
+        outline: { name: string; headings: string[] };
+        search: { name: string; query: string; results: string[] };
+        bookmarks: { name: string; pages: string[] };
+        notes: { name: string; text: string };
         alerts: { name: string };
-        card: { name: string };
+        document: { name: string; summary: string; kind: ChartKind };
     };
 };
 
@@ -47,15 +50,44 @@ const json: LayoutJson<Types> = {
             location: "left",
             selected: 0,
             children: [
-                { component: "outline", data: { name: "Outline" } },
-                { component: "search", data: { name: "Search" } },
-                { component: "bookmarks", data: { name: "Bookmarks" } },
+                {
+                    component: "outline",
+                    data: {
+                        name: "Outline",
+                        headings: ["Summary", "Revenue", "Orders", "Outlook"],
+                    },
+                },
+                {
+                    component: "search",
+                    data: {
+                        name: "Search",
+                        query: "revenue",
+                        results: [
+                            "Summary: revenue grew for a third month",
+                            "Revenue: by month",
+                            "Outlook: revenue targets",
+                        ],
+                    },
+                },
+                {
+                    component: "bookmarks",
+                    data: {
+                        name: "Bookmarks",
+                        pages: ["Revenue by month", "Refunded orders"],
+                    },
+                },
             ],
         },
         {
             location: "right",
             children: [
-                { component: "notes", data: { name: "Notes" } },
+                {
+                    component: "notes",
+                    data: {
+                        name: "Notes",
+                        text: "Check the June figures against the payment provider before sharing.",
+                    },
+                },
                 { component: "alerts", data: { name: "Alerts" } },
             ],
         },
@@ -65,7 +97,17 @@ const json: LayoutJson<Types> = {
         children: [
             {
                 type: "tabset",
-                children: [{ component: "card", data: { name: "Document" } }],
+                children: [
+                    {
+                        component: "document",
+                        data: {
+                            name: "Document",
+                            summary:
+                                "Revenue grew for a third month in a row, led by search and direct traffic. Refunds stayed under two percent of orders.",
+                            kind: "bar",
+                        },
+                    },
+                ],
             },
         ],
     },
@@ -130,7 +172,7 @@ export default function BorderTabOrientation() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                <Card name={tab.data.name} />
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -145,6 +187,62 @@ export default function BorderTabOrientation() {
             </div>
         </div>
     );
+}
+
+/** A tab's content, by component: the data carries what it shows. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "outline":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <ol className={styles.list}>
+                        {tab.data.headings.map((heading) => (
+                            <li key={heading}>{heading}</li>
+                        ))}
+                    </ol>
+                </PanelBody>
+            );
+        case "search":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <p className={styles.query}>{`“${tab.data.query}”`}</p>
+                    <ul className={styles.list}>
+                        {tab.data.results.map((result) => (
+                            <li key={result}>{result}</li>
+                        ))}
+                    </ul>
+                </PanelBody>
+            );
+        case "bookmarks":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <ul className={styles.list}>
+                        {tab.data.pages.map((page) => (
+                            <li key={page}>{page}</li>
+                        ))}
+                    </ul>
+                </PanelBody>
+            );
+        case "notes":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <p className={styles.text}>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "alerts":
+            return <LogPanel />;
+        case "document":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <p className={styles.text}>{tab.data.summary}</p>
+                    <ChartPanel
+                        kind={tab.data.kind}
+                        seed={21}
+                        className={styles.documentChart}
+                    />
+                </PanelBody>
+            );
+    }
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */

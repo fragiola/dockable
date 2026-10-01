@@ -17,6 +17,12 @@ export const root =
 export const panel =
     "palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast";
 
+/** The Explorer's file tree and the editor's source: demo content, in the theme's colours. */
+export const fileList =
+    "flex flex-col gap-1 font-mono text-sm text-palette-accent/85";
+
+export const code = "m-0 p-4 font-mono text-sm leading-6 whitespace-pre";
+
 /** Panels are portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(

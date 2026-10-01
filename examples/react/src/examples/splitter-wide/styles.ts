@@ -13,6 +13,15 @@ export const root =
 export const panel =
     "palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast";
 
+/** The demo content: the draft's paragraphs, the outline and the comments. */
+export const paragraph = "max-w-prose leading-7 text-palette-accent/85";
+
+export const outline = "list-decimal space-y-1 ps-5 text-sm";
+
+export const comments = "flex flex-col gap-2 text-sm text-palette-accent/85";
+
+export const commentAuthor = "font-medium text-palette-contrast";
+
 /** Panels are portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(

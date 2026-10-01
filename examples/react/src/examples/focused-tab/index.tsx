@@ -4,15 +4,26 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { ChartPanel, KpiPanel } from "../_kit/charts";
+import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-// What the layout holds: one component, named in its data.
-type Types = { tabs: { card: { name: string } } };
+// What the layout holds: each tab component and the type of its data.
+type Types = {
+    tabs: {
+        doc: { name: string; text: string };
+        chart: { name: string; seed: number };
+        kpi: { name: string; seed: number };
+        table: { name: string };
+        log: { name: string };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -26,8 +37,17 @@ const json: LayoutJson<Types> = {
                 id: "editors",
                 weight: 50,
                 children: [
-                    { component: "card", data: { name: "Editor" } },
-                    { component: "card", data: { name: "Preview" } },
+                    {
+                        component: "doc",
+                        data: {
+                            name: "Editor",
+                            text: "Revenue grew in every region this quarter, led by the new self-serve plan. The chart in Preview follows the figures as they are edited.",
+                        },
+                    },
+                    {
+                        component: "chart",
+                        data: { name: "Preview", seed: 5 },
+                    },
                 ],
             },
             {
@@ -37,15 +57,24 @@ const json: LayoutJson<Types> = {
                     {
                         type: "tabset",
                         children: [
-                            { component: "card", data: { name: "Outline" } },
-                            { component: "card", data: { name: "Search" } },
+                            {
+                                component: "doc",
+                                data: {
+                                    name: "Outline",
+                                    text: "Summary · Revenue · Customers · Outlook",
+                                },
+                            },
+                            { component: "table", data: { name: "Search" } },
                         ],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { component: "card", data: { name: "Problems" } },
-                            { component: "card", data: { name: "Output" } },
+                            {
+                                component: "kpi",
+                                data: { name: "Problems", seed: 13 },
+                            },
+                            { component: "log", data: { name: "Output" } },
                         ],
                     },
                 ],
@@ -67,7 +96,7 @@ export default function FocusedTab() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -95,6 +124,32 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
         );
     }
     return <TabSet node={node} />;
+}
+
+/** A tab's content: `tab.data` and the component narrow together. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "doc":
+            return (
+                <PanelBody title={tab.data.name}>
+                    <p className={styles.panelText}>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind="line"
+                    seed={tab.data.seed}
+                    title={tab.data.name}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.data.name} seed={tab.data.seed} />;
+        case "table":
+            return <TablePanel />;
+        case "log":
+            return <LogPanel />;
+    }
 }
 
 /**

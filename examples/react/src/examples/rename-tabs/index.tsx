@@ -6,6 +6,7 @@ import {
     type RowNode,
     type TabOf,
     type TabsetNode,
+    type TabUpdatePayload,
 } from "@fragiola/dockable";
 import {
     Dockable,
@@ -13,7 +14,8 @@ import {
     useDockable,
 } from "@fragiola/dockable-react";
 import { useState } from "react";
-import { Card } from "../_kit/card";
+import { PanelBody } from "../_kit/card";
+import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import { RenameField } from "../_kit/rename-field";
 import * as styles from "./styles";
 
@@ -22,8 +24,21 @@ import * as styles from "./styles";
 // renaming is the `tab.update` command with the new data. Whether a tab may be renamed is the
 // app's too (`renamable` in its data).
 
-// What the layout holds: one component, whose data is the name and the rename permission.
-type Types = { tabs: { card: { name: string; renamable?: boolean } } };
+// What the layout holds: a note, a chart and a KPI, each named in its data, which also says
+// whether it may be renamed. The chart's title and the KPI's label are the tab's name: a rename
+// shows in the content too.
+type Types = {
+    tabs: {
+        note: { name: string; text: string; renamable?: boolean };
+        chart: {
+            name: string;
+            kind: ChartKind;
+            seed: number;
+            renamable?: boolean;
+        };
+        kpi: { name: string; seed: number; renamable?: boolean };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -34,23 +49,62 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 55,
                 children: [
-                    { component: "card", data: { name: "Untitled" } },
-                    { component: "card", data: { name: "Sketch" } },
                     {
-                        component: "card",
+                        component: "note",
+                        data: {
+                            name: "Untitled",
+                            text: "Double-click a tab, or focus it and press F2, to rename it.",
+                        },
+                    },
+                    {
+                        component: "chart",
+                        data: { name: "Sketch", kind: "area", seed: 5 },
+                    },
+                    {
+                        component: "note",
                         // this one cannot be renamed
-                        data: { name: "Fixed name", renamable: false },
+                        data: {
+                            name: "Fixed name",
+                            text: "This tab keeps its name: its data says renamable: false.",
+                            renamable: false,
+                        },
                     },
                 ],
             },
             {
                 type: "tabset",
                 weight: 45,
-                children: [{ component: "card", data: { name: "Ideas" } }],
+                children: [
+                    { component: "kpi", data: { name: "Ideas", seed: 12 } },
+                ],
             },
         ],
     },
 };
+
+/** The `tab.update` that renames a tab: the new data is the whole value, so it keeps the rest. */
+function renamed(tab: TabOf<Types>, name: string): TabUpdatePayload<Types> {
+    switch (tab.component) {
+        case "note":
+            return {
+                tabId: tab.id,
+                component: "note",
+                data: { ...tab.data, name },
+            };
+        case "chart":
+            return {
+                tabId: tab.id,
+                component: "chart",
+                data: { ...tab.data, name },
+            };
+        case "kpi":
+            return {
+                tabId: tab.id,
+                component: "kpi",
+                data: { ...tab.data, name },
+            };
+    }
+}
 
 export default function RenameTabs() {
     const [model] = useState(() => createModel<Types>(json));
@@ -81,12 +135,24 @@ export default function RenameTabs() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name}>
-                                <p className={styles.hint}>
-                                    Double-click a tab, or focus it and press
-                                    F2, to rename it.
-                                </p>
-                            </Card>
+                            {tab.component === "note" ? (
+                                <PanelBody title={tab.data.name}>
+                                    <p className={styles.hint}>
+                                        {tab.data.text}
+                                    </p>
+                                </PanelBody>
+                            ) : tab.component === "chart" ? (
+                                <ChartPanel
+                                    kind={tab.data.kind}
+                                    seed={tab.data.seed}
+                                    title={tab.data.name}
+                                />
+                            ) : (
+                                <KpiPanel
+                                    label={tab.data.name}
+                                    seed={tab.data.seed}
+                                />
+                            )}
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -166,12 +232,7 @@ function RenamableTab({
                 <RenameField
                     name={tab.data.name}
                     onCommit={(name) => {
-                        // the new data is the whole value: keep the rest of it
-                        model.run("tab.update", {
-                            tabId: tab.id,
-                            component: tab.component,
-                            data: { ...tab.data, name },
-                        });
+                        model.run("tab.update", renamed(tab, name));
                         setEditing(null);
                     }}
                     onCancel={() => setEditing(null)}
