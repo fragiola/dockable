@@ -12,7 +12,6 @@ import { useId, useState } from "react";
 import { Select } from "#/components/ui/select";
 import { Switch } from "#/components/ui/switch";
 import { cn } from "#/lib/cn";
-import * as styles from "../_kit/styles";
 import type { LogEntry, Types } from "./commands";
 
 // The lab's two instruments, both outside the layout: the model's JSON (v1), editable, and the
@@ -94,7 +93,11 @@ export function JsonEditor({
                         setDraft(null);
                         setError(null);
                     }}
-                    className={cn(styles.button, "h-7 px-2 text-xs")}
+                    className={cn(
+                        "inline-flex h-7 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-2 text-xs",
+                        "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
+                        "disabled:pointer-events-none disabled:opacity-50",
+                    )}
                 >
                     Revert
                 </button>
@@ -103,9 +106,9 @@ export function JsonEditor({
                     disabled={!edited}
                     onClick={apply}
                     className={cn(
-                        "palette-blue",
-                        styles.solidButton,
-                        "h-7 px-2 text-xs",
+                        "palette-blue inline-flex h-7 items-center gap-1.5 rounded-md bg-palette-base px-2 text-xs font-medium text-palette-contrast",
+                        "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
+                        "disabled:pointer-events-none disabled:opacity-50",
                     )}
                 >
                     Apply
@@ -234,7 +237,11 @@ export function CommandLog({
                     type="button"
                     onClick={onClear}
                     disabled={log.length === 0}
-                    className={cn(styles.button, "h-6 px-2 text-xs")}
+                    className={cn(
+                        "inline-flex h-6 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-2 text-xs",
+                        "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
+                        "disabled:pointer-events-none disabled:opacity-50",
+                    )}
                 >
                     Clear
                 </button>

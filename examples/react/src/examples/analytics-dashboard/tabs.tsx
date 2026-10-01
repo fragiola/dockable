@@ -19,22 +19,15 @@ import {
     TriangleAlert,
     X,
 } from "lucide-react";
-import { labels } from "../_kit/labels";
-import * as styles from "../_kit/styles";
+import { cn } from "#/lib/cn";
 import type { Types } from "./data";
 
-// How the dashboard decorates the kit's tabsets: an icon per widget type, a red tab for a KPI
-// below target, a close button, and maximize / pop out / dock back buttons in the header.
+// How the dashboard decorates its tabsets: an icon per widget type, a red tab for a KPI below
+// target, a close button, and maximize / pop out / dock back buttons in the header.
 
-function isAlert(tab: TabOf<Types>) {
+/** A KPI below its target: its tab takes the danger palette and a warning icon. */
+export function isAlert(tab: TabOf<Types>) {
     return tab.component === "kpi" && tab.data.status === "alert";
-}
-
-/** The kit's `tabClassName`: a KPI tab below target takes the danger palette. */
-export function tabClassName(tab: TabOf<Types>) {
-    return isAlert(tab)
-        ? "palette-danger text-palette-accent data-selected:text-palette-accent"
-        : "";
 }
 
 const ICONS: Record<ComponentOf<Types>, LucideIcon> = {
@@ -43,7 +36,7 @@ const ICONS: Record<ComponentOf<Types>, LucideIcon> = {
     kpi: Gauge,
 };
 
-/** The kit's `renderTab`: what goes inside each tab button. */
+/** What goes inside each tab button: the widget's icon (or a warning), its name, a close button. */
 export function TabContent({ tab }: { tab: TabOf<Types> }) {
     const { run } = useDockable<Types>();
     const Icon = ICONS[tab.component];
@@ -59,20 +52,22 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
             ) : (
                 <Icon aria-hidden="true" className="size-3.5 shrink-0" />
             )}
-            <span data-tab-label className={styles.tabLabel}>
-                {tab.data.name}
-            </span>
+            <span className="truncate">{tab.data.name}</span>
             <button
                 type="button"
                 tabIndex={-1}
                 draggable={false}
-                aria-label={`${labels.closeTab} ${tab.data.name}`}
+                aria-label={`Close ${tab.data.name}`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
                     run("tab.close", { tab: tab.id });
                 }}
-                className={`${styles.iconButton} -me-1.5 size-5 opacity-0 group-hover/tab:opacity-100 group-data-selected/tab:opacity-100`}
+                className={cn(
+                    "-me-1.5 grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85 opacity-0",
+                    "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
+                    "group-hover/tab:opacity-100 group-data-selected/tab:opacity-100",
+                )}
             >
                 <X aria-hidden="true" className="size-3" />
             </button>
@@ -80,7 +75,7 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
     );
 }
 
-/** The kit's `renderActions`: maximize, and pop out (or dock back when already popped out). */
+/** The tabset's header buttons: maximize, and pop out (or dock back when already popped out). */
 export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model, run } = useDockable<Types>();
     const selected = model.selectedTab(tabset.id);
@@ -93,10 +88,14 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
             aria-label={
                 inPopout
                     ? `Dock ${selected.data.name} back`
-                    : `${labels.popout} ${selected.data.name}`
+                    : `Pop out ${selected.data.name}`
             }
             data-testid={inPopout ? "dock-back" : "popout"}
-            className={styles.iconButton}
+            className={cn(
+                "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
+                "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
+                "disabled:pointer-events-none disabled:opacity-40",
+            )}
         >
             {inPopout ? (
                 <PanelTopClose aria-hidden="true" className="size-4" />
@@ -114,7 +113,7 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
             {popoutTrigger}
             <button
                 type="button"
-                aria-label={maximized ? labels.restore : labels.maximize}
+                aria-label={maximized ? "Restore" : "Maximize"}
                 aria-pressed={maximized}
                 data-testid="maximize"
                 onClick={() =>
@@ -123,7 +122,11 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
                         value: !maximized,
                     })
                 }
-                className={styles.iconButton}
+                className={cn(
+                    "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
+                    "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
+                    "disabled:pointer-events-none disabled:opacity-40",
+                )}
             >
                 {maximized ? (
                     <Minimize2 aria-hidden="true" className="size-3.5" />

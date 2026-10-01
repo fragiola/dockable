@@ -5,7 +5,6 @@ import type {
     ModelHandle,
     Transfer,
 } from "@fragiola/dockable";
-import { tabName } from "../_kit/layout";
 
 // Undo and redo for tabs moved between layouts, built by the app on the group's transfer events.
 // Dockable ships no undo: this is one choice among many (here, only moves between layouts are
@@ -26,6 +25,20 @@ export interface Step<T extends DockableTypes> {
     name: string;
     from: StepEnd<T>;
     to: StepEnd<T>;
+}
+
+/**
+ * A transferred tab's name, from its `data.name`. A transfer carries the tab as it left its model,
+ * with untyped data (the group can join models of any registry), so the name is read with checks.
+ */
+function nameOf(init: { readonly data?: unknown }): string {
+    const data = init.data;
+    return typeof data === "object" &&
+        data !== null &&
+        "name" in data &&
+        typeof data.name === "string"
+        ? data.name
+        : "";
 }
 
 /** Where to put a tab back: its old tabset if it still exists, else the model's first tabset. */
@@ -72,7 +85,7 @@ export class TransferHistory<T extends DockableTypes> {
                 return; // a transfer between models this history does not follow
             }
             this.undoStack.push({
-                name: tabName(transfer.init),
+                name: nameOf(transfer.init),
                 from: {
                     model: from,
                     tabId: transfer.previousId,

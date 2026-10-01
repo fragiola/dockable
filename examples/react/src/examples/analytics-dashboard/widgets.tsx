@@ -14,7 +14,7 @@ import { Badge } from "#/components/atoms/badge";
 import { Chart } from "#/components/ui/chart";
 import { Table } from "#/components/ui/table";
 import { cn } from "#/lib/cn";
-import { useInDocument } from "../_kit/charts";
+import { useChartKey } from "../_kit/charts";
 import {
     DEFAULT_FILTERS,
     type Filters,
@@ -48,7 +48,7 @@ export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
     const config = tab.data;
     const [kind, setKind] = useState<"line" | "bar">(config.kind ?? "line");
     const ref = useRef<HTMLDivElement | null>(null);
-    const inDocument = useInDocument(ref);
+    const chartKey = useChartKey(ref);
 
     const data = useMemo(
         () => METRICS[config.metric](filters),
@@ -115,9 +115,13 @@ export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
                     ))}
                 </fieldset>
             </div>
-            {inDocument ? (
-                <Chart option={option} className="min-h-0 flex-1" />
-            ) : null}
+            {chartKey === null ? null : (
+                <Chart
+                    key={chartKey}
+                    option={option}
+                    className="min-h-0 flex-1"
+                />
+            )}
         </div>
     );
 }
