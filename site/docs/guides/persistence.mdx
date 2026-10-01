@@ -1,10 +1,10 @@
 ---
 title: Saving and restoring layouts
-description: Save model.toJSON(), restore it with createModel or layout.load, and handle a stored layout that no longer validates.
+description: Save the layout's JSON, restore it with createModel or layout.load, and handle a stored layout that no longer validates.
 ---
 
-A layout is plain JSON, version 1 (`LayoutJson`). Save `model.toJSON()`; restore it with
-`createModel(json)` at start-up, or with the `layout.load` command into a model that is already on
+A layout is plain JSON, version 1 (`LayoutJson`). Save `model.get("layout-json")`; restore it
+with `createModel(json)` at start-up, or with the `layout.load` command into a model that is already on
 screen. Both validate the document first and say exactly what is wrong with one that does not fit.
 
 <Example id="save-restore" />
@@ -24,7 +24,7 @@ function persist(model: Model<Types>) {
     return model.subscribe((event) => {
         if (event.transient) return; // the gesture ends with a normal command
         try {
-            localStorage.setItem(KEY, JSON.stringify(model.toJSON()));
+            localStorage.setItem(KEY, JSON.stringify(model.get("layout-json")));
         } catch {
             // storage unavailable: keep working without persistence
         }
@@ -34,8 +34,6 @@ function persist(model: Model<Types>) {
 // in a component: subscribe once per model, unsubscribe on unmount
 useEffect(() => persist(model), [model]);
 ```
-
-`JSON.stringify(model)` works too: it calls `toJSON()`.
 
 ## Restoring at start-up
 
@@ -116,9 +114,9 @@ get a generated one, which a different JSON will not match.
 
 ## What is saved
 
-`toJSON()` returns a `LayoutJson` (`version`, `root`, and when they are set `defaults`, `active`,
-`maximized`, `borders` and `windows`), and `createModel(model.toJSON())` gives back the same
-state. It holds:
+`model.get("layout-json")` returns a `LayoutJson` (`version`, `root`, and when they are set
+`defaults`, `active`, `maximized`, `borders` and `windows`), and
+`createModel(model.get("layout-json"))` gives back the same state. It holds:
 
 - the tree: rows, tabsets and tabs with their ids, weights, `component` and `data`, and every
   behaviour field set on a node (`enableClose`, `pinned`, `minWidth`, …);
@@ -135,7 +133,7 @@ component). Store that yourself, keyed by tab id, or in the tab's `data`.
 Keep content state in your own store, keyed by tab id, and save it next to the layout:
 
 ```ts
-const saved = { layout: model.toJSON(), drafts: Object.fromEntries(drafts) };
+const saved = { layout: model.get("layout-json"), drafts: Object.fromEntries(drafts) };
 ```
 
 When the state should travel **inside** the layout JSON (to a popout, into undo history), write

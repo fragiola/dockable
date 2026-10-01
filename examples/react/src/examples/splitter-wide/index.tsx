@@ -172,8 +172,10 @@ function WideSplitter({ node, index }: RowSplitterProps<Types>) {
     const vertical = state.orientation === "vertical";
     return (
         // biome-ignore lint/a11y/useSemanticElements: a focusable separator widget with a grip; an <hr> cannot hold children
+        // biome-ignore lint/a11y/useFocusableInteractive: tabIndex={0} comes in props
         <div
             {...props}
+            // biome-ignore lint/a11y/useAriaPropsForRole: aria-valuenow and the rest come in props
             role="separator"
             // a splitter has no name of its own: the app gives it one
             aria-label="Resize"

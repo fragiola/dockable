@@ -107,7 +107,8 @@ like any other drop.
 ## Behaviour
 
 - Creates one engine per `model` identity and attaches it to the element on mount.
-- After every commit, runs `engine.sync()` (measure, then position the panels).
+- After every commit, runs `engine.run("measure-and-position")` (measure, then position the
+  panels).
 - Opens a popout window for every window layout of the model's state while it is mounted (see
   [Dockable.Popout](/docs/api/popout)).
 - Listens on its document for the `focusNextTabset`/`focusPreviousTabset` bindings, and closes an

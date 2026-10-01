@@ -37,8 +37,8 @@ it("moves a tab into the other tabset", () => {
     const model = createModel<Types>(json);
     const result = model.run("tab.move", { tab: "notes", to: "right" });
     expect(result).toEqual({ ok: true, value: { tab: "notes" } });
-    expect(model.parentOf("notes")?.id).toBe("right");
-    expect(model.selectedTab("right")?.id).toBe("notes");
+    expect(model.get("parent", { node: "notes" })?.id).toBe("right");
+    expect(model.get("selected-tab", { container: "right" })?.id).toBe("notes");
 });
 ```
 
@@ -54,23 +54,26 @@ order. What to assert on:
   if (!refused.ok) expect(refused.error).toMatchObject({ code: "not_found", path: "/to" });
   ```
 
-- **the queries**: `model.get(id)`, `parentOf`, `selectedTab`, `activeTabset`, `tabs()`,
-  `tabsets()`, `isHiddenByMaximize` read the current state;
+- **the queries**: `model.get` (`"node"`, `"parent"`, `"selected-tab"`, `"active-tabset"`,
+  `"tabs"`, `"tabsets"`) and `model.is` (`"selected"`, `"hidden-by-maximize"`, …) read the current
+  state;
 - **the state**: `model.state` is a plain, immutable object tree (`state.root`, `state.borders`,
   `state.windows`, `state.active`), so `toEqual` and `toMatchObject` work on any part of it;
-- **the document**: `model.toJSON()` is the whole layout as JSON v1, a convenient snapshot
-  (`expect(model.toJSON()).toMatchSnapshot()`), and `createModel(model.toJSON())` rebuilds the same
-  state.
+- **the document**: `model.get("layout-json")` is the whole layout as JSON v1, a convenient
+  snapshot (`expect(model.get("layout-json")).toMatchSnapshot()`), and
+  `createModel(model.get("layout-json"))` rebuilds the same state.
 
-`model.can(command, payload)` answers what `run` would, without changing anything: test the
-questions your UI asks (is this tab closeable, may this tabset maximize) the same way.
+`model.can(command, payload)` answers whether `run` would succeed (a boolean), and
+`model.check(command, payload)` returns what it would return, both without changing anything: test
+the questions your UI asks (is this tab closeable, may this tabset maximize) the same way.
 
 ```ts
 it("refuses to close a pinned tab", () => {
     const model = createModel<Types>(json);
     model.run("tab.pin", { tab: "notes", value: true });
-    expect(model.can("tab.close", { tab: "notes" })).toMatchObject({ ok: false, error: { code: "refused" } });
-    expect(model.tabs().map((tab) => tab.id)).toContain("notes"); // can changed nothing
+    expect(model.can("tab.close", { tab: "notes" })).toBe(false);
+    expect(model.check("tab.close", { tab: "notes" })).toMatchObject({ ok: false, error: { code: "refused" } });
+    expect(model.get("tabs").map((tab) => tab.id)).toContain("notes"); // nothing changed
 });
 ```
 

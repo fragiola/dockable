@@ -111,7 +111,7 @@ one:
 ```ts
 model.subscribe((event) => {
     if (event.transient) return; // a splitter is still moving
-    save(model.toJSON());
+    save(model.get("layout-json"));
 });
 ```
 
@@ -134,7 +134,7 @@ model.run("border.resize", { border: "border_left", size: 280 });
 ```
 
 `row.resize` needs one weight per child (`invalid_payload` otherwise); the root row's id is
-`model.root()?.id`.
+`model.get("root-row")?.id`.
 
 ## Keyboard
 

@@ -11,7 +11,7 @@ dragged instead of moving it."
 ```tsx
 <Dockable.DropZone
     model={model}
-    accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tab: drag.tab.id }).ok}
+    accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tab: drag.tab.id })}
     onDrop={(drag) => {
         if (drag.kind === "tab") model.run("tab.close", { tab: drag.tab.id });
     }}
@@ -72,5 +72,6 @@ replaces the element's native drop handler).
   not take a drag inside a popout).
 - A zone for a new-tab drag can create the tab itself: `model.run("tab.add", { ...drag.tab, to })`.
 - `useDropZone({ model, accepts, onDrop })` is the lower layer ([hooks](/docs/api/hooks#usedropzone)),
-  and the core's `engine.registerDropZone(element, options)` (`DropZoneOptions<T>`: `accepts`,
-  `onDrop`, `onOverChange`) the one under it, for other frameworks.
+  and the core's `engine.adapter.registerDropZone(element, options)` (`DropZoneOptions<T>`:
+  `accepts`, `onDrop`, `onOverChange`) the one under it, on the adapter's side, for other
+  frameworks.

@@ -1,0 +1,131 @@
+---
+title: Model and engine
+description: The model is the layout's data and its rules, and an engine is one layout on screen. Both use the same five verbs, from run to is.
+---
+
+You work with two objects. The **model** is the layout itself: what is where, and what is
+allowed. An **engine** is that layout drawn on screen: one per window. They are separate because
+they answer different questions, but you talk to both the same way.
+
+## One pattern on both
+
+Each object has five verbs, and each verb takes a key and a payload, the way a command does:
+
+| verb | means | on the model | on an engine |
+| --- | --- | --- | --- |
+| `run` | do it | `model.run("tab.close", { tab })`: change the layout | `engine.run("popout", { node })`: a screen action |
+| `can` | could I? (a `boolean`) | `model.can("tab.close", { tab })` | `engine.can("popout", { node })` |
+| `check` | what would happen? (the result, or why not) | `model.check("tab.close", { tab })` | `engine.check("dock-back", { node })` |
+| `get` | read it | `model.get("selected-tab", { container })` | `engine.get("tab-panel-id", { tab })` |
+| `is` | yes or no? | `model.is("maximized", { tabset })` | `engine.is("popout-supported")` |
+
+Keys are kebab-case, typed, and listed on [Model](/docs/api/model) and
+[LayoutEngine](/docs/api/layout-engine). Inside `Dockable.Root`, `useDockable()` gives you both:
+
+```tsx
+import { useDockable } from "@fragiola/dockable-react";
+
+function TabActions({ tabId }: { tabId: string }) {
+    const { model, engine } = useDockable<Types>();
+    return (
+        <>
+            <button
+                type="button"
+                disabled={!model.can("tab.close", { tab: tabId })}
+                onClick={() => model.run("tab.close", { tab: tabId })}
+            >
+                Close
+            </button>
+            <button
+                type="button"
+                disabled={!engine.can("popout", { node: tabId })}
+                onClick={() => engine.run("popout", { node: tabId })}
+            >
+                Pop out
+            </button>
+        </>
+    );
+}
+```
+
+## The model: the layout's data and its rules
+
+The model holds the layout: the tree of rows, tabsets and tabs, the borders, the popout window
+layouts, the defaults, and which tabset is active or maximized. It is plain, immutable data, and
+it needs no DOM, so it loads and runs in Node, in tests and on a server.
+
+It owns:
+
+- **every change**: a change is a command, run with `model.run` (or `model.dispatch` for
+  untrusted JSON), through your middleware (`model.use`), and every commit is an event
+  (`model.subscribe`);
+- **every rule**: whether a tab may close, move or pop out, whether a tabset takes a drop, which
+  your middleware can tighten. `model.can` and `model.check` ask them;
+- **every read of the layout**: nodes, parents, the selected tab, the effective settings, the
+  JSON document (`model.get`), and yes/no questions about them (`model.is`).
+
+Go to the model whenever the answer would be the same with no screen at all. There is one model
+per layout document, and every window of that layout shares it. More:
+[The model and commands](/docs/concepts/model-and-commands).
+
+## An engine: one layout on screen
+
+An engine draws one layout: the main layout, or one popout window's. It measures the elements the
+primitives register, positions the tab panels over their content area, keeps each tab's content
+alive in an element it moves between panels and windows, runs the drag and drop, and opens and
+closes the popout windows. It reads the model and never changes it except by running commands.
+
+It owns what only the screen knows:
+
+- **screen actions** (`engine.run`): pop a tab out into a window at its place on screen, dock it
+  back, move focus to the next tabset, close an overlay border's panel, measure again;
+- **view facts** (`engine.get`, `engine.is`): a node's `data-layout-path`, the DOM ids that link a
+  tab to its panel, size limits in pixels, whether popout windows are supported here, whether a
+  panel is shown, the document the layout renders in.
+
+Go to the engine when the answer depends on the screen: pixels, DOM ids, windows, focus. Inside
+tab content, `useDockable().engine` is the engine of the window the tab is in right now.
+
+## The main engine, and why you never pick it
+
+Every window has its engine, and the main window's is special: it owns the popout windows, the
+drag in progress and the view state every engine of the model shares. That is the **main
+engine**, and an adapter needs it.
+
+An app does not. Whatever concerns the whole page (whether popouts are supported, popping out,
+docking back) works from **any** engine, which hands it to the main one. So the engine
+`useDockable()` gives you is always the right one, in the main window and in a popout alike. The
+main engine is reachable only as `engine.adapter.main`, for adapter authors.
+
+## Where do I go?
+
+| I want to… | go to |
+| --- | --- |
+| change the layout: add, close, move, select, resize, maximize, load | `model.run("tab.close", { tab })` ([Commands](/docs/api/commands)) |
+| run a command given as JSON (a stored layout, an AI tool call) | `model.dispatch({ command, payload })` |
+| know whether a change is allowed: enable a button or a menu item | `model.can("tab.close", { tab })` |
+| show why a change is not allowed | `model.check("tab.close", { tab })`, then `error.message` |
+| read the layout: a node, its parent, the selected tab, the active tabset | `model.get("selected-tab", { container })` |
+| read a node's effective settings (its own value, else the default) | `model.get("tab-settings", { tab })` |
+| save the layout | `model.get("layout-json")` |
+| ask a yes/no question about the layout | `model.is("maximized", { tabset })` |
+| veto, rewrite or observe every change | `model.use(middleware)` |
+| react to every change (persist, undo, sync) | `model.subscribe(listener)` |
+| pop a tab or a tabset out into a window, or dock it back | `engine.run("popout", { node })`, `engine.run("dock-back", { node })` |
+| move focus to the next or previous tabset | `engine.run("focus-tabset", { direction: "next" })` |
+| measure again after a change the engine cannot see | `engine.run("measure-and-position")` |
+| link your own markup to a tab or its panel (ARIA ids, layout paths) | `engine.get("tab-panel-id", { tab })`, `engine.get("path", { node })` |
+| listen to the document a tab currently renders in | `engine.get("owner-document")` |
+| know whether popout windows are supported here | `engine.is("popout-supported")` |
+| build an adapter for another framework | `engine.adapter` ([For adapter authors](/docs/api/layout-engine#for-adapter-authors-engineadapter)) |
+
+## Commands and screen actions
+
+Both objects have a `run`, and the key tells them apart. A command name has a dot, a noun and a
+verb (`tab.close`, `tabset.maximize`, plus `batch`): it changes the layout, and only the model
+runs it. A screen action has no dot (`popout`, `dock-back`): only an engine runs it, and
+`engine.run("tab.close", …)` does not compile.
+
+A screen action that changes the layout does it by running a command: `engine.run("popout")` runs
+`tab.popout` with the tab's place on screen, so your middleware sees it and can refuse it, and an
+undo stack records it like any other change.

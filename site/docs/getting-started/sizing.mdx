@@ -64,8 +64,8 @@ root that changes size (a window resize, a collapsed sidebar, a CSS transition) 
 repositions the panels without a re-render. You never need to tell it the size.
 
 If something moves the tabsets **without resizing any element** (flipping `dir` at runtime is
-the known case), call `engine.sync()` from [`useDockable`](/docs/api/hooks) to re-run the
-measure pass. See [Limitations](/docs/limitations), gap 4.
+the known case), call `engine.run("measure-and-position")` with the engine from
+[`useDockable`](/docs/api/hooks) to re-run the measure pass. See [Limitations](/docs/limitations), gap 4.
 
 ## Minimum sizes
 

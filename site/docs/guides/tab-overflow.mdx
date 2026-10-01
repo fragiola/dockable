@@ -50,16 +50,16 @@ type Types = { tabs: { file: { name: string; altName?: string } } };
 const label = (tab: TabOf<Types>) => tab.data.name || tab.data.altName;
 
 function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { run } = useDockable<Types>();
-    const { hidden } = useTabOverflow(tabset); // TabOf<Types>[]
+    const { model } = useDockable<Types>();
+    const { hiddenTabs } = useTabOverflow(tabset); // TabOf<Types>[]
     return (
         <Menu.Root>
             <Dockable.TabOverflowTrigger aria-label="More tabs" render={<Menu.Trigger />}>
-                {`+${hidden.length}`}
+                {`+${hiddenTabs.length}`}
             </Dockable.TabOverflowTrigger>
             <Menu.Content>
-                {hidden.map((tab) => (
-                    <Menu.Item key={tab.id} onClick={() => run("tab.select", { tab: tab.id })}>
+                {hiddenTabs.map((tab) => (
+                    <Menu.Item key={tab.id} onClick={() => model.run("tab.select", { tab: tab.id })}>
                         {label(tab)}
                     </Menu.Item>
                 ))}
@@ -70,7 +70,7 @@ function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
 ```
 
 Selecting a hidden tab (`tab.select`, through the model's middleware) brings it into the strip;
-another tab goes to the menu in its place. The result also has `visible` (the tabs in the strip)
+another tab goes to the menu in its place. The result also has `visibleTabs` (the tabs in the strip)
 and `overflowing`. What a tab is called in the menu is your data: `altName` above is a field of
 the registry, not of the package. The trigger has no name of its own: give it an `aria-label`.
 
@@ -97,10 +97,7 @@ import { useModelState } from "@fragiola/dockable-react";
 
 function ScrollingTab({ tab }: { tab: TabOf<Types> }) {
     const ref = useRef<HTMLElement>(null);
-    const selected = useModelState<Types, boolean>((_, model) => {
-        const parent = model.parentOf(tab.id);
-        return parent !== undefined && model.selectedTab(parent.id)?.id === tab.id;
-    });
+    const selected = useModelState<Types, boolean>((_, model) => model.is("selected", { tab: tab.id }));
     useEffect(() => {
         if (selected) ref.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }, [selected]);

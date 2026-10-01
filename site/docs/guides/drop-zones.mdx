@@ -22,7 +22,7 @@ import { Dockable } from "@fragiola/dockable-react";
 <Dockable.DropZone
     model={model} // Model<Types>: the zone's drags are typed by the same registry
     // take tabs the model would close (not pinned, enableClose, no middleware veto)
-    accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tab: drag.tab.id }).ok}
+    accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tab: drag.tab.id })}
     onDrop={(drag) => {
         if (drag.kind === "tab") model.run("tab.close", { tab: drag.tab.id });
     }}
@@ -73,9 +73,10 @@ A drop into a tab strip also marks the `TabList` with `data-drop-target` and giv
 >
 ```
 
-To draw an insertion caret between two tabs, read the same state from React:
-`useTabSetDropState(engine, tabsetId)` returns `{ target, location, strip, index, refused }`, and a
-tab whose position equals `index` gets the caret. The state only changes when the answer for that
+To draw an insertion caret between two tabs, read the same state from React: the tabset's state
+(`useTabSet(node).state`, or the `TabSet`'s `render` / `className` function) has `dropTarget`,
+`dropLocation`, `dropRefused` and `dropIndex`, the insertion point while the drag aims at its
+strip, and a tab whose position equals `dropIndex` gets the caret. The state only changes when the answer for that
 tabset changes, so tabsets do not re-render on every pointer move.
 
 ## Refused drops

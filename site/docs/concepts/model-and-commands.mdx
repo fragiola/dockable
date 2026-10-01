@@ -8,6 +8,10 @@ changes only through **commands**: `model.run("tab.close", { tab: "t1" })`. Ever
 your code runs it or a primitive does (a click, a drop, a splitter drag), goes through the same
 middleware chain, and every commit emits one event.
 
+The model is the layout's data and its rules; what the screen does with it (measuring, popout
+windows, focus) is an engine's. Which one to go to for what is on
+[Model and engine](/docs/concepts/model-and-engine).
+
 ## JSON in, JSON out
 
 ```ts
@@ -30,7 +34,7 @@ const json: LayoutJson<Types> = {
 };
 
 const model = createModel<Types>(json); // LayoutJson -> Model<Types>
-const saved: LayoutJson<Types> = model.toJSON(); // Model -> LayoutJson (a writable copy)
+const saved: LayoutJson<Types> = model.get("layout-json"); // Model -> LayoutJson (a writable copy)
 ```
 
 A layout document is **JSON v1**: `version: 1`, a `root` row, and optionally `defaults`, the
@@ -39,8 +43,8 @@ carries its `data`, typed by the `Types` registry ([Typed data](/docs/concepts/t
 field is in [the JSON model reference](/docs/api/json-model).
 
 - **Ids are explicit.** A node without an `id` gets one at load (`tab-1`, `tabset-2`, …, or your
-  `createId` option), and `toJSON()` writes it, so a round trip is stable:
-  `createModel(model.toJSON()).state` deep-equals `model.state`. `JSON.stringify(model)` works too.
+  `createId` option), and `model.get("layout-json")` writes it, so a round trip is stable:
+  `createModel(model.get("layout-json")).state` deep-equals `model.state`.
 - **Loading validates.** `createModel` checks the document against the JSON v1 schema (duplicate
   ids, two borders on one side, an `active` naming a missing tabset, …) and throws a
   `LayoutValidationError` whose `issues` list every problem with its JSON path.
@@ -55,7 +59,7 @@ A node is told apart by its `type` field (`"row"`, `"tabset"`, `"tab"`, `"border
 fields are read directly:
 
 ```ts
-const tabset = model.get("editors");
+const tabset = model.get("node", { node: "editors" });
 if (tabset?.type === "tabset") {
     tabset.children; // readonly TabOf<Types>[]
     tabset.selected; // the index of the selected tab, -1 when none
@@ -103,15 +107,15 @@ if (result.ok) {
 flags are enforced by the commands themselves, so code cannot bypass them either.
 
 `run` is bound, so it can be passed around on its own. Inside `Dockable.Root`, `useDockable()`
-returns it (with the model):
+gives you the model:
 
 ```tsx
 import { useDockable } from "@fragiola/dockable-react";
 
 function CloseButton({ tabId }: { tabId: string }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     return (
-        <button type="button" aria-label="Close" onClick={() => run("tab.close", { tab: tabId })}>
+        <button type="button" aria-label="Close" onClick={() => model.run("tab.close", { tab: tabId })}>
             ×
         </button>
     );
@@ -125,15 +129,17 @@ The rest of the bus:
 - `model.dispatch({ command, payload })` runs a command given as **untrusted JSON** (a stored
   layout, a message from a server, an AI tool call): the envelope and the payload are validated
   before anything runs.
-- `model.can(command, payload)` returns what `run` would return, without committing or emitting
-  anything. Enable a button with `model.can("tabset.maximize", { tabset, value: true }).ok`.
+- `model.can(command, payload)` answers whether `run` would succeed, without committing or
+  emitting anything: a `boolean`. Enable a button with
+  `model.can("tabset.maximize", { tabset, value: true })`. `model.check(command, payload)` returns
+  what `run` would return instead, with the `error` that says why it is refused.
 - `model.run("batch", { commands: [...] })` runs several commands as **one atomic step**: if one
   fails, none applies, and the batch emits a single event.
 - `run(command, payload, { transient: true })` marks a step of a continuous gesture (the splitters
   run `row.resize` this way on every pointer move); `{ meta }` passes free-form information to
   middleware and listeners.
-- `model.commands()` lists every command with its description and the JSON Schemas of its payload
-  and result.
+- `model.get("commands")` lists every command with its description and the JSON Schemas of its
+  payload and result.
 
 Every command, its payload and its errors are in [the commands reference](/docs/api/commands); the
 bus itself (ordering, re-entrancy, error codes) is in [the command bus reference](/docs/api/command-bus).
@@ -164,17 +170,17 @@ const remove = model.use(policy); // returns the function that removes it
 ```
 
 Checking `ctx.command` narrows `ctx.payload` to that command's payload. The context also carries
-the committed `state`, `get(id)` and `parentOf(id)` (as the command sees them, inside a batch too),
-`meta`, `transient`, and `dryRun`.
+the committed `state`, `ctx.get("node", { node })` and `ctx.get("parent", { node })` (as the
+command sees them, inside a batch too), `meta`, `transient`, and `dryRun`.
 
-A drag is not special. While you drag, the engine asks `model.can` for the command each drop target
+A drag is not special. While you drag, the engine asks the model for the command each drop target
 would run, on every `dragover`: a middleware veto hides the drop indicator over that target, and a
 drop runs the command through the chain again. One policy covers drags, keyboard, menus and code.
 See [Restricting drops](/docs/guides/restricting-drops).
 
 <Callout type="warn" title="No side effects in a dry run">
-    `model.can` runs the middleware chain with `ctx.dryRun` set to true, and the drop indicator calls
-    it on every `dragover`. Log, notify or fetch only when `ctx.dryRun` is false.
+    `model.can` and `model.check` run the middleware chain with `ctx.dryRun` set to true, and the
+    drop indicator asks on every `dragover`. Log, notify or fetch only when `ctx.dryRun` is false.
 </Callout>
 
 Middleware is synchronous, and runs outermost first (the first one added wraps the others). A
@@ -189,7 +195,7 @@ the `commands` it ran). It is the place to persist the layout, sync it or log it
 ```ts
 const unsubscribe = model.subscribe((event) => {
     if (!event.transient) {
-        localStorage.setItem("layout", JSON.stringify(model.toJSON()));
+        localStorage.setItem("layout", JSON.stringify(model.get("layout-json")));
     }
 });
 ```
@@ -203,33 +209,36 @@ In React, `useModelState(selector)` subscribes a component to a slice of the sta
 it only when that slice changes:
 
 ```tsx
-const count = useModelState<Types, number>((state, model) => model.tabs().length);
+const count = useModelState<Types, number>((state, model) => model.get("tabs").length);
 ```
 
 ## Reading the model
 
-The queries read the current state; each is O(1) or a walk of the tree, and safe during render.
+Two verbs read the current state: `get` reads something, `is` asks a yes/no question. Both take a
+key and a payload, like a command; each is O(1) or a walk of the tree, and safe during render.
 
 ```ts
 model.state; // LayoutState<Types>: root, borders, windows, active, maximized, defaults
-model.get("readme"); // a node by id
-model.parentOf("readme"); // its row, tabset or border
-model.layoutOf("readme"); // MAIN_LAYOUT, or a window id
-model.root(); // a layout's root row (default the main layout)
-model.tabs(); // every tab, in tree order: TabOf<Types>[]
-model.tabsets(); // a layout's tabsets
-model.selectedTab("editors"); // a tabset's (or border's) selected tab
-model.activeTabset(); // the active tabset of a layout
-model.maximizedTabset(); // the maximized tabset of a layout
-model.isHiddenByMaximize("tools"); // hidden because another tabset is maximized
-model.resolve(tab); // a node's behaviour flags, resolved through the layout defaults
-model.resolveLayout(); // the layout-wide settings, resolved
+model.get("node", { node: "readme" }); // a node by id
+model.get("parent", { node: "readme" }); // its row, tabset or border
+model.get("layout-id", { node: "readme" }); // MAIN_LAYOUT, or a window id
+model.get("root-row"); // a layout's root row (default the main layout)
+model.get("tabs"); // every tab, in tree order: TabOf<Types>[]
+model.get("tabsets"); // a layout's tabsets
+model.get("selected-tab", { container: "editors" }); // a tabset's (or border's) selected tab
+model.get("active-tabset"); // the active tabset of a layout
+model.get("maximized-tabset"); // the maximized tabset of a layout
+model.get("tab-settings", { tab: "readme" }); // a tab's flags, resolved through the defaults
+model.get("layout-settings"); // the layout-wide settings, resolved
+model.is("maximized", { tabset: "editors" }); // is this tabset maximized?
+model.is("hidden-by-maximize", { node: "tools" }); // hidden because another tabset is maximized
 ```
 
-A flag a node does not set comes from the layout `defaults` (then from the built-in value), so read
-it with `model.resolve(node)`, not from the node: `model.resolve(tab).enableClose`. To know whether
-something is allowed right now (the defaults, the rules and your middleware together), ask
-`model.can`: `model.can("tab.close", { tab: tab.id }).ok`.
+Every key is on [the Model reference](/docs/api/model#reading-get). A flag a node does not set
+comes from the layout `defaults` (then from the built-in value), so read it through the
+`*-settings` keys, not from the node: `model.get("tab-settings", { tab: tab.id })?.enableClose`.
+To know whether something is allowed right now (the defaults, the rules and your middleware
+together), ask `model.can("tab.close", { tab: tab.id })`.
 
 The primitives re-render when the state changes, so reading the model inside the layout is always
 current. Outside it, subscribe (`model.subscribe`, or `useSyncExternalStore` over it).
@@ -263,8 +272,9 @@ const result = model.dispatch({ command: "layout.load", payload: { layout: JSON.
 
 A model holds the **main** layout (`MAIN_LAYOUT`, `"main"`: the root row, the borders, the active
 and maximized tabsets) and one window layout per popout window (`model.state.windows`, each with
-its own root row). Queries that depend on the layout take a layout id and default to the main one,
-and `useDockable().layoutId` says which layout a component renders in.
+its own root row). The keys that depend on a layout take a `layout` id and default to the main
+one, and `useDockable().layoutId` says which layout a component renders in. Each layout on screen
+has its own engine ([Model and engine](/docs/concepts/model-and-engine)).
 
 ## See it
 

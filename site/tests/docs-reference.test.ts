@@ -41,6 +41,22 @@ const core = (await import(join(CORE_SRC, "index.ts"))) as {
 };
 const page = (slug: string) => read(join(API, `${slug}.mdx`));
 
+// the keys of the model's and the engine's verbs, from their registries
+const queries = (await import(join(CORE_SRC, "state/queries.ts"))) as {
+    MODEL_GET_KEYS: readonly string[];
+    MODEL_IS_KEYS: readonly string[];
+};
+const verbs = (await import(join(CORE_SRC, "engine/verbs.ts"))) as {
+    ENGINE_ACTION_KEYS: readonly string[];
+    ENGINE_GET_KEYS: readonly string[];
+    ENGINE_IS_KEYS: readonly string[];
+};
+
+/** `key` appears in the page as a quoted key in code: `` `"selected-tab"` ``. */
+function mentionsKey(mdx: string, key: string): boolean {
+    return mdx.includes(`\`"${key}"\``);
+}
+
 /** The reference page of each module of the React package. */
 const MODULE_PAGES: Record<string, string> = {
     "./Root": "root",
@@ -347,13 +363,15 @@ describe("the core reference", () => {
             "run",
             "dispatch",
             "can",
+            "check",
             "use",
             "subscribe",
-            "commands",
+            "get",
         ]) {
             expect(mentions(mdx, method), `model.${method}`).toBe(true);
         }
         expect(mdx).toContain("`batch`");
+        expect(mdx).toContain('model.get("commands")');
         const source = read(join(CORE_SRC, "commands/types.ts"));
         const union =
             /export type CommandErrorCode =([^;]+);/.exec(source)?.[1] ?? "";
@@ -433,25 +451,65 @@ describe("the core reference", () => {
         expect(checked).toBeGreaterThan(60);
     });
 
-    it("documents every public method of engine/LayoutEngine.ts", () => {
+    it("documents every member of the engine, and every member of its adapter", () => {
         const source = read(join(CORE_SRC, "engine/LayoutEngine.ts"));
         const start = source.indexOf("export class LayoutEngine");
         const body = source.slice(start, source.indexOf("\n}\n", start));
-        const methods = new Set<string>();
+        // the public members: everything not private (TypeScript private, or `#`)
+        const members = new Set<string>();
         for (const match of body.matchAll(
-            /(\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*)?\n {4}(?:static |get |readonly )?(?!private\b|protected\b|constructor\b)([a-zA-Z]\w*)(?:\s*=\s*\(|\(|: Model<T>\["run"\])/g,
+            /\n {4}(?:readonly |get )?(?!private\b|protected\b|constructor\b)([a-zA-Z]\w*)[<(:=?]/g,
         )) {
-            if (match[1]?.includes("@internal")) continue;
-            methods.add(match[2] ?? "");
+            members.add(match[1] ?? "");
         }
-        expect(methods.size).toBeGreaterThan(20);
+        expect([...members].sort()).toEqual(
+            ["adapter", "can", "check", "get", "is", "layoutId", "run"].sort(),
+        );
+        const adapterStart = source.indexOf(
+            "export interface LayoutEngineAdapter",
+        );
+        const adapterBody = source.slice(
+            adapterStart,
+            source.indexOf("\n}\n", adapterStart),
+        );
+        const adapterMembers = [
+            ...adapterBody.matchAll(/^ {4}(?:readonly )?(\w+)[<(:]/gm),
+        ].map((match) => match[1] ?? "");
+        expect(adapterMembers.length).toBeGreaterThan(30);
         const mdx = page("layout-engine");
         const rows = tableRowNames(mdx);
-        for (const method of methods) {
+        for (const member of [...members, ...adapterMembers]) {
             expect(
-                rows.has(method) || mentions(mdx, method),
-                `LayoutEngine.${method} on api/layout-engine.mdx`,
+                rows.has(member) || mentions(mdx, member),
+                `LayoutEngine.${member} on api/layout-engine.mdx`,
             ).toBe(true);
+        }
+    });
+
+    it("lists every key of the engine's run, get and is", () => {
+        const mdx = page("layout-engine");
+        const keys = [
+            ...verbs.ENGINE_ACTION_KEYS,
+            ...verbs.ENGINE_GET_KEYS,
+            ...verbs.ENGINE_IS_KEYS,
+        ];
+        expect(keys.length).toBeGreaterThan(10);
+        for (const key of keys) {
+            expect(
+                mentionsKey(mdx, key),
+                `"${key}" on api/layout-engine.mdx`,
+            ).toBe(true);
+        }
+    });
+
+    it("lists every key of the model's get and is", () => {
+        const mdx = page("model");
+        const keys = [...queries.MODEL_GET_KEYS, ...queries.MODEL_IS_KEYS];
+        expect(keys.length).toBeGreaterThan(20);
+        for (const key of keys) {
+            expect(mentionsKey(mdx, key), `"${key}" on api/model.mdx`).toBe(
+                true,
+            );
         }
     });
 
@@ -464,7 +522,19 @@ describe("the core reference", () => {
                 (match) => match[1] ?? "",
             ),
         );
-        expect(members.size).toBeGreaterThan(15);
+        expect([...members].sort()).toEqual(
+            [
+                "can",
+                "check",
+                "dispatch",
+                "get",
+                "is",
+                "run",
+                "state",
+                "subscribe",
+                "use",
+            ].sort(),
+        );
         const mdx = page("model") + page("command-bus");
         const rows = tableRowNames(mdx);
         for (const member of members) {

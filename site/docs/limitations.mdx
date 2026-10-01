@@ -15,7 +15,7 @@ use and the Epic that will remove it, when one is scheduled.
 | 1 | `Tab` knows `selected` but not whether its **tabset is active**, so "the selected tab of the active tabset" has no attribute. | An ancestor selector: `.tabset[data-active] .tab[data-selected]`, or Tailwind's `in-data-active:` / `group-data-active:` on a child of the tab. | not scheduled yet |
 | 2 | **Panels live outside their tabset** (in the panel layer), so a tabset's `border-radius`/`overflow` cannot clip them, and a panel cannot be styled by its tabset's state. | Rounded tabsets repeat the tabset's inner radius on the panel's bottom corners (it breaks if the strip moves to the bottom), or use square tabsets. The active tabset is marked on its selected tab instead of with a tabset-wide ring. | not scheduled yet |
 | 3 | ~~A popout document does not get the page's root attributes and body classes.~~ **Solved**: `popoutMirrorRoot` on `Root` mirrors `<html>` and `<body>` attributes. See [Popouts](/docs/guides/popouts#theming-the-popout). | None needed. | Epic [#20](https://github.com/fragiola/dockable/issues/20) (done) |
-| 4 | Flipping `dir` at runtime moves every tabset without resizing any, so the engine's observers never fire and **panels stay at their old positions**. | Call `engine.sync()` after changing `dir`. | not scheduled yet |
+| 4 | Flipping `dir` at runtime moves every tabset without resizing any, so the engine's observers never fire and **panels stay at their old positions**. | Call `engine.run("measure-and-position")` after changing `dir`. | not scheduled yet |
 | 5 | In **RTL, splitter drags and keyboard resizing are wrong** (a drag jumps the first tabset to full width, arrows do nothing), and edge and side drops are physical (`left` docks before, whichever side that renders on). | None. RTL renders correctly, but do not ship an RTL layout that users resize or rearrange. | not scheduled yet |
 | 6 | Styling **every splitter** the same way needs `renderSplitter` on every `Row` (root, nested, and inside `Popout`). | Pass `renderSplitter` to every `Row` (the examples write one `Splitter` component and pass it in their recursion), or style `[role="separator"]` from a stylesheet. | not scheduled yet |
 | 7 | ~~A pop out button for a tabset's selected tab has no primitive.~~ **Solved**: `Dockable.PopoutTrigger`. See [Popouts](/docs/guides/popouts). | None needed. | Epic [#20](https://github.com/fragiola/dockable/issues/20) (done) |
@@ -43,7 +43,7 @@ but **interaction is not RTL-aware** yet:
 - splitter drags and arrow-key resizing are wrong in RTL (gap 5);
 - drop locations are physical: `left` means the left side on screen, which is the *end* in RTL
   (gap 5);
-- flipping `dir` at runtime needs a manual `engine.sync()` (gap 4).
+- flipping `dir` at runtime needs a manual `engine.run("measure-and-position")` (gap 4).
 
 The fix (the core reading the row's direction, logical `start`/`end` drop locations) is not
 scheduled yet. Until then, treat RTL layouts as display-only.

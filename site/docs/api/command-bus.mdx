@@ -39,8 +39,10 @@ The commands themselves (every name, payload and result) are on [Commands](/docs
 The model's queries are on [Model](/docs/api/model), and why every change is a command is in
 [The model and commands](/docs/concepts/model-and-commands).
 
-`run`, `dispatch`, `can`, `use` and `subscribe` are bound to the model, so they can be passed
-around on their own (`const { run } = model`).
+`run`, `dispatch`, `can`, `check`, `use` and `subscribe` are bound to the model, so they can be
+passed around on their own (`const { run } = model`). Only the model runs commands: an engine's
+`run` takes screen actions (`engine.run("popout", { node })`), never a command
+([Model and engine](/docs/concepts/model-and-engine)).
 
 ## Running commands
 
@@ -48,7 +50,8 @@ around on their own (`const { run } = model`).
 | --- | --- | --- |
 | `run(command, payload, options?)` | `CommandResult<ResultOf<T, C>>` | runs a command, typed by the registry `T`; commits and emits on success |
 | `dispatch(input, options?)` | `CommandResult<unknown>` | runs a command given as untrusted JSON `{ command, payload, transient? }`, validated first; `options.meta` (`DispatchOptions`) is the app's |
-| `can(command, payload, options?)` | `CommandResult<ResultOf<T, C>>` | what `run` would return, without committing or emitting anything |
+| `can(command, payload, options?)` | `boolean` | whether `run` would succeed now, without committing or emitting anything |
+| `check(command, payload, options?)` | `CommandResult<ResultOf<T, C>>` | what `run` would return (its value, or why it is refused), without committing or emitting anything |
 
 None of them throws on bad input: an unknown name, a malformed payload, a missing node or a
 refusal is an `{ ok: false, error }` result.
@@ -112,32 +115,43 @@ const result = model.dispatch(JSON.parse(message));
 middleware and listeners (`{ source: "assistant" }`, say). It is never read from the input: an
 input with a `meta` key is refused at `/meta`.
 
-### `can`
+### `can` and `check`
 
 ```ts
 can<C extends CommandName>(
     command: C,
     payload: PayloadOf<T, C>,
     options?: RunOptions,
+): boolean;
+check<C extends CommandName>(
+    command: C,
+    payload: PayloadOf<T, C>,
+    options?: RunOptions,
 ): CommandResult<ResultOf<T, C>>;
 ```
 
-A dry run: the lookup, the validation, the middleware and the command's rules all run, on a draft
-that is thrown away. It returns the result the command would have and commits and emits nothing
-(a generated id in its value is only indicative: the real run may generate another one). Middleware sees `ctx.dryRun` set to
-`true` and must not cause side effects then.
+Both are a dry run: the lookup, the validation, the middleware and the command's rules all run,
+on a draft that is thrown away, and nothing is committed or emitted. `can` answers the question
+its name asks, with a `boolean`; `check` returns the whole result the command would have: its
+value (a generated id in it is only indicative: the real run may generate another one), or the
+`error` that says why it is refused. Middleware sees `ctx.dryRun` set to `true` and must not
+cause side effects then.
 
-The engine asks `can` on every `dragover`: a drop target is refused exactly when the command the
-drop would run is refused, whether by a node flag or by your middleware
-([Restricting drops](/docs/guides/restricting-drops)). Use it the same way to enable a menu item:
+The engine asks the model on every `dragover`: a drop target is refused exactly when the command
+the drop would run is refused, whether by a node flag or by your middleware
+([Restricting drops](/docs/guides/restricting-drops)). Use `can` the same way to enable a menu
+item, and `check` when you show why something is not allowed:
 
 ```ts
-const closable = model.can("tab.close", { tab: tab.id }).ok;
+const closable = model.can("tab.close", { tab: tab.id });
+
+const checked = model.check("tab.close", { tab: tab.id });
+if (!checked.ok) console.info(checked.error.message); // why it cannot close
 ```
 
 ### `RunOptions`
 
-The third argument of `run` and `can`.
+The third argument of `run`, `can` and `check`.
 
 | field | type | description |
 | --- | --- | --- |
@@ -194,7 +208,7 @@ type Middleware<T> = (
 
 `model.use` adds a middleware and returns the function that removes it. A middleware runs around
 every command, whoever issues it: your code, the engine (drags, splitters, keyboard), a
-`dispatch` from JSON, a `can` dry run. It can do three things:
+`dispatch` from JSON, a `can` or `check` dry run. It can do three things:
 
 - **Veto:** return an error without calling `next()`. `veto(message?)` builds it:
   `{ ok: false, error: { code: "vetoed", message } }` (the default message is "vetoed by a
@@ -208,7 +222,10 @@ import { type Middleware, veto } from "@fragiola/dockable";
 
 // veto: tabs of the "console" tabset stay where they are
 const lockConsole: Middleware<Types> = (ctx, next) => {
-    if (ctx.command === "tab.move" && ctx.parentOf(ctx.payload.tab)?.id === "console") {
+    if (
+        ctx.command === "tab.move" &&
+        ctx.get("parent", { node: ctx.payload.tab })?.id === "console"
+    ) {
         return veto("Console tabs cannot move.");
     }
     return next();
@@ -249,7 +266,7 @@ The rules:
 - **Batches.** A `batch` runs the chain once as `batch`, then once for each command inside it
   with `ctx.inBatch` set, so a batch cannot get around a veto. A nested batch is flattened: only
   its commands run the chain.
-- **Dry runs.** During `can` (`ctx.dryRun`), the same chain runs and must have no side effects.
+- **Dry runs.** During `can` and `check` (`ctx.dryRun`), the same chain runs and must have no side effects.
 
 ### `CommandContext`
 
@@ -261,16 +278,16 @@ registry. The fields every command shares are `CommandContextBase<T>`.
 | --- | --- | --- |
 | `command` | `CommandName` | the command being run |
 | `payload` | `PayloadOf<T, C>` | the validated payload; assign a new object to rewrite it (it is validated again) |
-| `dryRun` | `boolean` | `true` inside `model.can`: nothing will be committed, cause no side effects |
+| `dryRun` | `boolean` | `true` inside `model.can` and `model.check`: nothing will be committed, cause no side effects |
 | `transient` | `boolean` | the command runs as a step of a gesture (`RunOptions.transient`) |
 | `inBatch` | `boolean` | the command runs inside a `batch` (the batch itself runs with `false`) |
 | `meta` | `Readonly<Record<string, unknown>> \| undefined` | the caller's `RunOptions.meta` (a batch passes its own to its commands) |
 | `state` | `LayoutState<T>` | the committed state the command applies to |
-| `get(id)` | `Node<T> \| undefined` | a node as the command sees it: inside a batch, after the batch's earlier commands |
-| `parentOf(id)` | `ParentNode<T> \| undefined` | a node's parent as the command sees it |
+| `get(key, { node })` | `Node<T> \| undefined`, `ParentNode<T> \| undefined` | reads as the command sees it, inside a batch after the batch's earlier commands: `ctx.get("node", { node })` is a node, `ctx.get("parent", { node })` its parent (`CommandContextGetKey` is `"node" \| "parent"`) |
 
-Read nodes with `ctx.get` rather than `ctx.state` when the middleware may run inside a batch: a
-tab the batch added a step earlier is in the draft, not yet in the committed state.
+Read nodes with `ctx.get` rather than `ctx.state` (or `model.get`) when the middleware may run
+inside a batch: a tab the batch added a step earlier is in the draft, not yet in the committed
+state.
 
 ## Batches
 
@@ -315,7 +332,7 @@ commit delivers one `CommandEvent<T>` to every listener, including a command tha
 ```ts
 const unsubscribe = model.subscribe((event) => {
     if (event.before !== event.after && !event.transient) {
-        localStorage.setItem("layout", JSON.stringify(model.toJSON()));
+        localStorage.setItem("layout", JSON.stringify(model.get("layout-json")));
     }
 });
 ```
@@ -338,14 +355,10 @@ loads it back with `toLayoutJson` and `layout.load`.
 A listener that throws does not stop the others: every listener runs, then the first error is
 rethrown from the `run` that committed (the commit stands).
 
-## Discovering commands
+## Listing the commands
 
-```ts
-commands(): readonly CommandInfo[];
-```
-
-`model.commands()` lists every command with what an assistant, a command palette or a protocol
-needs to call it:
+`model.get("commands")` returns `readonly CommandInfo[]`: every command with what an assistant, a
+command palette or a protocol needs to call it:
 
 | field | type | description |
 | --- | --- | --- |
@@ -356,7 +369,7 @@ needs to call it:
 | `transient` | `boolean` | whether it may run as a step of a gesture |
 
 ```ts
-const tools = model.commands().map((info) => ({
+const tools = model.get("commands").map((info) => ({
     name: info.name.replace(".", "_"),
     description: info.description,
     input_schema: info.payloadSchema,
@@ -380,7 +393,7 @@ Code that reacts to a command may run another one. The bus keeps commits in orde
 - **From a middleware**, while a command is in flight, `run` and `dispatch` do not run: they
   return `{ ok: false, error: { code: "queued" } }` at once, and the command executes after the
   current one commits (or fails). Its own result is not returned to anyone; subscribe to see it.
-- **`can`** runs immediately from anywhere: it commits nothing.
+- **`can` and `check`** run immediately from anywhere: they commit nothing.
 - An exception thrown by a command itself (a bug, not a refusal) is rethrown by `run` once the
   chain has unwound; nothing is committed.
 
@@ -405,7 +418,7 @@ Everything on this page is exported from `@fragiola/dockable`.
 | `CommandContextBase<T>` | the fields of `CommandContext<T>` shared by every command |
 | `CommandListener<T>` | `(event: CommandEvent<T>) => void` |
 | `CommandEvent<T>` | what a listener receives, one per commit |
-| `CommandInfo` | a command as `model.commands()` describes it |
+| `CommandInfo` | a command as `model.get("commands")` describes it |
 | `veto(message?)` | the vetoed result a middleware returns |
 | `Placement` | where `tab.add`, `tab.move` and `tabset.move` put a tab or tabset (below) |
 | `Nullable<P>` | every field of `P` optional and nullable: `null` removes the node's own value, so the defaults apply |

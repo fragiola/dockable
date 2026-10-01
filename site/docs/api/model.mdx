@@ -1,6 +1,6 @@
 ---
 title: Model
-description: The layout model is an immutable state tree created from a JSON v1 document, read through typed queries and changed only by commands.
+description: The layout model is an immutable state tree created from a JSON v1 document, read with get and is, and changed only by commands with run.
 ---
 
 `Model<T>` (from `@fragiola/dockable`) holds the layout: the main layout's tree, its borders, the
@@ -39,16 +39,33 @@ const json: LayoutJson<Types> = {
 };
 
 const model = createModel<Types>(json);
-model.selectedTab("editors")?.data; // typed by the registry
+model.get("selected-tab", { container: "editors" })?.data; // typed by the registry
+model.is("maximized", { tabset: "editors" }); // false
 model.run("tab.close", { tab: "readme" });
-const saved = model.toJSON(); // a LayoutJson<Types> again
+const saved = model.get("layout-json"); // a LayoutJson<Types> again
 ```
 
-Never change the state yourself: it is frozen, and every change goes through a command
+Every member is one verb, and each verb takes a key and a payload, the way a command does:
+
+| member | does |
+| --- | --- |
+| `state` | the current state (below) |
+| `run(command, payload, options?)` | **changes** the layout: runs a command through the middleware chain |
+| `dispatch(input, options?)` | `run` for a command given as untrusted JSON `{ command, payload }`, validated first |
+| `can(command, payload, options?)` | **answers** whether `run` would succeed now: a `boolean` |
+| `check(command, payload, options?)` | returns what `run` would return (its value, or why it is refused), without changing anything |
+| `get(key, payload?)` | **reads** something: a node, its parent, the selected tab, settings, the JSON ([Reading](#reading-get)) |
+| `is(key, payload)` | **asks** a yes/no question ([Asking](#asking-is)) |
+| `use(middleware)` | adds a middleware around every command; returns the function that removes it |
+| `subscribe(listener)` | listens to every committed command; returns the function that removes it |
+
+Every method is bound: `const { run, get } = model` works. Never change the state yourself: it
+is frozen, and every change goes through a command
 ([The model and commands](/docs/concepts/model-and-commands)). This page covers creating a model
-and reading it; running commands, middleware and change events are on
-[The command bus](/docs/api/command-bus), and the document format on
-[Layout JSON](/docs/api/json-model).
+and reading it; `run`, `dispatch`, `can`, `check`, middleware and change events are on
+[The command bus](/docs/api/command-bus), the commands themselves on
+[Commands](/docs/api/commands), and the document format on [Layout JSON](/docs/api/json-model).
+What the model is next to an engine: [Model and engine](/docs/concepts/model-and-engine).
 
 ## Creating a model
 
@@ -66,8 +83,8 @@ An invalid document throws a `LayoutValidationError` listing every problem with 
 `validateLayout`, or load it into an existing model with `dispatch`, which returns the problems
 instead of throwing.
 
-`T` is your type registry ([below](#the-type-registry)). Pass it explicitly: the model's queries,
-`run` and middleware are typed by it.
+`T` is your type registry ([below](#the-type-registry)). Pass it explicitly: `get`, `run` and
+middleware are typed by it.
 
 ### `ModelOptions`
 
@@ -115,31 +132,60 @@ created:
 Ids are stable: a node keeps its id when it moves, and `layout.load` keeps the mounted content
 of every tab whose id survives. Keep references by id, not by layout path.
 
-## Queries
+## Reading: `get`
 
-Every query reads the current state. A layout argument is `MAIN_LAYOUT` (the default) or a
-popout window's id.
+`model.get(key, payload)` reads the current state. The key says what to read, the payload which
+node or layout: the same field names commands use (`node`, `tab`, `tabset`, `border`,
+`container`, `layout`). A `layout` is `MAIN_LAYOUT` (the default) or a popout window's id; a key
+whose payload has no required field takes none (`model.get("tabs")`). An unknown id reads
+`undefined`.
 
-| member | returns | description |
+| key | payload | returns | reads |
+| --- | --- | --- | --- |
+| `"node"` | `{ node }` | `Node<T> \| undefined` | a node by id, in O(1); check its `type` to narrow it |
+| `"parent"` | `{ node }` | `ParentNode<T> \| undefined` | a node's parent: a row, a tabset or a border |
+| `"layout-id"` | `{ node }` | `string \| undefined` | the layout a node is in: `MAIN_LAYOUT` (borders included) or a window id |
+| `"root-row"` | `{ layout? }` | `RowNode<T> \| undefined` | a layout's root row |
+| `"window"` | `{ window }` | `WindowLayout<T> \| undefined` | a popout window's layout |
+| `"tabs"` | `{ layout? }` | `TabOf<T>[]` | the tabs of a layout (the main layout's include its borders'), or without a layout every tab of the model, windows included; in tree order |
+| `"tabsets"` | `{ layout? }` | `TabsetNode<T>[]` | every tabset of a layout (default the main one), in tree order |
+| `"selected-tab"` | `{ container }` | `TabOf<T> \| undefined` | the selected tab of a tabset or a border |
+| `"active-tabset"` | `{ layout? }` | `TabsetNode<T> \| undefined` | a layout's active tabset |
+| `"maximized-tabset"` | `{ layout? }` | `TabsetNode<T> \| undefined` | a layout's maximized tabset |
+| `"tab-settings"` | `{ tab }` | `ResolvedTab \| undefined` | a tab's effective settings ([below](#settings)) |
+| `"tabset-settings"` | `{ tabset }` | `ResolvedTabset \| undefined` | a tabset's effective settings |
+| `"border-settings"` | `{ border }` | `ResolvedBorder \| undefined` | a border's effective settings |
+| `"layout-settings"` | none | `ResolvedLayout` | the layout-wide settings |
+| `"layout-json"` | none | `LayoutJson<T>` | the state as a layout document ([below](#saving-and-loading)) |
+| `"commands"` | none | `readonly CommandInfo[]` | every command with its description and JSON Schemas ([The command bus](/docs/api/command-bus#listing-the-commands)) |
+
+`state` is a property, not a key: `model.state` is the current `LayoutState<T>`, immutable, a new
+object after every change, with unchanged subtrees shared (compare with `===`).
+
+## Asking: `is`
+
+`model.is(key, payload)` answers a yes/no question about the current state: every state a
+primitive shows as a `data-*` attribute that comes from the model alone, and where a node lives.
+An unknown id answers `false`.
+
+| key | payload | answers |
 | --- | --- | --- |
-| `state` | `LayoutState<T>` | the current state: immutable, a new object after every change, with unchanged subtrees shared (compare with `===`) |
-| `get(id)` | `Node<T> \| undefined` | a node by id, in O(1); check its `type` to narrow it |
-| `parentOf(id)` | `ParentNode<T> \| undefined` | a node's parent: a row, a tabset or a border |
-| `layoutOf(id)` | `string \| undefined` | the layout a node is in: `MAIN_LAYOUT` (borders included) or a window id |
-| `root(layout?)` | `RowNode<T> \| undefined` | a layout's root row |
-| `windowLayout(id)` | `WindowLayout<T> \| undefined` | a popout window's layout |
-| `tabs(layout?)` | `TabOf<T>[]` | the tabs of a layout (the main layout's include its borders'), or without an argument every tab of the model, windows included; in tree order |
-| `tabsets(layout?)` | `TabsetNode<T>[]` | every tabset of a layout (default the main one), in tree order |
-| `selectedTab(container)` | `TabOf<T> \| undefined` | the selected tab of a tabset or border (by id) |
-| `activeTabset(layout?)` | `TabsetNode<T> \| undefined` | a layout's active tabset |
-| `maximizedTabset(layout?)` | `TabsetNode<T> \| undefined` | a layout's maximized tabset |
-| `isHiddenByMaximize(id)` | `boolean` | whether a tabset or row is hidden because another tabset of its layout is maximized: every other tabset, and every row not on the path to the maximized one (Dockable hides them instead of moving the maximized tabset, so nothing remounts) |
-| `resolve(node)` | `ResolvedTab`, `ResolvedTabset` or `ResolvedBorder` | a tab's, tabset's or border's behaviour fields, resolved through the defaults ([below](#resolving-defaults)) |
-| `resolveLayout()` | `ResolvedLayout` | the layout-wide settings, resolved |
-| `toJSON()` | `LayoutJson<T>` | the state as a layout document ([below](#saving-and-loading)) |
+| `"selected"` | `{ tab }` | the tab is its tabset's (or border's) selected tab |
+| `"pinned"` | `{ tab }` | the tab is pinned |
+| `"active"` | `{ tabset }` | the tabset is its layout's active tabset |
+| `"maximized"` | `{ tabset }` | the tabset is its layout's maximized tabset |
+| `"hidden-by-maximize"` | `{ node }` | a tabset or row is hidden because another tabset of its layout is maximized: every other tabset, and every row not on the path to the maximized one (Dockable hides them instead of moving the maximized tabset, so nothing remounts) |
+| `"empty"` | `{ container }` | the tabset or border has no tabs |
+| `"open"` | `{ border }` | the border has a selected tab, so its panel is open |
+| `"overlay"` | `{ border }` | the border's panel opens over the layout (`mode: "overlay"`) |
+| `"root"` | `{ row }` | the row is its layout's root row |
+| `"in-window"` | `{ node }` | the node lives in a popout window's layout |
 
-The command bus completes the interface: `run`, `dispatch`, `can`, `use`, `subscribe` and
-`commands` ([The command bus](/docs/api/command-bus)).
+The keys are typed: an unknown key or a wrong payload field does not compile, and `get`'s result
+is typed by its key and your registry. The key types are exported as `ModelGetKey`,
+`ModelIsKey`, `ModelGetMap<T>` and `ModelIsMap`, with `ModelGetPayload<T, K>`,
+`ModelGetResult<T, K>` and `ModelIsPayload<K>`; `QueryArgs<P>` makes the payload optional when
+it has no required field, and `NoPayload` is the payload of a key that takes none.
 
 Nodes are plain objects with a `type` field (`"row"`, `"tabset"`, `"tab"`, `"border"`), no
 classes and no methods. A tab of `TabOf<T>` narrows on `component`, so its `data` is typed:
@@ -154,16 +200,16 @@ function title(tab: TabOf<Types>): string {
     }
 }
 
-const node = model.get("editors");
+const node = model.get("node", { node: "editors" });
 if (node?.type === "tabset") {
     node.children.map(title);
 }
 ```
 
-In React, read these queries through `useModelState` or `useDockable` so a component re-renders
-when the state changes ([Hooks](/docs/api/hooks)).
+In React, read through `useModelState` or `useDockable` so a component re-renders when the state
+changes ([Hooks](/docs/api/hooks)).
 
-## Resolving defaults
+## Settings
 
 A node stores only the behaviour fields it sets itself. The effective value of a field is:
 
@@ -171,15 +217,15 @@ A node stores only the behaviour fields it sets itself. The effective value of a
 node.x ?? state.defaults[kind].x ?? BUILT_IN[kind].x
 ```
 
-There is no other inheritance: a tab does not inherit from its tabset. `model.resolve(node)`
-applies the rule and returns every field, resolved:
+There is no other inheritance: a tab does not inherit from its tabset. The `*-settings` keys of
+`get` apply the rule and return every field, resolved:
 
 | type | fields |
 | --- | --- |
-| `ResolvedTab` | `enableClose`, `enableDrag`, `enablePopout`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
-| `ResolvedTabset` | `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose`, `deleteWhenEmpty`, `autoSelectTab`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
-| `ResolvedBorder` | `size`, `minSize`, `maxSize`, `mode`, `autoHide`, `enableDrop`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, `show` |
-| `ResolvedLayout` | `rootOrientation`, `edgeDock`, `edgeDockMargin`, `edgeDockLength` (from `model.resolveLayout()`) |
+| `ResolvedTab` (`"tab-settings"`) | `enableClose`, `enableDrag`, `enablePopout`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedTabset` (`"tabset-settings"`) | `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose`, `deleteWhenEmpty`, `autoSelectTab`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedBorder` (`"border-settings"`) | `size`, `minSize`, `maxSize`, `mode`, `autoHide`, `enableDrop`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, `show` |
+| `ResolvedLayout` | `rootOrientation`, `edgeDock`, `edgeDockMargin`, `edgeDockLength` (from `model.get("layout-settings")`) |
 
 A resolved border's `size`, `minSize` and `maxSize` are its panel's effective values: the
 selected tab's own `borderWidth` (left and right borders) or `borderHeight` (top and bottom)
@@ -187,8 +233,8 @@ replaces `size`, and the tab's size limits narrow `minSize` and `maxSize`. `show
 the border sets it to `false`.
 
 ```ts
-const tab = model.selectedTab("editors");
-if (tab && model.resolve(tab).enableClose) {
+const tab = model.get("selected-tab", { container: "editors" });
+if (tab && model.get("tab-settings", { tab: tab.id })?.enableClose) {
     // render a close button
 }
 ```
@@ -214,7 +260,7 @@ changed at runtime with `layout.configure`.
 
 | member | description |
 | --- | --- |
-| `model.toJSON()` | the current state as a `LayoutJson<T>`: a writable copy with `version: 1`, without the empty parts. `JSON.stringify(model)` calls it. `createModel(model.toJSON())` gives an equal state |
+| `model.get("layout-json")` | the current state as a `LayoutJson<T>`: a writable copy with `version: 1`, without the empty parts. `createModel(model.get("layout-json"))` gives an equal state |
 | `toLayoutJson(state)` | the same for any state: one kept from before (`event.before`, an undo step), to load it back |
 | `layout.load` | the command that replaces the whole layout in place with a document |
 
@@ -242,24 +288,25 @@ on these.
 
 ## `ModelHandle`
 
-The part of a model that does not depend on its registry: `dispatch(input, options?)`, `commands()` and
-`toJSON()`. Every `Model<T>` is a `ModelHandle`. APIs that join models of different registries
+The part of a model that does not depend on its registry: `dispatch(input, options?)`,
+`get("commands")` and `get("layout-json")` (the document as `unknown`). Every `Model<T>` is a
+`ModelHandle`. APIs that join models of different registries
 take one: a [drag group](/docs/api/drag-group)'s transfers name their `from` and `to` models as
 `ModelHandle`s; compare them with your own models by reference (`===`).
 
 ## `MAIN_LAYOUT`
 
 `MAIN_LAYOUT` is `"main"`, the id of the main layout: the state's `root`, `active`, `maximized` and
-its borders. A popout window's layout id is its window's id. Every query and primitive that takes a
+its borders. A popout window's layout id is its window's id. Every key and primitive that takes a
 layout id defaults to it, and no node or window may use it as an id.
 
 ```ts
 import { MAIN_LAYOUT } from "@fragiola/dockable";
 
 for (const windowLayout of model.state.windows) {
-    model.tabs(windowLayout.id); // the tabs of one popout window
+    model.get("tabs", { layout: windowLayout.id }); // the tabs of one popout window
 }
-model.tabs(MAIN_LAYOUT); // the main layout's tabs, its borders' included
+model.get("tabs", { layout: MAIN_LAYOUT }); // the main layout's tabs, its borders' included
 ```
 
 ## The type registry

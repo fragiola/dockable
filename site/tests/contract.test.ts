@@ -41,7 +41,7 @@ const problemsOf = (body: string) =>
 describe("the site export", () => {
     it("has the landing, every page in the sidebar and all 38 examples", () => {
         expect(site.pages.has("index")).toBe(true);
-        expect(site.pages.size).toBe(61);
+        expect(site.pages.size).toBe(62);
         expect(site.manifests.get("react")?.examples).toHaveLength(38);
     });
 

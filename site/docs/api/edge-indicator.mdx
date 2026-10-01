@@ -57,8 +57,8 @@ edge inside `Dockable.Root`; its stacking (`z-index`) is yours."
 
 ## The bands
 
-`engine.edgeBands()` returns the four bands (`EdgeBand`: `{ location, rect }`) of the main
-layout's root row: each `defaults.layout.edgeDockMargin` px deep (default 10) and
+`engine.adapter.edgeBands()` (the adapter's side) returns the four bands (`EdgeBand`:
+`{ location, rect }`) of the main layout's root row: each `defaults.layout.edgeDockMargin` px deep (default 10) and
 `defaults.layout.edgeDockLength` px long (default 100), centred on its edge (a length larger than
 the edge gives the whole edge). With `defaults.layout.edgeDock` off there are none, and the
 indicators stay hidden while a tabset is maximized (the drop indicator state's `showEdges`). The same bands decide where a drop docks to an edge, so the indicator

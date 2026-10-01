@@ -208,7 +208,8 @@ Switch one at runtime with `border.configure`:
 model.run("border.configure", { border: "border_left", mode: "overlay" }); // or "docked"
 ```
 
-`model.resolve(border).mode` reads the mode in effect (the border's own, else the default).
+`model.get("border-settings", { border })?.mode` reads the mode in effect (the border's own, else
+the default), and `model.is("overlay", { border })` answers the same as a boolean.
 
 - It **closes on a press** in the layout outside its panel (a tabset, a splitter), and on
   **Escape** (`keyMap.closeOverlayBorder`) with focus in the panel or on its tab button; focus goes

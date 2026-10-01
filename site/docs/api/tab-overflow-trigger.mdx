@@ -6,14 +6,14 @@ description: The button that opens your menu of the tabs that do not fit in the 
 "The button that opens the consumer's menu of hidden tabs, inside `Dockable.TabSet` or
 `Dockable.Border`, next to the `Dockable.TabList`. It renders only while tabs are hidden, and the
 engine reserves the space it takes in the strip. It renders no menu: make it your menu's trigger
-(`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`, typed with
+(`render`), list `useTabOverflow(node).hiddenTabs` (or the state's `hiddenTabs`, typed with
 `<Dockable.TabOverflowTrigger<Types>>`), and select with `tab.select`, which brings the tab into
 the strip. It has no name of its own: give it an `aria-label`."
 
 ```tsx
 function Header({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { run } = useDockable<Types>();
-    const { hidden } = useTabOverflow(tabset);
+    const { model } = useDockable<Types>();
+    const { hiddenTabs } = useTabOverflow(tabset);
     return (
         <div className="flex">
             <Dockable.TabList<Types> className="flex min-w-0 flex-1">
@@ -21,11 +21,11 @@ function Header({ tabset }: { tabset: TabsetNode<Types> }) {
             </Dockable.TabList>
             <Menu.Root>
                 <Dockable.TabOverflowTrigger aria-label="More tabs" render={<Menu.Trigger />}>
-                    {`+${hidden.length}`}
+                    {`+${hiddenTabs.length}`}
                 </Dockable.TabOverflowTrigger>
                 <Menu.Content>
-                    {hidden.map((tab) => (
-                        <Menu.Item key={tab.id} onClick={() => run("tab.select", { tab: tab.id })}>
+                    {hiddenTabs.map((tab) => (
+                        <Menu.Item key={tab.id} onClick={() => model.run("tab.select", { tab: tab.id })}>
                             {tab.data.name}
                         </Menu.Item>
                     ))}
@@ -36,7 +36,7 @@ function Header({ tabset }: { tabset: TabsetNode<Types> }) {
 }
 ```
 
-The state's `hidden` holds the same tabs: with the registry as the type argument
+The state's `hiddenTabs` holds the same tabs: with the registry as the type argument
 (`<Dockable.TabOverflowTrigger<Types>>`), a `render` function or a `className` function gets
 typed tabs (`TabOf<Types>[]`).
 
@@ -57,7 +57,7 @@ See [Tab overflow](/docs/guides/tab-overflow).
 
 | field | type | description |
 | --- | --- | --- |
-| `hidden` | `TabOf<T>[]` | the tabs that do not fit in the strip, in model order: what the menu lists |
+| `hiddenTabs` | `TabOf<T>[]` | the tabs that do not fit in the strip, in model order: what the menu lists |
 | `hiddenCount` | `number` | how many tabs are hidden |
 
 ## Data attributes and ARIA
