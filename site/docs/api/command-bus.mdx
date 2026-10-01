@@ -21,7 +21,7 @@ type Types = {
 const model = createModel<Types>(json);
 
 model.use((ctx, next) =>
-    ctx.command === "tabset.close" && ctx.payload.tabset === "console"
+    ctx.command === "tabset.close" && ctx.payload.tabsetId === "console"
         ? veto("The console stays open.")
         : next(),
 );
@@ -41,7 +41,7 @@ The model's queries are on [Model](/docs/api/model), and why every change is a c
 
 `run`, `dispatch`, `can`, `check`, `use` and `subscribe` are bound to the model, so they can be
 passed around on their own (`const { run } = model`). Only the model runs commands: an engine's
-`run` takes screen actions (`engine.run("popout", { node })`), never a command
+`run` takes screen actions (`engine.run("popout", { nodeId })`), never a command
 ([Model and engine](/docs/concepts/model-and-engine)).
 
 ## Running commands
@@ -78,7 +78,7 @@ const added = model.run("tab.add", {
     select: true,
 });
 if (added.ok) {
-    model.run("tab.pin", { tab: added.value.tab, value: true });
+    model.run("tab.pin", { tabId: added.value.tabId, value: true });
 }
 ```
 
@@ -143,9 +143,9 @@ the drop would run is refused, whether by a node flag or by your middleware
 item, and `check` when you show why something is not allowed:
 
 ```ts
-const closable = model.can("tab.close", { tab: tab.id });
+const closable = model.can("tab.close", { tabId: tab.id });
 
-const checked = model.check("tab.close", { tab: tab.id });
+const checked = model.check("tab.close", { tabId: tab.id });
 if (!checked.ok) console.info(checked.error.message); // why it cannot close
 ```
 
@@ -168,7 +168,7 @@ type CommandResult<R> =
     | { readonly ok: false; readonly error: CommandError };
 ```
 
-`ResultOf<T, C>` is the value type of command `C` (`{ tab: string }` for `tab.add`, the closed tab
+`ResultOf<T, C>` is the value type of command `C` (`{ tabId: string }` for `tab.add`, the closed tab
 ids for `tabset.close`, …).
 
 ### `CommandError`
@@ -224,7 +224,7 @@ import { type Middleware, veto } from "@fragiola/dockable";
 const lockConsole: Middleware<Types> = (ctx, next) => {
     if (
         ctx.command === "tab.move" &&
-        ctx.get("parent", { node: ctx.payload.tab })?.id === "console"
+        ctx.get("node-parent-by-id", { nodeId: ctx.payload.tabId })?.id === "console"
     ) {
         return veto("Console tabs cannot move.");
     }
@@ -283,7 +283,7 @@ registry. The fields every command shares are `CommandContextBase<T>`.
 | `inBatch` | `boolean` | the command runs inside a `batch` (the batch itself runs with `false`) |
 | `meta` | `Readonly<Record<string, unknown>> \| undefined` | the caller's `RunOptions.meta` (a batch passes its own to its commands) |
 | `state` | `LayoutState<T>` | the committed state the command applies to |
-| `get(key, { node })` | `Node<T> \| undefined`, `ParentNode<T> \| undefined` | reads as the command sees it, inside a batch after the batch's earlier commands: `ctx.get("node", { node })` is a node, `ctx.get("parent", { node })` its parent (`CommandContextGetKey` is `"node" \| "parent"`) |
+| `get(key, { node })` | `Node<T> \| undefined`, `ParentNode<T> \| undefined` | reads as the command sees it, inside a batch after the batch's earlier commands: `ctx.get("node-by-id", { nodeId })` is a node, `ctx.get("node-parent-by-id", { nodeId })` its parent (`CommandContextGetKey` is `"node" \| "parent"`) |
 
 Read nodes with `ctx.get` rather than `ctx.state` (or `model.get`) when the middleware may run
 inside a batch: a tab the batch added a step earlier is in the draft, not yet in the committed
@@ -297,8 +297,8 @@ atomic step:
 ```ts
 const result = model.run("batch", {
     commands: [
-        { command: "tab.close", payload: { tab: "log" } },
-        { command: "tabset.maximize", payload: { tabset: "editors", value: true } },
+        { command: "tab.close", payload: { tabId: "log" } },
+        { command: "tabset.maximize", payload: { tabsetId: "editors", value: true } },
     ],
 });
 // result.value.results: each command's value, in order

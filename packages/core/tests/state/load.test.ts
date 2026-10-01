@@ -103,7 +103,7 @@ describe("loading JSON v1", () => {
         const a = createModel(json);
         const b = createModel(json);
         expect(a.state).toEqual(b.state);
-        const ids = a.get("tabs").map((t) => t.id);
+        const ids = a.get("all-tabs").map((t) => t.id);
         expect(ids).toEqual(["tab-2", "tab-1"]);
         expect(a.state.root.id).toBe("row-1");
     });
@@ -114,14 +114,14 @@ describe("loading JSON v1", () => {
             createId: (kind) => `${kind}:${++n}`,
         });
         const added = model.run("tab.add", { component: "x", to: "ts0" });
-        expect(added).toEqual({ ok: true, value: { tab: "tab:1" } });
+        expect(added).toEqual({ ok: true, value: { tabId: "tab:1" } });
     });
 
     it("keeps the active and maximized tabsets on their layouts", () => {
         const json = tabsets(["One"], ["Two"]);
         const model = createModel({ ...json, active: "ts1", maximized: "ts0" });
-        expect(model.get("active-tabset")?.id).toBe("ts1");
-        expect(model.get("maximized-tabset")?.id).toBe("ts0");
+        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
+        expect(model.get("maximized-tabset-by-layout-id")?.id).toBe("ts0");
         expect(model.state.active).toBe("ts1");
     });
 
@@ -382,8 +382,8 @@ describe("toLayoutJson", () => {
     it("turns a kept state back into a document layout.load takes", () => {
         const model = createModel(tabsets(["One", "Two"], ["Three"]));
         const before = model.state;
-        const one = model.get("tabs")[0]?.id ?? "";
-        model.run("tab.close", { tab: one });
+        const one = model.get("all-tabs")[0]?.id ?? "";
+        model.run("tab.close", { tabId: one });
         const json = toLayoutJson(before);
         expect(json.version).toBe(1);
         expect(model.run("layout.load", { layout: json }).ok).toBe(true);

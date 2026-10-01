@@ -78,10 +78,9 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         [engine, id, dragRef],
     );
 
-    const container = model.get("parent", { node: id });
+    const container = model.get("node-parent-by-id", { nodeId: id });
     const containerId = container?.id ?? "";
-    const isSelected = () =>
-        model.get("selected-tab", { container: containerId })?.id === id;
+    const isSelected = () => model.is("tab-selected", { tabId: id });
     const selected = isSelected();
     // keep exactly one tab stop in the tablist even when the tabset has no selected tab
     const tabbable =
@@ -93,21 +92,21 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const inBorder = container?.type === "border";
     const select = () => {
         if (!isSelected()) {
-            model.run("tab.select", { tab: id });
+            model.run("tab.select", { tabId: id });
         }
     };
     // a click on a border's selected tab closes the border's panel (FlexLayout's toggle)
     const onClick = () => {
         if (inBorder && isSelected()) {
             model.run("border.configure", {
-                border: containerId,
+                borderId: containerId,
                 open: false,
             });
         } else {
             select();
         }
     };
-    const closeable = () => model.can("tab.close", { tab: id });
+    const closeable = () => model.can("tab.close", { tabId: id });
 
     const focusAdjacentTab = (to: number | "first" | "last") => {
         const self = selfRef.current;
@@ -127,15 +126,16 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         if (next?.hasAttribute("data-overflow-hidden")) {
             // a tab hidden by tab overflow: select it, which brings it into the strip, then focus it
             const target = model
-                .get("parent", { node: id })
+                .get("node-parent-by-id", { nodeId: id })
                 ?.children.find(
                     (tab) =>
                         tab.type === "tab" &&
-                        engine.get("tab-button-id", { tab: tab.id }) ===
-                            next.id,
+                        engine.get("tab-button-dom-id-by-tab-id", {
+                            tabId: tab.id,
+                        }) === next.id,
                 );
             if (target) {
-                model.run("tab.select", { tab: target.id });
+                model.run("tab.select", { tabId: target.id });
                 self.ownerDocument.defaultView?.requestAnimationFrame(() =>
                     self.ownerDocument.getElementById(next.id)?.focus(),
                 );
@@ -154,7 +154,9 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         }
         const focusPanel = () =>
             focusFirstIn(
-                doc.getElementById(engine.get("tab-panel-id", { tab: id })),
+                doc.getElementById(
+                    engine.get("tab-panel-dom-id-by-tab-id", { tabId: id }),
+                ),
             );
         if (isSelected()) {
             focusPanel();
@@ -186,7 +188,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
             if (!focusAdjacentTab(1)) {
                 focusAdjacentTab(-1);
             }
-            model.run("tab.close", { tab: id });
+            model.run("tab.close", { tabId: id });
             event.preventDefault();
         } else if (hasModifier(event)) {
             // modified arrows are left for keymap bindings (e.g. tabset cycling)
@@ -209,7 +211,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         [
             toAriaKeyShortcuts(keyMap.focusTabToggle),
             // the hint follows the tab's own rule; the key itself asks the model (`closeable`)
-            model.get("tab-settings", { tab: node.id })?.enableClose &&
+            model.get("tab-settings-by-id", { tabId: node.id })?.enableClose &&
             node.pinned !== true
                 ? toAriaKeyShortcuts(keyMap.closeTab)
                 : undefined,
@@ -223,22 +225,24 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         pinned: node.pinned === true,
         dragging: drag.state.dragging,
         // supported, and the model accepts `tab.popout` for it now
-        popoutEnabled: engine.can("popout", { node: id }),
+        popoutEnabled: engine.can("popout", { nodeId: id }),
         overflowHidden,
     };
     return useRenderElement("div", rest, {
         state,
         ref,
         props: {
-            id: engine.get("tab-button-id", { tab: id }),
+            id: engine.get("tab-button-dom-id-by-tab-id", { tabId: id }),
             role: "tab",
             "aria-selected": selected,
-            "aria-controls": engine.get("tab-panel-id", { tab: id }),
+            "aria-controls": engine.get("tab-panel-dom-id-by-tab-id", {
+                tabId: id,
+            }),
             "aria-keyshortcuts": keyShortcuts,
             tabIndex: tabbable ? 0 : -1,
             ...dataAttributes({
                 "layout-path": getTabButtonPath(
-                    engine.get("path", { node: id }),
+                    engine.get("layout-path-by-node-id", { nodeId: id }),
                 ),
                 selected,
                 pinned: state.pinned,

@@ -129,12 +129,12 @@ The same commands resize from code. Weights are relative, so `[1, 2]` gives the 
 twice the first's share, and a border's size is clamped to its `minSize` and `maxSize`:
 
 ```ts
-model.run("row.resize", { row: "main-row", weights: [30, 70] });
-model.run("border.resize", { border: "border_left", size: 280 });
+model.run("row.resize", { rowId: "main-row", weights: [30, 70] });
+model.run("border.resize", { borderId: "border_left", size: 280 });
 ```
 
 `row.resize` needs one weight per child (`invalid_payload` otherwise); the root row's id is
-`model.get("root-row")?.id`.
+`model.get("root-row-by-layout-id")?.id`.
 
 ## Keyboard
 

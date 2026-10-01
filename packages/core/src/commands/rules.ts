@@ -89,7 +89,7 @@ export function checkDrop(
         if (target.type === "border" && subject.fields.pinned === true) {
             return refused(
                 "a pinned tab can only be in a tabset",
-                subject.id === undefined ? "/pinned" : "/tab",
+                subject.id === undefined ? "/pinned" : "/tabId",
             );
         }
         if (subject.id !== undefined && subject.fields.pinned === true) {
@@ -97,7 +97,7 @@ export function checkDrop(
             if (target.id !== parent || location !== "center") {
                 return refused(
                     `tab "${subject.id}" is pinned: it can only move within its tabset`,
-                    "/tab",
+                    "/tabId",
                 );
             }
         }
@@ -110,13 +110,13 @@ export function checkDrop(
             if (!resolveTabset(defaults, tabset).enableClose) {
                 return refused(
                     `tabset "${subject.id}" cannot be merged: its enableClose is false`,
-                    "/tabset",
+                    "/tabsetId",
                 );
             }
             if (tabset.children.some((tab) => tab.pinned === true)) {
                 return refused(
                     `tabset "${subject.id}" holds pinned tabs and cannot be merged`,
-                    "/tabset",
+                    "/tabsetId",
                 );
             }
         }

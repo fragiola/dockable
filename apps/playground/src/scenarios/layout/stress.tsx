@@ -70,7 +70,7 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model, layoutId } = useDockable<Types>();
     const maximized = useModelState<Types, boolean>(
         (_state, model) =>
-            model.get("maximized-tabset", { layout: layoutId })?.id ===
+            model.get("maximized-tabset-by-layout-id", { layoutId })?.id ===
             tabset.id,
     );
     return (
@@ -81,7 +81,7 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
             className="grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85 outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring"
             onClick={() =>
                 model.run("tabset.maximize", {
-                    tabset: tabset.id,
+                    tabsetId: tabset.id,
                     value: !maximized,
                 })
             }
@@ -94,7 +94,8 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
 /** where a tab sits: its tabset's id and its own */
 function TabPlace({ id }: { id: string }) {
     const parent = useModelState<Types, string>(
-        (_state, model) => model.get("parent", { node: id })?.id ?? "",
+        (_state, model) =>
+            model.get("node-parent-by-id", { nodeId: id })?.id ?? "",
     );
     return <p className="text-palette-accent/85">{`${parent} · ${id}`}</p>;
 }

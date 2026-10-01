@@ -164,7 +164,7 @@ describe("SplitterController pointer drag", () => {
                 width: 0,
                 height: 0,
             },
-            range: engine.get("size-limits", { node: id }),
+            range: engine.get("size-limits-by-node-id", { nodeId: id }),
         }));
         const bounds = splitterBounds(
             children,
@@ -397,7 +397,7 @@ describe("SplitterController ARIA", () => {
     it("is hidden while a tabset is maximized", () => {
         const { model, controller } = setup();
         expect(controller.isHidden()).toBe(false);
-        model.run("tabset.maximize", { tabset: "ts0", value: true });
+        model.run("tabset.maximize", { tabsetId: "ts0", value: true });
         expect(controller.isHidden()).toBe(true);
     });
 
@@ -470,7 +470,7 @@ describe("border splitters", () => {
         pointer("pointermove", document, 282); // 50px wider
         expect(actions.at(-1)).toMatchObject({
             command: "border.resize",
-            payload: { border: "border_left", size: 250 },
+            payload: { borderId: "border_left", size: 250 },
             transient: true,
         });
         pointer("pointermove", document, 900); // clamped by the bounds to the maximum
@@ -479,12 +479,16 @@ describe("border splitters", () => {
             command: "border.resize",
             transient: false,
         });
-        expect(model.get("node", { node: "border_left" })).toMatchObject({
+        expect(
+            model.get("node-by-id", { nodeId: "border_left" }),
+        ).toMatchObject({
             size: 300,
         });
 
         key(controller, "ArrowLeft"); // towards the border's edge: it shrinks
-        expect(model.get("node", { node: "border_left" })).toMatchObject({
+        expect(
+            model.get("node-by-id", { nodeId: "border_left" }),
+        ).toMatchObject({
             size: 290,
         });
     });

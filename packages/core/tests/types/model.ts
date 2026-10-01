@@ -45,7 +45,7 @@ export function commands(model: Model<Types>): void {
         to: "ts0",
     });
     if (added.ok) {
-        const id: string = added.value.tab;
+        const id: string = added.value.tabId;
         use(id);
     }
     // a component without data needs none
@@ -62,103 +62,131 @@ export function commands(model: Model<Types>): void {
     // @ts-expect-error: not a component of the registry
     model.run("tab.add", { component: "table", data: {}, to: "ts0" });
     // @ts-expect-error: not a command
-    model.run("tab.nope", { tab: "x" });
-    // @ts-expect-error: tab.close takes `tab`, not `node`
-    model.run("tab.close", { node: "x" });
+    model.run("tab.nope", { tabId: "x" });
+    // @ts-expect-error: tab.close takes `tabId`, not `nodeId`
+    model.run("tab.close", { nodeId: "x" });
+    // @ts-expect-error: a payload names its ids: `tabId`, not `tab`
+    model.run("tab.close", { tab: "x" });
+    const popped = model.run("tab.popout", { tabId: "x" });
+    if (popped.ok) {
+        const window: string = popped.value.windowId;
+        use(window);
+    }
     model.run("tab.update", {
-        tab: "t",
+        tabId: "t",
         component: "editor",
         // @ts-expect-error: tab.update checks the data against the component
         data: { name: "x", series: [] },
     });
     model.run("tab.update", {
-        tab: "t",
+        tabId: "t",
         component: "editor",
         data: { name: "a", path: "/a", dirty: true },
     });
     // @ts-expect-error: maximize takes an explicit value, it is not a toggle
-    model.run("tabset.maximize", { tabset: "ts0" });
+    model.run("tabset.maximize", { tabsetId: "ts0" });
 
     // untrusted input is accepted as unknown and checked at runtime
     const dispatched = model.dispatch(JSON.parse("{}"));
     use(dispatched.ok);
-    const allowed: boolean = model.can("tab.close", { tab: "x" });
+    const allowed: boolean = model.can("tab.close", { tabId: "x" });
     use(allowed);
     // @ts-expect-error: can answers a boolean; the reason is check's
-    use(model.can("tab.close", { tab: "x" }).ok);
+    use(model.can("tab.close", { tabId: "x" }).ok);
     const checked = model.check("tab.add", { component: "empty", to: "ts0" });
     if (checked.ok) {
-        const id: string = checked.value.tab;
+        const id: string = checked.value.tabId;
         use(id);
     } else {
         use(checked.error.code);
     }
     // @ts-expect-error: check takes the command's payload
-    model.check("tab.close", { tabset: "x" });
+    model.check("tab.close", { tabsetId: "x" });
 }
 
 export function queries(model: Model<Types>): void {
-    const node = model.get("node", { node: "x" });
+    const node = model.get("node-by-id", { nodeId: "x" });
     // @ts-expect-error: a node can be missing
     use(node.id);
     use(node?.id);
-    const name: string | undefined = model.get("active-tabset")?.data?.name;
+    const name: string | undefined = model.get("active-tabset-by-layout-id")
+        ?.data?.name;
     use(name);
-    for (const tab of model.get("tabs")) {
+    for (const tab of model.get("all-tabs")) {
         if (tab.component === "editor") {
             use(tab.data.path.length);
         }
     }
-    const selected = model.get("selected-tab", { container: "ts0" });
+    const selected = model.get("selected-tab-by-tabset-id", {
+        tabsetId: "ts0",
+    });
     if (selected?.component === "chart") {
         const series: string[] = selected.data.series;
         use(series);
     }
-    const found = model.get("node", { node: "t0" });
+    const found = model.get("node-by-id", { nodeId: "t0" });
     if (found?.type === "tab" && found.component === "editor") {
         const dirty: boolean = found.data.dirty;
         use(dirty);
     }
     const parentType: "row" | "tabset" | "border" | undefined = model.get(
-        "parent",
-        { node: "t0" },
+        "node-parent-by-id",
+        { nodeId: "t0" },
     )?.type;
     use(parentType);
-    const layout: string | undefined = model.get("layout-id", { node: "t0" });
-    const closable: boolean | undefined = model.get("tab-settings", {
-        tab: "t0",
+    const layout: string | undefined = model.get("layout-id-by-node-id", {
+        nodeId: "t0",
+    });
+    const closable: boolean | undefined = model.get("tab-settings-by-id", {
+        tabId: "t0",
     })?.enableClose;
     const json: number = model.get("layout-json").version;
     const commands: number = model.get("commands").length;
     use(layout, closable, json, commands, model.get("layout-settings"));
-    use(model.get("tabsets", { layout: "w0" }), model.get("root-row"));
+    use(
+        model.get("tabsets-by-layout-id", { layoutId: "w0" }),
+        model.get("root-row-by-layout-id"),
+    );
 
     // @ts-expect-error: not a query
     model.get("nope");
-    // @ts-expect-error: parent needs its payload
-    model.get("parent");
-    // @ts-expect-error: parent takes `node`, not `tab`
-    model.get("parent", { tab: "t0" });
-    // @ts-expect-error: selected-tab answers a tab, not a tabset
-    const wrong: TabsetNode<Types> | undefined = model.get("selected-tab", {
-        container: "ts0",
-    });
+    // @ts-expect-error: an old key
+    model.get("node", { node: "t0" });
+    // @ts-expect-error: node-parent-by-id needs its payload
+    model.get("node-parent-by-id");
+    // @ts-expect-error: node-parent-by-id takes `nodeId`, not `tab`
+    model.get("node-parent-by-id", { tab: "t0" });
+    // @ts-expect-error: a tabset's selected tab is read by the tabset's id, not a container's
+    model.get("selected-tab-by-tabset-id", { container: "ts0" });
+    // @ts-expect-error: selected-tab-by-tabset-id answers a tab, not a tabset
+    const wrong: TabsetNode<Types> | undefined = model.get(
+        "selected-tab-by-tabset-id",
+        {
+            tabsetId: "ts0",
+        },
+    );
     use(wrong);
 
-    const maximized: boolean = model.is("maximized", { tabset: "ts0" });
-    use(maximized, model.is("hidden-by-maximize", { node: "r0" }));
+    const maximized: boolean = model.is("tabset-maximized", {
+        tabsetId: "ts0",
+    });
+    use(maximized, model.is("node-hidden-by-maximize", { nodeId: "r0" }));
     // @ts-expect-error: not a question
     model.is("nope", { node: "x" });
-    // @ts-expect-error: maximized asks about a tabset
-    model.is("maximized", { tab: "t0" });
+    // @ts-expect-error: tabset-maximized takes a tabset's id
+    model.is("tabset-maximized", { tabId: "t0" });
+    // @ts-expect-error: tabset-active takes `tabsetId`, not `tabId`
+    model.is("tabset-active", { tabId: "t0" });
+    // @ts-expect-error: an old key
+    model.is("active", { tabset: "ts0" });
     // @ts-expect-error: a question needs its payload
-    model.is("pinned");
+    model.is("tab-pinned");
 }
 
 export function detached(model: Model<Types>): void {
     // every method is bound
     const { get, is, can, check, run } = model;
-    use(get("tabs"), is("pinned", { tab: "t" }), can, check, run);
+    use(get("all-tabs"), is("tab-pinned", { tabId: "t" }), can, check, run);
 }
 
 export function middleware(model: Model<Types>): void {
@@ -173,14 +201,16 @@ export function middleware(model: Model<Types>): void {
     };
     const reads: Middleware<Types> = (ctx, next) => {
         if (ctx.command === "tab.close") {
-            const tab = ctx.get("node", { node: ctx.payload.tab });
+            const tab = ctx.get("node-by-id", { nodeId: ctx.payload.tabId });
             const parentType: "row" | "tabset" | "border" | undefined = ctx.get(
-                "parent",
-                { node: ctx.payload.tab },
+                "node-parent-by-id",
+                { nodeId: ctx.payload.tabId },
             )?.type;
             use(tab?.id, parentType);
             // @ts-expect-error: a middleware reads only nodes and parents
-            ctx.get("tabs", { node: "x" });
+            ctx.get("all-tabs");
+            // @ts-expect-error: the old key
+            ctx.get("node", { node: "x" });
         }
         return next();
     };
@@ -233,7 +263,7 @@ export function middlewareNarrowing() {
     const model = createModel<Types>();
     model.use((ctx, next) => {
         if (ctx.command === "tab.close") {
-            const tab: string = ctx.payload.tab;
+            const tab: string = ctx.payload.tabId;
             void tab;
         } else if (ctx.command === "tab.add") {
             if (ctx.payload.component === "editor") {

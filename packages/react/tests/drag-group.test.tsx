@@ -144,8 +144,8 @@ describe("Dockable.DragGroup", () => {
         dragTo("root-a", "a0", "root-b");
         await act(tick);
 
-        expect(a.get("node", { node: "a0" })).toBeUndefined();
-        expect(b.get("node", { node: "a0" })).toBeDefined();
+        expect(a.get("node-by-id", { nodeId: "a0" })).toBeUndefined();
+        expect(b.get("node-by-id", { nodeId: "a0" })).toBeDefined();
         const moved = screen.getByTestId("content-a0");
         expect(moved).toBe(content);
         expect(screen.getByTestId("root-b")).toContainElement(moved);
@@ -157,7 +157,7 @@ describe("Dockable.DragGroup", () => {
         expect(commandsA).toContainEqual(
             expect.objectContaining({
                 command: "tab.close",
-                payload: { tab: "a0" },
+                payload: { tabId: "a0" },
             }),
         );
         expect(onTransfer).toHaveBeenCalledWith(
@@ -176,8 +176,8 @@ describe("Dockable.DragGroup", () => {
         render(<TwoLayouts a={a} b={b} grouped={false} />);
         await act(tick);
         dragTo("root-a", "a0", "root-b");
-        expect(a.get("node", { node: "a0" })).toBeDefined();
-        expect(b.get("node", { node: "a0" })).toBeUndefined();
+        expect(a.get("node-by-id", { nodeId: "a0" })).toBeDefined();
+        expect(b.get("node-by-id", { nodeId: "a0" })).toBeUndefined();
     });
 
     it("lets the target model's middleware veto the transfer", async () => {
@@ -196,8 +196,8 @@ describe("Dockable.DragGroup", () => {
         dragTo("root-a", "a0", "root-b");
         expect(transfers.length).toBeGreaterThan(0);
         expect(transfers[0]).toEqual({ tabId: "a0", from: a, to: b });
-        expect(a.get("node", { node: "a0" })).toBeDefined();
-        expect(b.get("node", { node: "a0" })).toBeUndefined();
+        expect(a.get("node-by-id", { nodeId: "a0" })).toBeDefined();
+        expect(b.get("node-by-id", { nodeId: "a0" })).toBeUndefined();
     });
 
     it("gives code the group: a transfer back from code keeps the content too", async () => {
@@ -217,7 +217,7 @@ describe("Dockable.DragGroup", () => {
         );
         await act(tick);
         act(() => {
-            a.run("tab.select", { tab: "a1" }); // render on demand: mount it
+            a.run("tab.select", { tabId: "a1" }); // render on demand: mount it
         });
         await act(tick);
         fireEvent.click(screen.getByTestId("inc-a1"));
@@ -301,7 +301,7 @@ describe("Dockable.DragGroup", () => {
                 index: -1,
             }),
         ).toBeUndefined();
-        expect(a.get("node", { node: "a0" })).toBeDefined();
+        expect(a.get("node-by-id", { nodeId: "a0" })).toBeDefined();
     });
 
     it("still renders content without a group, and removes a closed tab's content", async () => {
@@ -314,7 +314,7 @@ describe("Dockable.DragGroup", () => {
         await act(tick);
         expect(screen.getByTestId("content-a0")).toBeInTheDocument();
         act(() => {
-            a.run("tab.close", { tab: "a0" });
+            a.run("tab.close", { tabId: "a0" });
         });
         await act(tick);
         expect(screen.queryByTestId("content-a0")).toBeNull();

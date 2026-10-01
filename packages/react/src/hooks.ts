@@ -35,12 +35,12 @@ import {
 export interface UseDockableResult<T extends DockableTypes = AnyTypes> {
     /**
      * the model of the enclosing `Dockable.Root`: the layout's data and its rules. Change the layout
-     * with `model.run("tab.close", { tab })`, read it with `model.get`/`model.is`
+     * with `model.run("tab.close", { tabId: tab })`, read it with `model.get`/`model.is`
      */
     model: Model<T>;
     /**
      * the engine of the layout this component renders in (the main layout's, or a popout
-     * window's): screen actions (`engine.run("popout", { node })`) and view facts (`engine.get`)
+     * window's): screen actions (`engine.run("popout", { nodeId: node })`) and view facts (`engine.get`)
      */
     engine: LayoutEngine<T>;
     /** the id of the layout this component renders in: `"main"` or a window's id */
@@ -69,7 +69,7 @@ export function useDockable<
  * changes (`isEqual`, `Object.is` by default). The selector runs once per state; keep it pure.
  *
  * ```ts
- * const count = useModelState<Types, number>((state, model) => model.get("tabs").length);
+ * const count = useModelState<Types, number>((state, model) => model.get("all-tabs").length);
  * ```
  */
 export function useModelState<T extends DockableTypes = AnyTypes, S = unknown>(
@@ -253,12 +253,13 @@ export function useTabSet<T extends DockableTypes>(
     const { engine, layoutId } = useLayoutContext("useTabSet");
     const id = node.id;
     const drop = useTabSetDropState(engine, id);
-    const active = model.get("active-tabset", { layout: layoutId })?.id === id;
+    const active =
+        model.get("active-tabset-by-layout-id", { layoutId })?.id === id;
     const state: TabSetState = {
         active,
         maximized:
-            model.get("maximized-tabset", { layout: layoutId })?.id === id,
-        hidden: model.is("hidden-by-maximize", { node: id }),
+            model.get("maximized-tabset-by-layout-id", { layoutId })?.id === id,
+        hidden: model.is("node-hidden-by-maximize", { nodeId: id }),
         empty: node.children.length === 0,
         dropTarget: drop.target,
         dropLocation: drop.location,
@@ -274,9 +275,9 @@ export function useTabSet<T extends DockableTypes>(
     const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
         if (
             !isAuxEvent(event) &&
-            model.get("active-tabset", { layout: layoutId })?.id !== id
+            model.get("active-tabset-by-layout-id", { layoutId })?.id !== id
         ) {
-            model.run("tabset.activate", { tabset: id });
+            model.run("tabset.activate", { tabsetId: id });
         }
     };
     return { state, props: { ref, onPointerDown } };
@@ -331,7 +332,7 @@ export function useBorder<T extends DockableTypes>(
         location,
         orientation: vertical ? "vertical" : "horizontal",
         open: node.selected !== -1,
-        overlay: model.is("overlay", { border: id }),
+        overlay: model.is("border-overlay", { borderId: id }),
         empty: node.children.length === 0,
         tabDirection:
             location === "left" ? (options.tabDirection ?? "up") : undefined,
@@ -531,14 +532,17 @@ export function useDragNode<T extends DockableTypes>(
     const dragState = useDragState();
     const id = node.id;
     const enabled = () => {
-        const current = model.get("node", { node: id });
+        const current = model.get("node-by-id", { nodeId: id });
         if (current?.type === "tab") {
-            return model.get("tab-settings", { tab: id })?.enableDrag ?? false;
+            return (
+                model.get("tab-settings-by-id", { tabId: id })?.enableDrag ??
+                false
+            );
         }
         if (current?.type === "tabset") {
             return (
-                model.get("tabset-settings", { tabset: id })?.enableDrag ??
-                false
+                model.get("tabset-settings-by-id", { tabsetId: id })
+                    ?.enableDrag ?? false
             );
         }
         return false;

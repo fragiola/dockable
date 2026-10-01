@@ -124,7 +124,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
             "aria-keyshortcuts": keyShortcuts,
             ...dataAttributes({
                 "layout-path": getTabStripPath(
-                    engine.get("path", { node: id }),
+                    engine.get("layout-path-by-node-id", { nodeId: id }),
                 ),
                 orientation,
                 "drop-target": state.dropTarget,

@@ -160,16 +160,18 @@ export function Hooks() {
         data: { name: "x", series: [1] },
         to: "main",
     });
-    const first = typed.get("tabs")[0];
+    const first = typed.get("all-tabs")[0];
     if (first?.component === "editor") {
         const dirty: boolean = first.data.dirty;
         void dirty;
     }
     const names = useModelState<Types, string[]>((_state, m) =>
-        m.get("tabs").map((tab) => tab.data.name),
+        m.get("all-tabs").map((tab) => tab.data.name),
     );
     // the engine of the layout this renders in: screen actions and view facts
-    const panelId: string = engine.get("tab-panel-id", { tab: "t0" });
+    const panelId: string = engine.get("tab-panel-dom-id-by-tab-id", {
+        tabId: "t0",
+    });
     void panelId;
     // @ts-expect-error: useDockable has no run; change the layout with model.run
     useDockable<Types>().run;

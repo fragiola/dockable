@@ -39,18 +39,21 @@ export type TabAddPayload<T extends DockableTypes> = {
     [K in ComponentOf<T>]: TabInit<K, TabDataOf<T, K>> & Placement;
 }[ComponentOf<T>];
 
-export type TabMovePayload = { tab: string } & Placement;
+export type TabMovePayload = { tabId: string } & Placement;
 
-export type TabsetMovePayload = { tabset: string } & Omit<Placement, "select">;
+export type TabsetMovePayload = { tabsetId: string } & Omit<
+    Placement,
+    "select"
+>;
 
 /** The payload of `tab.update`: a component and its whole data. */
 export type TabUpdatePayload<T extends DockableTypes> = {
-    [K in ComponentOf<T>]: { tab: string; component: K } & DataField<
+    [K in ComponentOf<T>]: { tabId: string; component: K } & DataField<
         TabDataOf<T, K>
     >;
 }[ComponentOf<T>];
 
-export type TabConfigurePayload = { tab: string } & Nullable<{
+export type TabConfigurePayload = { tabId: string } & Nullable<{
     enableClose: boolean;
     enableDrag: boolean;
     enablePopout: boolean;
@@ -63,7 +66,7 @@ export type TabConfigurePayload = { tab: string } & Nullable<{
 }>;
 
 export type TabsetConfigurePayload<T extends DockableTypes> = {
-    tabset: string;
+    tabsetId: string;
 } & Nullable<{
     enableDrop: boolean;
     enableDrag: boolean;
@@ -80,7 +83,7 @@ export type TabsetConfigurePayload<T extends DockableTypes> = {
 }>;
 
 export type BorderConfigurePayload<T extends DockableTypes> = {
-    border: string;
+    borderId: string;
     /** open (select its first tab when none is selected) or close the border's panel */
     open?: boolean;
 } & Nullable<{
@@ -97,7 +100,7 @@ export type BorderConfigurePayload<T extends DockableTypes> = {
 }>;
 
 export type RowConfigurePayload<T extends DockableTypes> = {
-    row: string;
+    rowId: string;
     data?: RowDataOf<T> | null;
 };
 
@@ -150,70 +153,70 @@ export type BatchEntry<T extends DockableTypes = AnyTypes> = {
 
 /** Every built-in command: its payload and its result, typed by the registry `T`. */
 export interface CommandMap<T extends DockableTypes = AnyTypes> {
-    "tab.add": { payload: TabAddPayload<T>; result: { tab: string } };
-    "tab.select": { payload: { tab: string }; result: { tab: string } };
-    "tab.close": { payload: { tab: string }; result: { tab: string } };
-    "tab.move": { payload: TabMovePayload; result: { tab: string } };
-    "tab.update": { payload: TabUpdatePayload<T>; result: { tab: string } };
+    "tab.add": { payload: TabAddPayload<T>; result: { tabId: string } };
+    "tab.select": { payload: { tabId: string }; result: { tabId: string } };
+    "tab.close": { payload: { tabId: string }; result: { tabId: string } };
+    "tab.move": { payload: TabMovePayload; result: { tabId: string } };
+    "tab.update": { payload: TabUpdatePayload<T>; result: { tabId: string } };
     "tab.pin": {
-        payload: { tab: string; value: boolean };
-        result: { tab: string };
+        payload: { tabId: string; value: boolean };
+        result: { tabId: string };
     };
     "tab.popout": {
-        payload: { tab: string; rect?: Rect };
-        result: { window: string };
+        payload: { tabId: string; rect?: Rect };
+        result: { windowId: string };
     };
     "tab.configure": {
         payload: TabConfigurePayload;
-        result: { tab: string };
+        result: { tabId: string };
     };
     "tabset.activate": {
-        payload: { tabset: string };
-        result: { tabset: string };
+        payload: { tabsetId: string };
+        result: { tabsetId: string };
     };
     "tabset.maximize": {
-        payload: { tabset: string; value: boolean };
-        result: { tabset: string };
+        payload: { tabsetId: string; value: boolean };
+        result: { tabsetId: string };
     };
     "tabset.close": {
-        payload: { tabset: string };
-        result: { closed: string[] };
+        payload: { tabsetId: string };
+        result: { closedTabIds: string[] };
     };
     "tabset.move": {
         payload: TabsetMovePayload;
-        result: { tabset: string };
+        result: { tabsetId: string };
     };
     "tabset.popout": {
-        payload: { tabset: string; rect?: Rect };
-        result: { window: string };
+        payload: { tabsetId: string; rect?: Rect };
+        result: { windowId: string };
     };
     "tabset.configure": {
         payload: TabsetConfigurePayload<T>;
-        result: { tabset: string };
+        result: { tabsetId: string };
     };
     "row.resize": {
-        payload: { row: string; weights: number[] };
-        result: { row: string };
+        payload: { rowId: string; weights: number[] };
+        result: { rowId: string };
     };
     "row.configure": {
         payload: RowConfigurePayload<T>;
-        result: { row: string };
+        result: { rowId: string };
     };
     "border.resize": {
-        payload: { border: string; size: number };
-        result: { border: string; size: number };
+        payload: { borderId: string; size: number };
+        result: { borderId: string; size: number };
     };
     "border.configure": {
         payload: BorderConfigurePayload<T>;
-        result: { border: string };
+        result: { borderId: string };
     };
     "window.close": {
-        payload: { window: string };
-        result: { tabs: string[] };
+        payload: { windowId: string };
+        result: { tabIds: string[] };
     };
     "window.configure": {
-        payload: { window: string; rect: Rect };
-        result: { window: string };
+        payload: { windowId: string; rect: Rect };
+        result: { windowId: string };
     };
     "layout.configure": {
         payload: { defaults: LayoutDefaultsPatch };
@@ -221,7 +224,7 @@ export interface CommandMap<T extends DockableTypes = AnyTypes> {
     };
     "layout.load": {
         payload: { layout: LayoutJson<T> };
-        result: { added: string[]; removed: string[] };
+        result: { addedNodeIds: string[]; removedNodeIds: string[] };
     };
     batch: {
         payload: { commands: BatchEntry<T>[] };
@@ -284,7 +287,7 @@ export interface RunOptions {
 }
 
 /** What a middleware's `ctx.get` reads. */
-export type CommandContextGetKey = "node" | "parent";
+export type CommandContextGetKey = "node-by-id" | "node-parent-by-id";
 
 /** What a middleware sees of any command. */
 export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
@@ -297,18 +300,20 @@ export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
     /** the committed state the command applies to */
     readonly state: LayoutState<T>;
     /**
-     * reads a node (`"node"`) or its parent (`"parent"`) as the command sees it: inside a batch,
-     * after the batch's earlier commands
+     * reads a node (`"node-by-id"`) or its parent (`"node-parent-by-id"`) as the command sees it:
+     * inside a batch, after the batch's earlier commands
      */
     get<K extends CommandContextGetKey>(
         key: K,
-        payload: { node: string },
-    ): K extends "parent" ? ParentNode<T> | undefined : Node<T> | undefined;
+        payload: { nodeId: string },
+    ): K extends "node-parent-by-id"
+        ? ParentNode<T> | undefined
+        : Node<T> | undefined;
 }
 
 /**
  * What a middleware sees: a union discriminated by `command`, so checking the command narrows the
- * payload (`if (ctx.command === "tab.close") ctx.payload.tab`).
+ * payload (`if (ctx.command === "tab.close") ctx.payload.tabId`).
  */
 export type CommandContext<T extends DockableTypes = AnyTypes> = {
     [C in CommandName]: CommandContextBase<T> & {

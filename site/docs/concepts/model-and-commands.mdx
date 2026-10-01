@@ -4,7 +4,7 @@ description: The layout is an immutable JSON-shaped state. Every change is a com
 ---
 
 The **model is the source of truth**. What you render is a function of its state, and the state
-changes only through **commands**: `model.run("tab.close", { tab: "t1" })`. Every command, whether
+changes only through **commands**: `model.run("tab.close", { tabId: "t1" })`. Every command, whether
 your code runs it or a primitive does (a click, a drop, a splitter drag), goes through the same
 middleware chain, and every commit emits one event.
 
@@ -59,7 +59,7 @@ A node is told apart by its `type` field (`"row"`, `"tabset"`, `"tab"`, `"border
 fields are read directly:
 
 ```ts
-const tabset = model.get("node", { node: "editors" });
+const tabset = model.get("node-by-id", { nodeId: "editors" });
 if (tabset?.type === "tabset") {
     tabset.children; // readonly TabOf<Types>[]
     tabset.selected; // the index of the selected tab, -1 when none
@@ -81,20 +81,20 @@ A command is a name and a JSON payload. `model.run` is typed by your registry: t
 checked against the command, and `data` against the component.
 
 ```ts
-model.run("tab.select", { tab: "readme" });
-model.run("tab.close", { tab: "readme" });
+model.run("tab.select", { tabId: "readme" });
+model.run("tab.close", { tabId: "readme" });
 model.run("tab.add", { component: "log", data: { name: "Log" }, to: "editors", select: true });
-model.run("tab.move", { tab: "log", to: "editors", location: "right" }); // split beside it
-model.run("tab.update", { tab: "log", component: "log", data: { name: "Build log" } });
-model.run("tabset.maximize", { tabset: "editors", value: true });
+model.run("tab.move", { tabId: "log", to: "editors", location: "right" }); // split beside it
+model.run("tab.update", { tabId: "log", component: "log", data: { name: "Build log" } });
+model.run("tabset.maximize", { tabsetId: "editors", value: true });
 ```
 
 Every command returns a `CommandResult`, and **never throws** on bad input:
 
 ```ts
-const result = model.run("tab.close", { tab: "readme" });
+const result = model.run("tab.close", { tabId: "readme" });
 if (result.ok) {
-    result.value.tab; // the command's value
+    result.value.tabId; // the command's value
 } else {
     result.error.code; // "not_found", "refused", "vetoed", "invalid_payload", …
     result.error.message;
@@ -115,7 +115,7 @@ import { useDockable } from "@fragiola/dockable-react";
 function CloseButton({ tabId }: { tabId: string }) {
     const { model } = useDockable<Types>();
     return (
-        <button type="button" aria-label="Close" onClick={() => model.run("tab.close", { tab: tabId })}>
+        <button type="button" aria-label="Close" onClick={() => model.run("tab.close", { tabId })}>
             ×
         </button>
     );
@@ -131,7 +131,7 @@ The rest of the bus:
   before anything runs.
 - `model.can(command, payload)` answers whether `run` would succeed, without committing or
   emitting anything: a `boolean`. Enable a button with
-  `model.can("tabset.maximize", { tabset, value: true })`. `model.check(command, payload)` returns
+  `model.can("tabset.maximize", { tabsetId, value: true })`. `model.check(command, payload)` returns
   what `run` would return instead, with the `error` that says why it is refused.
 - `model.run("batch", { commands: [...] })` runs several commands as **one atomic step**: if one
   fails, none applies, and the batch emits a single event.
@@ -155,7 +155,7 @@ import { type Middleware, veto } from "@fragiola/dockable";
 
 const policy: Middleware<Types> = (ctx, next) => {
     // veto: return an error without calling next(); the "readme" tab cannot be closed
-    if (ctx.command === "tab.close" && ctx.payload.tab === "readme") {
+    if (ctx.command === "tab.close" && ctx.payload.tabId === "readme") {
         return veto("The README stays open.");
     }
     // rewrite: assign a new payload, then call next() (it is validated again)
@@ -170,7 +170,7 @@ const remove = model.use(policy); // returns the function that removes it
 ```
 
 Checking `ctx.command` narrows `ctx.payload` to that command's payload. The context also carries
-the committed `state`, `ctx.get("node", { node })` and `ctx.get("parent", { node })` (as the
+the committed `state`, `ctx.get("node-by-id", { nodeId })` and `ctx.get("node-parent-by-id", { nodeId })` (as the
 command sees them, inside a batch too), `meta`, `transient`, and `dryRun`.
 
 A drag is not special. While you drag, the engine asks the model for the command each drop target
@@ -209,7 +209,7 @@ In React, `useModelState(selector)` subscribes a component to a slice of the sta
 it only when that slice changes:
 
 ```tsx
-const count = useModelState<Types, number>((state, model) => model.get("tabs").length);
+const count = useModelState<Types, number>((state, model) => model.get("all-tabs").length);
 ```
 
 ## Reading the model
@@ -219,26 +219,26 @@ key and a payload, like a command; each is O(1) or a walk of the tree, and safe 
 
 ```ts
 model.state; // LayoutState<Types>: root, borders, windows, active, maximized, defaults
-model.get("node", { node: "readme" }); // a node by id
-model.get("parent", { node: "readme" }); // its row, tabset or border
-model.get("layout-id", { node: "readme" }); // MAIN_LAYOUT, or a window id
-model.get("root-row"); // a layout's root row (default the main layout)
-model.get("tabs"); // every tab, in tree order: TabOf<Types>[]
-model.get("tabsets"); // a layout's tabsets
-model.get("selected-tab", { container: "editors" }); // a tabset's (or border's) selected tab
-model.get("active-tabset"); // the active tabset of a layout
-model.get("maximized-tabset"); // the maximized tabset of a layout
-model.get("tab-settings", { tab: "readme" }); // a tab's flags, resolved through the defaults
+model.get("node-by-id", { nodeId: "readme" }); // a node by id
+model.get("node-parent-by-id", { nodeId: "readme" }); // its row, tabset or border
+model.get("layout-id-by-node-id", { nodeId: "readme" }); // MAIN_LAYOUT, or a window id
+model.get("root-row-by-layout-id"); // a layout's root row (default the main layout)
+model.get("all-tabs"); // every tab, in tree order: TabOf<Types>[]
+model.get("tabsets-by-layout-id"); // a layout's tabsets
+model.get("selected-tab-by-tabset-id", { tabsetId: "editors" }); // a tabset's (or border's) selected tab
+model.get("active-tabset-by-layout-id"); // the active tabset of a layout
+model.get("maximized-tabset-by-layout-id"); // the maximized tabset of a layout
+model.get("tab-settings-by-id", { tabId: "readme" }); // a tab's flags, resolved through the defaults
 model.get("layout-settings"); // the layout-wide settings, resolved
-model.is("maximized", { tabset: "editors" }); // is this tabset maximized?
-model.is("hidden-by-maximize", { node: "tools" }); // hidden because another tabset is maximized
+model.is("tabset-maximized", { tabsetId: "editors" }); // is this tabset maximized?
+model.is("node-hidden-by-maximize", { nodeId: "tools" }); // hidden because another tabset is maximized
 ```
 
 Every key is on [the Model reference](/docs/api/model#reading-get). A flag a node does not set
 comes from the layout `defaults` (then from the built-in value), so read it through the
-`*-settings` keys, not from the node: `model.get("tab-settings", { tab: tab.id })?.enableClose`.
+`*-settings` keys, not from the node: `model.get("tab-settings-by-id", { tabId: tab.id })?.enableClose`.
 To know whether something is allowed right now (the defaults, the rules and your middleware
-together), ask `model.can("tab.close", { tab: tab.id })`.
+together), ask `model.can("tab.close", { tabId: tab.id })`.
 
 The primitives re-render when the state changes, so reading the model inside the layout is always
 current. Outside it, subscribe (`model.subscribe`, or `useSyncExternalStore` over it).
@@ -251,8 +251,8 @@ place:
 ```ts
 const result = model.run("layout.load", { layout: savedJson });
 if (result.ok) {
-    result.value.added; // node and window ids only in the new layout
-    result.value.removed; // ids only in the old one
+    result.value.addedNodeIds; // node and window ids only in the new layout
+    result.value.removedNodeIds; // ids only in the old one
 }
 ```
 

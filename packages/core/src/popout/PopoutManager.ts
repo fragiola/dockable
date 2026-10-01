@@ -260,7 +260,9 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
                 (layout) => layout.id === layoutId,
             )
         ) {
-            this.engine.adapter.model.run("window.close", { window: layoutId });
+            this.engine.adapter.model.run("window.close", {
+                windowId: layoutId,
+            });
         }
     }
 
@@ -317,7 +319,9 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
     }
 
     private layoutOf(layoutId: string): WindowLayout<T> | undefined {
-        return this.engine.adapter.model.get("window", { window: layoutId });
+        return this.engine.adapter.model.get("window-by-id", {
+            windowId: layoutId,
+        });
     }
 
     private onLoad(entry: PopoutEntry<T>) {
@@ -406,7 +410,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             }
             this.engine.adapter.model.run(
                 "window.configure",
-                { window: entry.layoutId, rect },
+                { windowId: entry.layoutId, rect },
                 { transient: true },
             );
         };
@@ -450,8 +454,8 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
      * so their content (and the framework state rendered into it) outlives the window
      */
     private rescueContent(layoutId: string) {
-        for (const tab of this.engine.adapter.model.get("tabs", {
-            layout: layoutId,
+        for (const tab of this.engine.adapter.model.get("tabs-by-layout-id", {
+            layoutId,
         })) {
             this.engine.adapter.releaseMoveable(tab.id);
         }

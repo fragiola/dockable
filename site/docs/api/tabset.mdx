@@ -40,9 +40,9 @@ first for a strip at the bottom.
 
 | field | type | description |
 | --- | --- | --- |
-| `active` | `boolean` | the tabset is its layout's active tabset (`model.is("active", { tabset })`) |
-| `maximized` | `boolean` | the tabset is maximized (`model.is("maximized", { tabset })`) |
-| `hidden` | `boolean` | another tabset of the layout is maximized, so this one is hidden (`model.is("hidden-by-maximize", { node })`) |
+| `active` | `boolean` | the tabset is its layout's active tabset (`model.is("tabset-active", { tabsetId })`) |
+| `maximized` | `boolean` | the tabset is maximized (`model.is("tabset-maximized", { tabsetId })`) |
+| `hidden` | `boolean` | another tabset of the layout is maximized, so this one is hidden (`model.is("node-hidden-by-maximize", { nodeId })`) |
 | `empty` | `boolean` | the tabset has no tabs |
 | `dropTarget` | `boolean` | the current drag would drop into or beside this tabset (its content or its strip) |
 | `dropLocation` | `DropLocation \| undefined`: `"center" \| "top" \| "bottom" \| "left" \| "right"` | while it is the drop target: where the drag would dock relative to it |
@@ -64,7 +64,7 @@ first for a strip at the bottom.
 ## Structural style
 
 `display: flex` (or `none` while `hidden`), `flex-direction: column`, `flex-basis: 0`,
-`flex-grow` from the weight, `min-*`/`max-*` from the engine (`engine.get("size-limits", { node })`),
+`flex-grow` from the weight, `min-*`/`max-*` from the engine (`engine.get("size-limits-by-node-id", { nodeId })`),
 `overflow: hidden`.
 
 ## Behaviour

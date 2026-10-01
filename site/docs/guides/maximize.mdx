@@ -9,7 +9,7 @@ the whole root row, however deeply it is nested.
 
 This differs from FlexLayout, which moves (portals) the maximized tabset over the layout. Dockable
 hides what is off the maximized tabset's path instead: nothing remounts, and the content keeps
-its moveable element. The rule is the core's `model.is("hidden-by-maximize", { node })`, which
+its moveable element. The rule is the core's `model.is("node-hidden-by-maximize", { nodeId })`, which
 `TabSet` and `Row` read (`TabSetState.hidden`, `RowState.hidden`).
 
 <Example id="maximize" />
@@ -29,14 +29,14 @@ type Types = { tabs: { card: { name: string } } };
 
 function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
-    const maximized = model.is("maximized", { tabset: tabset.id });
-    if (!model.can("tabset.maximize", { tabset: tabset.id, value: true })) return null;
+    const maximized = model.is("tabset-maximized", { tabsetId: tabset.id });
+    if (!model.can("tabset.maximize", { tabsetId: tabset.id, value: true })) return null;
     return (
         <button
             type="button"
             aria-pressed={maximized}
             aria-label={maximized ? "Restore" : "Maximize"}
-            onClick={() => model.run("tabset.maximize", { tabset: tabset.id, value: !maximized })}
+            onClick={() => model.run("tabset.maximize", { tabsetId: tabset.id, value: !maximized })}
         >
             {maximized ? <MinimizeIcon aria-hidden="true" /> : <MaximizeIcon aria-hidden="true" />}
         </button>
@@ -45,9 +45,9 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
 ```
 
 The command needs only the tabset: each layout has its own maximized tabset, so in a popout window
-maximize applies to that window's layout, and `model.is("maximized", { tabset })` answers for the
+maximize applies to that window's layout, and `model.is("tabset-maximized", { tabsetId })` answers for the
 tabset's own layout. `layoutId` from `useDockable` is the layout the component renders in
-(`MAIN_LAYOUT` or a window's id), which `model.get("maximized-tabset", { layout })` takes.
+(`MAIN_LAYOUT` or a window's id), which `model.get("maximized-tabset-by-layout-id", { layoutId })` takes.
 
 A double click on the tab strip is a common shortcut; attach it to your header element, and skip
 presses on the tabs and buttons inside it:
@@ -58,8 +58,8 @@ presses on the tabs and buttons inside it:
     onDoubleClick={(event) => {
         if ((event.target as Element).closest('[role="tab"], button')) return;
         model.run("tabset.maximize", {
-            tabset: node.id,
-            value: !model.is("maximized", { tabset: node.id }),
+            tabsetId: node.id,
+            value: !model.is("tabset-maximized", { tabsetId: node.id }),
         });
     }}
 >
@@ -85,11 +85,11 @@ are hidden too (`Panel`'s `data-visible` is absent), and their content stays mou
 
 ## Reading it
 
-`model.get("maximized-tabset", { layout })` returns the maximized tabset of a layout (the main
+`model.get("maximized-tabset-by-layout-id", { layoutId })` returns the maximized tabset of a layout (the main
 one without `layout`), or `undefined`. To re-render when it changes, select it with `useModelState`:
 
 ```tsx
-const maximized = useModelState((_state, model) => model.get("maximized-tabset")?.id);
+const maximized = useModelState((_state, model) => model.get("maximized-tabset-by-layout-id")?.id);
 ```
 
 The maximized state is part of the layout: `model.get("layout-json")` saves it as the layout's `maximized`

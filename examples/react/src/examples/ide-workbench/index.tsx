@@ -56,8 +56,8 @@ export default function IdeWorkbench() {
                 if (ctx.command !== "tab.close" || ctx.dryRun) {
                     return next();
                 }
-                const id = ctx.payload.tab;
-                if (!editorData(ctx.get("node", { node: id }))?.dirty) {
+                const id = ctx.payload.tabId;
+                if (!editorData(ctx.get("node-by-id", { nodeId: id }))?.dirty) {
                     return next();
                 }
                 if (confirmed.current.delete(id)) {
@@ -94,7 +94,7 @@ export default function IdeWorkbench() {
 
     // answer the first pending question
     const pendingData = pending[0]
-        ? editorData(model.get("node", { node: pending[0] }))
+        ? editorData(model.get("node-by-id", { nodeId: pending[0] }))
         : undefined;
     const answer = (choice: "save" | "discard" | "cancel") => {
         const id = pending[0];
@@ -103,20 +103,16 @@ export default function IdeWorkbench() {
         if (choice === "save") workspace.save(pendingData.path);
         else workspace.discard(pendingData.path);
         confirmed.current.add(id);
-        model.run("tab.close", { tab: id });
+        model.run("tab.close", { tabId: id });
     };
 
     // what the explorer and the status bar show, read from the model
     const dirtyPaths = new Set<string>();
-    for (const tab of model.get("tabs")) {
+    for (const tab of model.get("all-tabs")) {
         const data = editorData(tab);
         if (data?.dirty) dirtyPaths.add(data.path);
     }
-    const activeTabset = model.get("active-tabset");
-    const activePath = activeTabset
-        ? editorData(model.get("selected-tab", { container: activeTabset.id }))
-              ?.path
-        : undefined;
+    const activePath = editorData(model.get("selected-tab-by-layout-id"))?.path;
 
     const renderContent = (tab: TabOf<Types>) => {
         switch (tab.component) {

@@ -12,6 +12,7 @@ import {
     ENGINE_ACTION_KEYS,
     ENGINE_GET_KEYS,
     ENGINE_IS_KEYS,
+    type EngineGetKey,
 } from "../../src/engine/verbs";
 import { recordCommands, twoTabsets } from "./fixture";
 
@@ -49,9 +50,9 @@ function setup(supportsPopout = true) {
 
 /** pops `node` out and returns the engine of its window */
 function popoutEngine(engine: LayoutEngine, node: string): LayoutEngine {
-    const popped = engine.run("popout", { node });
+    const popped = engine.run("popout", { nodeId: node });
     if (!popped.ok) throw new Error(popped.error.message);
-    const sub = engine.adapter.createPopoutEngine(popped.value.window);
+    const sub = engine.adapter.createPopoutEngine(popped.value.windowId);
     engines.push(sub);
     return sub;
 }
@@ -59,9 +60,9 @@ function popoutEngine(engine: LayoutEngine, node: string): LayoutEngine {
 describe("engine.run / can / check", () => {
     it("popout: check says what run would do, and does nothing", () => {
         const { model, engine, commands } = setup();
-        expect(engine.check("popout", { node: "t2" })).toMatchObject({
+        expect(engine.check("popout", { nodeId: "t2" })).toMatchObject({
             ok: true,
-            value: { window: expect.any(String) },
+            value: { windowId: expect.any(String) },
         });
         expect(commands).toEqual([]);
         expect(model.state.windows).toEqual([]);
@@ -69,13 +70,15 @@ describe("engine.run / can / check", () => {
 
     it("popout: refused where popouts are not supported, and for what is not a tab or a tabset", () => {
         const unsupported = setup(false);
-        expect(unsupported.engine.run("popout", { node: "t2" })).toMatchObject({
+        expect(
+            unsupported.engine.run("popout", { nodeId: "t2" }),
+        ).toMatchObject({
             ok: false,
             error: { code: "refused" },
         });
         expect(unsupported.commands).toEqual([]);
         const { engine } = setup();
-        expect(engine.check("popout", { node: "row" })).toMatchObject({
+        expect(engine.check("popout", { nodeId: "row" })).toMatchObject({
             ok: false,
             error: { code: "not_found" },
         });
@@ -88,8 +91,8 @@ describe("engine.run / can / check", () => {
                 ? veto("not now")
                 : next(),
         );
-        expect(engine.can("popout", { node: "t2" })).toBe(false);
-        expect(engine.run("popout", { node: "t2" })).toMatchObject({
+        expect(engine.can("popout", { nodeId: "t2" })).toBe(false);
+        expect(engine.run("popout", { nodeId: "t2" })).toMatchObject({
             ok: false,
             error: { code: "vetoed" },
         });
@@ -98,9 +101,9 @@ describe("engine.run / can / check", () => {
         model.use((ctx, next) =>
             ctx.command === "window.close" ? veto("stay") : next(),
         );
-        expect(engine.can("dock-back", { node: "t2" })).toBe(false);
-        expect(engine.run("dock-back", { node: "t2" }).ok).toBe(false);
-        expect(model.is("in-window", { node: "t2" })).toBe(true);
+        expect(engine.can("dock-back", { nodeId: "t2" })).toBe(false);
+        expect(engine.run("dock-back", { nodeId: "t2" }).ok).toBe(false);
+        expect(model.is("node-in-window", { nodeId: "t2" })).toBe(true);
     });
 
     it("page-wide actions work from a popout window's engine", () => {
@@ -110,19 +113,21 @@ describe("engine.run / can / check", () => {
         expect(sub.is("popout-supported")).toBe(engine.is("popout-supported"));
         expect(sub.adapter.main).toBe(engine);
 
-        expect(sub.can("dock-back", { node: "t0" })).toBe(true);
-        expect(sub.run("dock-back", { node: "t0" })).toEqual({
+        expect(sub.can("dock-back", { nodeId: "t0" })).toBe(true);
+        expect(sub.run("dock-back", { nodeId: "t0" })).toEqual({
             ok: true,
-            value: { tabs: ["t0"] },
+            value: { tabIds: ["t0"] },
         });
-        expect(model.get("layout-id", { node: "t0" })).toBe(MAIN_LAYOUT);
-        expect(sub.run("popout", { node: "t2" }).ok).toBe(true);
-        expect(sub.check("dock-back", { node: "t2" }).ok).toBe(true);
+        expect(model.get("layout-id-by-node-id", { nodeId: "t0" })).toBe(
+            MAIN_LAYOUT,
+        );
+        expect(sub.run("popout", { nodeId: "t2" }).ok).toBe(true);
+        expect(sub.check("dock-back", { nodeId: "t2" }).ok).toBe(true);
     });
 
     it("dock-back: refused for a node of the main layout", () => {
         const { engine } = setup();
-        expect(engine.check("dock-back", { node: "t0" })).toMatchObject({
+        expect(engine.check("dock-back", { nodeId: "t0" })).toMatchObject({
             ok: false,
             error: { code: "refused" },
         });
@@ -130,31 +135,33 @@ describe("engine.run / can / check", () => {
 
     it("close-overlay-border: closes an open border with border.configure", () => {
         const { model, engine, commands } = setup();
-        expect(engine.can("close-overlay-border", { border: "left" })).toBe(
+        expect(engine.can("close-overlay-border", { borderId: "left" })).toBe(
             true,
         );
         expect(commands).toEqual([]);
-        expect(engine.run("close-overlay-border", { border: "left" })).toEqual({
+        expect(
+            engine.run("close-overlay-border", { borderId: "left" }),
+        ).toEqual({
             ok: true,
-            value: { border: "left" },
+            value: { borderId: "left" },
         });
         expect(commands.map((c) => c.command)).toEqual(["border.configure"]);
-        expect(model.is("open", { border: "left" })).toBe(false);
+        expect(model.is("border-open", { borderId: "left" })).toBe(false);
         expect(
-            engine.check("close-overlay-border", { border: "left" }),
+            engine.check("close-overlay-border", { borderId: "left" }),
         ).toMatchObject({ ok: false, error: { code: "refused" } });
         expect(
-            engine.check("close-overlay-border", { border: "ts0" }),
+            engine.check("close-overlay-border", { borderId: "ts0" }),
         ).toMatchObject({ ok: false, error: { code: "not_found" } });
     });
 
     it("close-overlay-border: works from a popout window's engine (borders are the main layout's)", () => {
         const { model, engine } = setup();
         const sub = popoutEngine(engine, "t2");
-        expect(sub.run("close-overlay-border", { border: "left" }).ok).toBe(
+        expect(sub.run("close-overlay-border", { borderId: "left" }).ok).toBe(
             true,
         );
-        expect(model.is("open", { border: "left" })).toBe(false);
+        expect(model.is("border-open", { borderId: "left" })).toBe(false);
     });
 
     it("close-overlay-border: a vetoed close is reported, and the close key is not taken", () => {
@@ -163,12 +170,12 @@ describe("engine.run / can / check", () => {
             ctx.command === "border.configure" ? veto("pinned open") : next(),
         );
         expect(
-            engine.run("close-overlay-border", { border: "left" }),
+            engine.run("close-overlay-border", { borderId: "left" }),
         ).toMatchObject({ ok: false, error: { code: "vetoed" } });
         const root = document.body.appendChild(document.createElement("div"));
         engine.adapter.attachRoot(root);
         const button = root.appendChild(document.createElement("button"));
-        button.id = engine.get("tab-button-id", { tab: "b0" });
+        button.id = engine.get("tab-button-dom-id-by-tab-id", { tabId: "b0" });
         button.focus();
         let prevented = false;
         const handled = engine.adapter.handleOverlayKeyDown(
@@ -186,7 +193,7 @@ describe("engine.run / can / check", () => {
         );
         expect(handled).toBe(false);
         expect(prevented).toBe(false);
-        expect(model.is("open", { border: "left" })).toBe(true);
+        expect(model.is("border-open", { borderId: "left" })).toBe(true);
     });
 
     it("measure-and-position: always applies, takes no payload", () => {
@@ -222,12 +229,18 @@ describe("engine.get / is", () => {
     it("reads paths, DOM ids and size limits", () => {
         const { engine } = setup();
         engine.adapter.prepare();
-        expect(engine.get("path", { node: "ts1" })).toBe("/ts1");
-        expect(engine.get("tab-button-id", { tab: "t0" })).toMatch(/t0/);
-        expect(engine.get("tab-panel-id", { tab: "t0" })).not.toBe(
-            engine.get("tab-button-id", { tab: "t0" }),
+        expect(engine.get("layout-path-by-node-id", { nodeId: "ts1" })).toBe(
+            "/ts1",
         );
-        expect(engine.get("size-limits", { node: "ts0" })).toMatchObject({
+        expect(
+            engine.get("tab-button-dom-id-by-tab-id", { tabId: "t0" }),
+        ).toMatch(/t0/);
+        expect(
+            engine.get("tab-panel-dom-id-by-tab-id", { tabId: "t0" }),
+        ).not.toBe(engine.get("tab-button-dom-id-by-tab-id", { tabId: "t0" }));
+        expect(
+            engine.get("size-limits-by-node-id", { nodeId: "ts0" }),
+        ).toMatchObject({
             minWidth: expect.any(Number),
             maxWidth: expect.any(Number),
         });
@@ -245,10 +258,10 @@ describe("engine.get / is", () => {
 
     it("asks about panels and splitters", () => {
         const { model, engine } = setup();
-        expect(engine.is("panel-visible", { tab: "t0" })).toBe(true);
-        expect(engine.is("panel-visible", { tab: "t1" })).toBe(false);
-        model.run("tabset.maximize", { tabset: "ts1", value: true });
-        expect(engine.is("panel-visible", { tab: "t0" })).toBe(false);
+        expect(engine.is("tab-panel-visible", { tabId: "t0" })).toBe(true);
+        expect(engine.is("tab-panel-visible", { tabId: "t1" })).toBe(false);
+        model.run("tabset.maximize", { tabsetId: "ts1", value: true });
+        expect(engine.is("tab-panel-visible", { tabId: "t0" })).toBe(false);
         expect(engine.is("splitter-dragging")).toBe(false);
         engine.adapter.setSplitterDragging(true);
         expect(engine.is("splitter-dragging")).toBe(true);
@@ -282,5 +295,30 @@ describe("the key lists", () => {
             "measure-and-position",
             "popout",
         ]);
+    });
+
+    it("name the entity whose id they take", () => {
+        // a get key that takes an id ends in `-by-<entity>-id`; an is key starts with its entity
+        const getFields: { [K in EngineGetKey]: string | undefined } = {
+            "layout-path-by-node-id": "nodeId",
+            "tab-button-dom-id-by-tab-id": "tabId",
+            "tab-panel-dom-id-by-tab-id": "tabId",
+            "size-limits-by-node-id": "nodeId",
+            "splitter-size": undefined,
+            "owner-document": undefined,
+            "owner-window": undefined,
+        };
+        expect(Object.keys(getFields).sort()).toEqual(
+            [...ENGINE_GET_KEYS].sort(),
+        );
+        for (const [key, field] of Object.entries(getFields)) {
+            expect(
+                field === undefined
+                    ? !key.includes("-by-")
+                    : key.endsWith(`-by-${field.replace(/Id$/, "")}-id`),
+                key,
+            ).toBe(true);
+        }
+        expect(ENGINE_IS_KEYS).toContain("tab-panel-visible");
     });
 });

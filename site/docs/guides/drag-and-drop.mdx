@@ -21,7 +21,7 @@ add is the **look**: the drop indicator, and the dragged tab's state.
    with `model.can` (a dry run: nothing changes). The first accepted candidate is the target, and
    the drop indicator state updates: where the tab would land and how.
 4. On drop, the engine runs that command with `model.run`: `tab.move` with
-   `{ tab, to, location, index }` (or `tabset.move` for a tabset, `tab.add` for a new tab). A
+   `{ tabId, to, location, index }` (or `tabset.move` for a tabset, `tab.add` for a new tab). A
    middleware sees it like any other command; veto it there and nothing moves.
 
 | drop on | location | result |

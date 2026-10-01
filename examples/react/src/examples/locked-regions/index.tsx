@@ -128,8 +128,8 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
     }
     // what is placed: an existing tab (tab.move), a new tab (tab.add) or a tabset (tabset.move)
     const moving =
-        "tab" in payload
-            ? ctx.get("node", { node: payload.tab })
+        "tabId" in payload
+            ? ctx.get("node-by-id", { nodeId: payload.tabId })
             : "component" in payload
               ? payload
               : undefined;
@@ -143,7 +143,7 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
     const target =
         payload.to === MAIN_LAYOUT
             ? ctx.state.root
-            : ctx.get("node", { node: payload.to });
+            : ctx.get("node-by-id", { nodeId: payload.to });
     if (target?.type === "row") {
         const children = target.children;
         const beside =
@@ -350,7 +350,7 @@ function DocPanel({
     // a command from code goes through the same middleware: the result says why it was refused
     const moveToReference = () => {
         const result = model.run("tab.move", {
-            tab: tab.id,
+            tabId: tab.id,
             to: REFERENCE,
             location: "center",
             index: -1,
@@ -366,7 +366,8 @@ function DocPanel({
                     : "Reference refuses this tab: try dragging it there."}
             </p>
             {region !== REFERENCE &&
-            model.get("parent", { node: tab.id })?.id !== REFERENCE ? (
+            model.get("node-parent-by-id", { nodeId: tab.id })?.id !==
+                REFERENCE ? (
                 <div>
                     <button
                         type="button"

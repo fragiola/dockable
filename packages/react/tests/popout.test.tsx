@@ -93,9 +93,9 @@ function App({
 function popoutTab(model: Model<Types>, tab: string): string {
     let layoutId = "";
     act(() => {
-        const result = model.run("tab.popout", { tab });
+        const result = model.run("tab.popout", { tabId: tab });
         if (!result.ok) throw new Error(result.error.message);
-        layoutId = result.value.window;
+        layoutId = result.value.windowId;
     });
     return layoutId;
 }
@@ -127,7 +127,9 @@ describe("Dockable.Popout", () => {
         render(<App model={model} />);
         const { win, layoutId } = await popOut(model, "t2");
 
-        expect(model.get("layout-id", { node: "t2" })).toBe(layoutId);
+        expect(model.get("layout-id-by-node-id", { nodeId: "t2" })).toBe(
+            layoutId,
+        );
         const root = win.document.querySelector(`[${POPOUT_ATTRIBUTE}]`);
         expect(root?.getAttribute(POPOUT_ATTRIBUTE)).toBe(layoutId);
         const popout = root?.querySelector<HTMLElement>(
@@ -160,12 +162,14 @@ describe("Dockable.Popout", () => {
 
         // dock back: move the tab into the main layout
         act(() => {
-            model.run("tab.move", { tab: "t2", to: "ts0", index: -1 });
+            model.run("tab.move", { tabId: "t2", to: "ts0", index: -1 });
         });
         await act(async () => {
             await tick();
         });
-        expect(model.get("layout-id", { node: "t2" })).toBe(MAIN_LAYOUT);
+        expect(model.get("layout-id-by-node-id", { nodeId: "t2" })).toBe(
+            MAIN_LAYOUT,
+        );
         expect(document.contains(content)).toBe(true);
         expect(screen.getByTestId("inc-t2").textContent).toBe("count 1");
         expect(screen.getByTestId("input-t2")).toHaveValue("kept");
@@ -251,7 +255,9 @@ describe("Dockable.Popout", () => {
             win.document,
         );
         // closing the window docks the tab back
-        expect(model.get("layout-id", { node: "t2" })).toBe(MAIN_LAYOUT);
+        expect(model.get("layout-id-by-node-id", { nodeId: "t2" })).toBe(
+            MAIN_LAYOUT,
+        );
         expect(model.state.windows).toHaveLength(0);
     });
 
@@ -313,7 +319,7 @@ describe("Dockable.Popout", () => {
 
     it("opens the window of a window layout already in the model at mount", () => {
         const model = popoutModel();
-        model.run("tab.popout", { tab: "t2" });
+        model.run("tab.popout", { tabId: "t2" });
         render(<App model={model} />);
         expect(window.open).toHaveBeenCalledTimes(1);
     });

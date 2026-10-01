@@ -90,7 +90,7 @@ export function ServicePanel({
     useEffect(() => {
         if (config.status !== state.level || config.alerts !== state.alerts) {
             model.run("tab.update", {
-                tab: tab.id,
+                tabId: tab.id,
                 component: "service",
                 data: { ...config, status: state.level, alerts: state.alerts },
             });
@@ -184,8 +184,8 @@ export function OverviewPanel({ simulation }: { simulation: Simulation }) {
     const { model } = useDockable<Types>();
     const { services } = useSimulation(simulation);
     const open = (id: ServiceId) => {
-        if (model.get("node", { node: `service-${id}` })) {
-            model.run("tab.select", { tab: `service-${id}` });
+        if (model.get("node-by-id", { nodeId: `service-${id}` })) {
+            model.run("tab.select", { tabId: `service-${id}` });
         }
     };
     return (

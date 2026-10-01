@@ -110,16 +110,16 @@ const lockIncidentRegion: Middleware<Types> = (ctx, next) => {
         veto("Only incident tabs belong in the incident region");
     // the command narrows the payload
     if (ctx.command === "tab.move") {
-        const { tab, to, location = "center" } = ctx.payload;
+        const { tabId, to, location = "center" } = ctx.payload;
         const intoRegion = to === INCIDENT_TABSET && location === "center";
-        if (inIncidentRegion(ctx.get("node", { node: tab }))) {
+        if (inIncidentRegion(ctx.get("node-by-id", { nodeId: tabId }))) {
             return intoRegion ? next() : refuse();
         }
         return to === INCIDENT_TABSET ? refuse() : next();
     }
     if (ctx.command === "tabset.move") {
-        const { tabset, to, location = "center" } = ctx.payload;
-        if (tabset === INCIDENT_TABSET) {
+        const { tabsetId, to, location = "center" } = ctx.payload;
+        if (tabsetId === INCIDENT_TABSET) {
             return location === "center" ? refuse() : next();
         }
         return to === INCIDENT_TABSET ? refuse() : next();

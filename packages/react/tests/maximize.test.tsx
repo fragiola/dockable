@@ -57,13 +57,13 @@ describe("maximize", () => {
         const row = mustPath("/r1");
         expect(row.style.display).toBe("flex");
         act(() => {
-            model.run("tabset.maximize", { tabset: "ts0", value: true });
+            model.run("tabset.maximize", { tabsetId: "ts0", value: true });
         });
         expect(row.style.display).toBe("none");
         expect(path("/ts0")?.style.display).toBe("flex");
         expect(path("/row")?.style.display).toBe("flex"); // the root row never hides
         act(() => {
-            model.run("tabset.maximize", { tabset: "ts0", value: false });
+            model.run("tabset.maximize", { tabsetId: "ts0", value: false });
         });
         expect(row.style.display).toBe("flex");
         expect(path("/r1/ts0")?.style.display).toBe("flex");
@@ -73,7 +73,7 @@ describe("maximize", () => {
         const model = createModel<Types>(structuredClone(json));
         render(<Layout model={model} />);
         act(() => {
-            model.run("tabset.maximize", { tabset: "ts2", value: true });
+            model.run("tabset.maximize", { tabsetId: "ts2", value: true });
         });
         expect(path("/r1")?.style.display).toBe("flex");
         expect(path("/r1/ts1")?.style.display).toBe("flex");

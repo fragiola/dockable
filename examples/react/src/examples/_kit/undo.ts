@@ -74,7 +74,7 @@ interface Entry<T extends DockableTypes> {
  * ```ts
  * const undo = new UndoManager(createModel<Types>(json));
  * const unsubscribe = undo.subscribe(() => render(undo.getSnapshot()));
- * undo.getModel()?.run("tab.close", { tab: "t1" });
+ * undo.getModel()?.run("tab.close", { tabId: "t1" });
  * undo.undo();
  * ```
  */

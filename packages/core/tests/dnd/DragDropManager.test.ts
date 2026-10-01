@@ -92,7 +92,7 @@ function setup(
 type Setup = ReturnType<typeof setup>;
 
 function children(s: Setup, tabset: string): string[] {
-    const node = s.model.get("node", { node: tabset });
+    const node = s.model.get("node-by-id", { nodeId: tabset });
     return node?.type === "tabset" ? node.children.map((c) => c.id) : [];
 }
 
@@ -179,7 +179,7 @@ describe("drops", () => {
             {
                 command: "tab.move",
                 payload: {
-                    tab: "t0",
+                    tabId: "t0",
                     to: "ts1",
                     location: "center",
                     index: -1,
@@ -211,7 +211,7 @@ describe("drops", () => {
         const s = setup();
         dragAndDrop(s, "t2", 72, 35); // just after the start of the second tab button of ts0
         expect(s.commands[0]?.payload).toEqual({
-            tab: "t2",
+            tabId: "t2",
             to: "ts0",
             location: "center",
             index: 1,
@@ -223,7 +223,7 @@ describe("drops", () => {
         const s = setup();
         dragAndDrop(s, "t2", 12, 170); // within 10px of the root's left edge, near its middle
         expect(s.commands[0]?.payload).toMatchObject({
-            tab: "t2",
+            tabId: "t2",
             to: "row",
             location: "left",
         });
@@ -239,7 +239,12 @@ describe("drops", () => {
         dragAndDrop(s, "ts0", 395, 185);
         expect(s.commands[0]).toEqual({
             command: "tabset.move",
-            payload: { tabset: "ts0", to: "ts1", location: "right", index: -1 },
+            payload: {
+                tabsetId: "ts0",
+                to: "ts1",
+                location: "right",
+                index: -1,
+            },
         });
     });
 
@@ -376,7 +381,7 @@ describe("enter/leave counting and indicator state", () => {
 
     it("does not show edges while a tabset is maximized", () => {
         const s = setup();
-        s.model.run("tabset.maximize", { tabset: "ts1", value: true });
+        s.model.run("tabset.maximize", { tabsetId: "ts1", value: true });
         s.manager.startDrag(dragEvent("dragstart", 40, 35), "t2");
         s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
         expect(s.manager.getIndicatorState().showEdges).toBe(false);
@@ -407,8 +412,8 @@ function openPopout(s: Setup, tab: string) {
         popout: { supportsPopout: true, openWindow },
         onExternalDrag: s.onExternalDrag,
     });
-    const result = s.model.run("tab.popout", { tab });
-    const windowId = result.ok ? result.value.window : "";
+    const result = s.model.run("tab.popout", { tabId: tab });
+    const windowId = result.ok ? result.value.windowId : "";
     const sub = s.engine.adapter.getPopoutManager().getLayoutEngine(windowId);
     if (!sub) throw new Error("no popout engine");
     const subRoot = win.document.body.appendChild(
@@ -624,7 +629,9 @@ describe("add drags (a consumer element dragged in)", () => {
             location: "center",
         });
         const added = children(s, "ts1")[1];
-        expect(s.model.get("node", { node: added ?? "" })).toMatchObject({
+        expect(
+            s.model.get("node-by-id", { nodeId: added ?? "" }),
+        ).toMatchObject({
             component: "chart",
             data: { name: "Revenue" },
         });
@@ -717,7 +724,9 @@ describe("external drags (onExternalDrag)", () => {
         const drop = dragEvent("drop", 312, 185, foreign());
         s.root.dispatchEvent(drop);
         const added = children(s, "ts1")[1];
-        expect(s.model.get("node", { node: added ?? "" })).toMatchObject({
+        expect(
+            s.model.get("node-by-id", { nodeId: added ?? "" }),
+        ).toMatchObject({
             data: { name: "report.csv" },
         });
         expect(onDrop).toHaveBeenCalledWith(added, drop);
@@ -861,7 +870,7 @@ describe("refused drops", () => {
         expect(dragOverAt(s, "t1", 312, 185).defaultPrevented).toBe(false);
         // the app unlocks mid-drag and changes the layout: the next dragover asks again
         locked = false;
-        s.model.run("tab.select", { tab: "t0" });
+        s.model.run("tab.select", { tabId: "t0" });
         const over = dragEvent("dragover", 312, 185);
         s.root.dispatchEvent(over);
         expect(over.defaultPrevented).toBe(true);
@@ -962,7 +971,7 @@ describe("drop zones", () => {
         const drop = dragEvent("drop", 0, 0);
         z.element.dispatchEvent(drop);
         expect(z.onDrop).toHaveBeenCalledWith(
-            { kind: "tab", tab: s.model.get("node", { node: "t0" }) },
+            { kind: "tab", tab: s.model.get("node-by-id", { nodeId: "t0" }) },
             drop,
         );
         expect(z.onOverChange).toHaveBeenLastCalledWith(false);

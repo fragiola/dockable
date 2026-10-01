@@ -131,7 +131,9 @@ describe("Dockable.DragSource", () => {
         const id = onDrop.mock.calls[0]?.[0];
         expect(typeof id).toBe("string");
         const added =
-            id === undefined ? undefined : model.get("node", { node: id });
+            id === undefined
+                ? undefined
+                : model.get("node-by-id", { nodeId: id });
         expect(added?.type).toBe("tab");
         expect(added?.type === "tab" ? added.data : undefined).toEqual(
             chart.data,

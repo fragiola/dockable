@@ -13,7 +13,11 @@ describe("docking", () => {
     it("split along the row", () => {
         const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
         must(
-            model.run("tab.move", { tab: "Two", to: "ts0", location: "right" }),
+            model.run("tab.move", {
+                tabId: "Two",
+                to: "ts0",
+                location: "right",
+            }),
         );
         expect(text()).toBe("/ts0/t0[One]*,/ts1/t0[Two]*,/ts2/t0[Three]*");
         expect(weights(model)).toEqual([50, 50, 100]);
@@ -23,7 +27,7 @@ describe("docking", () => {
         const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
         must(
             model.run("tab.move", {
-                tab: "Two",
+                tabId: "Two",
                 to: "ts0",
                 location: "bottom",
             }),
@@ -41,14 +45,20 @@ describe("docking", () => {
 
     it("split on the top edge puts the new tabset first", () => {
         const { model, text } = setup(tabsets(["One", "Two"]));
-        must(model.run("tab.move", { tab: "Two", to: "ts0", location: "top" }));
+        must(
+            model.run("tab.move", { tabId: "Two", to: "ts0", location: "top" }),
+        );
         expect(text()).toBe("/r0/ts0/t0[Two]*,/r0/ts1/t0[One]*");
     });
 
     it("edge dock along", () => {
         const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
         must(
-            model.run("tab.move", { tab: "Two", to: "root", location: "left" }),
+            model.run("tab.move", {
+                tabId: "Two",
+                to: "root",
+                location: "left",
+            }),
         );
         expect(text()).toBe("/ts0/t0[Two]*,/ts1/t0[One]*,/ts2/t0[Three]*");
         // a third of the row's total weight
@@ -59,7 +69,7 @@ describe("docking", () => {
         const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
         must(
             model.run("tab.move", {
-                tab: "Two",
+                tabId: "Two",
                 to: "root",
                 location: "bottom",
             }),
@@ -101,33 +111,39 @@ describe("docking", () => {
 
     it("drop activates", () => {
         const { model } = setup(tabsets(["One", "Two"], ["Three"]));
-        must(model.run("tab.move", { tab: "One", to: "ts1" }));
-        expect(model.get("active-tabset")?.id).toBe("ts1");
+        must(model.run("tab.move", { tabId: "One", to: "ts1" }));
+        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
         must(
-            model.run("tab.move", { tab: "Two", to: "ts1", location: "left" }),
+            model.run("tab.move", {
+                tabId: "Two",
+                to: "ts1",
+                location: "left",
+            }),
         );
-        expect(model.get("active-tabset")?.id).toBe(at(model, "/ts0"));
+        expect(model.get("active-tabset-by-layout-id")?.id).toBe(
+            at(model, "/ts0"),
+        );
     });
 
     it("move clears maximize", () => {
         const { model } = setup(tabsets(["One"], ["Two"], ["Three"]));
-        must(model.run("tabset.maximize", { tabset: "ts1", value: true }));
+        must(model.run("tabset.maximize", { tabsetId: "ts1", value: true }));
         must(
             model.run("tabset.move", {
-                tabset: "ts1",
+                tabsetId: "ts1",
                 to: "ts2",
                 location: "bottom",
             }),
         );
-        expect(model.get("maximized-tabset")).toBeUndefined();
+        expect(model.get("maximized-tabset-by-layout-id")).toBeUndefined();
     });
 
     it("a tabset merges into a tabset", () => {
         const { model, text } = setup(tabsets(["One"], ["Two", "Three"]));
         const result = must(
-            model.run("tabset.move", { tabset: "ts1", to: "ts0" }),
+            model.run("tabset.move", { tabsetId: "ts1", to: "ts0" }),
         );
-        expect(result).toEqual({ tabset: "ts0" });
+        expect(result).toEqual({ tabsetId: "ts0" });
         expect(text()).toBe("/ts0/t0[One]*,/ts0/t1[Two],/ts0/t2[Three]");
     });
 });
@@ -156,7 +172,7 @@ describe("drop rules", () => {
 
     it("refuses a center drop on a tabset that takes none", () => {
         const model = createModel(flags({ enableDrop: false }));
-        expect(model.run("tab.move", { tab: "One", to: "ts1" })).toEqual({
+        expect(model.run("tab.move", { tabId: "One", to: "ts1" })).toEqual({
             ok: false,
             error: {
                 code: "refused",
@@ -165,7 +181,7 @@ describe("drop rules", () => {
             },
         });
         expect(
-            model.run("tab.move", { tab: "One", to: "ts1", location: "left" })
+            model.run("tab.move", { tabId: "One", to: "ts1", location: "left" })
                 .ok,
         ).toBe(true);
     });
@@ -173,59 +189,66 @@ describe("drop rules", () => {
     it("refuses an edge drop on a tabset that cannot be split", () => {
         const model = createModel(flags({ enableDivide: false }));
         const result = model.run("tab.move", {
-            tab: "One",
+            tabId: "One",
             to: "ts1",
             location: "top",
         });
         expect(!result.ok && result.error.code).toBe("refused");
-        expect(model.run("tab.move", { tab: "One", to: "ts1" }).ok).toBe(true);
+        expect(model.run("tab.move", { tabId: "One", to: "ts1" }).ok).toBe(
+            true,
+        );
     });
 
     it("refuses a tab that cannot be dragged", () => {
         const model = createModel(tabsets(["One", "Two"], ["Three"]));
-        must(model.run("tab.configure", { tab: "One", enableDrag: false }));
-        const result = model.run("tab.move", { tab: "One", to: "ts1" });
+        must(model.run("tab.configure", { tabId: "One", enableDrag: false }));
+        const result = model.run("tab.move", { tabId: "One", to: "ts1" });
         expect(!result.ok && result.error).toMatchObject({
             code: "refused",
-            path: "/tab",
+            path: "/tabId",
         });
     });
 
     it("keeps a pinned tab in its tabset", () => {
         const model = createModel(tabsets(["One", "Two"], ["Three"]));
-        must(model.run("tab.pin", { tab: "One", value: true }));
-        expect(model.run("tab.move", { tab: "One", to: "ts1" }).ok).toBe(false);
+        must(model.run("tab.pin", { tabId: "One", value: true }));
+        expect(model.run("tab.move", { tabId: "One", to: "ts1" }).ok).toBe(
+            false,
+        );
         expect(
-            model.run("tab.move", { tab: "One", to: "ts0", location: "right" })
-                .ok,
+            model.run("tab.move", {
+                tabId: "One",
+                to: "ts0",
+                location: "right",
+            }).ok,
         ).toBe(false);
         expect(
-            model.run("tab.move", { tab: "One", to: "ts0", index: 1 }).ok,
+            model.run("tab.move", { tabId: "One", to: "ts0", index: 1 }).ok,
         ).toBe(true);
     });
 
     it("refuses merging a tabset that cannot close or holds pinned tabs", () => {
         const model = createModel(flags({ enableClose: false }));
-        expect(model.run("tabset.move", { tabset: "ts1", to: "ts0" }).ok).toBe(
-            false,
-        );
+        expect(
+            model.run("tabset.move", { tabsetId: "ts1", to: "ts0" }).ok,
+        ).toBe(false);
         expect(
             model.run("tabset.move", {
-                tabset: "ts1",
+                tabsetId: "ts1",
                 to: "ts0",
                 location: "left",
             }).ok,
         ).toBe(true);
-        must(model.run("tab.pin", { tab: "One", value: true }));
-        expect(model.run("tabset.move", { tabset: "ts0", to: "ts1" }).ok).toBe(
-            false,
-        );
+        must(model.run("tab.pin", { tabId: "One", value: true }));
+        expect(
+            model.run("tabset.move", { tabsetId: "ts0", to: "ts1" }).ok,
+        ).toBe(false);
     });
 
     it("refuses moving a tabset into itself", () => {
         const model = createModel(tabsets(["One"], ["Two"]));
         const result = model.run("tabset.move", {
-            tabset: "ts0",
+            tabsetId: "ts0",
             to: "ts0",
             location: "left",
         });
@@ -243,20 +266,20 @@ describe("drop rules", () => {
             ],
         });
         expect(
-            model.run("tab.move", { tab: "One", to: "border_right" }).ok,
+            model.run("tab.move", { tabId: "One", to: "border_right" }).ok,
         ).toBe(false);
         expect(
             model.run("tab.move", {
-                tab: "One",
+                tabId: "One",
                 to: "border_left",
                 location: "top",
             }).ok,
         ).toBe(false);
         expect(
-            model.run("tabset.move", { tabset: "ts0", to: "border_left" }).ok,
+            model.run("tabset.move", { tabsetId: "ts0", to: "border_left" }).ok,
         ).toBe(false);
         expect(
-            model.run("tab.move", { tab: "One", to: "border_left" }).ok,
+            model.run("tab.move", { tabId: "One", to: "border_left" }).ok,
         ).toBe(true);
     });
 
@@ -265,19 +288,25 @@ describe("drop rules", () => {
             ...tabsets(["One", "Two"]),
             defaults: { tab: { enablePopout: true } },
         });
-        const { window } = must(model.run("tab.popout", { tab: "One" }));
-        must(model.run("tab.configure", { tab: "Two", enablePopout: false }));
-        const target = model.get("tabsets", { layout: window })[0]?.id ?? "";
-        expect(model.run("tab.move", { tab: "Two", to: target }).ok).toBe(
+        const { windowId: window } = must(
+            model.run("tab.popout", { tabId: "One" }),
+        );
+        must(model.run("tab.configure", { tabId: "Two", enablePopout: false }));
+        const target =
+            model.get("tabsets-by-layout-id", { layoutId: window })[0]?.id ??
+            "";
+        expect(model.run("tab.move", { tabId: "Two", to: target }).ok).toBe(
             false,
         );
-        must(model.run("tab.configure", { tab: "Two", enablePopout: null }));
-        expect(model.run("tab.move", { tab: "Two", to: target }).ok).toBe(true);
+        must(model.run("tab.configure", { tabId: "Two", enablePopout: null }));
+        expect(model.run("tab.move", { tabId: "Two", to: target }).ok).toBe(
+            true,
+        );
     });
 
     it("reports a target that is not a container", () => {
         const model = createModel(tabsets(["One", "Two"]));
-        expect(model.run("tab.move", { tab: "One", to: "Two" })).toEqual({
+        expect(model.run("tab.move", { tabId: "One", to: "Two" })).toEqual({
             ok: false,
             error: {
                 code: "not_found",

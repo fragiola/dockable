@@ -195,7 +195,7 @@ function RenamableTab({
                     onCommit={(name) => {
                         // the new data is the whole value: keep the rest of it
                         model.run("tab.update", {
-                            tab: tab.id,
+                            tabId: tab.id,
                             component: tab.component,
                             data: { ...tab.data, name },
                         });

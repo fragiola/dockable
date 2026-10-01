@@ -30,7 +30,7 @@ it with `to`, `location`, `index` and `select`:
   edge;
 - `select` forces the selection; without it the target's `autoSelectTab` rule decides.
 
-The result is a `CommandResult`: `{ ok: true, value: { tab } }` with the new tab's id, or
+The result is a `CommandResult`: `{ ok: true, value: { tabId } }` with the new tab's id, or
 `{ ok: false, error }` saying why nothing was added.
 
 ```tsx
@@ -41,7 +41,7 @@ function AddTabButton() {
     const { model } = useDockable<Types>();
     const add = () => {
         // the tabset the user last pressed in, else the first one
-        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const target = model.get("active-tabset-by-layout-id") ?? model.get("tabsets-by-layout-id")[0];
         model.run("tab.add", {
             component: "chart",
             data: { name: "Untitled" }, // must be a chart's data
@@ -76,7 +76,7 @@ import { Dockable, useDockable } from "@fragiola/dockable-react";
 
 function CloseButton({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
-    if (!model.can("tab.close", { tab: tab.id })) return null;
+    if (!model.can("tab.close", { tabId: tab.id })) return null;
     return (
         <button
             type="button"
@@ -85,7 +85,7 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
                 event.stopPropagation();
-                model.run("tab.close", { tab: tab.id });
+                model.run("tab.close", { tabId: tab.id });
             }}
         >
             <XIcon aria-hidden="true" />
@@ -123,19 +123,19 @@ model.use((ctx, next) => {
     if (ctx.command !== "tab.close" || ctx.dryRun || ctx.meta?.confirmed === true) {
         return next();
     }
-    const tab = ctx.get("node", { node: ctx.payload.tab });
+    const tab = ctx.get("node-by-id", { nodeId: ctx.payload.tabId });
     if (tab?.type !== "tab" || tab.component !== "editor" || !tab.data.dirty) {
         return next();
     }
     const id = tab.id;
     void askToDiscard(tab.data.name).then((ok) => {
-        if (ok) model.run("tab.close", { tab: id }, { meta: { confirmed: true } });
+        if (ok) model.run("tab.close", { tabId: id }, { meta: { confirmed: true } });
     });
     return veto("the file has unsaved changes");
 });
 ```
 
-`ctx.command` narrows `ctx.payload` (here to `{ tab: string }`), and `ctx.get("node", …)` reads nodes
+`ctx.command` narrows `ctx.payload` (here to `{ tabId: string }`), and `ctx.get("node-by-id", …)` reads nodes
 as the command sees them. The [IDE workbench](/examples/ide-workbench) does this with a dialog. More on
 middleware in [the command bus](/docs/api/command-bus).
 
@@ -147,7 +147,7 @@ new value, not a patch: spread the old one. Whether a tab may be renamed is your
 
 ```tsx
 if (tab.component === "editor" && tab.data.renamable !== false) {
-    model.run("tab.update", { tab: tab.id, component: "editor", data: { ...tab.data, name: value.trim() } });
+    model.run("tab.update", { tabId: tab.id, component: "editor", data: { ...tab.data, name: value.trim() } });
 }
 ```
 
@@ -165,7 +165,7 @@ it) and cannot be dragged out of its tabset. The tab carries `data-pinned`, so p
 look different (icon-only, no close button).
 
 ```tsx
-model.run("tab.pin", { tab: tab.id, value: tab.pinned !== true });
+model.run("tab.pin", { tabId: tab.id, value: tab.pinned !== true });
 ```
 
 Whether a tab offers pinning at all is your choice; keep it in the tab's data if it varies.

@@ -64,12 +64,14 @@ export default function DropFiles() {
                 // the drop created one tab: name it after the first file (a command, so the
                 // model's middleware sees it), and add one more tab beside it for every other file
                 model.run("tab.update", {
-                    tab,
+                    tabId: tab,
                     component: "file",
                     data: { name: first.name },
                 });
                 const added = new Map([[tab, first]]);
-                const container = model.get("parent", { node: tab });
+                const container = model.get("node-parent-by-id", {
+                    nodeId: tab,
+                });
                 for (const file of others) {
                     if (!container) break;
                     const next = model.run("tab.add", {
@@ -79,7 +81,7 @@ export default function DropFiles() {
                         location: "center",
                         index: -1,
                     });
-                    if (next.ok) added.set(next.value.tab, file);
+                    if (next.ok) added.set(next.value.tabId, file);
                 }
                 setFiles((current) => new Map([...current, ...added]));
             },

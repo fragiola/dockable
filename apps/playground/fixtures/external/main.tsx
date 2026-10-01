@@ -23,7 +23,9 @@ function App() {
     /** the name of a tab the model holds, for the report */
     const nameOf = (id: string | undefined) => {
         const tab =
-            id === undefined ? undefined : model.get("node", { node: id });
+            id === undefined
+                ? undefined
+                : model.get("node-by-id", { nodeId: id });
         return tab?.type === "tab" ? tab.data.name : "?";
     };
 
@@ -39,7 +41,7 @@ function App() {
                 const file = dropEvent.dataTransfer?.files[0];
                 if (tab && file) {
                     model.run("tab.update", {
-                        tab,
+                        tabId: tab,
                         component: "testing",
                         data: { name: file.name },
                     });

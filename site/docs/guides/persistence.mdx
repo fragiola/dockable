@@ -142,7 +142,7 @@ whole value, so spread the rest of it:
 
 ```ts
 if (tab.component === "editor") {
-    model.run("tab.update", { tab: tab.id, component: "editor", data: { ...tab.data, draft } });
+    model.run("tab.update", { tabId: tab.id, component: "editor", data: { ...tab.data, draft } });
 }
 ```
 

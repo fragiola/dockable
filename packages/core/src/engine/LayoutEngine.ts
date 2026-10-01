@@ -370,9 +370,9 @@ const scrollTracking = new WeakMap<
  *
  * An app uses its verbs, the same as the model's:
  *
- * - `run` performs a screen action (`engine.run("popout", { node })`); `can` answers whether it
+ * - `run` performs a screen action (`engine.run("popout", { nodeId })`); `can` answers whether it
  *   would succeed, `check` returns what it would return;
- * - `get` reads a view fact (`engine.get("tab-panel-id", { tab })`); `is` asks a yes/no question
+ * - `get` reads a view fact (`engine.get("tab-panel-dom-id-by-tab-id", { tabId })`); `is` asks a yes/no question
  *   (`engine.is("popout-supported")`).
  *
  * Page-wide actions and questions work from any engine: an app never needs the main one.
@@ -532,13 +532,13 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             dryRun: boolean,
         ) => CommandResult<EngineActionResult<K>>;
     } = {
-        popout: ({ node }, dryRun) => this.popout(node, dryRun),
-        "dock-back": ({ node }, dryRun) => this.dockBack(node, dryRun),
+        popout: ({ nodeId }, dryRun) => this.popout(nodeId, dryRun),
+        "dock-back": ({ nodeId }, dryRun) => this.dockBack(nodeId, dryRun),
         "focus-tabset": ({ direction }, dryRun) =>
             this.focusAdjacentTabset(direction === "previous" ? -1 : 1, dryRun),
         // borders belong to the main layout: its engine knows their panels and focus
-        "close-overlay-border": ({ border }, dryRun) =>
-            this.main.closeOverlayBorder(border, dryRun),
+        "close-overlay-border": ({ borderId }, dryRun) =>
+            this.main.closeOverlayBorder(borderId, dryRun),
         "measure-and-position": (_payload, dryRun) => {
             if (!dryRun) {
                 this.sync();
@@ -552,10 +552,10 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             payload: EngineGetPayload<K>,
         ) => EngineGetResult<K>;
     } = {
-        path: ({ node }) => this.path(node),
-        "tab-button-id": ({ tab }) => this.tabButtonId(tab),
-        "tab-panel-id": ({ tab }) => this.tabPanelId(tab),
-        "size-limits": ({ node }) => this.minMax(node),
+        "layout-path-by-node-id": ({ nodeId }) => this.path(nodeId),
+        "tab-button-dom-id-by-tab-id": ({ tabId }) => this.tabButtonId(tabId),
+        "tab-panel-dom-id-by-tab-id": ({ tabId }) => this.tabPanelId(tabId),
+        "size-limits-by-node-id": ({ nodeId }) => this.minMax(nodeId),
         "splitter-size": () => this.splitterSize(),
         "owner-document": () => this.getCurrentDocument(),
         "owner-window": () => this.getCurrentWindow(),
@@ -565,7 +565,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         [K in EngineIsKey]: (payload: EngineIsPayload<K>) => boolean;
     } = {
         "popout-supported": () => this.isSupportsPopout(),
-        "panel-visible": ({ tab }) => this.isPanelVisible(tab),
+        "tab-panel-visible": ({ tabId }) => this.isPanelVisible(tabId),
         "main-layout": () => this.isMainLayout(),
         "splitter-dragging": () => this.isSplitterDragging(),
     };
@@ -867,9 +867,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private rowOrientation(rowId: string): Orientation {
         let orientation = resolveLayout(this.state().defaults).rootOrientation;
         for (
-            let parent = this.model.get("parent", { node: rowId });
+            let parent = this.model.get("node-parent-by-id", { nodeId: rowId });
             parent !== undefined;
-            parent = this.model.get("parent", { node: parent.id })
+            parent = this.model.get("node-parent-by-id", { nodeId: parent.id })
         ) {
             orientation =
                 orientation === "horizontal" ? "vertical" : "horizontal";
@@ -1024,7 +1024,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (event.transient && event.command === "row.resize") {
             if (
                 this.applyTransientWeights(
-                    event.payload as { row: string; weights: number[] },
+                    event.payload as { rowId: string; weights: number[] },
                 )
             ) {
                 return;
@@ -1032,7 +1032,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         } else if (event.transient && event.command === "border.resize") {
             if (
                 this.applyTransientBorderSize(
-                    event.payload as { border: string },
+                    event.payload as { borderId: string },
                 )
             ) {
                 return;
@@ -1046,12 +1046,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private forgetRemoved() {
         const shared = this.shared;
         for (const id of [...shared.moveables.keys()]) {
-            if (this.model.get("node", { node: id })?.type !== "tab") {
+            if (this.model.get("node-by-id", { nodeId: id })?.type !== "tab") {
                 shared.moveables.delete(id);
             }
         }
         for (const id of [...shared.rendered]) {
-            if (this.model.get("node", { node: id })?.type !== "tab") {
+            if (this.model.get("node-by-id", { nodeId: id })?.type !== "tab") {
                 shared.rendered.delete(id);
                 shared.scroll.delete(id);
             }
@@ -1060,7 +1060,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** the engine of the layout a node is in (a popout's, or this main one) */
     private engineOf(id: string): LayoutEngine<T> {
-        const layout = this.model.get("layout-id", { node: id });
+        const layout = this.model.get("layout-id-by-node-id", { nodeId: id });
         if (layout === undefined || layout === MAIN_LAYOUT) {
             return this.main;
         }
@@ -1068,10 +1068,10 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     }
 
     private applyTransientWeights(payload: {
-        row: string;
+        rowId: string;
         weights: number[];
     }): boolean {
-        const row = this.model.get("node", { node: payload.row });
+        const row = this.model.get("node-by-id", { nodeId: payload.rowId });
         if (row?.type !== "row") {
             return false;
         }
@@ -1091,8 +1091,10 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return true;
     }
 
-    private applyTransientBorderSize(payload: { border: string }): boolean {
-        const border = this.model.get("node", { node: payload.border });
+    private applyTransientBorderSize(payload: { borderId: string }): boolean {
+        const border = this.model.get("node-by-id", {
+            nodeId: payload.borderId,
+        });
         if (border?.type !== "border") {
             return false;
         }
@@ -1241,7 +1243,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private updateTabOverflow() {
         let changed = false;
         for (const [id, list] of this.tabLists) {
-            const container = this.model.get("node", { node: id });
+            const container = this.model.get("node-by-id", { nodeId: id });
             if (container?.type !== "tabset" && container?.type !== "border") {
                 continue; // the container left the model
             }
@@ -1379,7 +1381,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** The content area a tab's panel is positioned over (its tabset's, or its border's). */
     private contentRect(containerId: string): Rect | undefined {
-        const container = this.model.get("node", { node: containerId });
+        const container = this.model.get("node-by-id", { nodeId: containerId });
         if (container?.type === "border") {
             return this.rect("bordercontent", containerId);
         }
@@ -1424,7 +1426,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** Whether a tab's panel is shown: selected, and not hidden by a maximize or a hidden border. */
     private isPanelVisible(tabId: string): boolean {
-        const container = this.model.get("parent", { node: tabId });
+        const container = this.model.get("node-parent-by-id", {
+            nodeId: tabId,
+        });
         if (container?.type !== "tabset" && container?.type !== "border") {
             return false;
         }
@@ -1432,11 +1436,15 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             return false;
         }
         if (container.type === "tabset") {
-            const layout = this.model.get("layout-id", { node: container.id });
+            const layout = this.model.get("layout-id-by-node-id", {
+                nodeId: container.id,
+            });
             const maximized =
                 layout === undefined
                     ? undefined
-                    : this.model.get("maximized-tabset", { layout });
+                    : this.model.get("maximized-tabset-by-layout-id", {
+                          layoutId: layout,
+                      });
             return maximized === undefined || maximized.id === container.id;
         }
         return container.show !== false;
@@ -1448,7 +1456,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
      */
     private positionTabPanels() {
         for (const [tabId, element] of this.tabPanels) {
-            const container = this.model.get("parent", { node: tabId });
+            const container = this.model.get("node-parent-by-id", {
+                nodeId: tabId,
+            });
             if (!container) {
                 continue; // the tab left the tree (it is being closed)
             }
@@ -1662,7 +1672,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         const home = this.shared.moveablesHome;
         if (
             home &&
-            this.model.get("node", { node: tabId }) &&
+            this.model.get("node-by-id", { nodeId: tabId }) &&
             options.remountInWindow !== true
         ) {
             home.appendChild(element); // keep it parented, so it stays in the document
@@ -1684,7 +1694,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (shared.rendered.has(tabId)) {
             return true;
         }
-        const container = this.model.get("parent", { node: tabId });
+        const container = this.model.get("node-parent-by-id", {
+            nodeId: tabId,
+        });
         if (container?.type !== "tabset" && container?.type !== "border") {
             return false;
         }
@@ -1723,8 +1735,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private closeOverlayBorder(
         borderId: string,
         dryRun = false,
-    ): CommandResult<{ border: string }> {
-        const border = this.model.get("node", { node: borderId });
+    ): CommandResult<{ borderId: string }> {
+        const border = this.model.get("node-by-id", { nodeId: borderId });
         if (border?.type !== "border") {
             return notFound(`"${borderId}" is not a border`);
         }
@@ -1734,7 +1746,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
         if (dryRun) {
             return this.model.check("border.configure", {
-                border: borderId,
+                borderId,
                 open: false,
             });
         }
@@ -1743,7 +1755,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         const refocus =
             doc?.activeElement != null && panel?.contains(doc.activeElement);
         const result = this.model.run("border.configure", {
-            border: borderId,
+            borderId,
             open: false,
         });
         if (result.ok && refocus) {
@@ -1830,7 +1842,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private focusAdjacentTabset(
         delta: number,
         dryRun: boolean,
-    ): CommandResult<{ tabset: string }> {
+    ): CommandResult<{ tabsetId: string }> {
         const doc = this.currentDocument;
         const active = doc?.activeElement;
         if (!doc || !active || !this.layoutRef?.contains(active)) {
@@ -1847,13 +1859,14 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             return refused("focus is in a text field or a menu");
         }
         if (
-            this.model.get("maximized-tabset", { layout: this.layoutId }) !==
-            undefined
+            this.model.get("maximized-tabset-by-layout-id", {
+                layoutId: this.layoutId,
+            }) !== undefined
         ) {
             return refused("a tabset is maximized: it is the only one shown");
         }
         const tabsets = this.model
-            .get("tabsets", { layout: this.layoutId })
+            .get("tabsets-by-layout-id", { layoutId: this.layoutId })
             .filter((tabset) => tabset.children[tabset.selected] !== undefined);
         if (tabsets.length < 2) {
             return refused("no other tabset to move focus to");
@@ -1874,8 +1887,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         };
         let index = tabsets.findIndex(containsFocus);
         if (index === -1) {
-            const activeTabset = this.model.get("active-tabset", {
-                layout: this.layoutId,
+            const activeTabset = this.model.get("active-tabset-by-layout-id", {
+                layoutId: this.layoutId,
             });
             index = activeTabset
                 ? tabsets.findIndex((t) => t.id === activeTabset.id)
@@ -1893,9 +1906,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (!dryRun) {
             this.measurables.get(`tabbutton:${selected.id}`)?.element.focus();
             // focus moved whether or not a middleware lets the tabset become active
-            this.model.run("tabset.activate", { tabset: target.id });
+            this.model.run("tabset.activate", { tabsetId: target.id });
         }
-        return { ok: true, value: { tabset: target.id } };
+        return { ok: true, value: { tabsetId: target.id } };
     }
 
     // *********************************************************************************
@@ -1967,17 +1980,17 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private popout(
         id: string,
         dryRun: boolean,
-    ): CommandResult<{ window: string }> {
+    ): CommandResult<{ windowId: string }> {
         if (!this.isSupportsPopout()) {
             return refused("popout windows are not supported here");
         }
-        const node = this.model.get("node", { node: id });
+        const node = this.model.get("node-by-id", { nodeId: id });
         if (node?.type === "tabset") {
             // a dry run asks the model only: where the window would open does not change the answer
             return dryRun
-                ? this.model.check("tabset.popout", { tabset: id })
+                ? this.model.check("tabset.popout", { tabsetId: id })
                 : this.model.run("tabset.popout", {
-                      tabset: id,
+                      tabsetId: id,
                       ...this.screenRectOf("tabset", id),
                   });
         }
@@ -1985,11 +1998,11 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             return notFound(`"${id}" is not a tab or a tabset`);
         }
         if (dryRun) {
-            return this.model.check("tab.popout", { tab: id });
+            return this.model.check("tab.popout", { tabId: id });
         }
-        const container = this.model.get("parent", { node: id });
+        const container = this.model.get("node-parent-by-id", { nodeId: id });
         return this.model.run("tab.popout", {
-            tab: id,
+            tabId: id,
             ...(container ? this.screenRectOf("content", container.id) : {}),
         });
     }
@@ -2015,49 +2028,52 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private dockBack(
         id: string,
         dryRun: boolean,
-    ): CommandResult<{ tabs: string[] }> {
-        const layout = this.model.get("layout-id", { node: id });
+    ): CommandResult<{ tabIds: string[] }> {
+        const layout = this.model.get("layout-id-by-node-id", { nodeId: id });
         if (layout === undefined || layout === MAIN_LAYOUT) {
             return refused(`"${id}" is not in a window`);
         }
         const execute = dryRun ? this.model.check : this.model.run;
-        const node = this.model.get("node", { node: id });
+        const node = this.model.get("node-by-id", { nodeId: id });
         const tabs =
             node?.type === "tabset" ? node.children.map((t) => t.id) : [id];
         const docked = (
             result: CommandResult<unknown>,
             moved: string[] = tabs,
-        ): CommandResult<{ tabs: string[] }> =>
-            result.ok ? { ok: true, value: { tabs: moved } } : result;
-        const all = this.model.get("tabs", { layout }).map((t) => t.id);
+        ): CommandResult<{ tabIds: string[] }> =>
+            result.ok ? { ok: true, value: { tabIds: moved } } : result;
+        const all = this.model
+            .get("tabs-by-layout-id", { layoutId: layout })
+            .map((t) => t.id);
         if (all.length === tabs.length) {
-            return docked(execute("window.close", { window: layout }));
+            return docked(execute("window.close", { windowId: layout }));
         }
         const target =
-            this.model.get("active-tabset") ?? this.model.get("tabsets")[0];
+            this.model.get("active-tabset-by-layout-id") ??
+            this.model.get("tabsets-by-layout-id")[0];
         if (!target) {
             // no tabset to dock into: closing the window docks all of it
-            return docked(execute("window.close", { window: layout }), all);
+            return docked(execute("window.close", { windowId: layout }), all);
         }
         // a pinned tab may not leave its tabset: it is unpinned for the move and pinned again
         const commands: BatchEntry<T>[] = [];
         for (const tab of tabs) {
-            const node = this.model.get("node", { node: tab });
+            const node = this.model.get("node-by-id", { nodeId: tab });
             const pinned = node?.type === "tab" && node.pinned === true;
             if (pinned) {
                 commands.push({
                     command: "tab.pin",
-                    payload: { tab, value: false },
+                    payload: { tabId: tab, value: false },
                 });
             }
             commands.push({
                 command: "tab.move",
-                payload: { tab, to: target.id, index: -1 },
+                payload: { tabId: tab, to: target.id, index: -1 },
             });
             if (pinned) {
                 commands.push({
                     command: "tab.pin",
-                    payload: { tab, value: true },
+                    payload: { tabId: tab, value: true },
                 });
             }
         }

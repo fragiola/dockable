@@ -238,7 +238,7 @@ describe("overlay borders", () => {
                 clientY: y,
             });
         const selected = () => {
-            const border = s.model.get("node", { node: "border_left" });
+            const border = s.model.get("node-by-id", { nodeId: "border_left" });
             return border?.type === "border" ? border.selected : undefined;
         };
         return { ...s, area, press, selected };
@@ -250,7 +250,7 @@ describe("overlay borders", () => {
         expect(s.selected()).toBe(-1);
         expect(s.commands.at(-1)).toEqual({
             command: "border.configure",
-            payload: { border: "border_left", open: false },
+            payload: { borderId: "border_left", open: false },
         });
     });
 
@@ -269,9 +269,11 @@ describe("overlay borders", () => {
     it("close with the close key from the tab button or the panel, and focus the tab button", () => {
         const s = setupOverlay();
         const button = s.root.appendChild(document.createElement("button"));
-        button.id = s.engine.get("tab-button-id", { tab: "b0" });
+        button.id = s.engine.get("tab-button-dom-id-by-tab-id", {
+            tabId: "b0",
+        });
         const panel = s.root.appendChild(document.createElement("div"));
-        panel.id = s.engine.get("tab-panel-id", { tab: "b0" });
+        panel.id = s.engine.get("tab-panel-dom-id-by-tab-id", { tabId: "b0" });
         const input = panel.appendChild(document.createElement("input"));
 
         input.focus();
@@ -292,7 +294,7 @@ describe("overlay borders", () => {
             ),
         ).toBe(false);
 
-        s.engine.adapter.model.run("tab.select", { tab: "b0" });
+        s.engine.adapter.model.run("tab.select", { tabId: "b0" });
         button.focus();
         expect(
             s.engine.adapter.handleOverlayKeyDown(

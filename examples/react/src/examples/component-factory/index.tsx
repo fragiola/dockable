@@ -81,7 +81,7 @@ export default function ComponentFactory() {
     // this component is outside Dockable.Root: it follows the model through `subscribe`
     const total = useSyncExternalStore(
         model.subscribe,
-        () => model.get("tabs").length,
+        () => model.get("all-tabs").length,
     );
     return (
         <>

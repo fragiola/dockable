@@ -284,8 +284,9 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
 
     const state: RootState = {
         maximized:
-            model.get("maximized-tabset", { layout: MAIN_LAYOUT }) !==
-            undefined,
+            model.get("maximized-tabset-by-layout-id", {
+                layoutId: MAIN_LAYOUT,
+            }) !== undefined,
         dragging: dragState !== undefined && dragState.mainEngine === engine,
         refused,
     };

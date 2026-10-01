@@ -31,8 +31,8 @@ its screen `rect`, its `root` row, its `active` and `maximized` tabsets). `tab.p
 and `window.configure` records its rect. A saved layout with windows reopens them when it loads.
 
 ```ts
-model.run("tab.popout", { tab: "chart-1" }); // a new window layout: the root opens its window
-model.run("window.close", { window: "window-1" }); // its tabs dock back, the window closes
+model.run("tab.popout", { tabId: "chart-1" }); // a new window layout: the root opens its window
+model.run("window.close", { windowId: "window-1" }); // its tabs dock back, the window closes
 ```
 
 ## Props

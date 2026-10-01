@@ -12,12 +12,12 @@ export interface EngineActionMap {
      * pops a tab, or a whole tabset, out into a window at its place on screen (`tab.popout` /
      * `tabset.popout`); refused where popouts are not supported
      */
-    popout: { payload: { node: string }; result: { window: string } };
+    popout: { payload: { nodeId: string }; result: { windowId: string } };
     /**
      * docks a tab, or a tabset, of a window back into the main layout's active tabset (its first
      * one otherwise): `window.close` when it is all its window holds, else `tab.move`s
      */
-    "dock-back": { payload: { node: string }; result: { tabs: string[] } };
+    "dock-back": { payload: { nodeId: string }; result: { tabIds: string[] } };
     /**
      * moves focus to the selected tab of the next or previous tabset of this layout (wrapping) and
      * activates that tabset (`tabset.activate`); refused when focus is not in the layout, or is in
@@ -25,12 +25,12 @@ export interface EngineActionMap {
      */
     "focus-tabset": {
         payload: { direction: "next" | "previous" };
-        result: { tabset: string };
+        result: { tabsetId: string };
     };
     /** closes an open border's panel (`border.configure`); focus in it goes back to its tab */
     "close-overlay-border": {
-        payload: { border: string };
-        result: { border: string };
+        payload: { borderId: string };
+        result: { borderId: string };
     };
     /**
      * measures the layout again and repositions the panels; call it after a change the engine
@@ -50,16 +50,28 @@ export type EngineActionPayload<K extends EngineActionKey> =
 export type EngineActionResult<K extends EngineActionKey> =
     EngineActionMap[K]["result"];
 
-/** What `engine.get(key, payload)` reads: facts of this layout on screen. */
+/**
+ * What `engine.get(key, payload)` reads: facts of this layout on screen. A key names what it returns
+ * and whose id it takes, as on the model.
+ */
 export interface EngineGetMap {
     /** a node's `data-layout-path` in this layout (`/ts0/t1`) */
-    path: { payload: { node: string }; result: string };
+    "layout-path-by-node-id": { payload: { nodeId: string }; result: string };
     /** the DOM id of a tab's button (unique on the page): its panel's `aria-labelledby` */
-    "tab-button-id": { payload: { tab: string }; result: string };
+    "tab-button-dom-id-by-tab-id": {
+        payload: { tabId: string };
+        result: string;
+    };
     /** the DOM id of a tab's panel (unique on the page): its button's `aria-controls` */
-    "tab-panel-id": { payload: { tab: string }; result: string };
+    "tab-panel-dom-id-by-tab-id": {
+        payload: { tabId: string };
+        result: string;
+    };
     /** a row's or a tabset's size limits (its flex min/max), in pixels */
-    "size-limits": { payload: { node: string }; result: SizeRange };
+    "size-limits-by-node-id": {
+        payload: { nodeId: string };
+        result: SizeRange;
+    };
     /** the measured splitter thickness, in pixels */
     "splitter-size": { payload: NoPayload; result: number };
     /** the document this layout renders in (a popout's own, for a window's layout) */
@@ -83,7 +95,7 @@ export interface EngineIsMap {
     /** popout windows open on this page (a desktop browser, or `popout.supportsPopout`) */
     "popout-supported": NoPayload;
     /** a tab's panel is shown: selected, and not hidden by a maximize or a hidden border */
-    "panel-visible": { tab: string };
+    "tab-panel-visible": { tabId: string };
     /** this engine draws the main layout (not a popout window's) */
     "main-layout": NoPayload;
     /** a splitter of the model is being dragged */
@@ -110,10 +122,10 @@ export const ENGINE_ACTION_KEYS = Object.freeze(
 /** Every key of `engine.get`, for documentation coverage. */
 export const ENGINE_GET_KEYS = Object.freeze(
     Object.keys({
-        path: true,
-        "tab-button-id": true,
-        "tab-panel-id": true,
-        "size-limits": true,
+        "layout-path-by-node-id": true,
+        "tab-button-dom-id-by-tab-id": true,
+        "tab-panel-dom-id-by-tab-id": true,
+        "size-limits-by-node-id": true,
         "splitter-size": true,
         "owner-document": true,
         "owner-window": true,
@@ -124,7 +136,7 @@ export const ENGINE_GET_KEYS = Object.freeze(
 export const ENGINE_IS_KEYS = Object.freeze(
     Object.keys({
         "popout-supported": true,
-        "panel-visible": true,
+        "tab-panel-visible": true,
         "main-layout": true,
         "splitter-dragging": true,
     } satisfies Record<EngineIsKey, true>) as EngineIsKey[],

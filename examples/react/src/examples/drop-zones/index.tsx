@@ -131,10 +131,10 @@ export default function DropZones() {
                     label="Close"
                     tone="palette-danger"
                     // only tabs that may be closed
-                    accepts={(tab) => model.can("tab.close", { tab: tab.id })}
+                    accepts={(tab) => model.can("tab.close", { tabId: tab.id })}
                     onDrop={(tab) =>
                         report(
-                            model.run("tab.close", { tab: tab.id }).ok,
+                            model.run("tab.close", { tabId: tab.id }).ok,
                             `Closed ${tab.data.name}`,
                         )
                     }
@@ -147,12 +147,12 @@ export default function DropZones() {
                     tone="palette-blue"
                     accepts={() => true}
                     onDrop={(tab) => {
-                        const root = model.get("root-row");
+                        const root = model.get("root-row-by-layout-id");
                         if (!root) return;
                         // the right edge of the root row: a new tabset on the right of the layout
                         report(
                             model.run("tab.move", {
-                                tab: tab.id,
+                                tabId: tab.id,
                                 to: root.id,
                                 location: "right",
                             }).ok,
@@ -166,10 +166,12 @@ export default function DropZones() {
                     icon={ExternalLink}
                     label="Pop out"
                     tone="palette-green"
-                    accepts={(tab) => model.can("tab.popout", { tab: tab.id })}
+                    accepts={(tab) =>
+                        model.can("tab.popout", { tabId: tab.id })
+                    }
                     onDrop={(tab) =>
                         report(
-                            model.run("tab.popout", { tab: tab.id }).ok,
+                            model.run("tab.popout", { tabId: tab.id }).ok,
                             `Popped out ${tab.data.name}`,
                         )
                     }

@@ -248,7 +248,7 @@ function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
         }
         // `tab.update` replaces the whole data, checked against the monitor's type
         model.run("tab.update", {
-            tab: tab.id,
+            tabId: tab.id,
             component: "monitor",
             data: {
                 ...data,
@@ -299,7 +299,7 @@ function Editor({ tab }: { tab: TabNode<"document", DocumentData> }) {
         // only run the command when the flag changes, not on every keystroke
         if (tab.data.dirty !== dirty) {
             model.run("tab.update", {
-                tab: tab.id,
+                tabId: tab.id,
                 component: "document",
                 data: { ...tab.data, dirty },
             });

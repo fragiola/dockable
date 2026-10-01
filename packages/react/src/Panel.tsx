@@ -113,7 +113,8 @@ export function Panel<T extends DockableTypes = AnyTypes>(
         keyMap,
     } = useDockableContext("Panel");
     const id = node.id;
-    const layoutId = model.get("layout-id", { node: id }) ?? MAIN_LAYOUT;
+    const layoutId =
+        model.get("layout-id-by-node-id", { nodeId: id }) ?? MAIN_LAYOUT;
     const layer = layers.get(layoutId);
     const layoutEngine = layer?.engine ?? mainEngine;
 
@@ -159,21 +160,19 @@ export function Panel<T extends DockableTypes = AnyTypes>(
         [mainEngine],
     );
 
-    const container = model.get("parent", { node: id });
-    const selected =
-        container !== undefined &&
-        model.get("selected-tab", { container: container.id })?.id === id;
+    const selected = model.is("tab-selected", { tabId: id });
     // the engine's own rule, so the state always matches what it displays
-    const visible = mainEngine.is("panel-visible", { tab: id });
+    const visible = mainEngine.is("tab-panel-visible", { tabId: id });
     const state: PanelState = { selected, visible };
 
     const onPointerDown = () => {
-        const tabset = model.get("parent", { node: id });
+        const tabset = model.get("node-parent-by-id", { nodeId: id });
         if (
             tabset?.type === "tabset" &&
-            model.get("active-tabset", { layout: layoutId })?.id !== tabset.id
+            model.get("active-tabset-by-layout-id", { layoutId })?.id !==
+                tabset.id
         ) {
-            model.run("tabset.activate", { tabset: tabset.id });
+            model.run("tabset.activate", { tabsetId: tabset.id });
         }
     };
 
@@ -182,7 +181,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
         if (!event.defaultPrevented && matchesKey(event, focusToggleKey)) {
             const button = event.currentTarget.ownerDocument.getElementById(
-                mainEngine.get("tab-button-id", { tab: id }),
+                mainEngine.get("tab-button-dom-id-by-tab-id", { tabId: id }),
             );
             if (button) {
                 button.focus();
@@ -203,15 +202,18 @@ export function Panel<T extends DockableTypes = AnyTypes>(
             state,
             ref,
             props: {
-                id: mainEngine.get("tab-panel-id", { tab: id }),
+                id: mainEngine.get("tab-panel-dom-id-by-tab-id", { tabId: id }),
                 role: "tabpanel",
-                "aria-labelledby": mainEngine.get("tab-button-id", { tab: id }),
+                "aria-labelledby": mainEngine.get(
+                    "tab-button-dom-id-by-tab-id",
+                    { tabId: id },
+                ),
                 "aria-keyshortcuts": toAriaKeyShortcuts(focusToggleKey),
                 tabIndex: -1,
                 ...dataAttributes({
                     "layout-path": mainEngine.adapter
                         .engineOf(id)
-                        .get("path", { node: id }),
+                        .get("layout-path-by-node-id", { nodeId: id }),
                     selected,
                     visible,
                 }),

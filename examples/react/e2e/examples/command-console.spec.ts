@@ -15,7 +15,7 @@ test("runs tab.select and tab.move typed as JSON, and logs them", async ({
     await openExample(page, "command-console");
     await expect(path(page, "/ts0/tb0")).toHaveAttribute("data-selected", "");
 
-    await run(page, { command: "tab.select", payload: { tab: "todo" } });
+    await run(page, { command: "tab.select", payload: { tabId: "todo" } });
     await expect(page.getByTestId("result")).toContainText("ok");
     await expect(path(page, "/ts0/tb1")).toHaveAttribute("data-selected", "");
     await expect(page.getByTestId("log")).toContainText("tab.select");
@@ -23,7 +23,7 @@ test("runs tab.select and tab.move typed as JSON, and logs them", async ({
     // the right tabset empties and goes: the moved tab is the third of the only tabset
     await run(page, {
         command: "tab.move",
-        payload: { tab: "ideas", to: "left" },
+        payload: { tabId: "ideas", to: "left" },
     });
     await expect(path(page, "/ts0/tb2")).toHaveText("Ideas");
     await expect(path(page, "/ts1")).toHaveCount(0);
@@ -34,11 +34,11 @@ test("an invalid payload comes back as a structured error and changes nothing", 
     page,
 }) => {
     await openExample(page, "command-console");
-    await run(page, { command: "tab.move", payload: { tab: 3 } });
+    await run(page, { command: "tab.move", payload: { tabId: 3 } });
     const result = page.getByTestId("result");
     await expect(result.getByRole("alert")).toContainText("invalid_payload");
     await expect(result).toContainText("/payload/to");
-    await expect(result).toContainText("/payload/tab");
+    await expect(result).toContainText("/payload/tabId");
     await expect(page.getByTestId("log")).toBeEmpty();
     await expect(path(page, "/ts1/tb0")).toHaveText("Ideas");
 

@@ -11,9 +11,9 @@ dragged instead of moving it."
 ```tsx
 <Dockable.DropZone
     model={model}
-    accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tab: drag.tab.id })}
+    accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tabId: drag.tab.id })}
     onDrop={(drag) => {
-        if (drag.kind === "tab") model.run("tab.close", { tab: drag.tab.id });
+        if (drag.kind === "tab") model.run("tab.close", { tabId: drag.tab.id });
     }}
     className="opacity-50 data-drop-active:opacity-100 data-drop-over:bg-red-600"
 >

@@ -300,9 +300,12 @@ let added = 0;
 /** Add a tab to this tabset, and close its selected tab: two undoable edits. */
 function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
-    const selected = model.get("selected-tab", { container: tabset.id });
+    const selected = model.get("selected-tab-by-tabset-id", {
+        tabsetId: tabset.id,
+    });
     const closeable =
-        selected !== undefined && model.can("tab.close", { tab: selected.id });
+        selected !== undefined &&
+        model.can("tab.close", { tabId: selected.id });
     return (
         <>
             <button
@@ -336,7 +339,7 @@ function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
                     "disabled:pointer-events-none disabled:opacity-40",
                 )}
                 onClick={() =>
-                    selected && model.run("tab.close", { tab: selected.id })
+                    selected && model.run("tab.close", { tabId: selected.id })
                 }
             >
                 <X aria-hidden className="size-3.5" />

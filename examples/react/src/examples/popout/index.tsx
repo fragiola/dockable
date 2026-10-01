@@ -191,9 +191,12 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
  */
 function PopoutButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
-    const selected = model.get("selected-tab", { container: tabset.id });
+    const selected = model.get("selected-tab-by-tabset-id", {
+        tabsetId: tabset.id,
+    });
     const inWindow =
-        model.get("layout-id", { node: tabset.id }) !== MAIN_LAYOUT;
+        model.get("layout-id-by-node-id", { nodeId: tabset.id }) !==
+        MAIN_LAYOUT;
     const name = selected?.data.name ?? "";
     return (
         <Dockable.PopoutTrigger

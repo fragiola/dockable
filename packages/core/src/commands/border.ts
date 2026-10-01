@@ -12,13 +12,15 @@ import { cloneJson } from "../state/clone";
 import { isVerticalBorder, resolveBorder } from "../state/defaults";
 import { defineCommand, fail, ok } from "./define";
 
-const borderId = {
+const borderIdSchema = {
     ...idSchema,
     description:
         "the border's id (border_<location> unless the layout names it)",
 } as const;
 
-const borderIdResult = object({ border: describedId("border") }, ["border"]);
+const borderIdResult = object({ borderId: describedId("border") }, [
+    "borderId",
+]);
 
 export const borderResize = defineCommand({
     name: "border.resize",
@@ -26,30 +28,30 @@ export const borderResize = defineCommand({
         "Set the size in px of a border's panel (of its selected tab when that tab has its own border size). The size is clamped to the border's min and max.",
     payloadSchema: object(
         {
-            border: borderId,
+            borderId: borderIdSchema,
             size: {
                 ...sizeSchema,
                 description:
                     "the panel's new size, in px (kept within its limits)",
             },
         },
-        ["border", "size"],
+        ["borderId", "size"],
     ),
     resultSchema: object(
         {
-            border: describedId("border"),
+            borderId: describedId("border"),
             size: { ...sizeSchema, description: "the size it got, in px" },
         },
-        ["border", "size"],
+        ["borderId", "size"],
     ),
     transient: true,
     reduce(payload, { draft }) {
-        const border = draft.border(payload.border);
+        const border = draft.border(payload.borderId);
         if (!border) {
             return fail(
                 "not_found",
-                `no border "${payload.border}"`,
-                "/border",
+                `no border "${payload.borderId}"`,
+                "/borderId",
             );
         }
         const resolved = resolveBorder(draft.getDefaults(), border);
@@ -67,7 +69,7 @@ export const borderResize = defineCommand({
         } else {
             draft.set(border.id, "size", size);
         }
-        return ok({ border: border.id, size });
+        return ok({ borderId: border.id, size });
     },
 });
 
@@ -77,7 +79,7 @@ export const borderConfigure = defineCommand({
         "Open or close a border's panel (open), switch it between docked and overlay (mode), show or hide it, or change its sizes, flags or data. Opening selects its first tab when none is selected. A null value removes the border's own value so the layout default applies.",
     payloadSchema: object(
         {
-            border: borderId,
+            borderId: borderIdSchema,
             open: {
                 ...booleanSchema,
                 description: "open (true) or close (false) the border's panel",
@@ -97,17 +99,17 @@ export const borderConfigure = defineCommand({
             maxSize: nullable(borderFieldProperties.maxSize),
             data: dataSchema,
         },
-        ["border"],
+        ["borderId"],
     ),
     resultSchema: borderIdResult,
     transient: false,
     reduce(payload, { draft }) {
-        const border = draft.border(payload.border);
+        const border = draft.border(payload.borderId);
         if (!border) {
             return fail(
                 "not_found",
-                `no border "${payload.border}"`,
-                "/border",
+                `no border "${payload.borderId}"`,
+                "/borderId",
             );
         }
         if (payload.open === true && border.selected === -1) {
@@ -123,7 +125,7 @@ export const borderConfigure = defineCommand({
             draft.set(border.id, "selected", -1);
         }
         for (const [key, value] of Object.entries(payload)) {
-            if (key !== "border" && key !== "open" && value !== undefined) {
+            if (key !== "borderId" && key !== "open" && value !== undefined) {
                 draft.set(
                     border.id,
                     key,
@@ -131,6 +133,6 @@ export const borderConfigure = defineCommand({
                 );
             }
         }
-        return ok({ border: border.id });
+        return ok({ borderId: border.id });
     },
 });

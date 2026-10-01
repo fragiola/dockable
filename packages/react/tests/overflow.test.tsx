@@ -148,7 +148,7 @@ describe("tab overflow", () => {
         const model = load();
         render(<OverflowLayout model={model} />);
         act(() => {
-            model.run("tab.select", { tab: "d" });
+            model.run("tab.select", { tabId: "d" });
         });
         expect(path("/ts0/tb3")).not.toHaveAttribute("data-overflow-hidden");
         expect(path("/ts0/tb2")).toHaveAttribute("data-overflow-hidden", "");
@@ -164,7 +164,7 @@ describe("tab overflow", () => {
         fireEvent.keyDown(tab2, { key: "ArrowRight" });
         expect(commands.at(-1)).toEqual({
             command: "tab.select",
-            payload: { tab: "d" },
+            payload: { tabId: "d" },
             transient: false,
         });
         expect(path("/ts0/tb3")).not.toHaveAttribute("data-overflow-hidden");
@@ -174,7 +174,7 @@ describe("tab overflow", () => {
         const model = load();
         render(<OverflowLayout model={model} />);
         act(() => {
-            model.run("tab.close", { tab: "d" });
+            model.run("tab.close", { tabId: "d" });
         });
         expect(path("/ts0/tabstrip")).not.toHaveAttribute("data-overflowing");
         expect(screen.queryByTestId("trigger")).toBeNull();

@@ -199,7 +199,7 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
     return (
         <>
             <span className="truncate">{tab.data.name}</span>
-            {model.can("tab.close", { tab: tab.id }) ? (
+            {model.can("tab.close", { tabId: tab.id }) ? (
                 <button
                     type="button"
                     // the tab is the tab stop; the close button is reached with the mouse
@@ -213,7 +213,7 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
                     )}
                     onClick={(event) => {
                         event.stopPropagation(); // not a click on the tab
-                        model.run("tab.close", { tab: tab.id });
+                        model.run("tab.close", { tabId: tab.id });
                     }}
                 >
                     <X aria-hidden className="size-3" />
@@ -226,7 +226,9 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
 /** Pins or unpins the tabset's selected tab. */
 function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
-    const selected = model.get("selected-tab", { container: tabset.id });
+    const selected = model.get("selected-tab-by-tabset-id", {
+        tabsetId: tabset.id,
+    });
     if (!selected?.data.enablePin) {
         return null;
     }
@@ -242,7 +244,7 @@ function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
                 "disabled:pointer-events-none disabled:opacity-40",
             )}
             onClick={() =>
-                model.run("tab.pin", { tab: selected.id, value: !pinned })
+                model.run("tab.pin", { tabId: selected.id, value: !pinned })
             }
         >
             {pinned ? (

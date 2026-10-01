@@ -6,7 +6,7 @@ import { MAIN_LAYOUT } from "../state/types";
 import { defineCommand, fail, ok } from "./define";
 import { dropOnTabset } from "./dock";
 
-const windowId = {
+const windowIdSchema = {
     ...idSchema,
     description: "the window layout's id",
 } as const;
@@ -71,28 +71,29 @@ export const windowClose = defineCommand({
     name: "window.close",
     description:
         "Close a popout window layout: its tabs move back into the main layout's active tabset (its first tabset when none is active), and the window closes.",
-    payloadSchema: object({ window: windowId }, ["window"]),
+    payloadSchema: object({ windowId: windowIdSchema }, ["windowId"]),
     resultSchema: object(
         {
-            tabs: {
+            tabIds: {
                 type: "array",
                 items: idSchema,
-                description: "the tabs moved back into the main layout",
+                description:
+                    "the ids of the tabs moved back into the main layout",
             },
         },
-        ["tabs"],
+        ["tabIds"],
     ),
     transient: false,
     reduce(payload, { draft }) {
         const root =
-            payload.window === MAIN_LAYOUT
+            payload.windowId === MAIN_LAYOUT
                 ? undefined
-                : draft.rootOf(payload.window);
+                : draft.rootOf(payload.windowId);
         if (root === undefined) {
             return fail(
                 "not_found",
-                `no window "${payload.window}"`,
-                "/window",
+                `no window "${payload.windowId}"`,
+                "/windowId",
             );
         }
         const tabs = tabsBelow(draft, root);
@@ -100,9 +101,9 @@ export const windowClose = defineCommand({
         for (const tab of tabs) {
             dropOnTabset(draft, target, tab, "center", -1, undefined);
         }
-        draft.removeWindow(payload.window);
+        draft.removeWindow(payload.windowId);
         tidy(draft);
-        return ok({ tabs });
+        return ok({ tabIds: tabs });
     },
 });
 
@@ -112,25 +113,25 @@ export const windowConfigure = defineCommand({
         "Record a popout window's screen rect (the engine does this when the window moves or resizes, so a saved layout reopens it in place).",
     payloadSchema: object(
         {
-            window: windowId,
+            windowId: windowIdSchema,
             rect: { ...rectSchema, description: "the window's screen rect" },
         },
-        ["window", "rect"],
+        ["windowId", "rect"],
     ),
-    resultSchema: object({ window: describedId("window") }, ["window"]),
+    resultSchema: object({ windowId: describedId("window") }, ["windowId"]),
     transient: true,
     reduce(payload, { draft }) {
         if (
-            payload.window === MAIN_LAYOUT ||
-            draft.rootOf(payload.window) === undefined
+            payload.windowId === MAIN_LAYOUT ||
+            draft.rootOf(payload.windowId) === undefined
         ) {
             return fail(
                 "not_found",
-                `no window "${payload.window}"`,
-                "/window",
+                `no window "${payload.windowId}"`,
+                "/windowId",
             );
         }
-        const current = draft.windowRect(payload.window);
+        const current = draft.windowRect(payload.windowId);
         const { x, y, width, height } = payload.rect;
         if (
             !current ||
@@ -139,8 +140,8 @@ export const windowConfigure = defineCommand({
             current.width !== width ||
             current.height !== height
         ) {
-            draft.setWindowRect(payload.window, { x, y, width, height });
+            draft.setWindowRect(payload.windowId, { x, y, width, height });
         }
-        return ok({ window: payload.window });
+        return ok({ windowId: payload.windowId });
     },
 });

@@ -36,11 +36,12 @@ const json: LayoutJson = {
 
 function setup() {
     const model = createModel(structuredClone(json));
-    const hidden = (id: string) => model.is("hidden-by-maximize", { node: id });
+    const hidden = (id: string) =>
+        model.is("node-hidden-by-maximize", { nodeId: id });
     return { model, hidden };
 }
 
-describe('model.is("hidden-by-maximize")', () => {
+describe('model.is("node-hidden-by-maximize")', () => {
     it("hides nothing while no tabset is maximized", () => {
         const { hidden } = setup();
         for (const id of ["root", "ts0", "r1", "ts1", "ts2"]) {
@@ -50,7 +51,7 @@ describe('model.is("hidden-by-maximize")', () => {
 
     it("hides the other tabsets and the rows that do not contain the maximized one", () => {
         const { model, hidden } = setup();
-        model.run("tabset.maximize", { tabset: "ts0", value: true });
+        model.run("tabset.maximize", { tabsetId: "ts0", value: true });
         expect(hidden("ts0")).toBe(false);
         expect(hidden("root")).toBe(false); // the root row is on every path
         expect(hidden("r1")).toBe(true); // a sibling row gives up its space
@@ -60,7 +61,7 @@ describe('model.is("hidden-by-maximize")', () => {
 
     it("keeps the rows on the path to a nested maximized tabset", () => {
         const { model, hidden } = setup();
-        model.run("tabset.maximize", { tabset: "ts2", value: true });
+        model.run("tabset.maximize", { tabsetId: "ts2", value: true });
         expect(hidden("root")).toBe(false);
         expect(hidden("r1")).toBe(false);
         expect(hidden("ts2")).toBe(false);
@@ -70,11 +71,13 @@ describe('model.is("hidden-by-maximize")', () => {
 
     it("never hides tabs, and only reads the node's own layout", () => {
         const { model, hidden } = setup();
-        model.run("tabset.maximize", { tabset: "ts0", value: true });
+        model.run("tabset.maximize", { tabsetId: "ts0", value: true });
         expect(hidden("b")).toBe(false); // a tab: its panel follows the engine's visibility
         // a tabset popped out into a window is in another layout: no maximized tabset there
-        model.run("tabset.popout", { tabset: "ts1" });
-        expect(model.get("layout-id", { node: "ts1" })).not.toBe(MAIN_LAYOUT);
+        model.run("tabset.popout", { tabsetId: "ts1" });
+        expect(model.get("layout-id-by-node-id", { nodeId: "ts1" })).not.toBe(
+            MAIN_LAYOUT,
+        );
         expect(hidden("ts1")).toBe(false);
     });
 });

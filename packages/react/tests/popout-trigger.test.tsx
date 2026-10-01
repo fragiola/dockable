@@ -121,7 +121,7 @@ describe("Dockable.PopoutTrigger", () => {
         fireEvent.click(trigger);
         expect(commands).toContainEqual({
             command: "tab.popout",
-            payload: expect.objectContaining({ tab: "a" }),
+            payload: expect.objectContaining({ tabId: "a" }),
             transient: false,
         });
         expect(model.state.windows).toHaveLength(0); // vetoed
@@ -142,14 +142,14 @@ describe("Dockable.PopoutTrigger", () => {
         fireEvent.click(trigger);
         expect(commands).toContainEqual({
             command: "tab.popout",
-            payload: expect.objectContaining({ tab: "a" }),
+            payload: expect.objectContaining({ tabId: "a" }),
             transient: false,
         });
     });
 
     it("renders nothing when the selected tab cannot pop out, or popouts are unsupported", () => {
         const model = load();
-        model.run("tab.select", { tab: "b" });
+        model.run("tab.select", { tabId: "b" });
         const { unmount } = render(<Layout model={model} />);
         expect(screen.queryByTestId("trigger")).toBeNull();
         unmount();
@@ -165,14 +165,14 @@ describe("Dockable.PopoutTrigger", () => {
         expect(screen.queryByTestId("trigger")).toBeNull(); // "B" refuses
         unmount();
 
-        model.run("tab.configure", { tab: "b", enablePopout: true });
+        model.run("tab.configure", { tabId: "b", enablePopout: true });
         render(<Layout model={model} target="tabset" />);
         const trigger = screen.getByTestId("trigger");
         expect(trigger).toHaveAttribute("data-target", "tabset");
         fireEvent.click(trigger);
         expect(commands).toContainEqual({
             command: "tabset.popout",
-            payload: expect.objectContaining({ tabset: "ts0" }),
+            payload: expect.objectContaining({ tabsetId: "ts0" }),
             transient: false,
         });
     });

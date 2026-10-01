@@ -142,7 +142,7 @@ export function KpiWidget({ tab }: { tab: WidgetTab<"kpi"> }) {
     useEffect(() => {
         if (config.status !== status) {
             model.run("tab.update", {
-                tab: tab.id,
+                tabId: tab.id,
                 component: "kpi",
                 data: { ...config, status },
             });

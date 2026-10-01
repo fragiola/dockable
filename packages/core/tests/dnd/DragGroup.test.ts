@@ -144,7 +144,7 @@ function dragBetween(from: Layout, tabId: string, to: Layout) {
 }
 
 const ids = (model: Model, tabsetId: string) => {
-    const tabset = model.get("node", { node: tabsetId });
+    const tabset = model.get("node-by-id", { nodeId: tabsetId });
     return tabset?.type === "tabset" ? tabset.children.map((c) => c.id) : [];
 };
 
@@ -170,7 +170,7 @@ describe("dragging between two models", () => {
         expect(over.defaultPrevented).toBe(true);
         expect(ids(b.model, "ts1")).toEqual(["b2", "a0"]);
         expect(ids(a.model, "ts0")).toEqual(["a1"]);
-        expect(b.model.get("node", { node: "a0" })).toMatchObject({
+        expect(b.model.get("node-by-id", { nodeId: "a0" })).toMatchObject({
             data: { name: "a0" },
         });
         expect(b.engine.adapter.getMoveableElement("a0")).toBe(moveable);
@@ -270,7 +270,7 @@ describe("dragging between two models", () => {
     it("changes nothing for a tab that cannot close in its model", () => {
         const group = new DragGroup();
         const a = layout("a", { dragGroup: group });
-        a.model.run("tab.configure", { tab: "a0", enableClose: false });
+        a.model.run("tab.configure", { tabId: "a0", enableClose: false });
         const b = layout("b", { dragGroup: group });
         dragBetween(a, "a0", b);
         expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);

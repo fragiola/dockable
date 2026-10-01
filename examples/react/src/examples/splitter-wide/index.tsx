@@ -180,7 +180,7 @@ function WideSplitter({ node, index }: RowSplitterProps<Types>) {
             // a splitter has no name of its own: the app gives it one
             aria-label="Resize"
             data-layout-path={getSplitterPath(
-                engine.get("path", { node: node.id }),
+                engine.get("layout-path-by-node-id", { nodeId: node.id }),
                 index,
             )}
             data-orientation={state.orientation}

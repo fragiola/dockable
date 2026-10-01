@@ -62,7 +62,7 @@ prefer function keys or modifier combinations.
 ### Which tabs close
 
 `closeTab` goes through the model like any other close. The tab asks
-`model.can("tab.close", { tab })` (a dry run: nothing changes) and, when it is accepted, runs
+`model.can("tab.close", { tabId })` (a dry run: nothing changes) and, when it is accepted, runs
 `tab.close`. A pinned tab, a tab whose `enableClose` resolves to false, and a tab a middleware
 vetoes are all left alone, and their `aria-keyshortcuts` omit the binding. Your own close
 buttons and hints can ask the same question:
@@ -70,7 +70,7 @@ buttons and hints can ask the same question:
 ```tsx
 function CloseHint({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
-    const closeable = model.can("tab.close", { tab: tab.id });
+    const closeable = model.can("tab.close", { tabId: tab.id });
     return closeable ? <kbd>Ctrl+Delete</kbd> : null;
 }
 ```
@@ -89,11 +89,11 @@ function useMaximizeShortcut() {
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.defaultPrevented || !matchesKey(event, "Ctrl+Shift+M")) return;
-            const tabset = model.get("active-tabset");
+            const tabset = model.get("active-tabset-by-layout-id");
             if (!tabset) return;
-            const maximized = model.is("maximized", { tabset: tabset.id });
+            const maximized = model.is("tabset-maximized", { tabsetId: tabset.id });
             // refused (not allowed, or the only tabset): the key is left to others
-            if (model.run("tabset.maximize", { tabset: tabset.id, value: !maximized }).ok) {
+            if (model.run("tabset.maximize", { tabsetId: tabset.id, value: !maximized }).ok) {
                 event.preventDefault();
             }
         };

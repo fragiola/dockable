@@ -17,11 +17,11 @@ import { fieldsOf, fromToolCall, toolName, toTools } from "./tools";
 const SAMPLES = [
     {
         label: "Select",
-        input: { command: "tab.select", payload: { tab: "todo" } },
+        input: { command: "tab.select", payload: { tabId: "todo" } },
     },
     {
         label: "Move",
-        input: { command: "tab.move", payload: { tab: "ideas", to: "left" } },
+        input: { command: "tab.move", payload: { tabId: "ideas", to: "left" } },
     },
     {
         label: "Add",
@@ -36,7 +36,7 @@ const SAMPLES = [
     },
     {
         label: "Invalid",
-        input: { command: "tab.move", payload: { tab: 3 } },
+        input: { command: "tab.move", payload: { tabId: 3 } },
     },
 ] as const;
 

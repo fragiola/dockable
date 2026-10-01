@@ -61,8 +61,8 @@ layout's splitter size, `engine.get("splitter-size")`).
 
 A drag or a key press resizes through the model, so middleware sees every resize:
 
-- a row splitter runs `row.resize` (`{ row, weights }`), a border splitter `border.resize`
-  (`{ border, size }`);
+- a row splitter runs `row.resize` (`{ rowId, weights }`), a border splitter `border.resize`
+  (`{ borderId, size }`);
 - a realtime drag (`realtimeResize`, the default) runs them with `{ transient: true }` on every
   move, then one non-transient command on release. Undo and persistence usually skip transient
   events (`event.transient`);

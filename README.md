@@ -4,7 +4,7 @@ A headless layout manager for dockable panels: tabs, tabsets, splitters and
 popout windows. It ships behaviour, accessibility and composable primitives,
 and no CSS, icons or text. You bring the styling.
 
-Every change is a named command with a JSON Schema (`model.run("tab.close", { tab })`), run
+Every change is a named command with a JSON Schema (`model.run("tab.close", { tabId: tab })`), run
 through your middleware, and each tab's data is typed by your own registry (`createModel<Types>`):
 the same commands drive the layout from code, from a test or from an AI assistant.
 
