@@ -55,7 +55,10 @@ const json: LayoutJson<Types> = {
 };
 
 function activeTabset(model: Model<Types>): TabsetNode<Types> | undefined {
-    return model.get("active-tabset") ?? model.get("tabsets")[0];
+    return (
+        model.get("active-tabset-by-layout-id") ??
+        model.get("tabsets-by-layout-id")[0]
+    );
 }
 
 function describe(result: CommandResult<unknown> | undefined): string {
@@ -121,24 +124,26 @@ export default function CommandsScenario() {
                         (tabset.selected + 1) % tabset.children.length
                     ];
                 return next
-                    ? model.run("tab.select", { tab: next.id })
+                    ? model.run("tab.select", { tabId: next.id })
                     : undefined;
             },
         ],
         [
             "Move to next tabset",
             () => {
-                const all = model.get("tabsets");
+                const all = model.get("tabsets-by-layout-id");
                 const tabset = activeTabset(model);
                 const tab = tabset
-                    ? model.get("selected-tab", { container: tabset.id })
+                    ? model.get("selected-tab-by-tabset-id", {
+                          tabsetId: tabset.id,
+                      })
                     : undefined;
                 if (!tabset || !tab || all.length < 2) return undefined;
                 const index = all.findIndex((t) => t.id === tabset.id);
                 const target = all[(index + 1) % all.length];
                 if (!target) return undefined;
                 return model.run("tab.move", {
-                    tab: tab.id,
+                    tabId: tab.id,
                     to: target.id,
                     select: true,
                 });
@@ -149,11 +154,13 @@ export default function CommandsScenario() {
             () => {
                 const tabset = activeTabset(model);
                 const tab = tabset
-                    ? model.get("selected-tab", { container: tabset.id })
+                    ? model.get("selected-tab-by-tabset-id", {
+                          tabsetId: tabset.id,
+                      })
                     : undefined;
                 if (!tab) return undefined;
                 return model.run("tab.update", {
-                    tab: tab.id,
+                    tabId: tab.id,
                     component: tab.component,
                     data: { ...tab.data, name: `${tab.data.name}*` },
                 });
@@ -165,18 +172,20 @@ export default function CommandsScenario() {
                 const tabset = activeTabset(model);
                 if (!tabset) return undefined;
                 return model.run("tabset.maximize", {
-                    tabset: tabset.id,
-                    value: model.get("maximized-tabset")?.id !== tabset.id,
+                    tabsetId: tabset.id,
+                    value:
+                        model.get("maximized-tabset-by-layout-id")?.id !==
+                        tabset.id,
                 });
             },
         ],
         [
             "Even weights",
             () => {
-                const row = model.get("root-row");
+                const row = model.get("root-row-by-layout-id");
                 if (!row) return undefined;
                 return model.run("row.resize", {
-                    row: row.id,
+                    rowId: row.id,
                     weights: row.children.map(() => 50),
                 });
             },
@@ -186,10 +195,12 @@ export default function CommandsScenario() {
             () => {
                 const tabset = activeTabset(model);
                 const tab = tabset
-                    ? model.get("selected-tab", { container: tabset.id })
+                    ? model.get("selected-tab-by-tabset-id", {
+                          tabsetId: tabset.id,
+                      })
                     : undefined;
                 return tab
-                    ? model.run("tab.close", { tab: tab.id })
+                    ? model.run("tab.close", { tabId: tab.id })
                     : undefined;
             },
         ],

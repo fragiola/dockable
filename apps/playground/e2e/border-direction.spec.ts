@@ -16,7 +16,7 @@ const open = async (page: Page) => {
 const setDirection = (page: Page, direction: "up" | "down") =>
     page.evaluate((value) => {
         window.__dockable?.model.run("border.configure", {
-            border: "border_left",
+            borderId: "border_left",
             data: { tabDirection: value },
         });
     }, direction);

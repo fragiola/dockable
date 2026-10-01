@@ -70,7 +70,8 @@ export default function AddTabs() {
         if (target === "active") {
             // the active tabset, or the first one when none is active yet
             const tabset =
-                model.get("active-tabset") ?? model.get("tabsets")[0];
+                model.get("active-tabset-by-layout-id") ??
+                model.get("tabsets-by-layout-id")[0];
             // dropped into the tabset's centre, at the end (-1), and selected (with no tabset
             // left, into the layout itself: a new tabset)
             model.run("tab.add", {

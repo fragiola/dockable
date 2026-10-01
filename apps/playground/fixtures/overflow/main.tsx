@@ -67,7 +67,7 @@ function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
                                 type="button"
                                 role="menuitem"
                                 onClick={() => {
-                                    model.run("tab.select", { tab: tab.id });
+                                    model.run("tab.select", { tabId: tab.id });
                                     setOpen(false);
                                 }}
                             >

@@ -59,7 +59,7 @@ function App() {
                 accepts={(drag) => drag.kind === "tab"}
                 onDrop={(drag) => {
                     if (drag.kind !== "tab") return;
-                    model.run("tab.close", { tab: drag.tab.id });
+                    model.run("tab.close", { tabId: drag.tab.id });
                     setLastDrop(`trash:${drag.tab.data.name}`);
                 }}
                 data-testid="trash"

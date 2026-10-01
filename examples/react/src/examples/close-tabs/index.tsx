@@ -168,8 +168,8 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
     // whether `tab.close` would apply: the tab's `enableClose` (resolved against the layout
     // defaults), not pinned, and no middleware veto. A dry run: nothing changes.
-    const closeable = model.can("tab.close", { tab: tab.id });
-    const close = () => model.run("tab.close", { tab: tab.id });
+    const closeable = model.can("tab.close", { tabId: tab.id });
+    const close = () => model.run("tab.close", { tabId: tab.id });
     return (
         <Dockable.Tab
             node={tab}
@@ -241,7 +241,7 @@ function CloseTabsetButton({ tabset }: { tabset: TabsetNode<Types> }) {
                 "disabled:pointer-events-none disabled:opacity-40",
             )}
             // closes every closeable tab; the tabset goes too once it is empty
-            onClick={() => model.run("tabset.close", { tabset: tabset.id })}
+            onClick={() => model.run("tabset.close", { tabsetId: tabset.id })}
         >
             <X aria-hidden className="size-4" />
         </button>

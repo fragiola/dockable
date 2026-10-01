@@ -86,7 +86,9 @@ export default function LayoutLab() {
     );
 
     const addTab = () => {
-        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const target =
+            model.get("active-tabset-by-layout-id") ??
+            model.get("tabsets-by-layout-id")[0];
         if (!target) return;
         added += 1;
         model.run("tab.add", {
@@ -268,7 +270,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 }
                                 onClick={(event) => {
                                     event.stopPropagation();
-                                    model.run("tab.close", { tab: tab.id });
+                                    model.run("tab.close", { tabId: tab.id });
                                 }}
                                 className={cn(
                                     "-me-1.5 grid size-5 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",

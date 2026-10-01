@@ -153,10 +153,10 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                         canMaximize(model, node)
                     ) {
                         model.run("tabset.maximize", {
-                            tabset: node.id,
+                            tabsetId: node.id,
                             value:
-                                model.get("maximized-tabset", {
-                                    layout: layoutId,
+                                model.get("maximized-tabset-by-layout-id", {
+                                    layoutId,
                                 })?.id !== node.id,
                         });
                     }
@@ -212,13 +212,14 @@ function Content({ tab }: { tab: TabOf<Types> }) {
 
 /** Whether the tabset may be maximized: the model answers without running the command. */
 function canMaximize(model: Model<Types>, tabset: TabsetNode<Types>) {
-    return model.can("tabset.maximize", { tabset: tabset.id, value: true });
+    return model.can("tabset.maximize", { tabsetId: tabset.id, value: true });
 }
 
 function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model, layoutId } = useDockable<Types>();
     const maximized =
-        model.get("maximized-tabset", { layout: layoutId })?.id === tabset.id;
+        model.get("maximized-tabset-by-layout-id", { layoutId })?.id ===
+        tabset.id;
     if (!canMaximize(model, tabset)) {
         return null;
     }
@@ -235,7 +236,7 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
             )}
             onClick={() =>
                 model.run("tabset.maximize", {
-                    tabset: tabset.id,
+                    tabsetId: tabset.id,
                     value: !maximized,
                 })
             }
@@ -258,8 +259,8 @@ function RestoreOnEscape() {
             return;
         }
         const onKeyDown = (event: KeyboardEvent) => {
-            const maximized = model.get("maximized-tabset", {
-                layout: layoutId,
+            const maximized = model.get("maximized-tabset-by-layout-id", {
+                layoutId,
             });
             if (
                 event.key === "Escape" &&
@@ -267,7 +268,7 @@ function RestoreOnEscape() {
                 maximized
             ) {
                 model.run("tabset.maximize", {
-                    tabset: maximized.id,
+                    tabsetId: maximized.id,
                     value: false,
                 });
             }

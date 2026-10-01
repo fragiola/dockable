@@ -69,16 +69,19 @@ function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
 function DockBack({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
     const inWindow = useModelState<Types, boolean>(
-        (_state, m) => m.get("layout-id", { node: tab.id }) !== MAIN_LAYOUT,
+        (_state, m) =>
+            m.get("layout-id-by-node-id", { nodeId: tab.id }) !== MAIN_LAYOUT,
     );
     if (!inWindow) {
         return null;
     }
     const onClick = () => {
-        const target = model.get("tabsets", { layout: MAIN_LAYOUT })[0];
+        const target = model.get("tabsets-by-layout-id", {
+            layoutId: MAIN_LAYOUT,
+        })[0];
         if (target) {
             model.run("tab.move", {
-                tab: tab.id,
+                tabId: tab.id,
                 to: target.id,
                 location: "center",
                 index: -1,
@@ -103,12 +106,14 @@ function App() {
     });
 
     const popOutSelected = () => {
-        const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const tabset =
+            model.get("active-tabset-by-layout-id") ??
+            model.get("tabsets-by-layout-id")[0];
         const tab = tabset
-            ? model.get("selected-tab", { container: tabset.id })
+            ? model.get("selected-tab-by-tabset-id", { tabsetId: tabset.id })
             : undefined;
         if (tab) {
-            model.run("tab.popout", { tab: tab.id });
+            model.run("tab.popout", { tabId: tab.id });
         }
     };
 

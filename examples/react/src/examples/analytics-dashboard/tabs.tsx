@@ -61,7 +61,7 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
-                    model.run("tab.close", { tab: tab.id });
+                    model.run("tab.close", { tabId: tab.id });
                 }}
                 className={cn(
                     "-me-1.5 grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85 opacity-0",
@@ -78,10 +78,14 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
 /** The tabset's header buttons: maximize, and pop out (or dock back when already popped out). */
 export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
-    const selected = model.get("selected-tab", { container: tabset.id });
+    const selected = model.get("selected-tab-by-tabset-id", {
+        tabsetId: tabset.id,
+    });
     const inPopout =
-        model.get("layout-id", { node: tabset.id }) !== MAIN_LAYOUT;
-    const maximized = model.get("maximized-tabset")?.id === tabset.id;
+        model.get("layout-id-by-node-id", { nodeId: tabset.id }) !==
+        MAIN_LAYOUT;
+    const maximized =
+        model.get("maximized-tabset-by-layout-id")?.id === tabset.id;
 
     // one trigger both ways: it pops the selected tab out, and in the window docks it back
     const popoutTrigger = selected ? (
@@ -119,7 +123,7 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
                 data-testid="maximize"
                 onClick={() =>
                     model.run("tabset.maximize", {
-                        tabset: tabset.id,
+                        tabsetId: tabset.id,
                         value: !maximized,
                     })
                 }

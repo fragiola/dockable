@@ -46,12 +46,15 @@ function targetIn<T extends DockableTypes>(
     end: StepEnd<T>,
 ): string | undefined {
     const tabset = end.tabsetId
-        ? end.model.get("node", { node: end.tabsetId })
+        ? end.model.get("node-by-id", { nodeId: end.tabsetId })
         : undefined;
     if (tabset?.type === "tabset") {
         return tabset.id;
     }
-    return end.model.get("tabsets")[0]?.id ?? end.model.get("root-row")?.id;
+    return (
+        end.model.get("tabsets-by-layout-id")[0]?.id ??
+        end.model.get("root-row-by-layout-id")?.id
+    );
 }
 
 /**

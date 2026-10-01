@@ -35,7 +35,7 @@ export function EditorPanel({
         if (Boolean(data.dirty) !== dirty) {
             // `data` is replaced whole: keep the rest of it
             model.run("tab.update", {
-                tab: id,
+                tabId: id,
                 component: "editor",
                 data: { ...data, dirty },
             });

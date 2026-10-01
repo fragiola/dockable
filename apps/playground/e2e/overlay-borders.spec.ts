@@ -23,7 +23,7 @@ const setBorderType = (
     page.evaluate(
         ([loc, mode]) => {
             window.__dockable?.model.run("border.configure", {
-                border: `border_${loc}`,
+                borderId: `border_${loc}`,
                 mode,
             });
         },

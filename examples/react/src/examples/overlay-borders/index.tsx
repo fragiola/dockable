@@ -191,7 +191,7 @@ function ModeSwitch({
     border: BorderNode<Types>;
 }) {
     // the border's mode, resolved against the layout defaults
-    const overlay = model.is("overlay", { border: border.id });
+    const overlay = model.is("border-overlay", { borderId: border.id });
     const name = border.location;
     return (
         <button
@@ -202,7 +202,7 @@ function ModeSwitch({
             onClick={() =>
                 // a command on the model: it goes through the model's middleware like any change
                 model.run("border.configure", {
-                    border: border.id,
+                    borderId: border.id,
                     mode: overlay ? "docked" : "overlay",
                 })
             }

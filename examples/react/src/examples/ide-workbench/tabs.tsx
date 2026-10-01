@@ -21,14 +21,16 @@ import { editorData, type Types } from "./workspace";
 
 /** Whether a tab may be closed at all (its `enableClose`, else the layout default). */
 function closable(model: Model<Types>, tab: TabOf<Types>) {
-    return model.get("tab-settings", { tab: tab.id })?.enableClose === true;
+    return (
+        model.get("tab-settings-by-id", { tabId: tab.id })?.enableClose === true
+    );
 }
 
 function closeAll(model: Model<Types>, tabs: readonly TabOf<Types>[]) {
     for (const tab of tabs) {
         if (closable(model, tab)) {
             // one command per tab: the workbench's middleware can still stop the dirty ones
-            model.run("tab.close", { tab: tab.id });
+            model.run("tab.close", { tabId: tab.id });
         }
     }
 }
@@ -61,7 +63,7 @@ function WorkbenchTab({
     const index = siblings.findIndex((other) => other.id === tab.id);
     const dirty = editorData(tab)?.dirty === true;
     const canClose = closable(model, tab);
-    const close = () => model.run("tab.close", { tab: tab.id });
+    const close = () => model.run("tab.close", { tabId: tab.id });
 
     return (
         <ContextMenu.Root>
@@ -161,7 +163,7 @@ function WorkbenchTab({
                     disabled={siblings.length < 2}
                     onClick={() =>
                         model.run("tab.move", {
-                            tab: tab.id,
+                            tabId: tab.id,
                             to: tabset.id,
                             location: "right",
                         })
@@ -173,7 +175,7 @@ function WorkbenchTab({
                     disabled={siblings.length < 2}
                     onClick={() =>
                         model.run("tab.move", {
-                            tab: tab.id,
+                            tabId: tab.id,
                             to: tabset.id,
                             location: "bottom",
                         })
@@ -190,7 +192,8 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
     const { model, layoutId } = useDockable<Types>();
     const { hiddenTabs } = useTabOverflow(node);
     const maximized =
-        model.get("maximized-tabset", { layout: layoutId })?.id === node.id;
+        model.get("maximized-tabset-by-layout-id", { layoutId })?.id ===
+        node.id;
 
     return (
         <Dockable.TabSet
@@ -212,7 +215,7 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                         value={null}
                         onValueChange={(id) => {
                             if (typeof id === "string") {
-                                model.run("tab.select", { tab: id });
+                                model.run("tab.select", { tabId: id });
                             }
                         }}
                     >
@@ -239,7 +242,7 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                         aria-pressed={maximized}
                         onClick={() =>
                             model.run("tabset.maximize", {
-                                tabset: node.id,
+                                tabsetId: node.id,
                                 value: !maximized,
                             })
                         }

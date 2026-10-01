@@ -220,7 +220,7 @@ function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
                         value={paletteOf(tabset)}
                         onValueChange={(palette) =>
                             model.run("tabset.configure", {
-                                tabset: tabset.id,
+                                tabsetId: tabset.id,
                                 data: { ...tabset.data, palette },
                             })
                         }
@@ -257,7 +257,7 @@ function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
  */
 function Content({ tab }: { tab: TabOf<Types> }) {
     const palette = useModelState<Types, string>((_, model) =>
-        paletteOf(model.get("parent", { node: tab.id })),
+        paletteOf(model.get("node-parent-by-id", { nodeId: tab.id })),
     );
     return (
         <div

@@ -175,7 +175,7 @@ function KeyboardTab({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
     // the same two bindings `Dockable.Tab` puts in its aria-keyshortcuts; the model says
     // whether the tab may close (a dry run of `tab.close`)
-    const closeable = model.can("tab.close", { tab: tab.id });
+    const closeable = model.can("tab.close", { tabId: tab.id });
     const shortcuts = [
         { name: "Enter or leave the content", spec: keys.focusTabToggle },
         { name: "Close", spec: closeable ? keys.closeTab : undefined },

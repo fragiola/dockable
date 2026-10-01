@@ -139,11 +139,13 @@ export const defaultLayout: LayoutJson<Types> = {
  */
 export function openFile(model: Model<Types>, path: string) {
     const id = tabId(path);
-    if (model.get("node", { node: id })) {
-        model.run("tab.select", { tab: id });
+    if (model.get("node-by-id", { nodeId: id })) {
+        model.run("tab.select", { tabId: id });
         return;
     }
-    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const target =
+        model.get("active-tabset-by-layout-id") ??
+        model.get("tabsets-by-layout-id")[0];
     if (target) {
         model.run("tab.add", {
             ...editorTab(path),

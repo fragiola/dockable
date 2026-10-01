@@ -165,7 +165,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     value={null}
                     onValueChange={(id) => {
                         if (typeof id === "string") {
-                            model.run("tab.select", { tab: id });
+                            model.run("tab.select", { tabId: id });
                         }
                     }}
                 >
