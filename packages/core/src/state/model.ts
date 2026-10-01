@@ -489,9 +489,19 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
             inBatch,
             meta: options.meta,
             state: this.committed.state as unknown as LayoutState<T>,
-            get: (key: CommandContextGetKey, { node }: { node: string }) => {
-                const id = key === "parent" ? draft.parentOf(node) : node;
-                return id === undefined ? undefined : draft.get(id);
+            get: (key: CommandContextGetKey, payload?: { node?: unknown }) => {
+                const node = payload?.node;
+                if (typeof node !== "string") {
+                    return undefined;
+                }
+                if (key === "node") {
+                    return draft.get(node);
+                }
+                if (key === "parent") {
+                    const parent = draft.parentOf(node);
+                    return parent === undefined ? undefined : draft.get(parent);
+                }
+                return undefined;
             },
         } as CommandContext<T>;
 

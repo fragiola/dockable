@@ -148,6 +148,47 @@ describe("engine.run / can / check", () => {
         ).toMatchObject({ ok: false, error: { code: "not_found" } });
     });
 
+    it("close-overlay-border: works from a popout window's engine (borders are the main layout's)", () => {
+        const { model, engine } = setup();
+        const sub = popoutEngine(engine, "t2");
+        expect(sub.run("close-overlay-border", { border: "left" }).ok).toBe(
+            true,
+        );
+        expect(model.is("open", { border: "left" })).toBe(false);
+    });
+
+    it("close-overlay-border: a vetoed close is reported, and the close key is not taken", () => {
+        const { model, engine } = setup();
+        model.use((ctx, next) =>
+            ctx.command === "border.configure" ? veto("pinned open") : next(),
+        );
+        expect(
+            engine.run("close-overlay-border", { border: "left" }),
+        ).toMatchObject({ ok: false, error: { code: "vetoed" } });
+        const root = document.body.appendChild(document.createElement("div"));
+        engine.adapter.attachRoot(root);
+        const button = root.appendChild(document.createElement("button"));
+        button.id = engine.get("tab-button-id", { tab: "b0" });
+        button.focus();
+        let prevented = false;
+        const handled = engine.adapter.handleOverlayKeyDown(
+            {
+                key: "Escape",
+                ctrlKey: false,
+                shiftKey: false,
+                altKey: false,
+                metaKey: false,
+                preventDefault: () => {
+                    prevented = true;
+                },
+            },
+            "Escape",
+        );
+        expect(handled).toBe(false);
+        expect(prevented).toBe(false);
+        expect(model.is("open", { border: "left" })).toBe(true);
+    });
+
     it("measure-and-position: always applies, takes no payload", () => {
         const { engine } = setup();
         expect(engine.can("measure-and-position")).toBe(true);

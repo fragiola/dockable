@@ -64,7 +64,7 @@ See [Popouts](/docs/guides/popouts) and [Dockable.PopoutTrigger](/docs/api/popou
 | `"tab-panel-id"` | `{ tab }` | `string` | the DOM id of a tab's panel, unique on the page: its button's `aria-controls` |
 | `"size-limits"` | `{ node }` | `SizeRange` | a row's or a tabset's flex min/max, from its own limits, its tabs' and its tab strip's height |
 | `"splitter-size"` | none | `number` | the measured splitter thickness, shared by every layout of the model |
-| `"owner-document"` | none | `Document \| undefined` | the document this layout renders in (a popout's own, for a window's layout): attach listeners that must follow a tab into a popout window here |
+| `"owner-document"` | none | `Document \| undefined` | the document this layout renders in (a popout's own, for a window's layout): attach listeners for a part of this layout here. Tab content renders under the main layout's root, so it reads its own element's `ownerDocument` to follow the tab into a popout |
 | `"owner-window"` | none | `Window \| undefined` | the window this layout renders in |
 
 `engine.is(key, payload)` answers a yes/no question about the view:

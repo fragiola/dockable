@@ -368,6 +368,24 @@ describe("middleware", () => {
     });
 });
 
+describe("ctx.get", () => {
+    it("reads nothing for an unknown key or a payload without a node id", () => {
+        const model = model2();
+        const seen: unknown[] = [];
+        model.use((ctx, next) => {
+            const get = ctx.get as (key: string, payload?: unknown) => unknown;
+            seen.push(
+                get("layout-id", { node: "One" }),
+                get("node"),
+                get("One"),
+            );
+            return next();
+        });
+        must(model.run("tab.select", { tab: "One" }));
+        expect(seen).toEqual([undefined, undefined, undefined]);
+    });
+});
+
 describe("dry run", () => {
     it("check and can commit nothing and emit nothing", () => {
         const model = model2();

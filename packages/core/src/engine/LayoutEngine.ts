@@ -536,8 +536,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         "dock-back": ({ node }, dryRun) => this.dockBack(node, dryRun),
         "focus-tabset": ({ direction }, dryRun) =>
             this.focusAdjacentTabset(direction === "previous" ? -1 : 1, dryRun),
+        // borders belong to the main layout: its engine knows their panels and focus
         "close-overlay-border": ({ border }, dryRun) =>
-            this.closeOverlayBorder(border, dryRun),
+            this.main.closeOverlayBorder(border, dryRun),
         "measure-and-position": (_payload, dryRun) => {
             if (!dryRun) {
                 this.sync();
@@ -1781,8 +1782,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         for (const border of open) {
             const content = this.rect("bordercontent", border.id);
             if (!content || !contains(content, x, y)) {
-                this.closeOverlayBorder(border.id);
-                closed = true;
+                closed = this.closeOverlayBorder(border.id).ok || closed;
             }
         }
         return closed;
@@ -1811,7 +1811,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             const button = doc.getElementById(this.tabButtonId(tab.id));
             const panel = doc.getElementById(this.tabPanelId(tab.id));
             if (active === button || panel?.contains(active)) {
-                this.closeOverlayBorder(border.id);
+                if (!this.closeOverlayBorder(border.id).ok) {
+                    return false; // a middleware keeps it open: the key is not ours
+                }
                 button?.focus();
                 event.preventDefault();
                 return true;
@@ -1969,25 +1971,40 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (!this.isSupportsPopout()) {
             return refused("popout windows are not supported here");
         }
-        const execute = dryRun ? this.model.check : this.model.run;
         const node = this.model.get("node", { node: id });
-        const engine = this.engineOf(id);
         if (node?.type === "tabset") {
-            const rect = engine.rect("tabset", id);
-            return execute("tabset.popout", {
-                tabset: id,
-                ...(rect ? { rect: engine.getScreenRect(rect) } : {}),
-            });
+            // a dry run asks the model only: where the window would open does not change the answer
+            return dryRun
+                ? this.model.check("tabset.popout", { tabset: id })
+                : this.model.run("tabset.popout", {
+                      tabset: id,
+                      ...this.screenRectOf("tabset", id),
+                  });
         }
         if (node?.type !== "tab") {
             return notFound(`"${id}" is not a tab or a tabset`);
         }
+        if (dryRun) {
+            return this.model.check("tab.popout", { tab: id });
+        }
         const container = this.model.get("parent", { node: id });
-        const rect = container ? engine.contentRect(container.id) : undefined;
-        return execute("tab.popout", {
+        return this.model.run("tab.popout", {
             tab: id,
-            ...(rect ? { rect: engine.getScreenRect(rect) } : {}),
+            ...(container ? this.screenRectOf("content", container.id) : {}),
         });
+    }
+
+    /** where a tabset, or a container's content area, is on screen (for a window to open there) */
+    private screenRectOf(
+        kind: "tabset" | "content",
+        id: string,
+    ): { rect?: Rect } {
+        const engine = this.engineOf(id);
+        const rect =
+            kind === "tabset"
+                ? engine.rect("tabset", id)
+                : engine.contentRect(id);
+        return rect ? { rect: engine.getScreenRect(rect) } : {};
     }
 
     /**
@@ -2009,8 +2026,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             node?.type === "tabset" ? node.children.map((t) => t.id) : [id];
         const docked = (
             result: CommandResult<unknown>,
+            moved: string[] = tabs,
         ): CommandResult<{ tabs: string[] }> =>
-            result.ok ? { ok: true, value: { tabs } } : result;
+            result.ok ? { ok: true, value: { tabs: moved } } : result;
         const all = this.model.get("tabs", { layout }).map((t) => t.id);
         if (all.length === tabs.length) {
             return docked(execute("window.close", { window: layout }));
@@ -2018,7 +2036,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         const target =
             this.model.get("active-tabset") ?? this.model.get("tabsets")[0];
         if (!target) {
-            return docked(execute("window.close", { window: layout }));
+            // no tabset to dock into: closing the window docks all of it
+            return docked(execute("window.close", { window: layout }), all);
         }
         // a pinned tab may not leave its tabset: it is unpinned for the move and pinned again
         const commands: BatchEntry<T>[] = [];

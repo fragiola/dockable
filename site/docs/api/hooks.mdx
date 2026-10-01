@@ -42,10 +42,13 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
 | `layoutId` | `string` | the id of the layout this component renders in (`"main"` or a window's id) |
 
 `T` is not checked against the root's model: the context holds the model with its registry
-erased, and `useDockable<Types>()` states which registry you know it has. Inside tab content,
-`engine` is the engine of the window the tab is currently in; what concerns the whole page
-(whether popouts are supported, popping out, docking back) works from any engine. Which one to go
-to for what: [Model and engine](/docs/concepts/model-and-engine).
+erased, and `useDockable<Types>()` states which registry you know it has. Tab content renders
+under the root wherever the tab is shown, so inside it `engine` is the main layout's engine and
+`layoutId` is `"main"`, even in a popout window: what concerns the whole page (whether popouts are
+supported, popping out, docking back) works from it all the same. The window a tab is in is
+`model.get("layout-id", { node: tab.id })`, and the document it renders in right now is its own
+element's `ownerDocument`. Which object to go to for what:
+[Model and engine](/docs/concepts/model-and-engine).
 
 ## useModelState
 

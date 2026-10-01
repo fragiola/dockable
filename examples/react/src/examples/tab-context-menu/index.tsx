@@ -347,13 +347,11 @@ function MenuTab({
                     {maximized ? "Restore tabset" : "Maximize tabset"}
                 </ContextMenu.Item>
                 <ContextMenu.Item
-                    // refused when the tab does not allow popouts, is pinned or already in a
-                    // window; whether the page can open windows at all is the engine's to say
-                    disabled={
-                        !engine.is("popout-supported") ||
-                        !model.can("tab.popout", { tab: tab.id })
-                    }
-                    onClick={() => model.run("tab.popout", { tab: tab.id })}
+                    // a screen action: the engine runs `tab.popout` with the tab's place on screen.
+                    // Refused when the page cannot open windows, or the tab does not allow
+                    // popouts, is pinned or already in a window
+                    disabled={!engine.can("popout", { node: tab.id })}
+                    onClick={() => engine.run("popout", { node: tab.id })}
                 >
                     Pop out
                 </ContextMenu.Item>

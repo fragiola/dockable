@@ -83,8 +83,10 @@ It owns what only the screen knows:
   tab to its panel, size limits in pixels, whether popout windows are supported here, whether a
   panel is shown, the document the layout renders in.
 
-Go to the engine when the answer depends on the screen: pixels, DOM ids, windows, focus. Inside
-tab content, `useDockable().engine` is the engine of the window the tab is in right now.
+Go to the engine when the answer depends on the screen: pixels, DOM ids, windows, focus. Tab
+content renders under the root wherever the tab is shown, so inside it `useDockable().engine` is
+the main layout's engine, even while the tab is in a popout window; page-wide actions work from
+it all the same.
 
 ## The main engine, and why you never pick it
 
@@ -115,7 +117,8 @@ main engine is reachable only as `engine.adapter.main`, for adapter authors.
 | move focus to the next or previous tabset | `engine.run("focus-tabset", { direction: "next" })` |
 | measure again after a change the engine cannot see | `engine.run("measure-and-position")` |
 | link your own markup to a tab or its panel (ARIA ids, layout paths) | `engine.get("tab-panel-id", { tab })`, `engine.get("path", { node })` |
-| listen to the document a tab currently renders in | `engine.get("owner-document")` |
+| listen to the document a layout renders in (from a part of that layout) | `engine.get("owner-document")` |
+| find the window a tab is in, or the document its content is in now | `model.get("layout-id", { node })`; your content element's `ownerDocument` |
 | know whether popout windows are supported here | `engine.is("popout-supported")` |
 | build an adapter for another framework | `engine.adapter` ([For adapter authors](/docs/api/layout-engine#for-adapter-authors-engineadapter)) |
 
