@@ -8,11 +8,11 @@ import {
     type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { type ReactNode, useId, useState } from "react";
 import { Switch } from "#/components/ui/switch";
 import { Card } from "../_kit/card";
-import { getLabel } from "../_kit/labels";
+import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
@@ -73,7 +73,16 @@ function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
             </Dockable.TabSet>
         );
     }
-    return <Dockable.Row<Types> node={child}>{renderNode}</Dockable.Row>;
+    return (
+        <Dockable.Row<Types> node={child} renderSplitter={renderSplitter}>
+            {renderNode}
+        </Dockable.Row>
+    );
+}
+
+/** A splitter has no name of its own: `Row` inserts it, so `renderSplitter` names it. */
+function renderSplitter(props: RowSplitterProps<Types>) {
+    return <Dockable.Splitter {...props} aria-label={labels.splitter} />;
 }
 
 /** Unstyled content too: a panel renders whatever you give it, styled or not. */
@@ -111,11 +120,12 @@ function Unstyled({ model }: { model: Model<Types> }) {
         >
             <Dockable.Root
                 model={model}
-                getLabel={getLabel}
                 // Root is `position: relative`; it only needs a size to lay out in.
                 style={{ flex: 1 }}
             >
-                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+                <Dockable.Row<Types> renderSplitter={renderSplitter}>
+                    {renderNode}
+                </Dockable.Row>
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab}>

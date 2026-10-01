@@ -4,6 +4,7 @@ import { createModel, type LayoutJson } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { Card } from "../_kit/card";
+import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 
 type Types = { tabs: { card: { name: string } } };
@@ -66,7 +67,13 @@ const hairline = [
 ].join(" ");
 
 function renderSplitter(props: RowSplitterProps<Types>) {
-    return <Dockable.Splitter {...props} className={hairline} />;
+    return (
+        <Dockable.Splitter
+            {...props}
+            aria-label={labels.splitter}
+            className={hairline}
+        />
+    );
 }
 
 export default function SplitterHairline() {

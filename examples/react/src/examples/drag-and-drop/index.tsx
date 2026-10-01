@@ -10,7 +10,6 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { cn } from "#/lib/cn";
 import { Card } from "../_kit/card";
-import { getLabel } from "../_kit/labels";
 import { createRenderNode, KitEdgeIndicators } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
@@ -81,7 +80,6 @@ export default function DragAndDrop() {
         <div className={styles.frame}>
             <Dockable.Root
                 model={model}
-                getLabel={getLabel}
                 // how long the indicator may take to move to the next target (exposed as data)
                 tabDragSpeed={0.2}
                 // while a tab of this layout is dragged, the panels fade back

@@ -2,7 +2,6 @@
 
 import {
     createModel,
-    DockableLabel,
     type LayoutJson,
     type Model,
     type TabsetNode,
@@ -12,7 +11,7 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { ChartPanel } from "../_kit/charts";
 import { TablePanel } from "../_kit/data";
-import { label } from "../_kit/labels";
+import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
@@ -78,9 +77,7 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <button
             type="button"
-            aria-label={label(
-                maximized ? DockableLabel.Restore : DockableLabel.Maximize,
-            )}
+            aria-label={maximized ? labels.restore : labels.maximize}
             aria-pressed={maximized}
             className={styles.iconButton}
             onClick={() =>

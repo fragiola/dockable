@@ -2,7 +2,6 @@
 
 import {
     createModel,
-    DockableLabel,
     type LayoutJson,
     type TabOf,
     type TabsetNode,
@@ -12,7 +11,7 @@ import { Inbox, Lock, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "#/lib/cn";
 import { Card } from "../_kit/card";
-import { label } from "../_kit/labels";
+import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { KitTabButton, KitTabStrip } from "../_kit/tab-strip";
@@ -91,7 +90,7 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
                     // the keyboard closes with Ctrl+Delete on the tab itself (the keyMap's
                     // closeTab), so the button is left out of the tab order
                     tabIndex={-1}
-                    aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
+                    aria-label={`${labels.closeTab} ${tab.data.name}`}
                     className={cn(styles.iconButton, "size-5")}
                     // keep the press from selecting the tab or starting a drag
                     onPointerDown={(event) => event.stopPropagation()}
@@ -119,7 +118,7 @@ function CloseTabsetButton({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <button
             type="button"
-            aria-label={label(DockableLabel.Close_Tabset)}
+            aria-label={labels.closeTabset}
             className={styles.iconButton}
             // closes every closeable tab; the tabset goes too once it is empty
             onClick={() => run("tabset.close", { tabset: tabset.id })}

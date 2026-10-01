@@ -3,7 +3,6 @@
 import {
     type BatchEntry,
     createModel,
-    DockableLabel,
     type LayoutJson,
     type TabOf,
 } from "@fragiola/dockable";
@@ -12,7 +11,7 @@ import { useRef, useState } from "react";
 import { ContextMenu } from "#/components/ui/context-menu";
 import { Card } from "../_kit/card";
 import { TabParts, withTabElement } from "../_kit/custom-tabs";
-import { label } from "../_kit/labels";
+import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import { RenameField } from "../_kit/rename-field";
 import * as styles from "../_kit/styles";
@@ -141,19 +140,19 @@ function MenuTab({
                     disabled={!model.can("tab.close", { tab: tab.id }).ok}
                     onClick={() => run("tab.close", { tab: tab.id })}
                 >
-                    {label(DockableLabel.Close_Tab)}
+                    {labels.closeTab}
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     disabled={others.length === 0}
                     onClick={() => closeAll(others)}
                 >
-                    {label(DockableLabel.Menu_Close_Others)}
+                    {labels.closeOthers}
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     disabled={toTheRight.length === 0}
                     onClick={() => closeAll(toTheRight)}
                 >
-                    {label(DockableLabel.Menu_Close_Right)}
+                    {labels.closeRight}
                 </ContextMenu.Item>
                 <ContextMenu.Separator />
                 <ContextMenu.Item
@@ -169,7 +168,7 @@ function MenuTab({
                         renameOnClose.current = true;
                     }}
                 >
-                    {label(DockableLabel.Menu_Rename)}
+                    {labels.rename}
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     // refused for a tab in a border (only a tabset has a pinned run)
@@ -181,11 +180,7 @@ function MenuTab({
                         run("tab.pin", { tab: tab.id, value: !pinned })
                     }
                 >
-                    {label(
-                        pinned
-                            ? DockableLabel.Menu_Unpin
-                            : DockableLabel.Menu_Pin,
-                    )}
+                    {pinned ? labels.unpin : labels.pin}
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     disabled={
@@ -204,11 +199,7 @@ function MenuTab({
                         }
                     }}
                 >
-                    {label(
-                        maximized
-                            ? DockableLabel.Menu_Restore
-                            : DockableLabel.Menu_Maximize,
-                    )}
+                    {maximized ? labels.restoreTabset : labels.maximizeTabset}
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     // refused when the tab does not allow popouts, is pinned or already in a
@@ -219,7 +210,7 @@ function MenuTab({
                     }
                     onClick={() => run("tab.popout", { tab: tab.id })}
                 >
-                    {label(DockableLabel.Menu_Popout)}
+                    {labels.popout}
                 </ContextMenu.Item>
             </ContextMenu.Content>
         </ContextMenu.Root>

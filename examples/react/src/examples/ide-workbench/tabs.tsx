@@ -1,11 +1,6 @@
 "use client";
 
-import {
-    DockableLabel,
-    type Model,
-    type TabOf,
-    type TabsetNode,
-} from "@fragiola/dockable";
+import type { Model, TabOf, TabsetNode } from "@fragiola/dockable";
 import {
     Dockable,
     useDockable,
@@ -16,7 +11,7 @@ import { useRef } from "react";
 import { ContextMenu } from "#/components/ui/context-menu";
 import { Select } from "#/components/ui/select";
 import { cn } from "#/lib/cn";
-import { label } from "../_kit/labels";
+import { labels } from "../_kit/labels";
 import * as styles from "../_kit/styles";
 import { usePopupTheme } from "../_kit/theme";
 import { FileIcon } from "./explorer";
@@ -92,7 +87,7 @@ function WorkbenchTab({
                         type="button"
                         tabIndex={-1}
                         draggable={false}
-                        aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
+                        aria-label={`${labels.closeTab} ${tab.data.name}`}
                         data-testid="close-tab"
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
@@ -246,11 +241,9 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                     </Select.Root>
                     <button
                         type="button"
-                        aria-label={label(
-                            maximized
-                                ? DockableLabel.Restore
-                                : DockableLabel.Maximize,
-                        )}
+                        aria-label={
+                            maximized ? labels.restore : labels.maximize
+                        }
                         aria-pressed={maximized}
                         onClick={() =>
                             model.run("tabset.maximize", {

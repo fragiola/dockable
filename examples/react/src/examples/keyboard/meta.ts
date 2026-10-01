@@ -9,7 +9,7 @@ export default {
     features: [
         "keyMap",
         "aria-keyshortcuts",
-        "getLabel",
+        "aria-label",
         "model.can",
         "Tooltip",
     ],
