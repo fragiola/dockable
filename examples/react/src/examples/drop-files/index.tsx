@@ -3,18 +3,55 @@
 import {
     createModel,
     type LayoutJson,
+    type Model,
     type OnExternalDrag,
     type RowNode,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
-import { FileText, ImageIcon, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
-import { PanelBody } from "../_kit/card";
+import { FolderOpen } from "lucide-react";
+import { useState } from "react";
+import {
+    type Csv,
+    kindOf,
+    numericColumns,
+    parseCsv,
+    sampleFiles,
+} from "./files";
 import * as styles from "./styles";
+import {
+    CsvChart,
+    CsvTable,
+    ErrorNote,
+    FileInfo,
+    ImageViewer,
+    Pending,
+    Welcome,
+} from "./viewers";
 
-// What the layout holds: hint tabs, and one tab per dropped file (its name in `data`).
-type Types = { tabs: { hint: { name: string }; file: { name: string } } };
+// Open files from the desktop by dropping them on the layout. A file dragged in from outside the
+// page is an external drag: `onExternalDrag` on the root says whether to take it, and which tab
+// the drop creates, where it lands (a tabset, its edge, the layout's edge). Once dropped, the app
+// reads the file and turns that tab into the right viewer:
+//
+//   a CSV        a table, and a chart of its numeric columns beside it
+//   an image     a viewer
+//   a layout     a saved layout (.json) replaces this one, validated by `model.dispatch`
+//   the rest     its name, type and size
+//
+// No files at hand? "Open sample files" runs the same code on a CSV and an image built in the page.
+
+type Types = {
+    tabs: {
+        welcome: { name: string };
+        pending: { name: string };
+        table: { name: string; csv: Csv };
+        chart: { name: string; csv: Csv };
+        image: { name: string };
+        info: { name: string; type: string; size: number };
+        error: { name: string; message: string };
+    };
+};
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -24,178 +61,210 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 weight: 50,
-                children: [{ component: "hint", data: { name: "Drop here" } }],
+                children: [
+                    { component: "welcome", data: { name: "Open files" } },
+                ],
             },
             {
                 type: "tabset",
                 weight: 50,
-                children: [{ component: "hint", data: { name: "Also here" } }],
+                children: [{ component: "welcome", data: { name: "Or here" } }],
             },
         ],
     },
 };
 
 /**
- * The dropped files, by tab id. A File is not JSON, so it stays out of the model (which only keeps
- * the tab's name and component); the tab's id is the key.
+ * Turns a tab into the viewer of a file. A parsed CSV is small JSON, so it goes in the tab's
+ * typed data (it saves with the layout); an image is a File, which is not JSON, so it stays out
+ * of the model, kept by the app under the tab's id (`keep`).
  */
-type Files = ReadonlyMap<string, File>;
+async function openFile(
+    model: Model<Types>,
+    file: File,
+    tabId: string,
+    keep: (tabId: string, file: File) => void,
+) {
+    const name = file.name;
+    const kind = kindOf(file);
+    if (kind === "image") {
+        keep(tabId, file);
+        model.run("tab.update", { tabId, component: "image", data: { name } });
+        return;
+    }
+    if (kind === "other") {
+        model.run("tab.update", {
+            tabId,
+            component: "info",
+            data: { name, type: file.type, size: file.size },
+        });
+        return;
+    }
+    const text = await file.text();
+    if (kind === "csv") {
+        const csv = parseCsv(text);
+        model.run("tab.update", {
+            tabId,
+            component: "table",
+            data: { name, csv },
+        });
+        // the chart opens beside the table: an edge of its tabset splits it
+        const tabset = model.get("node-parent-by", { nodeId: tabId });
+        if (tabset && numericColumns(csv).length > 0) {
+            model.run("tab.add", {
+                component: "chart",
+                data: { name: `${name} chart`, csv },
+                to: tabset.id,
+                location: "right",
+            });
+        }
+        return;
+    }
+    // A layout from a file is untrusted JSON: `dispatch` validates it before it runs, so a broken
+    // file is an error result, never a broken layout.
+    let layout: unknown;
+    try {
+        layout = JSON.parse(text);
+    } catch {
+        layout = undefined;
+    }
+    const result =
+        layout === undefined
+            ? undefined
+            : model.dispatch({ command: "layout.load", payload: { layout } });
+    if (!result?.ok) {
+        model.run("tab.update", {
+            tabId,
+            component: "error",
+            data: {
+                name,
+                message: result
+                    ? `Not a layout: ${result.error.message}`
+                    : "Not valid JSON.",
+            },
+        });
+    }
+}
 
 export default function DropFiles() {
     const [model] = useState(() => createModel<Types>(json));
-    const [files, setFiles] = useState<Files>(new Map());
+    const [images, setImages] = useState<ReadonlyMap<string, File>>(new Map());
+    const keep = (tabId: string, file: File) =>
+        setImages((current) => new Map(current).set(tabId, file));
 
-    // Called when a drag that did not start in the layout enters it. Browsers only
-    // expose `dataTransfer.types` until the drop, so decide from the types and read the files in
-    // onDrop. Returning undefined ignores the drag (text, links, …).
-    const onExternalDrag: OnExternalDrag<Types> = (event) => {
-        if (!event.dataTransfer?.types.includes("Files")) {
-            return undefined;
+    /** Opens files into a tabset: one new tab each, selected, then filled once read. */
+    const openInto = (tabsetId: string, files: File[]) => {
+        for (const file of files) {
+            const added = model.run("tab.add", {
+                component: "pending",
+                data: { name: file.name },
+                to: tabsetId,
+                select: true,
+            });
+            if (added.ok) void openFile(model, file, added.value.tabId, keep);
         }
+    };
+
+    // Called when a drag that did not start in the page enters the layout. Browsers expose only
+    // `dataTransfer.types` until the drop, so decide from the types and read the files on drop.
+    // Returning undefined ignores the drag (text, links, …).
+    const onExternalDrag: OnExternalDrag<Types> = (event) => {
+        if (!event.dataTransfer?.types.includes("Files")) return undefined;
         return {
-            // the tab the drop creates (a typed `tab.add` init); its name is replaced on drop,
-            // once the file is readable
-            tab: { component: "file", data: { name: "File" } },
-            onDrop: (tab, dropEvent) => {
+            // the tab the drop creates, wherever it lands; it becomes the first file's viewer
+            tab: { component: "pending", data: { name: "Opening…" } },
+            onDrop: (tabId, dropEvent) => {
                 const [first, ...others] = Array.from(
                     dropEvent.dataTransfer?.files ?? [],
                 );
-                if (!tab || !first) return; // refused (a drop rule or a middleware), or no file after all
-                // the drop created one tab: name it after the first file (a command, so the
-                // model's middleware sees it), and add one more tab beside it for every other file
+                // no tab: the drop was refused (a rule or a middleware); no file: nothing to read
+                if (!tabId || !first) return;
                 model.run("tab.update", {
-                    tabId: tab,
-                    component: "file",
+                    tabId,
+                    component: "pending",
                     data: { name: first.name },
                 });
-                const added = new Map([[tab, first]]);
-                const container = model.get("node-parent-by", {
-                    nodeId: tab,
-                });
-                for (const file of others) {
-                    if (!container) break;
-                    const next = model.run("tab.add", {
-                        component: "file",
-                        data: { name: file.name },
-                        to: container.id,
-                        location: "center",
-                        index: -1,
-                    });
-                    if (next.ok) added.set(next.value.tabId, file);
-                }
-                setFiles((current) => new Map([...current, ...added]));
+                void openFile(model, first, tabId, keep);
+                const tabset = model.get("node-parent-by", { nodeId: tabId });
+                if (tabset) openInto(tabset.id, others);
             },
         };
     };
 
+    const openSamples = () => {
+        const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+        if (tabset) openInto(tabset.id, sampleFiles());
+    };
+
     return (
-        // The root needs a size: the wrapper gives it one, and the gutter around it.
-        <div className={styles.frame}>
-            <Dockable.Root
-                model={model}
-                onExternalDrag={onExternalDrag}
-                className={styles.root}
-            >
-                <Dockable.Row<Types>
-                    renderSplitter={(props) => <Splitter {...props} />}
-                >
-                    {renderNode}
-                </Dockable.Row>
-                <Dockable.Panels<Types>>
-                    {(tab) => {
-                        const file = files.get(tab.id);
-                        return (
-                            <Dockable.Panel node={tab} className={styles.panel}>
-                                {file ? <FileContent file={file} /> : <Hint />}
-                            </Dockable.Panel>
-                        );
-                    }}
-                </Dockable.Panels>
-                {/* Where a file would land (a tabset, a tabset edge, the layout edge). */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
-            </Dockable.Root>
-        </div>
-    );
-}
-
-function formatSize(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function isText(file: File) {
-    return (
-        file.type.startsWith("text/") ||
-        /\.(md|json|csv|ts|tsx|js|txt)$/i.test(file.name)
-    );
-}
-
-function TextPreview({ file }: { file: File }) {
-    const [text, setText] = useState<string | null>(null);
-    useEffect(() => {
-        let live = true;
-        void file
-            .text()
-            .then((content) => live && setText(content.slice(0, 20_000)));
-        return () => {
-            live = false;
-        };
-    }, [file]);
-    return (
-        <pre data-testid="file-text" className={styles.textPreview}>
-            {text ?? "Reading…"}
-        </pre>
-    );
-}
-
-function ImagePreview({ file }: { file: File }) {
-    const [url, setUrl] = useState<string | null>(null);
-    useEffect(() => {
-        const objectUrl = URL.createObjectURL(file);
-        setUrl(objectUrl);
-        return () => URL.revokeObjectURL(objectUrl);
-    }, [file]);
-    return url ? (
-        // a plain <img>: the source is a local object URL, which an image optimizer cannot fetch
-        <img src={url} alt={file.name} className={styles.imagePreview} />
-    ) : null;
-}
-
-function FileContent({ file }: { file: File }) {
-    const Icon = file.type.startsWith("image/") ? ImageIcon : FileText;
-    return (
-        <PanelBody>
-            <p className={styles.fileMeta}>
-                <Icon aria-hidden className={styles.fileIcon} />
-                {`${file.type || "unknown type"} · ${formatSize(file.size)}`}
-            </p>
-            {file.type.startsWith("image/") ? (
-                <ImagePreview file={file} />
-            ) : isText(file) ? (
-                <TextPreview file={file} />
-            ) : null}
-        </PanelBody>
-    );
-}
-
-function Hint() {
-    return (
-        <div className={styles.hint}>
-            <div className={styles.hintCard}>
-                <Upload aria-hidden className={styles.hintIcon} />
-                <p>
-                    Drag files from your computer onto any tabset, a tabset edge
-                    or the layout edge. Each file opens as a tab where you drop
-                    it.
+        <>
+            <div className={styles.toolbar}>
+                <p className={styles.toolbarText}>
+                    Drop a CSV, an image or a saved layout from your desktop.
                 </p>
+                <button
+                    type="button"
+                    className={styles.button}
+                    onClick={openSamples}
+                >
+                    <FolderOpen aria-hidden="true" className={styles.icon} />
+                    Open sample files
+                </button>
             </div>
-        </div>
+            <div className={styles.frame}>
+                <Dockable.Root
+                    model={model}
+                    onExternalDrag={onExternalDrag}
+                    className={styles.root}
+                >
+                    <Dockable.Row<Types>
+                        renderSplitter={(props) => <Splitter {...props} />}
+                    >
+                        {renderNode}
+                    </Dockable.Row>
+                    <Dockable.Panels<Types>>
+                        {(tab) => (
+                            <Dockable.Panel node={tab} className={styles.panel}>
+                                {tab.component === "table" ? (
+                                    <CsvTable csv={tab.data.csv} />
+                                ) : tab.component === "chart" ? (
+                                    <CsvChart csv={tab.data.csv} />
+                                ) : tab.component === "image" ? (
+                                    <ImageOf file={images.get(tab.id)} />
+                                ) : tab.component === "info" ? (
+                                    <FileInfo
+                                        type={tab.data.type}
+                                        size={tab.data.size}
+                                    />
+                                ) : tab.component === "error" ? (
+                                    <ErrorNote message={tab.data.message} />
+                                ) : tab.component === "pending" ? (
+                                    <Pending />
+                                ) : (
+                                    <Welcome />
+                                )}
+                            </Dockable.Panel>
+                        )}
+                    </Dockable.Panels>
+                    {/* Where a file would land (a tabset, a tabset edge, the layout edge). */}
+                    <Dockable.DropIndicator
+                        className={styles.dropIndicator}
+                        style={(state) => ({
+                            transitionDuration: `${state.tabDragSpeed}s`,
+                        })}
+                    />
+                </Dockable.Root>
+            </div>
+        </>
+    );
+}
+
+/** An image tab whose File is gone (the page reloaded a saved layout) says so. */
+function ImageOf({ file }: { file: File | undefined }) {
+    return file ? (
+        <ImageViewer file={file} />
+    ) : (
+        <ErrorNote message="The image is no longer open: drop it again." />
     );
 }
 

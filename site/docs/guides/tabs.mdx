@@ -178,6 +178,21 @@ Whether a tab offers pinning at all is your choice; keep it in the tab's data if
 becomes the active one; in a border, the border's panel opens. `tabset.activate` makes a tabset
 active without changing its selection.
 
+Code outside the layout follows the selection the same way it changes it: through the model.
+Subscribe to re-read after every commit, and ask which tab the user is looking at, the selected
+tab of the active tabset:
+
+```tsx
+useSyncExternalStore(model.subscribe, () => model.state);
+const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+const current = tabset ? model.get("selected-tab-by", { tabsetId: tabset.id }) : undefined;
+```
+
+Keep what outside controls change in the tab's `data` (a counter here), and `tab.update` it: the
+tab and the controls both read it, so a click inside the tab and one outside stay in sync.
+
+<Example id="external-tab-switcher" />
+
 ## Tab data and behaviour
 
 Two commands change an existing tab:

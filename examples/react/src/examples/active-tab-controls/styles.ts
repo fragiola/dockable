@@ -1,19 +1,32 @@
 import type { DropIndicatorState } from "@fragiola/dockable-react";
 import { cn } from "#/lib/cn";
 
-// How drop-files looks: one class string per part, read by index.tsx and viewers.tsx.
+// How active-tab-controls looks: one class string per part, read by index.tsx.
 
-// ─── the toolbar ───
+// ─── the toolbar outside the layout ─────────────────────────────────────────
 
 export const toolbar =
-    "palette-surface flex flex-wrap items-center justify-between gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast";
+    "palette-surface flex flex-wrap items-center gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast";
 
-export const toolbarText = "text-sm text-palette-accent/85";
+export const target = "me-auto text-sm text-palette-accent/85";
+
+/** A disabled fieldset disables its buttons: the whole group fades. */
+export const segments =
+    "inline-flex rounded-lg border border-palette-line bg-palette-soft p-0.5 disabled:opacity-40";
+
+/** `aria-pressed` marks the chart's kind. */
+export const segment = cn(
+    "inline-flex size-8 items-center justify-center rounded-md text-palette-accent outline-none transition-colors duration-(--dk-motion)",
+    "hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
+    "aria-pressed:bg-palette-base aria-pressed:text-palette-contrast aria-pressed:shadow-sm",
+);
 
 export const button =
-    "inline-flex h-8 items-center gap-1.5 rounded-md border border-palette-line px-3 text-sm outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring";
+    "inline-flex h-8 items-center gap-1.5 rounded-md border border-palette-line px-3 text-sm outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring disabled:opacity-40";
 
 export const icon = "size-4";
+
+// ─── the layout ─────────────────────────────────────────────────────────────
 
 /** The root needs a size; the gutter goes on this wrapper (padding on the root would not move
  * its row, which is `position: absolute; inset: 0`). */
@@ -35,55 +48,6 @@ export const dropIndicator = (state: DropIndicatorState) =>
             ? "palette-orange bg-palette-base/25"
             : "palette-blue bg-palette-base/20",
     );
-
-// ─── the welcome tab ───
-
-export const welcome = "grid min-h-full place-items-center p-4";
-
-export const dropTarget =
-    "flex max-w-sm flex-col items-center gap-2 rounded-(--dk-radius) border-2 border-dashed border-palette-line p-5 text-center";
-
-export const dropIcon = "size-8 text-palette-accent";
-
-export const dropTitle = "text-base font-medium";
-
-export const dropText = "text-sm text-palette-accent/85";
-
-export const kinds = "mt-2 flex flex-col gap-1.5 text-start text-sm";
-
-export const kind = "flex items-center gap-2";
-
-export const kindIcon = "size-4 shrink-0 text-palette-accent";
-
-// ─── the viewers ───
-
-export const note = "p-4 text-sm text-palette-accent/85";
-
-export const tableWrap = "p-3";
-
-export const chart = "flex h-full min-h-40 flex-col p-3";
-
-export const chartCanvas = "min-h-0 flex-1";
-
-export const imageViewer =
-    "flex h-full flex-col items-center justify-center gap-2 p-4";
-
-export const image = "min-h-0 max-w-full flex-1 rounded-md object-contain";
-
-export const caption = "text-xs text-palette-accent/85";
-
-export const info =
-    "flex h-full flex-col items-center justify-center gap-1 p-4 text-center text-sm";
-
-export const infoIcon = "size-8 text-palette-accent";
-
-/** An error in the danger palette. */
-export const error =
-    "palette-danger m-4 flex items-start gap-2 rounded-md bg-palette-soft p-3 text-sm text-palette-contrast";
-
-export const errorIcon = "mt-0.5 size-4 shrink-0";
-
-// ─── the layout ───
 
 export const tabset =
     "palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)";
@@ -113,23 +77,14 @@ export const tabMarker =
 
 /** `--dk-splitter-size` thick (the engine measures it), with a wider grab area (`::after`). */
 export const splitter = cn(
-    "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
+    "relative z-10 shrink-0 bg-(--dk-splitter-bg) outline-none",
     "after:absolute after:transition-colors after:duration-(--dk-motion)",
     "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
-    // side by side: a vertical bar
     "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
     "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
     "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
     "rtl:data-[orientation=vertical]:after:translate-x-1/2",
-    // stacked: a horizontal bar
     "data-[orientation=horizontal]:h-(--dk-splitter-size) data-[orientation=horizontal]:cursor-ns-resize",
     "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
     "data-[orientation=horizontal]:after:h-(--dk-splitter-grab) data-[orientation=horizontal]:after:-translate-y-1/2",
-);
-
-/** The grip, for the themes that show one (`--dk-grip`). */
-export const splitterGrip = cn(
-    "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
-    "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
-    "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
 );
