@@ -1,6 +1,6 @@
 ---
 title: Accessible names
-description: The package renders no text. Names come from your children, aria-label, or getLabel and DockableLabel.
+description: Dockable renders no text. Every accessible name comes from you, as the children, an aria-label, or a render function that reads the part's state.
 ---
 
 Dockable renders **no text of its own**: no "Close", no "Maximize", no "Resize". Every
@@ -43,60 +43,58 @@ Buttons you add (close, maximize, pop out) are your own elements: give each one 
 </button>
 ```
 
-## 3. `getLabel` and `DockableLabel`
+## 3. The parts the primitives render
 
-Some names belong to elements the primitives render themselves. For those, `Dockable.Root`
-takes a resolver:
+A few elements are rendered by the primitives themselves: the splitters, the overflow trigger and
+the pop out trigger. They have no name of their own either, and you name them the same way, with
+their props.
 
-```ts
-type GetLabel = (key: DockableLabel, ...args: (string | number)[]) => string | undefined;
-```
-
-`DockableLabel` (from `@fragiola/dockable`) is an enum of label **keys**, with no default
-strings. The primitives resolve a few keys themselves, each as the `aria-label` of the element they
-render:
-
-| key | used by |
-| --- | --- |
-| `DockableLabel.Splitter` | `Dockable.Splitter` |
-| `DockableLabel.Overflow_Menu_Tooltip` | `Dockable.TabOverflowTrigger` |
-| `DockableLabel.Popout_Tab` | `Dockable.PopoutTrigger`, when it pops a tab or tabset out |
-| `DockableLabel.Dock_To_Layout` | `Dockable.PopoutTrigger`, in a window, when it docks the tab back into the main layout |
-
-An `aria-label` you pass wins over the resolved one. The other keys (close, maximize, menu items,
-…) name the parts you build yourself, so a single map can hold every string of your layout:
+A `Dockable.Row` inserts its splitters, so name them through `renderSplitter`. Pass the same
+function to every `Row` you render, nested rows included:
 
 ```tsx
-import { DockableLabel } from "@fragiola/dockable";
+function renderSplitter(props: RowSplitterProps<Types>) {
+    return <Dockable.Splitter {...props} aria-label="Resize" />;
+}
 
-const labels: Partial<Record<DockableLabel, string>> = {
-    [DockableLabel.Splitter]: "Resize",
-    [DockableLabel.Popout_Tab]: "Open in a new window",
-    [DockableLabel.Dock_To_Layout]: "Dock back",
-    [DockableLabel.Close_Tab]: "Close",
-    [DockableLabel.Maximize]: "Maximize",
-    [DockableLabel.Restore]: "Restore",
-};
-
-const getLabel = (key: DockableLabel) => labels[key];
-
-<Dockable.Root model={model} getLabel={getLabel}>
+<Dockable.Row<Types> renderSplitter={renderSplitter}>{renderNode}</Dockable.Row>
 ```
 
-Inside the layout, read the same resolver with `useDockable().getLabel` to name your buttons.
-With no resolver (or a key it returns `undefined` for), the element gets **no** name: nothing
-falls back to English.
-
-This is also how you translate the layout: resolve the keys from your i18n library.
+A border's splitter is inserted by `Dockable.BorderContent`, which has its own `renderSplitter`:
 
 ```tsx
-const { t } = useTranslation();
-<Dockable.Root model={model} getLabel={(key) => t(key)}>
+<Dockable.BorderContent
+    node={border}
+    renderSplitter={(node) => <Dockable.Splitter node={node} aria-label="Resize" />}
+/>
 ```
 
-The key values are strings like `"dockable.splitter"`, so they work as translation keys as is.
-Keys with a `?` (for example `DockableLabel.Move_Tabs`, `"dockable.move.tabs (?)"`) take a count
-in `args`. Every key is listed in [the labels reference](/docs/api/labels).
+The overflow trigger takes an `aria-label` like any button:
+
+```tsx
+<Dockable.TabOverflowTrigger aria-label="More tabs">
+    <ChevronsRightIcon aria-hidden="true" />
+</Dockable.TabOverflowTrigger>
+```
+
+`Dockable.PopoutTrigger` does two things: it pops a tab out, and in a window it docks the tab
+back. When the two need different names, read the trigger's state (`mode` is `"popout"` or
+`"dock"`) in a `render` function:
+
+```tsx
+<Dockable.PopoutTrigger
+    render={(props, state) => (
+        <button {...props} aria-label={state.mode === "dock" ? "Dock back" : "Pop out"} />
+    )}
+>
+    <ExternalLinkIcon aria-hidden="true" />
+</Dockable.PopoutTrigger>
+```
+
+An element you give no name has **no** name: nothing falls back to English.
+
+Translating is yours as well. These are ordinary props, so pass your i18n library's strings
+(`aria-label={t("resize")}`) like any other text of your app.
 
 ## What the primitives set for you
 
@@ -105,8 +103,8 @@ in `args`. Every key is listed in [the labels reference](/docs/api/labels).
 | `TabList` | `role="tablist"`, `aria-orientation`, `aria-keyshortcuts` (tabset focus bindings) |
 | `Tab` | `role="tab"`, `aria-selected`, `aria-controls`, `aria-keyshortcuts`, a roving `tabIndex` |
 | `Panel` | `role="tabpanel"`, `aria-labelledby`, `tabIndex={-1}` |
-| `Splitter` | `role="separator"`, `aria-orientation`, `aria-valuenow`/`min`/`max`/`text`, `aria-label` from `getLabel`, `tabIndex={0}` |
-| `PopoutTrigger`, `TabOverflowTrigger` | a `<button type="button">`, `aria-label` from `getLabel` |
+| `Splitter` | `role="separator"`, `aria-orientation`, `aria-valuenow`/`min`/`max`/`text`, `tabIndex={0}` (the name is yours) |
+| `PopoutTrigger`, `TabOverflowTrigger` | a `<button type="button">` (the name is yours) |
 | `DropIndicator` | `aria-hidden` |
 
 See [Keyboard and accessibility](/docs/guides/keyboard) for the key bindings.

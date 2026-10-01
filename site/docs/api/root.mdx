@@ -10,7 +10,7 @@ commit and re-renders when the engine asks."
 ```tsx
 const model = createModel<Types>(json);
 
-<Dockable.Root model={model} getLabel={getLabel} className="layout">
+<Dockable.Root model={model} className="layout">
     <Dockable.Row<Types>>{renderNode}</Dockable.Row>
     <Dockable.Panels<Types>>
         {(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}
@@ -39,7 +39,6 @@ release), and a listener (`model.subscribe`) sees every change. See
 | prop | type | default | description |
 | --- | --- | --- | --- |
 | `model` | `Model<T>` | required | the layout model. Its middleware (`model.use`) sees every command the layout runs, and its listeners (`model.subscribe`) every change; a new state never needs a new model (`layout.load`). A new model identity creates a new engine |
-| `getLabel` | `GetLabel` | none | resolves label keys to text (accessible names); with no resolver the primitives render no text of their own |
 | `keyMap` | `IKeyMap` | `defaultKeyMap` | keyboard bindings, merged over `defaultKeyMap` |
 | `realtimeResize` | `boolean` | `true` | true (default) to resize live while dragging a splitter; false to preview and commit on release |
 | `tabDragSpeed` | `number` | `0.3` | seconds a view may take to animate the drop indicator (exposed as data; default 0.3) |
@@ -52,8 +51,8 @@ release), and a listener (`model.subscribe`) sees every change. See
 | `onExternalDrag` | `OnExternalDrag<T>`: `(event: DragEventLike) => { tab: TabInitOf<T>; onDrop?: NewTabDropped } \| undefined` | none | accepts a drag that did not start in a layout (files, links, text, another library's element) as a new tab: return `{ tab, onDrop? }`, or `undefined` to ignore it. Called when the drag enters the layout, when only `event.dataTransfer.types` is readable; read the data in `onDrop(tabId \| undefined, event)`. See [External drag](/docs/guides/external-drag) |
 | `children` | `ReactNode` | none | the layout: a `Row`, `Panels`, `DropIndicator`, `Popout`, and anything else |
 
-`GetLabel` is `(key: DockableLabel, ...args: (string | number)[]) => string | undefined`; see
-[Labels](/docs/api/labels). `IKeyMap` is described in [Keyboard](/docs/guides/keyboard).
+`IKeyMap` is described in [Keyboard](/docs/guides/keyboard). The root renders no text and names
+nothing: see [Accessible names](/docs/getting-started/accessible-names).
 
 The tab `onExternalDrag` returns is a typed `tab.add` init (`TabInitOf<T>`): `data` is checked
 against `component`. The drop runs `tab.add` through the model's middleware, so a veto refuses it

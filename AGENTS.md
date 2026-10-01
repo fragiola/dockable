@@ -43,10 +43,10 @@ Do not "fix" these.
 6. **Buttons and icons:** each button is a primitive that takes `children`.
 7. **The model is the source of truth.** Every change is a command (`model.run` /
    `model.dispatch`) through the middleware chain (`model.use`); nodes are immutable.
-8. **No translation in the model (D3).** Names are returned raw. The i18n keys
-   survive only as the `DockableLabel` key enum with no default strings.
-   Accessible names come from the consumer (`aria-label`/children, or
-   `getLabel(key)` on `Dockable.Root`). With neither, no text is rendered.
+8. **No translation in the model (D3).** Names are returned raw. The packages
+   ship no label keys and no label resolver: every accessible name comes from the
+   consumer, as a prop on the element it names (`aria-label`, children, or
+   `render` with the part's state). With none, no text and no name is rendered.
 9. **No CSS class names in core (D6).** Drop kinds are semantic
    (`kind: "rect" | "edge"`); the moveable element carries
    `data-dockable-moveable`.
@@ -212,8 +212,9 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
 - **`data-layout-path` on every element**: `/layout` (Root), `/row` (root row), `/r0`, `/ts0`,
   `/ts0/tabstrip`, `/ts0/content`, `/ts0/tb0`, `/ts0/t0`, `/s0`; with borders `/borders`, `/main`,
   `/border/left`, `/border/left/tb0`, `/border/left/content`, `/border/left/s-1`; `/edge/top`.
-- **No text.** Primitives render only their children. Accessible names come from the consumer
-  (`aria-label`, children) or from `getLabel(key)` on `Dockable.Root`.
+- **No text and no names.** Primitives render only their children and set no `aria-label` of
+  their own. Accessible names come from the consumer (`aria-label`, children, `render` with state);
+  the splitters a `Row` or a border inserts are named through `renderSplitter`.
 - **The developer owns the recursion** (children functions: `Row`, `TabList`, `Panels`). `Row`
   inserts splitters itself (`renderSplitter` / `splitter={false}` to override).
 - **React never reconciles what the engine writes.** Panels get geometry from the engine after

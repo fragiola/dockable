@@ -34,7 +34,7 @@ It ships **no CSS, no icons, no rendered menus and no text**:
 | Icons | every button is yours. Close, maximize or pop out buttons are plain elements that run commands. |
 | Menus | the package gives you the commands; you render the menu with your own components. See [Menus](/docs/guides/menus). |
 | App policy | no undo/redo, no persistence, no translations. The model exposes its commands and its events, and the guides show how to build [undo/redo](/docs/guides/undo-redo) and [persistence](/docs/guides/persistence) on them. |
-| Text | a primitive renders only its children. Accessible names come from you (`aria-label`, children) or from [`getLabel`](/docs/getting-started/accessible-names). With neither, no text is rendered. |
+| Text | a primitive renders only its children. [Accessible names](/docs/getting-started/accessible-names) come from you (`aria-label`, children, `render`). With none, no text and no name is rendered. |
 
 The only inline styles a primitive applies are **structural**: position, geometry, `display`
 and flex sizing. Everything cosmetic is yours. [The primitive contract](/docs/concepts/primitive-contract)

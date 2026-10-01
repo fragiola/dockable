@@ -6,8 +6,9 @@ description: A button that pops the selected tab, or the whole tabset, out into 
 "A button, inside `Dockable.TabSet`, that pops the selected tab (or the whole tabset) out into a
 window, and, in a window, docks it back into the main layout. It renders nothing when neither is
 possible (popouts unsupported, the model refuses it, no tab): `tab.popout` / `tabset.popout`
-decide, through `model.can`. Its accessible name comes from `aria-label` or `getLabel`
-(`Popout_Tab` / `Dock_To_Layout`)."
+decide, through `model.can`. It has no name of its own: give it an `aria-label`, or name it
+from the state when the two actions need different names
+(`render={(props, state) => <button {...props} aria-label={state.mode === "dock" ? … : …} />}`)."
 
 ```tsx
 <Dockable.TabSet node={tabset}>
@@ -19,6 +20,18 @@ decide, through `model.can`. Its accessible name comes from `aria-label` or `get
     </div>
     <Dockable.TabSetContent />
 </Dockable.TabSet>
+```
+
+One `aria-label` names both actions. To name each one, read `mode` in a `render` function:
+
+```tsx
+<Dockable.PopoutTrigger
+    render={(props, state) => (
+        <button {...props} aria-label={state.mode === "dock" ? "Dock back" : "Pop out"} />
+    )}
+>
+    <ExternalLinkIcon aria-hidden />
+</Dockable.PopoutTrigger>
 ```
 
 ## What a press runs
@@ -60,7 +73,7 @@ state is what opens the native window: the root's popout manager opens one for e
 | `data-layout-path` | `<tabset path>/button/popout`, e.g. `/ts0/button/popout` |
 | `data-mode` | `"popout"` or `"dock"` |
 | `data-target` | `"tab"` or `"tabset"` |
-| `aria-label` | from `getLabel`: `DockableLabel.Popout_Tab`, or `DockableLabel.Dock_To_Layout` in a window (your own `aria-label` wins) |
+| `aria-label` | none of its own: pass yours, or set it from `state.mode` in `render` |
 | `type` | `"button"` |
 
 ## Notes

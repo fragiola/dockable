@@ -5,13 +5,14 @@ description: A splitter between two children of a row, or beside a border's pane
 
 "A splitter between two children of a row, or between a border's panel and the layout
 (`role="separator"`). Drag it with the pointer, or focus it and use the arrow keys. While an outline (non-realtime) drag is in progress it carries
-`data-dragging` and a structural `transform` previewing where it will land."
+`data-dragging` and a structural `transform` previewing where it will land. It has no name of
+its own: give it an `aria-label` (through `renderSplitter` where a `Row` or a border inserts it)."
 
 `Dockable.Row` renders one between every two children. Render your own through `renderSplitter`:
 
 ```tsx
 function renderSplitter(props: RowSplitterProps<Types>) {
-    return <Dockable.Splitter {...props} className="splitter" />;
+    return <Dockable.Splitter {...props} aria-label="Resize" className="splitter" />;
 }
 ```
 
@@ -46,7 +47,7 @@ function renderSplitter(props: RowSplitterProps<Types>) {
 | `aria-orientation` | same as `data-orientation` |
 | `aria-valuenow` / `aria-valuemin` / `aria-valuemax` | row splitters: the 0–100 position within the row; border splitters: the border's size, `minSize` and `maxSize` in px |
 | `aria-valuetext` | the formatted value, e.g. `"40%"` or `"200px"` |
-| `aria-label` | `getLabel(DockableLabel.Splitter)` |
+| `aria-label` | none of its own: pass yours (see [Accessible names](/docs/getting-started/accessible-names)) |
 | `tabIndex` | `0` |
 
 ## Structural style

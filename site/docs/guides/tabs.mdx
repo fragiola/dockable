@@ -71,16 +71,16 @@ before rendering the button: `model.can` answers what `run` would return, middle
 without changing anything.
 
 ```tsx
-import { DockableLabel, type TabOf } from "@fragiola/dockable";
+import type { TabOf } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 
 function CloseButton({ tab }: { tab: TabOf<Types> }) {
-    const { model, run, getLabel } = useDockable<Types>();
+    const { model, run } = useDockable<Types>();
     if (!model.can("tab.close", { tab: tab.id }).ok) return null;
     return (
         <button
             type="button"
-            aria-label={`${getLabel?.(DockableLabel.Close_Tab) ?? "Close"} ${tab.data.name}`}
+            aria-label={`Close ${tab.data.name}`}
             // a press on the button must not start a drag or select the tab first
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
