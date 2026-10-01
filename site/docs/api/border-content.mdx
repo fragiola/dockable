@@ -16,7 +16,7 @@ Render it from `Dockable.Borders`'s `renderContent`."
         <Dockable.BorderContent
             node={border}
             className="data-overlay:z-20 data-overlay:shadow-xl"
-            renderSplitter={(node) => <Dockable.Splitter node={node} className="splitter" />}
+            renderSplitter={(node) => <Dockable.Splitter node={node} aria-label="Resize" className="splitter" />}
         />
     )}
 >

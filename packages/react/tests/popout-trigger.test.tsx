@@ -46,14 +46,14 @@ function vetoPopouts(model: Model<Types>) {
     return commands;
 }
 
-/** The trigger's name: from its state through `render` (default), a plain `aria-label`, or none. */
+/** The trigger's name: a plain `aria-label` on the default element (default), from its state through `render`, or none. */
 type Naming = "state" | "label" | "none";
 
 function Layout({
     model,
     supportsPopout = true,
     target,
-    naming = "state",
+    naming = "label",
 }: {
     model: Model<Types>;
     supportsPopout?: boolean;
@@ -73,7 +73,7 @@ function Layout({
                                 target={target}
                                 data-testid="trigger"
                                 aria-label={
-                                    naming === "label" ? "Open" : undefined
+                                    naming === "label" ? "Pop out" : undefined
                                 }
                                 render={
                                     naming === "state"
@@ -127,13 +127,24 @@ describe("Dockable.PopoutTrigger", () => {
         expect(model.state.windows).toHaveLength(0); // vetoed
     });
 
-    it("has no name of its own, and takes the consumer's aria-label", () => {
-        const { unmount } = render(<Layout model={load()} naming="none" />);
+    it("has no name of its own", () => {
+        render(<Layout model={load()} naming="none" />);
         expect(screen.getByTestId("trigger")).not.toHaveAttribute("aria-label");
-        unmount();
+    });
 
-        render(<Layout model={load()} naming="label" />);
-        expect(screen.getByTestId("trigger")).toHaveAccessibleName("Open");
+    it("can be named from its state through render, keeping its behaviour", () => {
+        const model = load();
+        const commands = vetoPopouts(model);
+        render(<Layout model={model} naming="state" />);
+        const trigger = screen.getByTestId("trigger");
+        expect(trigger).toHaveAttribute("data-mode", "popout");
+        expect(trigger).toHaveAccessibleName("Pop out");
+        fireEvent.click(trigger);
+        expect(commands).toContainEqual({
+            command: "tab.popout",
+            payload: expect.objectContaining({ tab: "a" }),
+            transient: false,
+        });
     });
 
     it("renders nothing when the selected tab cannot pop out, or popouts are unsupported", () => {

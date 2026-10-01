@@ -43,11 +43,10 @@ Buttons you add (close, maximize, pop out) are your own elements: give each one 
 </button>
 ```
 
-## 3. The parts the primitives render
+### The parts the primitives render
 
 A few elements are rendered by the primitives themselves: the splitters, the overflow trigger and
-the pop out trigger. They have no name of their own either, and you name them the same way, with
-their props.
+the pop out trigger. They have no name of their own either, and you name them the same way.
 
 A `Dockable.Row` inserts its splitters, so name them through `renderSplitter`. Pass the same
 function to every `Row` you render, nested rows included:
@@ -69,7 +68,7 @@ A border's splitter is inserted by `Dockable.BorderContent`, which has its own `
 />
 ```
 
-The overflow trigger takes an `aria-label` like any button:
+The overflow trigger and the pop out trigger take an `aria-label` like any button:
 
 ```tsx
 <Dockable.TabOverflowTrigger aria-label="More tabs">
@@ -77,9 +76,11 @@ The overflow trigger takes an `aria-label` like any button:
 </Dockable.TabOverflowTrigger>
 ```
 
+## 3. `render`, for a name that follows the state
+
+A `render` function receives the part's state with its props, so a name can depend on it.
 `Dockable.PopoutTrigger` does two things: it pops a tab out, and in a window it docks the tab
-back. When the two need different names, read the trigger's state (`mode` is `"popout"` or
-`"dock"`) in a `render` function:
+back. Name each one from `mode` (`"popout"` or `"dock"`):
 
 ```tsx
 <Dockable.PopoutTrigger
@@ -90,6 +91,8 @@ back. When the two need different names, read the trigger's state (`mode` is `"p
     <ExternalLinkIcon aria-hidden="true" />
 </Dockable.PopoutTrigger>
 ```
+
+## No fallback, and translation
 
 An element you give no name has **no** name: nothing falls back to English.
 

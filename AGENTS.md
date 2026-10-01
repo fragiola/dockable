@@ -154,7 +154,7 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 
 - The model is Dockable's own (`src/state`, `src/commands`, `src/schema`). The ported
   algorithms (tidy, selection, docking, drop resolution, splitter math, the engine, drag and
-  drop, popouts, keyboard, labels, paths) keep a header naming FlexLayout, Caplin Systems Ltd
+  drop, popouts, keyboard, paths) keep a header naming FlexLayout, Caplin Systems Ltd
   and the MIT licence; `packages/core/tests/guard.test.ts` lists them.
 - The root `LICENSE` carries Caplin's full notice; each package ships a copy.
 - FlexLayout's tests and `tests-playwright/` remain the behaviour reference, ported gradually;
