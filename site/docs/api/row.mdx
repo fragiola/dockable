@@ -44,7 +44,8 @@ context, which a child cannot type: `<Dockable.Row<Types>>` gives `children` typ
 | `node` | `RowNode<T>` | the row the splitter resizes |
 | `index` | `number` | the splitter sits before child `index` (1-based) |
 
-Spread it on a `Dockable.Splitter`: `(props) => <Dockable.Splitter {...props} className="…" />`.
+Spread it on a `Dockable.Splitter`: `(props) => <Dockable.Splitter {...props} aria-label="Resize" className="…" />`. The default
+splitter has no name: `renderSplitter` is where you give it one.
 
 ## State
 

@@ -17,7 +17,7 @@ import {
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { cn } from "#/lib/cn";
-import { getLabel } from "./labels";
+import { labels } from "./labels";
 import * as styles from "./styles";
 
 /**
@@ -66,13 +66,17 @@ export interface TabSetOptions<T extends DockableTypes = AnyTypes> {
     stripAtBottom?: boolean | undefined;
 }
 
-/** The kit's splitter: the themed bar with an optional grip. */
+/** The kit's splitter: the themed bar with an optional grip, named "Resize". */
 export function KitSplitter<T extends DockableTypes = AnyTypes>(
     props: RowSplitterProps<T> & { className?: string },
 ) {
     const { className, ...rest } = props;
     return (
-        <Dockable.Splitter {...rest} className={cn(styles.splitter, className)}>
+        <Dockable.Splitter
+            aria-label={labels.splitter}
+            {...rest}
+            className={cn(styles.splitter, className)}
+        >
             <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
     );
@@ -287,7 +291,11 @@ export function KitBorderContent<T extends DockableTypes = AnyTypes>({
             node={node}
             className={styles.borderContent}
             renderSplitter={(border) => (
-                <Dockable.Splitter node={border} className={styles.splitter}>
+                <Dockable.Splitter
+                    node={border}
+                    aria-label={labels.splitter}
+                    className={styles.splitter}
+                >
                     <span aria-hidden="true" className={styles.splitterGrip} />
                 </Dockable.Splitter>
             )}
@@ -427,7 +435,6 @@ export function DockLayout<T extends DockableTypes = AnyTypes>(
             <Dockable.Root
                 ref={rootRef}
                 model={model}
-                getLabel={getLabel}
                 popoutURL={popoutURL}
                 // the page's light/dark and body palette class, into each popout (kept in sync)
                 popoutMirrorRoot

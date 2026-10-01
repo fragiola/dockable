@@ -2,7 +2,6 @@
 
 import {
     createModel,
-    DockableLabel,
     type LayoutJson,
     type TabJson,
     type TabOf,
@@ -22,7 +21,7 @@ import {
 import { useState } from "react";
 import { cn } from "#/lib/cn";
 import { Card } from "../_kit/card";
-import { label } from "../_kit/labels";
+import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 
@@ -94,7 +93,7 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
                     // the tab is the tab stop; the close button is reached with the mouse
                     // (the keyboard closes with Ctrl+Delete on the tab)
                     tabIndex={-1}
-                    aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
+                    aria-label={`${labels.closeTab} ${tab.data.name}`}
                     className={cn(
                         styles.iconButton,
                         "-me-1.5 size-5 text-current",
@@ -122,7 +121,7 @@ function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <button
             type="button"
-            aria-label={`${label(pinned ? DockableLabel.Menu_Unpin : DockableLabel.Menu_Pin)} ${selected.data.name}`}
+            aria-label={`${pinned ? labels.unpin : labels.pin} ${selected.data.name}`}
             aria-pressed={pinned}
             className={styles.iconButton}
             onClick={() => run("tab.pin", { tab: selected.id, value: !pinned })}

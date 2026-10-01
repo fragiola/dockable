@@ -1,6 +1,5 @@
 import {
     createModel,
-    DockableLabel,
     type LayoutJson,
     type Model,
     veto,
@@ -47,23 +46,22 @@ function vetoPopouts(model: Model<Types>) {
     return commands;
 }
 
+/** The trigger's name: a plain `aria-label` on the default element (default), from its state through `render`, or none. */
+type Naming = "state" | "label" | "none";
+
 function Layout({
     model,
     supportsPopout = true,
     target,
+    naming = "label",
 }: {
     model: Model<Types>;
     supportsPopout?: boolean;
     target?: "tab" | "tabset";
+    naming?: Naming;
 }) {
     return (
-        <Dockable.Root
-            model={model}
-            supportsPopout={supportsPopout}
-            getLabel={(key) =>
-                key === DockableLabel.Popout_Tab ? "Pop out" : undefined
-            }
-        >
+        <Dockable.Root model={model} supportsPopout={supportsPopout}>
             <Dockable.Row<Types>>
                 {(child) =>
                     child.type === "tabset" ? (
@@ -74,6 +72,24 @@ function Layout({
                             <Dockable.PopoutTrigger
                                 target={target}
                                 data-testid="trigger"
+                                aria-label={
+                                    naming === "label" ? "Pop out" : undefined
+                                }
+                                render={
+                                    naming === "state"
+                                        ? (props, state) => (
+                                              <button
+                                                  type="button"
+                                                  {...props}
+                                                  aria-label={
+                                                      state.mode === "dock"
+                                                          ? "Dock back"
+                                                          : "Pop out"
+                                                  }
+                                              />
+                                          )
+                                        : undefined
+                                }
                             >
                                 ↗
                             </Dockable.PopoutTrigger>
@@ -109,6 +125,26 @@ describe("Dockable.PopoutTrigger", () => {
             transient: false,
         });
         expect(model.state.windows).toHaveLength(0); // vetoed
+    });
+
+    it("has no name of its own", () => {
+        render(<Layout model={load()} naming="none" />);
+        expect(screen.getByTestId("trigger")).not.toHaveAttribute("aria-label");
+    });
+
+    it("can be named from its state through render, keeping its behaviour", () => {
+        const model = load();
+        const commands = vetoPopouts(model);
+        render(<Layout model={model} naming="state" />);
+        const trigger = screen.getByTestId("trigger");
+        expect(trigger).toHaveAttribute("data-mode", "popout");
+        expect(trigger).toHaveAccessibleName("Pop out");
+        fireEvent.click(trigger);
+        expect(commands).toContainEqual({
+            command: "tab.popout",
+            payload: expect.objectContaining({ tab: "a" }),
+            transient: false,
+        });
     });
 
     it("renders nothing when the selected tab cannot pop out, or popouts are unsupported", () => {

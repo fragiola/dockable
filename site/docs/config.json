@@ -262,10 +262,6 @@
                 {
                     "label": "LayoutEngine",
                     "path": "api/layout-engine"
-                },
-                {
-                    "label": "DockableLabel",
-                    "path": "api/labels"
                 }
             ]
         },

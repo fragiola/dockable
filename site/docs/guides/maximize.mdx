@@ -22,20 +22,20 @@ the only tabset of its layout (there is nothing to hide). `model.can` answers th
 without running anything, so a button can hide itself:
 
 ```tsx
-import { DockableLabel, type TabsetNode } from "@fragiola/dockable";
+import type { TabsetNode } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 
 type Types = { tabs: { card: { name: string } } };
 
 function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { model, run, layoutId, getLabel } = useDockable<Types>();
+    const { model, run, layoutId } = useDockable<Types>();
     const maximized = model.maximizedTabset(layoutId)?.id === tabset.id;
     if (!model.can("tabset.maximize", { tabset: tabset.id, value: true }).ok) return null;
     return (
         <button
             type="button"
             aria-pressed={maximized}
-            aria-label={getLabel?.(maximized ? DockableLabel.Restore : DockableLabel.Maximize)}
+            aria-label={maximized ? "Restore" : "Maximize"}
             onClick={() => run("tabset.maximize", { tabset: tabset.id, value: !maximized })}
         >
             {maximized ? <MinimizeIcon aria-hidden="true" /> : <MaximizeIcon aria-hidden="true" />}

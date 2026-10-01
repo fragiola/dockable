@@ -72,7 +72,6 @@ export type {
 } from "./geometry/dock";
 export type { Rect } from "./geometry/rect";
 export * from "./keyboard/keymap";
-export * from "./labels/DockableLabel";
 export * from "./overflow/tabOverflow";
 export {
     computePaths,

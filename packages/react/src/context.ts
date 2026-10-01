@@ -1,18 +1,11 @@
 import type {
     AnyTypes,
-    DockableLabel,
     DockableTypes,
     IKeyMap,
     LayoutEngine,
     Model,
 } from "@fragiola/dockable";
 import * as React from "react";
-
-/** Resolves a label key to text. With no resolver, the primitives render no text. */
-export type GetLabel = (
-    key: DockableLabel,
-    ...args: (string | number)[]
-) => string | undefined;
 
 /** Where the panel containers of one layout are rendered. */
 export interface PanelLayer {
@@ -32,7 +25,6 @@ export interface DockableContextValue {
     model: Model;
     /** the render revision: changes whenever the layout should re-render */
     revision: number;
-    getLabel: GetLabel | undefined;
     keyMap: IKeyMap;
     /** the panel layer of each layout, keyed by layout id */
     layers: ReadonlyMap<string, PanelLayer>;

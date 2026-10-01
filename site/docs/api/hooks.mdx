@@ -43,7 +43,6 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
 | `engine` | `LayoutEngine<T>` | the engine of the layout this component renders in (the main layout or a popout's) |
 | `mainEngine` | `LayoutEngine<T>` | the main layout's engine |
 | `layoutId` | `string` | the id of the layout this component renders in (`"main"` or a window's id) |
-| `getLabel` | `GetLabel \| undefined` | the `getLabel` resolver given to `Dockable.Root` |
 
 `T` is not checked against the root's model: the context holds the model with its registry
 erased, and `useDockable<Types>()` states which registry you know it has. Inside tab content,
@@ -362,6 +361,5 @@ undo) or listens to transfers. It must be called inside `Dockable.DragGroup`. Se
 
 Also exported: `TabSetState`, `TabSetDropState`, `UseDockableResult`, `UseTabSetResult`,
 `UseBorderOptions`, `UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`,
-`UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`, `UseDropZoneOptions`,
-`UseDropZoneResult`, and `GetLabel` (`(key: DockableLabel, ...args: (string | number)[]) => string | undefined`,
-see [DockableLabel](/docs/api/labels)).
+`UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`, `UseDropZoneOptions` and
+`UseDropZoneResult`.

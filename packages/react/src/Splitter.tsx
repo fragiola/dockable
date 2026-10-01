@@ -5,13 +5,12 @@ import {
     type AnyTypes,
     type BorderNode,
     type SplitterState as CoreSplitterState,
-    DockableLabel,
     type DockableTypes,
     getSplitterPath,
     type RowNode,
 } from "@fragiola/dockable";
 import type * as React from "react";
-import { useDockableContext, useLayoutContext } from "./context";
+import { useLayoutContext } from "./context";
 import { useSplitter } from "./hooks";
 import {
     type DivPrimitiveProps,
@@ -36,13 +35,13 @@ export interface SplitterProps<T extends DockableTypes = AnyTypes>
 /**
  * A splitter between two children of a row, or between a border's panel and the layout
  * (`role="separator"`). Drag it with the pointer, or focus it and use the arrow keys. While an outline (non-realtime) drag is in progress it carries
- * `data-dragging` and a structural `transform` previewing where it will land.
+ * `data-dragging` and a structural `transform` previewing where it will land. It has no name of
+ * its own: give it an `aria-label` (through `renderSplitter` where a `Row` or a border inserts it).
  */
 export function Splitter<T extends DockableTypes = AnyTypes>(
     props: SplitterProps<T>,
 ) {
     const { node, index = 0, children, ...rest } = props;
-    const { getLabel } = useDockableContext("Splitter");
     const { engine } = useLayoutContext("Splitter");
     const { controller, state, aria, hidden, ref } = useSplitter(node, index);
     const horizontal = aria.orientation === "vertical";
@@ -75,7 +74,6 @@ export function Splitter<T extends DockableTypes = AnyTypes>(
             "aria-valuemin": aria.valueMin,
             "aria-valuemax": aria.valueMax,
             "aria-valuetext": aria.valueText,
-            "aria-label": getLabel?.(DockableLabel.Splitter),
             tabIndex: 0,
             ...dataAttributes({
                 "layout-path": getSplitterPath(engine.path(node.id), index),

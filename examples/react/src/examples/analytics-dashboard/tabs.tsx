@@ -2,7 +2,6 @@
 
 import {
     type ComponentOf,
-    DockableLabel,
     MAIN_LAYOUT,
     type TabOf,
     type TabsetNode,
@@ -20,7 +19,7 @@ import {
     TriangleAlert,
     X,
 } from "lucide-react";
-import { label } from "../_kit/labels";
+import { labels } from "../_kit/labels";
 import * as styles from "../_kit/styles";
 import type { Types } from "./data";
 
@@ -67,7 +66,7 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
                 type="button"
                 tabIndex={-1}
                 draggable={false}
-                aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
+                aria-label={`${labels.closeTab} ${tab.data.name}`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
@@ -94,7 +93,7 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
             aria-label={
                 inPopout
                     ? `Dock ${selected.data.name} back`
-                    : `${label(DockableLabel.Popout_Tab)} ${selected.data.name}`
+                    : `${labels.popout} ${selected.data.name}`
             }
             data-testid={inPopout ? "dock-back" : "popout"}
             className={styles.iconButton}
@@ -115,9 +114,7 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
             {popoutTrigger}
             <button
                 type="button"
-                aria-label={label(
-                    maximized ? DockableLabel.Restore : DockableLabel.Maximize,
-                )}
+                aria-label={maximized ? labels.restore : labels.maximize}
                 aria-pressed={maximized}
                 data-testid="maximize"
                 onClick={() =>

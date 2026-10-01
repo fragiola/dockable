@@ -112,8 +112,8 @@ indicator (`:focus-visible`): a splitter especially, since it is invisible when 
 
 ## Accessibility checklist
 
-- Name every tab list (`aria-label`), every icon button, and the splitters (`getLabel` with
-  `DockableLabel.Splitter`); see [Accessible names](/docs/getting-started/accessible-names).
+- Name every tab list (`aria-label`), every icon button, and the splitters (`aria-label` in
+  `renderSplitter`); see [Accessible names](/docs/getting-started/accessible-names).
 - Keep your buttons inside tabs out of the tab order if they duplicate a key binding, or make
   them reachable: a close button that is only visible on hover still needs a keyboard path
   (`Ctrl+Delete`).

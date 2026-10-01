@@ -1,6 +1,5 @@
 import {
     createModel,
-    DockableLabel,
     type LayoutEngine,
     MOVEABLE_ATTRIBUTE,
     type RowNode,
@@ -146,7 +145,7 @@ describe("composition and ARIA", () => {
         expect(mustPath("/ts0/content")).toHaveAttribute("data-empty", "");
     });
 
-    it("renders no text of its own without getLabel", () => {
+    it("renders no text and no name of its own", () => {
         const model = fresh();
         render(
             <Dockable.Root model={model} data-testid="root">
@@ -160,11 +159,18 @@ describe("composition and ARIA", () => {
         expect(mustPath("/s0")).not.toHaveAttribute("aria-label");
     });
 
-    it("names the splitter through getLabel", () => {
-        const getLabel = vi.fn((key: DockableLabel) =>
-            key === DockableLabel.Splitter ? "Resize" : undefined,
+    it("names a row's splitter through aria-label in renderSplitter", () => {
+        render(
+            <Dockable.Root model={fresh()}>
+                <Dockable.Row<Types>
+                    renderSplitter={(props) => (
+                        <Dockable.Splitter {...props} aria-label="Resize" />
+                    )}
+                >
+                    {renderNode}
+                </Dockable.Row>
+            </Dockable.Root>,
         );
-        render(<Layout model={fresh()} getLabel={getLabel} />);
         expect(mustPath("/s0")).toHaveAttribute("aria-label", "Resize");
     });
 });

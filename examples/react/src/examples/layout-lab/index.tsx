@@ -2,7 +2,6 @@
 
 import {
     createModel,
-    DockableLabel,
     type TabOf,
     veto as vetoResult,
 } from "@fragiola/dockable";
@@ -11,7 +10,7 @@ import { Plus, Redo2, Undo2, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "#/lib/cn";
 import { Card } from "../_kit/card";
-import { label } from "../_kit/labels";
+import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 import * as styles from "../_kit/styles";
 import { usePopupTheme } from "../_kit/theme";
@@ -42,7 +41,7 @@ function LabTab({ tab }: { tab: TabOf<Types> }) {
                 type="button"
                 tabIndex={-1}
                 draggable={false}
-                aria-label={`${label(DockableLabel.Close_Tab)} ${tab.data.name}`}
+                aria-label={`${labels.closeTab} ${tab.data.name}`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();

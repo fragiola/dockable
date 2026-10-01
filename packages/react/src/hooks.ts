@@ -25,7 +25,6 @@ import {
 } from "@fragiola/dockable";
 import * as React from "react";
 import {
-    type GetLabel,
     ModelContext,
     typedEngine,
     typedModel,
@@ -44,7 +43,6 @@ export interface UseDockableResult<T extends DockableTypes = AnyTypes> {
     mainEngine: LayoutEngine<T>;
     /** the id of the layout this component renders in */
     layoutId: string;
-    getLabel: GetLabel | undefined;
 }
 
 /**
@@ -64,7 +62,6 @@ export function useDockable<
         engine: typedEngine<T>(layout.engine),
         mainEngine: typedEngine<T>(context.engine),
         layoutId: layout.layoutId,
-        getLabel: context.getLabel,
     };
 }
 

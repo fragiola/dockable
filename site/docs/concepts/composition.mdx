@@ -104,7 +104,7 @@ The popout windows render the same structure: pass the same function to the `Row
 
   ```tsx
   const renderSplitter = (props: RowSplitterProps<Types>) => (
-      <Dockable.Splitter {...props} className="splitter" />
+      <Dockable.Splitter {...props} aria-label="Resize" className="splitter" />
   );
 
   <Dockable.Row<Types> renderSplitter={renderSplitter}>{renderNode}</Dockable.Row>

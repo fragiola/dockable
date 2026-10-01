@@ -1,6 +1,6 @@
 ---
 title: Menus
-description: The package provides the commands, model.can and the label keys; you render every menu with your own components.
+description: The package provides the commands and their model.can answers; you render every menu with your own components and your own text.
 ---
 
 Dockable renders **no menus**. A tab context menu, a tabset "more" menu or an overflow menu is a
@@ -17,14 +17,14 @@ Attach the menu to the `Tab` with `onContextMenu` (props are forwarded), or make
 library's trigger with `render`. With Fragiola UI's `ContextMenu` (Base UI):
 
 ```tsx
-import { DockableLabel, type TabOf } from "@fragiola/dockable";
+import type { TabOf } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import { ContextMenu } from "#/components/ui/context-menu";
 
 type Types = { tabs: { card: { name: string } } };
 
 function TabWithMenu({ tab }: { tab: TabOf<Types> }) {
-    const { model, run, getLabel } = useDockable<Types>();
+    const { model, run } = useDockable<Types>();
     const pinned = tab.pinned === true;
     return (
         <ContextMenu.Root>
@@ -36,13 +36,13 @@ function TabWithMenu({ tab }: { tab: TabOf<Types> }) {
                     disabled={!model.can("tab.close", { tab: tab.id }).ok}
                     onClick={() => run("tab.close", { tab: tab.id })}
                 >
-                    {getLabel?.(DockableLabel.Close_Tab)}
+                    Close
                 </ContextMenu.Item>
                 <ContextMenu.Item
                     disabled={!model.can("tab.pin", { tab: tab.id, value: !pinned }).ok}
                     onClick={() => run("tab.pin", { tab: tab.id, value: !pinned })}
                 >
-                    {getLabel?.(pinned ? DockableLabel.Menu_Unpin : DockableLabel.Menu_Pin)}
+                    {pinned ? "Unpin" : "Pin"}
                 </ContextMenu.Item>
             </ContextMenu.Content>
         </ContextMenu.Root>
@@ -59,18 +59,18 @@ in the trigger instead.
 
 `parent` is `model.parentOf(tab.id)`: the tab's tabset, or its border.
 
-| item | command | enable when | label key |
-| --- | --- | --- | --- |
-| Close | `tab.close` `{ tab }` | `model.can("tab.close", …)` | `Close_Tab` |
-| Close others | `batch` of `tab.close`, one per other closable tab | at least one | `Menu_Close_Others` |
-| Close to the right | `batch` of `tab.close` for the closable tabs after it | at least one | `Menu_Close_Right` |
-| Close all | `tabset.close` `{ tabset }`, or a `batch` of `tab.close` | `model.can("tabset.close", …)` | `Menu_Close_All` |
-| Rename | start your rename UI, then `tab.update` with the new data | your own rule (in `data`), and `model.can("tab.update", …)` | `Menu_Rename` |
-| Pin / Unpin | `tab.pin` `{ tab, value }` | `model.can("tab.pin", …)` (refused in a border) | `Menu_Pin`, `Menu_Unpin` |
-| Pop out | `tab.popout` `{ tab }` | `engine.isSupportsPopout()` and `model.can("tab.popout", …)` | `Menu_Popout` |
-| Pop out the tabset | `tabset.popout` `{ tabset }` | as Pop out, with `tabset.popout` | `Menu_Popout_Tabset` |
-| Maximize / Restore | `tabset.maximize` `{ tabset, value }` | `model.can("tabset.maximize", …)` | `Menu_Maximize`, `Menu_Restore` |
-| Overlay / Docked (a border) | `border.configure` `{ border, mode }` | always | `Menu_Overlay`, `Menu_Split` |
+| item | command | enable when |
+| --- | --- | --- |
+| Close | `tab.close` `{ tab }` | `model.can("tab.close", …)` |
+| Close others | `batch` of `tab.close`, one per other closable tab | at least one |
+| Close to the right | `batch` of `tab.close` for the closable tabs after it | at least one |
+| Close all | `tabset.close` `{ tabset }`, or a `batch` of `tab.close` | `model.can("tabset.close", …)` |
+| Rename | start your rename UI, then `tab.update` with the new data | your own rule (in `data`), and `model.can("tab.update", …)` |
+| Pin / Unpin | `tab.pin` `{ tab, value }` | `model.can("tab.pin", …)` (refused in a border) |
+| Pop out | `tab.popout` `{ tab }` | `engine.isSupportsPopout()` and `model.can("tab.popout", …)` |
+| Pop out the tabset | `tabset.popout` `{ tabset }` | as Pop out, with `tabset.popout` |
+| Maximize / Restore | `tabset.maximize` `{ tabset, value }` | `model.can("tabset.maximize", …)` |
+| Overlay / Docked (a border) | `border.configure` `{ border, mode }` | always |
 
 "Several closes" are one `batch`: one change event, one undo step, and atomic (if one command
 fails, none applies). Filter the tabs with `model.can` first, so a pinned or unclosable tab does
@@ -92,9 +92,8 @@ run("batch", {
 from `useDockable`) runs the same command with the tab's current screen rect, so the window opens
 where the tab was. See [Popouts](/docs/guides/popouts).
 
-The **label keys** are members of `DockableLabel`. They have no text in the package; resolving
-them through the same `getLabel` you give `Dockable.Root` keeps every string of the layout in one
-map (see [Accessible names](/docs/getting-started/accessible-names)).
+The menu's text is yours: the package has none, and no label keys. Keep your strings wherever your
+app keeps them, translated or not (see [Accessible names](/docs/getting-started/accessible-names)).
 
 ## Menus and drags
 

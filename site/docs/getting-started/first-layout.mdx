@@ -237,7 +237,9 @@ keeps some start padding and why the drop indicator needs a `z-index`), and the
 - **Drag and drop**: drag a tab into another tabset, onto a tabset's edge to split it, or to the
   layout's edge. Each drop runs the `tab.move` command, through any middleware you add with
   `model.use`.
-- **Splitters**: drag with the pointer, or focus and use the arrow keys (10px per press).
+- **Splitters**: drag with the pointer, or focus and use the arrow keys (10px per press). They
+  have no name yet: [Accessible names](/docs/getting-started/accessible-names) shows how to give
+  them one with `renderSplitter`.
 - **Keyboard**: arrow keys, Home and End move between tabs; Enter or Space selects; `Ctrl+Delete`
   closes a closeable tab.
 - **Content that survives**: type in the Notes tab, then drag it to the other tabset. The text is

@@ -2,7 +2,6 @@
 
 import {
     createModel,
-    DockableLabel,
     getSplitterPath,
     type LayoutJson,
 } from "@fragiola/dockable";
@@ -13,6 +12,7 @@ import {
 } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { Card } from "../_kit/card";
+import { labels } from "../_kit/labels";
 import { DockLayout } from "../_kit/layout";
 
 type Types = { tabs: { card: { name: string } } };
@@ -61,9 +61,8 @@ const json: LayoutJson<Types> = {
  */
 function WideSplitter({ node, index }: RowSplitterProps<Types>) {
     const { controller, state, aria, hidden, ref } = useSplitter(node, index);
-    // the accessible name comes from `getLabel` on the Root, as `Dockable.Splitter` does; the
-    // path (`/r0/s0`) from the row's own, which the engine knows by id
-    const { getLabel, engine } = useDockable<Types>();
+    // the path (`/r0/s0`) comes from the row's own, which the engine knows by id
+    const { engine } = useDockable<Types>();
     // `aria.orientation` is the separator's: "vertical" is a bar between side-by-side panes
     const vertical = aria.orientation === "vertical";
     return (
@@ -72,7 +71,8 @@ function WideSplitter({ node, index }: RowSplitterProps<Types>) {
             ref={ref}
             role="separator"
             tabIndex={0}
-            aria-label={getLabel?.(DockableLabel.Splitter)}
+            // a splitter has no name of its own: the app gives it one
+            aria-label={labels.splitter}
             aria-orientation={aria.orientation}
             aria-valuenow={aria.valueNow}
             aria-valuemin={aria.valueMin}

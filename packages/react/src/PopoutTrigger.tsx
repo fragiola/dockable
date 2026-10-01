@@ -1,9 +1,4 @@
-import {
-    type AnyTypes,
-    DockableLabel,
-    type DockableTypes,
-    type TabOf,
-} from "@fragiola/dockable";
+import type { AnyTypes, DockableTypes, TabOf } from "@fragiola/dockable";
 import type * as React from "react";
 import { useDockableContext, useLayoutContext } from "./context";
 import { useTabSetNode } from "./TabSet";
@@ -40,15 +35,16 @@ export interface PopoutTriggerProps<T extends DockableTypes = AnyTypes>
  * A button, inside `Dockable.TabSet`, that pops the selected tab (or the whole tabset) out into a
  * window, and, in a window, docks it back into the main layout. It renders nothing when neither
  * is possible (popouts unsupported, the model refuses it, no tab): `tab.popout` / `tabset.popout`
- * decide, through `model.can`. Its accessible name comes from `aria-label` or `getLabel`
- * (`Popout_Tab` / `Dock_To_Layout`).
+ * decide, through `model.can`. It has no name of its own: give it an `aria-label`, or name it
+ * from the state when the two actions need different names
+ * (`render={(props, state) => <button {...props} aria-label={state.mode === "dock" ? … : …} />}`).
  */
 export function PopoutTrigger<T extends DockableTypes = AnyTypes>(
     props: PopoutTriggerProps<T>,
 ) {
     const { target = "tab", node, children, ...rest } = props;
     const tabset = useTabSetNode("PopoutTrigger");
-    const { getLabel, model } = useDockableContext("PopoutTrigger");
+    const { model } = useDockableContext("PopoutTrigger");
     const { engine } = useLayoutContext("PopoutTrigger");
 
     const subject =
@@ -80,11 +76,6 @@ export function PopoutTrigger<T extends DockableTypes = AnyTypes>(
         state,
         props: {
             type: "button",
-            "aria-label": getLabel?.(
-                mode === "dock"
-                    ? DockableLabel.Dock_To_Layout
-                    : DockableLabel.Popout_Tab,
-            ),
             ...dataAttributes({
                 // FlexLayout's path for a tabset's pop out button
                 "layout-path": `${engine.path(tabset.id)}/button/popout`,

@@ -31,14 +31,14 @@ const splitterClassName = [
 ].join(" ");
 
 function renderSplitter(props: RowSplitterProps) {
-    return <Dockable.Splitter {...props} className={splitterClassName} />;
+    return <Dockable.Splitter {...props} aria-label="Resize" className={splitterClassName} />;
 }
 ```
 
 A splitter renders its children, so a grip is an element inside it:
 
 ```tsx
-<Dockable.Splitter {...props} className={splitterClassName}>
+<Dockable.Splitter {...props} aria-label="Resize" className={splitterClassName}>
     <span aria-hidden="true" className="grip" />
 </Dockable.Splitter>
 ```
@@ -92,7 +92,8 @@ function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
 ```
 
 Or skip `renderSplitter` and style the default splitter with a stylesheet:
-`[role="separator"][data-orientation="vertical"] { width: 4px; }` reaches every one.
+`[role="separator"][data-orientation="vertical"] { width: 4px; }` reaches every one. The default
+splitter has no name, though: to give it one (an `aria-label`), you still need `renderSplitter`.
 
 ## Live or preview resizing
 
@@ -140,8 +141,8 @@ model.run("border.resize", { border: "border_left", size: 280 });
 A splitter is focusable (`tabIndex={0}`). The arrow keys along its axis move it by 10px:
 Left/Right for a vertical bar, Up/Down for a horizontal one; each press runs one `row.resize` (or
 `border.resize`). Its ARIA value is the position
-within the row (0–100) with an `aria-valuetext` like `"40%"`. Name it with `getLabel`
-(`DockableLabel.Splitter`, see [Accessible names](/docs/getting-started/accessible-names)).
+within the row (0–100) with an `aria-valuetext` like `"40%"`. It has no name of its own: give it
+an `aria-label` in `renderSplitter` (see [Accessible names](/docs/getting-started/accessible-names)).
 
 ## Disabling resizing
 

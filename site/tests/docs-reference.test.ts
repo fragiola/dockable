@@ -433,16 +433,6 @@ describe("the core reference", () => {
         expect(checked).toBeGreaterThan(60);
     });
 
-    it("lists every DockableLabel key with its value", () => {
-        const source = read(join(CORE_SRC, "labels/DockableLabel.ts"));
-        const keys = [...source.matchAll(/^ {4}(\w+) = "([^"]+)",/gm)];
-        expect(keys.length).toBeGreaterThan(20);
-        const mdx = page("labels");
-        for (const [, key = "", value = ""] of keys) {
-            expect(mdx, key).toContain(`| \`${key}\` | \`"${value}"\` |`);
-        }
-    });
-
     it("documents every public method of engine/LayoutEngine.ts", () => {
         const source = read(join(CORE_SRC, "engine/LayoutEngine.ts"));
         const start = source.indexOf("export class LayoutEngine");

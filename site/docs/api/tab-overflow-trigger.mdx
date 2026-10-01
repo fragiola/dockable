@@ -8,7 +8,7 @@ description: The button that opens your menu of the tabs that do not fit in the 
 engine reserves the space it takes in the strip. It renders no menu: make it your menu's trigger
 (`render`), list `useTabOverflow(node).hidden` (or the state's `hidden`, typed with
 `<Dockable.TabOverflowTrigger<Types>>`), and select with `tab.select`, which brings the tab into
-the strip."
+the strip. It has no name of its own: give it an `aria-label`."
 
 ```tsx
 function Header({ tabset }: { tabset: TabsetNode<Types> }) {
@@ -66,7 +66,7 @@ See [Tab overflow](/docs/guides/tab-overflow).
 | --- | --- |
 | `data-layout-path` | `<tabset or border path>/button/overflow`, e.g. `/ts0/button/overflow` (FlexLayout's) |
 | `data-count` | the number of hidden tabs |
-| `aria-label` | `getLabel(DockableLabel.Overflow_Menu_Tooltip)` (your own `aria-label` wins) |
+| `aria-label` | none of its own: pass yours |
 | `type` | `"button"` |
 
 ## Notes

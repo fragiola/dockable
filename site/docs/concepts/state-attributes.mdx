@@ -69,7 +69,7 @@ Two attributes mark elements the **core** creates, not the primitives:
 | `TabList` | `role="tablist"`, `aria-orientation`, `aria-keyshortcuts` |
 | `Tab` | `role="tab"`, `aria-selected`, `aria-controls` (its panel's id), `aria-keyshortcuts`, `tabIndex` 0 on the tab stop and -1 on the others |
 | `Panel` | `role="tabpanel"`, `aria-labelledby` (its tab's id), `aria-keyshortcuts`, `tabIndex={-1}` |
-| `Splitter` | `role="separator"`, `aria-orientation`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-valuetext` (e.g. `"40%"`), `aria-label` (from `getLabel`), `tabIndex={0}` |
+| `Splitter` | `role="separator"`, `aria-orientation`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-valuetext` (e.g. `"40%"`), `tabIndex={0}`; its `aria-label` is yours |
 | `DropIndicator` | `aria-hidden="true"` |
 
 `aria-selected` is the one exception to "present or absent": it is an ARIA attribute, so it is
