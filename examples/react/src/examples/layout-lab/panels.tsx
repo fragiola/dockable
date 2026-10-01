@@ -11,8 +11,8 @@ import type {
 import { useId, useState } from "react";
 import { Select } from "#/components/ui/select";
 import { Switch } from "#/components/ui/switch";
-import { cn } from "#/lib/cn";
 import type { LogEntry, Types } from "./commands";
+import * as styles from "./styles";
 
 // The lab's two instruments, both outside the layout: the model's JSON (v1), editable, and the
 // log of every command the lab's middleware saw, with a switch that vetoes one command.
@@ -80,12 +80,9 @@ export function JsonEditor({
     };
 
     return (
-        <section
-            aria-label="Model JSON"
-            className="palette-surface flex w-72 shrink-0 flex-col border-e border-palette-line bg-palette-base max-md:hidden"
-        >
-            <div className="flex h-11 shrink-0 items-center gap-2 border-b border-palette-line px-3">
-                <h2 className="me-auto text-sm font-semibold">LayoutJson</h2>
+        <section aria-label="Model JSON" className={styles.jsonEditor}>
+            <div className={styles.jsonHeader}>
+                <h2 className={styles.jsonTitle}>LayoutJson</h2>
                 <button
                     type="button"
                     disabled={!edited}
@@ -93,11 +90,7 @@ export function JsonEditor({
                         setDraft(null);
                         setError(null);
                     }}
-                    className={cn(
-                        "inline-flex h-7 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-2 text-xs",
-                        "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.revertButton}
                 >
                     Revert
                 </button>
@@ -105,11 +98,7 @@ export function JsonEditor({
                     type="button"
                     disabled={!edited}
                     onClick={apply}
-                    className={cn(
-                        "palette-blue inline-flex h-7 items-center gap-1.5 rounded-md bg-palette-base px-2 text-xs font-medium text-palette-contrast",
-                        "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.applyButton}
                 >
                     Apply
                 </button>
@@ -122,20 +111,16 @@ export function JsonEditor({
                 onChange={(event) => setDraft(event.target.value)}
                 spellCheck={false}
                 wrap="off"
-                className="min-h-0 flex-1 resize-none bg-transparent p-3 font-mono text-xs leading-5 text-palette-contrast outline-none focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset"
+                className={styles.jsonText}
             />
             {error ? (
-                <div
-                    id={errorId}
-                    role="alert"
-                    className="palette-danger max-h-40 overflow-auto border-t border-palette-line bg-palette-soft px-3 py-2 text-xs text-palette-accent"
-                >
+                <div id={errorId} role="alert" className={styles.jsonError}>
                     <p>{error.message}</p>
                     {error.issues.length > 0 ? (
-                        <ul className="mt-1 flex flex-col gap-0.5 font-mono">
+                        <ul className={styles.jsonIssues}>
                             {error.issues.map((issue) => (
                                 <li key={`${issue.path} ${issue.message}`}>
-                                    <span className="font-semibold">
+                                    <span className={styles.jsonIssuePath}>
                                         {issue.path}
                                     </span>{" "}
                                     {issue.message}
@@ -169,8 +154,8 @@ export function VetoControl({
         label: info.name,
     }));
     return (
-        <div className="flex items-center gap-2 text-sm">
-            <div className="flex items-center gap-2">
+        <div className={styles.veto}>
+            <div className={styles.vetoSwitch}>
                 <Switch.Root
                     checked={veto.enabled}
                     onCheckedChange={(enabled) =>
@@ -195,7 +180,7 @@ export function VetoControl({
             >
                 <Select.Trigger
                     aria-label="Command to veto"
-                    className="h-8 w-40 py-0 font-mono text-xs"
+                    className={styles.vetoTrigger}
                 >
                     <Select.Value />
                 </Select.Trigger>
@@ -204,7 +189,7 @@ export function VetoControl({
                         <Select.Item
                             key={item.value}
                             value={item.value}
-                            className="font-mono text-xs"
+                            className={styles.vetoItem}
                         >
                             {item.label}
                         </Select.Item>
@@ -224,34 +209,26 @@ export function CommandLog({
     onClear: () => void;
 }) {
     return (
-        <section
-            aria-label="Command log"
-            className="palette-surface flex h-36 shrink-0 flex-col border-t border-palette-line bg-palette-base"
-        >
-            <div className="flex h-8 shrink-0 items-center gap-2 px-3">
-                <h2 className="me-auto text-xs font-semibold">
+        <section aria-label="Command log" className={styles.log}>
+            <div className={styles.logHeader}>
+                <h2 className={styles.logTitle}>
                     model.use
-                    <span className="ms-2 font-normal text-palette-accent/85">{`${log.length} commands`}</span>
+                    <span
+                        className={styles.logCount}
+                    >{`${log.length} commands`}</span>
                 </h2>
                 <button
                     type="button"
                     onClick={onClear}
                     disabled={log.length === 0}
-                    className={cn(
-                        "inline-flex h-6 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-2 text-xs",
-                        "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.clearButton}
                 >
                     Clear
                 </button>
             </div>
-            <ol
-                data-testid="action-log"
-                className="min-h-0 flex-1 overflow-auto px-3 pb-2 font-mono text-xs leading-5"
-            >
+            <ol data-testid="action-log" className={styles.logList}>
                 {log.length === 0 ? (
-                    <li className="text-palette-accent/85">
+                    <li className={styles.logEmpty}>
                         Drag, click or resize: every change is a command.
                     </li>
                 ) : null}
@@ -261,22 +238,15 @@ export function CommandLog({
                         data-vetoed={
                             entry.outcome === "vetoed" ? "" : undefined
                         }
-                        className="flex gap-2 whitespace-nowrap"
+                        className={styles.logEntry}
                     >
-                        <span
-                            className={cn(
-                                "min-w-14 shrink-0",
-                                entry.outcome === "applied"
-                                    ? "palette-green text-palette-accent"
-                                    : "palette-danger text-palette-accent",
-                            )}
-                        >
+                        <span className={styles.logOutcome(entry.outcome)}>
                             {entry.outcome}
                         </span>
-                        <span className="shrink-0 font-semibold">
+                        <span className={styles.logCommand}>
                             {entry.command}
                         </span>
-                        <span className="truncate text-palette-accent/85">
+                        <span className={styles.logPayload}>
                             {entry.payload}
                         </span>
                     </li>

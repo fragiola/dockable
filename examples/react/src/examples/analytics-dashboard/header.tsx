@@ -5,9 +5,9 @@ import { Plus, Redo2, Undo2 } from "lucide-react";
 
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
 import { Select } from "#/components/ui/select";
-import { cn } from "#/lib/cn";
 import type { UndoManager, UndoSnapshot } from "../_kit/undo";
 import { type Filters, REGIONS, type Types, WIDGETS } from "./data";
+import * as styles from "./styles";
 
 // The header OUTSIDE the layout: shared filters (read by every widget through context), the
 // "Add widget" menu (a `tab.add` command on the model), and undo/redo (the UndoManager).
@@ -44,11 +44,9 @@ export function Header({
     undo: UndoManager<Types>;
     history: UndoSnapshot<Types>;
 }) {
-    const selectTrigger = "h-8 w-40 py-0 text-sm";
-
     return (
-        <header className="palette-surface flex flex-wrap items-center gap-3 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast">
-            <h1 className="me-auto text-sm font-semibold">Sales overview</h1>
+        <header className={styles.header}>
+            <h1 className={styles.title}>Sales overview</h1>
 
             <Select.Root
                 items={REGION_ITEMS}
@@ -60,7 +58,10 @@ export function Header({
                     })
                 }
             >
-                <Select.Trigger aria-label="Region" className={selectTrigger}>
+                <Select.Trigger
+                    aria-label="Region"
+                    className={styles.selectTrigger}
+                >
                     <Select.Value />
                 </Select.Trigger>
                 <Select.Content>
@@ -84,7 +85,7 @@ export function Header({
             >
                 <Select.Trigger
                     aria-label="Date range"
-                    className={selectTrigger}
+                    className={styles.selectTrigger}
                 >
                     <Select.Value />
                 </Select.Trigger>
@@ -97,20 +98,16 @@ export function Header({
                 </Select.Content>
             </Select.Root>
 
-            <div className="flex items-center">
+            <div className={styles.history}>
                 <button
                     type="button"
                     aria-label="Undo"
                     title="Undo (Ctrl+Z)"
                     disabled={!history.canUndo}
                     onClick={() => undo.undo()}
-                    className={cn(
-                        "inline-flex h-8 items-center gap-1.5 rounded-md rounded-e-none border border-palette-line bg-palette-base px-2 text-sm",
-                        "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.undoButton}
                 >
-                    <Undo2 aria-hidden="true" className="size-4" />
+                    <Undo2 aria-hidden="true" className={styles.headerIcon} />
                 </button>
                 <button
                     type="button"
@@ -118,25 +115,15 @@ export function Header({
                     title="Redo (Ctrl+Shift+Z)"
                     disabled={!history.canRedo}
                     onClick={() => undo.redo()}
-                    className={cn(
-                        "-ms-px inline-flex h-8 items-center gap-1.5 rounded-md rounded-s-none border border-palette-line bg-palette-base px-2 text-sm",
-                        "text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.redoButton}
                 >
-                    <Redo2 aria-hidden="true" className="size-4" />
+                    <Redo2 aria-hidden="true" className={styles.headerIcon} />
                 </button>
             </div>
 
             <DropdownMenu.Root>
-                <DropdownMenu.Trigger
-                    className={cn(
-                        "palette-blue inline-flex h-8 items-center gap-1.5 rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast",
-                        "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
-                >
-                    <Plus aria-hidden="true" className="size-4" />
+                <DropdownMenu.Trigger className={styles.addButton}>
+                    <Plus aria-hidden="true" className={styles.headerIcon} />
                     Add widget
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content align="end">

@@ -11,9 +11,9 @@ import {
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { MonitorDown, MonitorUp, Undo2 } from "lucide-react";
 import { useState } from "react";
-import { cn } from "#/lib/cn";
 import { ChartPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
+import * as styles from "./styles";
 
 // A control room: each tabset can go to its own window ("screen"), tabs can be dragged between
 // the windows and the main layout, and "Bring everything back" docks every window's tabs into the
@@ -104,42 +104,37 @@ export default function MultiMonitor() {
     };
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col">
-            <div className="palette-surface flex flex-wrap items-center gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast">
-                <p className="text-sm text-palette-accent/85">
+        <div className={styles.page}>
+            <div className={styles.toolbar}>
+                <p className={styles.hint}>
                     Send a tabset to another screen with its monitor button,
                     then drag panels between the windows.
                 </p>
                 <button
                     type="button"
-                    className={cn(
-                        "ms-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-3 text-sm text-palette-contrast",
-                        "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.button}
                     onClick={bringBack}
                 >
-                    <Undo2 aria-hidden className="size-4" />
+                    <Undo2 aria-hidden className={styles.buttonIcon} />
                     Bring everything back
                 </button>
                 <span
                     role="status"
                     data-testid="status"
-                    className="text-xs text-palette-accent/85"
+                    className={styles.status}
                 >
                     {status}
                 </span>
             </div>
-            {/* The root needs a size. Its row is `position: absolute; inset: 0`, so the gutter
-                around the layout goes on a wrapper: padding on the root would not move the row. */}
-            <div className="flex min-h-0 flex-1 flex-col p-(--dk-gap)">
+            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
+            <div className={styles.frame}>
                 <Dockable.Root
                     model={model}
                     popoutURL={popoutURL}
                     // copies <html> and <body>'s attributes (light/dark, the example theme) into
                     // each popout window, and keeps them in sync
                     popoutMirrorRoot
-                    className="palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast"
+                    className={styles.root}
                 >
                     <Dockable.Row<Types>
                         renderSplitter={(props) => <Splitter {...props} />}
@@ -150,13 +145,7 @@ export default function MultiMonitor() {
                         a panel's element into the window its tab is in. */}
                     <Dockable.Panels<Types>>
                         {(tab) => (
-                            <Dockable.Panel
-                                node={tab}
-                                // panels sit in a layer above the tabsets, whose overflow cannot
-                                // clip them: the panel repeats the tabset's inner radius on its
-                                // corners
-                                className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
-                            >
+                            <Dockable.Panel node={tab} className={styles.panel}>
                                 <Content tab={tab} />
                             </Dockable.Panel>
                         )}
@@ -164,7 +153,7 @@ export default function MultiMonitor() {
                     <DropIndicator />
                     {/* Each window's layout: its own root element in the window's document, with
                         the same recursion as the main layout. */}
-                    <Dockable.Popout<Types> className="palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast">
+                    <Dockable.Popout<Types> className={styles.popout}>
                         {() => (
                             <>
                                 <Dockable.Row<Types>
@@ -217,39 +206,26 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 /** A tabset: its strip of tabs and its screen buttons on top, the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
-        <Dockable.TabSet
-            node={node}
-            className="palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)"
-        >
-            <div className="flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line">
+        <Dockable.TabSet node={node} className={styles.tabset}>
+            <div className={styles.strip}>
                 <Dockable.TabList<Types>
                     aria-label={node.data?.name || "Tabs"}
-                    // the start padding is load-bearing: a tab flush with the tabset's edge could
-                    // not take a drop before it (that edge is the tabset's side drop)
-                    className="flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]"
+                    className={styles.tabList}
                 >
                     {(tab) => (
-                        <Dockable.Tab
-                            node={tab}
-                            className={cn(
-                                "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
-                                "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
-                                "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
-                                "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
-                                "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
-                            )}
-                        >
-                            <span className="truncate">{tab.data.name}</span>
-                            {/* the active tabset's marker: `in-data-active:` reads the enclosing
-                                TabSet's data-active, `group-data-selected/tab:` this tab's */}
+                        <Dockable.Tab node={tab} className={styles.tab}>
+                            <span className={styles.tabName}>
+                                {tab.data.name}
+                            </span>
+                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
-                                className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"
+                                className={styles.tabMarker}
                             />
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>
-                <div className="flex items-center gap-0.5 pe-1">
+                <div className={styles.tabsetActions}>
                     <ScreenButton tabset={node} />
                     <BackButton />
                 </div>
@@ -268,13 +244,9 @@ function ScreenButton({ tabset }: { tabset: TabsetNode<Types> }) {
             aria-label={`Move ${name} to another screen`}
             data-testid="move-tabset"
             // in a window, the trigger docks back (`data-mode="dock"`): BackButton does that
-            className={cn(
-                "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
-                "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
-                "disabled:pointer-events-none disabled:opacity-40 data-[mode=dock]:hidden",
-            )}
+            className={styles.screenButton}
         >
-            <MonitorUp aria-hidden className="size-3.5" />
+            <MonitorUp aria-hidden className={styles.actionIcon} />
         </Dockable.PopoutTrigger>
     );
 }
@@ -285,32 +257,18 @@ function BackButton() {
         <Dockable.PopoutTrigger
             aria-label="Back to the main screen"
             data-testid="back"
-            className={cn(
-                "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
-                "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
-                "disabled:pointer-events-none disabled:opacity-40 data-[mode=popout]:hidden",
-            )}
+            className={styles.backButton}
         >
-            <MonitorDown aria-hidden className="size-3.5" />
+            <MonitorDown aria-hidden className={styles.actionIcon} />
         </Dockable.PopoutTrigger>
     );
 }
 
-/**
- * Where a dragged tab would land, in the main layout or in a window. Panels are portalled into
- * the root after it, so it needs a stacking order to paint above them.
- */
+/** Where a dragged tab would land, in the main layout or in a window. */
 function DropIndicator() {
     return (
         <Dockable.DropIndicator
-            className={(state) =>
-                cn(
-                    "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
-                    state.kind === "edge"
-                        ? "palette-orange bg-palette-base/25"
-                        : "palette-blue bg-palette-base/20",
-                )
-            }
+            className={styles.dropIndicator}
             style={(state) => ({
                 transitionDuration: `${state.tabDragSpeed}s`,
             })}
@@ -318,38 +276,15 @@ function DropIndicator() {
     );
 }
 
-/**
- * The bar between two children of a row: `--dk-splitter-size` thick (the engine measures it), with
- * a wider grab area (`::after`) and a grip for the themes that show one (`--dk-grip`).
- */
+/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter
             {...props}
             aria-label="Resize"
-            className={cn(
-                "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
-                "after:absolute after:transition-colors after:duration-(--dk-motion)",
-                "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
-                // side by side: a vertical bar
-                "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
-                "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
-                "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
-                "rtl:data-[orientation=vertical]:after:translate-x-1/2",
-                // stacked: a horizontal bar
-                "data-[orientation=horizontal]:h-(--dk-splitter-size) data-[orientation=horizontal]:cursor-ns-resize",
-                "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
-                "data-[orientation=horizontal]:after:h-(--dk-splitter-grab) data-[orientation=horizontal]:after:-translate-y-1/2",
-            )}
+            className={styles.splitter}
         >
-            <span
-                aria-hidden="true"
-                className={cn(
-                    "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
-                    "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
-                    "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
-                )}
-            />
+            <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
     );
 }

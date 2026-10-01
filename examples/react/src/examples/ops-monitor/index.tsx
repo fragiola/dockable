@@ -16,7 +16,6 @@ import { Siren } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Select } from "#/components/ui/select";
 import { Switch } from "#/components/ui/switch";
-import { cn } from "#/lib/cn";
 import {
     EventsPanel,
     OverviewPanel,
@@ -25,6 +24,7 @@ import {
     type Types,
 } from "./panels";
 import { createSimulation, SERVICES, type ServiceId } from "./simulation";
+import * as styles from "./styles";
 import { INCIDENT_TABSET, MonitorTabSet } from "./tabs";
 
 // A live operations console. A timer streams simulated metrics; each service panel reports its
@@ -165,9 +165,9 @@ export default function OpsMonitor() {
     };
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)">
-            <div className="palette-surface flex flex-wrap items-center gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast">
-                <div className="flex items-center gap-2 text-sm">
+        <div className={styles.shell}>
+            <div className={styles.toolbar}>
+                <div className={styles.liveControl}>
                     <Switch.Root
                         checked={live}
                         onCheckedChange={setLive}
@@ -175,15 +175,11 @@ export default function OpsMonitor() {
                     >
                         <Switch.Thumb />
                     </Switch.Root>
-                    <span
-                        className={cn(
-                            live && "palette-green text-palette-accent",
-                        )}
-                    >
+                    <span className={styles.liveLabel(live)}>
                         {live ? "Live" : "Paused"}
                     </span>
                 </div>
-                <span className="ms-auto hidden text-xs text-palette-accent/85 lg:inline">
+                <span className={styles.shortcutHint}>
                     <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>→</kbd> next panel
                 </span>
                 <Select.Root
@@ -196,7 +192,7 @@ export default function OpsMonitor() {
                 >
                     <Select.Trigger
                         aria-label="Service"
-                        className="h-8 w-36 py-0 text-sm"
+                        className={styles.serviceSelect}
                     >
                         <Select.Value />
                     </Select.Trigger>
@@ -211,37 +207,28 @@ export default function OpsMonitor() {
                 <button
                     type="button"
                     onClick={() => simulation.trigger(target)}
-                    className={cn(
-                        "palette-danger inline-flex h-8 items-center gap-1.5 rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast",
-                        "outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.dangerButton}
                 >
-                    <Siren aria-hidden="true" className="size-4" />
+                    <Siren aria-hidden="true" className={styles.buttonIcon} />
                     Trigger incident
                 </button>
                 <button
                     type="button"
                     onClick={() => simulation.resolveAll()}
-                    className={cn(
-                        "inline-flex h-8 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-3 text-sm text-palette-contrast",
-                        "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-                        "disabled:pointer-events-none disabled:opacity-50",
-                    )}
+                    className={styles.button}
                 >
                     Resolve all
                 </button>
             </div>
-            {/* The root needs a size. Its row is `position: absolute; inset: 0`, so the gutter
-                around the layout goes on a wrapper: padding on the root would not move the row. */}
-            <div className="flex min-h-0 flex-1 flex-col p-(--dk-gap)">
+            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
+            <div className={styles.frame}>
                 <Dockable.Root
                     model={model}
                     keyMap={{
                         focusNextTabset: "Ctrl+Shift+ArrowRight",
                         focusPreviousTabset: "Ctrl+Shift+ArrowLeft",
                     }}
-                    className="palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast"
+                    className={styles.root}
                 >
                     <Dockable.Row<Types>
                         renderSplitter={(props) => <Splitter {...props} />}
@@ -252,29 +239,14 @@ export default function OpsMonitor() {
                         visible ones */}
                     <Dockable.Panels<Types> renderOnDemand={false}>
                         {(tab) => (
-                            <Dockable.Panel
-                                node={tab}
-                                // panels sit in a layer above the tabsets, whose overflow cannot
-                                // clip them: the panel repeats the tabset's inner radius on its
-                                // corners
-                                className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
-                            >
+                            <Dockable.Panel node={tab} className={styles.panel}>
                                 {renderContent(tab)}
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    {/* Where a dragged tab would land (a refused target shows none). Panels are
-                        portalled into the root after it, so it needs a stacking order to paint
-                        above them. */}
+                    {/* Where a dragged tab would land (a refused target shows none). */}
                     <Dockable.DropIndicator
-                        className={(state) =>
-                            cn(
-                                "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
-                                state.kind === "edge"
-                                    ? "palette-orange bg-palette-base/25"
-                                    : "palette-blue bg-palette-base/20",
-                            )
-                        }
+                        className={styles.dropIndicator}
                         style={(state) => ({
                             transitionDuration: `${state.tabDragSpeed}s`,
                         })}
@@ -303,38 +275,15 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <MonitorTabSet node={node} />;
 }
 
-/**
- * The bar between two children of a row: `--dk-splitter-size` thick (the engine measures it), with
- * a wider grab area (`::after`) and a grip for the themes that show one (`--dk-grip`).
- */
+/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter
             {...props}
             aria-label="Resize"
-            className={cn(
-                "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
-                "after:absolute after:transition-colors after:duration-(--dk-motion)",
-                "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
-                // side by side: a vertical bar
-                "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
-                "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
-                "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
-                "rtl:data-[orientation=vertical]:after:translate-x-1/2",
-                // stacked: a horizontal bar
-                "data-[orientation=horizontal]:h-(--dk-splitter-size) data-[orientation=horizontal]:cursor-ns-resize",
-                "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
-                "data-[orientation=horizontal]:after:h-(--dk-splitter-grab) data-[orientation=horizontal]:after:-translate-y-1/2",
-            )}
+            className={styles.splitter}
         >
-            <span
-                aria-hidden="true"
-                className={cn(
-                    "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
-                    "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
-                    "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
-                )}
-            />
+            <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
     );
 }

@@ -13,7 +13,6 @@ import {
 import { Badge } from "#/components/atoms/badge";
 import { Chart } from "#/components/ui/chart";
 import { Table } from "#/components/ui/table";
-import { cn } from "#/lib/cn";
 import { useChartKey } from "../_kit/charts";
 import {
     DEFAULT_FILTERS,
@@ -26,18 +25,13 @@ import {
     type Types,
     type WidgetTab,
 } from "./data";
+import * as styles from "./styles";
 
 // The widgets a tab can hold, chosen by the tab's `component` and configured by its `data`.
 // They read the shared filters from context: a portal (the panel, or a popout window) keeps the
 // React context of where it is declared.
 
 export const FiltersContext = createContext<Filters>(DEFAULT_FILTERS);
-
-const segment = [
-    "h-6 px-2 text-xs text-palette-accent/85 outline-none first:rounded-s-md last:rounded-e-md",
-    "hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-    "aria-pressed:bg-palette-soft aria-pressed:text-palette-contrast",
-].join(" ");
 
 /**
  * A Fragiola chart. The Line/Bar choice is local state: pop the tab out to another window and
@@ -82,33 +76,32 @@ export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
     const total = Object.values(data)[0]?.reduce((a, b) => a + b, 0) ?? 0;
 
     return (
-        <div ref={ref} className="flex h-full min-h-36 flex-col gap-1 p-3">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                <span className="text-base font-semibold tabular-nums">
+        <div ref={ref} className={styles.chart}>
+            <div className={styles.chartHeader}>
+                <span className={styles.chartTotal}>
                     {`$${(total / 10).toFixed(1)}k`}
                 </span>
                 {Object.keys(data).map((name, index) => (
-                    <span
-                        key={name}
-                        className="flex items-center gap-1 text-palette-accent/85"
-                    >
+                    <span key={name} className={styles.legendItem}>
                         <span
                             aria-hidden="true"
-                            className="size-2 rounded-full"
+                            className={styles.legendDot}
                             style={{ background: `var(--chart-${index + 1})` }}
                         />
                         {name}
                     </span>
                 ))}
-                <fieldset className="ms-auto flex rounded-md border border-palette-line">
-                    <legend className="sr-only">Chart type</legend>
+                <fieldset className={styles.segments}>
+                    <legend className={styles.segmentsLegend}>
+                        Chart type
+                    </legend>
                     {(["line", "bar"] as const).map((value) => (
                         <button
                             key={value}
                             type="button"
                             aria-pressed={kind === value}
                             onClick={() => setKind(value)}
-                            className={segment}
+                            className={styles.segment}
                         >
                             {value === "line" ? "Line" : "Bar"}
                         </button>
@@ -119,7 +112,7 @@ export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
                 <Chart
                     key={chartKey}
                     option={option}
-                    className="min-h-0 flex-1"
+                    className={styles.chartCanvas}
                 />
             )}
         </div>
@@ -153,30 +146,16 @@ export function KpiWidget({ tab }: { tab: WidgetTab<"kpi"> }) {
         kpi.unit === "$" ? `$${n.toFixed(0)}` : `${n.toFixed(1)}${kpi.unit}`;
 
     return (
-        <div
-            data-status={status}
-            className="flex min-h-full flex-col justify-center gap-3 p-4"
-        >
-            <p className="text-sm text-palette-accent/85">{kpi.title}</p>
-            <p
-                data-testid="kpi-value"
-                className={cn(
-                    "text-4xl font-semibold tabular-nums",
-                    status === "alert" && "palette-danger text-palette-accent",
-                )}
-            >
+        <div data-status={status} className={styles.kpi}>
+            <p className={styles.kpiTitle}>{kpi.title}</p>
+            <p data-testid="kpi-value" className={styles.kpiValue(status)}>
                 {format(value)}
             </p>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge
-                    variant="soft"
-                    className={
-                        status === "alert" ? "palette-danger" : "palette-green"
-                    }
-                >
+            <div className={styles.kpiFooter}>
+                <Badge variant="soft" className={styles.kpiBadge(status)}>
                     {status === "alert" ? "Below target" : "On target"}
                 </Badge>
-                <label className="flex items-center gap-2 text-palette-accent/85">
+                <label className={styles.kpiThreshold}>
                     Alert below
                     <input
                         type="number"
@@ -185,7 +164,7 @@ export function KpiWidget({ tab }: { tab: WidgetTab<"kpi"> }) {
                         onChange={(event) =>
                             setThreshold(Number(event.target.value))
                         }
-                        className="h-7 w-20 rounded-md border border-palette-line bg-palette-soft px-2 text-palette-contrast tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-palette-ring"
+                        className={styles.kpiInput}
                     />
                 </label>
             </div>
@@ -199,13 +178,8 @@ export function OrdersWidget() {
     const rows = ORDERS.filter(
         (order) => filters.region === "all" || order.region === filters.region,
     );
-    const tone = {
-        Paid: "palette-green",
-        Pending: "palette-orange",
-        Refunded: "palette-danger",
-    };
     return (
-        <div className="p-3">
+        <div className={styles.orders}>
             <Table.Root>
                 <Table.Header>
                     <Table.Row>
@@ -213,23 +187,27 @@ export function OrdersWidget() {
                         <Table.Head>Customer</Table.Head>
                         <Table.Head>Region</Table.Head>
                         <Table.Head>Status</Table.Head>
-                        <Table.Head className="text-end">Amount</Table.Head>
+                        <Table.Head className={styles.amountHead}>
+                            Amount
+                        </Table.Head>
                     </Table.Row>
                 </Table.Header>
                 <Table.Body>
                     {rows.map((order) => (
                         <Table.Row key={order.id}>
-                            <Table.Cell className="tabular-nums">
+                            <Table.Cell className={styles.orderId}>
                                 {order.id}
                             </Table.Cell>
                             <Table.Cell>{order.customer}</Table.Cell>
                             <Table.Cell>{order.region}</Table.Cell>
                             <Table.Cell>
-                                <Badge className={tone[order.status]}>
+                                <Badge
+                                    className={styles.orderStatus[order.status]}
+                                >
                                     {order.status}
                                 </Badge>
                             </Table.Cell>
-                            <Table.Cell className="text-end tabular-nums">
+                            <Table.Cell className={styles.amount}>
                                 {`$${order.amount}`}
                             </Table.Cell>
                         </Table.Row>

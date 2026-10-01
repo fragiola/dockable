@@ -49,6 +49,39 @@ const KIT_FILES = [
     "undo.ts",
 ];
 
+/**
+ * Where an example's `.tsx` styles itself instead of reading `styles.ts`: a class string on a
+ * `className`, a string inside a `className={…}` expression, or a `cn()` call. Returns each
+ * offending snippet.
+ */
+function inlineClasses(source: string): string[] {
+    const found: string[] = [];
+    for (const match of source.matchAll(/\bcn\(/g)) {
+        found.push(source.slice(match.index, match.index + 40));
+    }
+    for (const match of source.matchAll(/\bclassName=/g)) {
+        const start = match.index + match[0].length;
+        const open = source[start];
+        if (open === '"' || open === "'") {
+            found.push(source.slice(match.index, match.index + 60));
+            continue;
+        }
+        if (open !== "{") continue;
+        // the expression up to its matching brace
+        let depth = 0;
+        let end = start;
+        for (; end < source.length; end++) {
+            if (source[end] === "{") depth++;
+            else if (source[end] === "}" && --depth === 0) break;
+        }
+        const expression = source.slice(start + 1, end);
+        if (/["'`]/.test(expression)) {
+            found.push(`className={${expression.slice(0, 60)}}`);
+        }
+    }
+    return found;
+}
+
 function walk(dir: string): string[] {
     return readdirSync(dir).flatMap((name) => {
         const path = join(dir, name);
@@ -152,6 +185,39 @@ describe("the examples", () => {
             );
             expect(source, `${slug}/index.tsx`).toMatch(/<Dockable\.Root\b/);
         }
+    });
+
+    it("keep their classes in styles.ts: no class string or cn() in a .tsx", () => {
+        for (const slug of listExampleSlugs()) {
+            expect(
+                statSync(join(EXAMPLES_DIR, slug, "styles.ts"), {
+                    throwIfNoEntry: false,
+                })?.isFile(),
+                `${slug}/styles.ts`,
+            ).toBe(true);
+            for (const file of walk(join(EXAMPLES_DIR, slug))) {
+                if (!file.endsWith(".tsx")) continue;
+                const source = readFileSync(file, "utf-8");
+                expect(
+                    inlineClasses(source),
+                    relative(EXAMPLES_DIR, file),
+                ).toEqual([]);
+            }
+        }
+    });
+
+    it("finds inline classes the styles.ts rule forbids", () => {
+        expect(inlineClasses('<div className="flex" />')).toHaveLength(1);
+        expect(inlineClasses("<div className={cn(a, b)} />")).toHaveLength(1);
+        expect(
+            inlineClasses('<div className={on ? "a" : styles.b} />'),
+        ).toHaveLength(1);
+        expect(inlineClasses("<div className={`x`} />")).toHaveLength(1);
+        expect(
+            inlineClasses(
+                "<div className={styles.tab} /><p className={styles.dot(tone)} />",
+            ),
+        ).toEqual([]);
     });
 
     it("use the app's API only: never engine.adapter (an adapter's side)", () => {

@@ -10,8 +10,8 @@ import {
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { type ReactNode, useId, useState } from "react";
 import { Switch } from "#/components/ui/switch";
-import { cn } from "#/lib/cn";
 import { Card } from "../_kit/card";
+import * as styles from "./styles";
 
 // What the layout holds: one component, named in its data.
 type Types = { tabs: { card: { name: string } } };
@@ -80,9 +80,9 @@ export default function UnstyledExample() {
     );
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col">
-            <div className="palette-surface flex flex-wrap items-center gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast">
-                <span className="flex items-center gap-2 text-sm">
+        <div className={styles.page}>
+            <div className={styles.toolbar}>
+                <span className={styles.switchLabel}>
                     <Switch.Root
                         aria-labelledby={labelId}
                         data-testid="styles-toggle"
@@ -93,7 +93,7 @@ export default function UnstyledExample() {
                     </Switch.Root>
                     <span id={labelId}>Styles</span>
                 </span>
-                <span className="text-sm text-palette-accent/85">
+                <span className={styles.caption}>
                     {styled
                         ? "Class names over the same primitives."
                         : "No CSS: only the structural inline styles the primitives set."}
@@ -103,17 +103,12 @@ export default function UnstyledExample() {
                 styles, `all: initial` on this wrapper cuts that inheritance, so the layout below
                 shows what the browser gives you with no CSS at all (black serif text on the
                 canvas colour). It is the example's own element, not a Dockable primitive; an app
-                would not need it. With the styles, it is the gutter around the layout: the
-                root's row is `position: absolute; inset: 0`, so padding on the root would not
-                move it. The key remounts the view when the switch flips. */}
+                would not need it. With the styles, it is the gutter around the layout. The key
+                remounts the view when the switch flips. */}
             <div
                 key={styled ? "styled" : "unstyled"}
                 data-testid={styled ? undefined : "unstyled-frame"}
-                className={
-                    styled
-                        ? "flex min-h-0 flex-1 flex-col p-(--dk-gap)"
-                        : undefined
-                }
+                className={styles.frame(styled)}
                 style={
                     styled
                         ? undefined
@@ -129,11 +124,7 @@ export default function UnstyledExample() {
             >
                 <Dockable.Root
                     model={model}
-                    className={
-                        styled
-                            ? "palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast"
-                            : undefined
-                    }
+                    className={styles.root(styled)}
                     // Root is `position: relative`; it only needs a size to lay out in.
                     style={styled ? undefined : { flex: 1 }}
                 >
@@ -144,14 +135,7 @@ export default function UnstyledExample() {
                         {(tab) => (
                             <Dockable.Panel
                                 node={tab}
-                                // panels sit in a layer above the tabsets, whose overflow cannot
-                                // clip them: the panel repeats the tabset's inner radius on its
-                                // corners
-                                className={
-                                    styled
-                                        ? "palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
-                                        : undefined
-                                }
+                                className={styles.panel(styled)}
                             >
                                 {styled ? (
                                     <Card name={tab.data.name} />
@@ -161,19 +145,10 @@ export default function UnstyledExample() {
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    {/* Where a dragged tab would land: drawn only with the styles. Panels are
-                        portalled into the root after it, so it needs a stacking order to paint
-                        above them. */}
+                    {/* Where a dragged tab would land: drawn only with the styles. */}
                     {styled ? (
                         <Dockable.DropIndicator
-                            className={(state) =>
-                                cn(
-                                    "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
-                                    state.kind === "edge"
-                                        ? "palette-orange bg-palette-base/25"
-                                        : "palette-blue bg-palette-base/20",
-                                )
-                            }
+                            className={styles.dropIndicator}
                             style={(state) => ({
                                 transitionDuration: `${state.tabDragSpeed}s`,
                             })}
@@ -194,55 +169,22 @@ function TabSet({
     styled: boolean;
 }) {
     return (
-        <Dockable.TabSet
-            node={node}
-            className={
-                styled
-                    ? "palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)"
-                    : undefined
-            }
-        >
-            <div
-                className={
-                    styled
-                        ? "flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line"
-                        : undefined
-                }
-            >
+        <Dockable.TabSet node={node} className={styles.tabset(styled)}>
+            <div className={styles.strip(styled)}>
                 <Dockable.TabList<Types>
                     aria-label="Tabs"
-                    // the start padding is load-bearing: a tab flush with the tabset's edge could
-                    // not take a drop before it (that edge is the tabset's side drop)
-                    className={
-                        styled
-                            ? "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]"
-                            : undefined
-                    }
+                    className={styles.tabList(styled)}
                 >
                     {(tab) => (
-                        <Dockable.Tab
-                            node={tab}
-                            className={
-                                styled
-                                    ? cn(
-                                          "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
-                                          "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
-                                          "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
-                                          "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
-                                          "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
-                                      )
-                                    : undefined
-                            }
-                        >
-                            <span className={styled ? "truncate" : undefined}>
+                        <Dockable.Tab node={tab} className={styles.tab(styled)}>
+                            <span className={styles.tabName(styled)}>
                                 {tab.data.name}
                             </span>
-                            {/* the active tabset's marker: `in-data-active:` reads the enclosing
-                                TabSet's data-active, `group-data-selected/tab:` this tab's */}
+                            {/* the active tabset's marker, with the styles */}
                             {styled ? (
                                 <span
                                     aria-hidden="true"
-                                    className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"
+                                    className={styles.tabMarker}
                                 />
                             ) : null}
                         </Dockable.Tab>
@@ -254,11 +196,7 @@ function TabSet({
     );
 }
 
-/**
- * The bar between two children of a row. With the styles: `--dk-splitter-size` thick (the engine
- * measures it), with a wider grab area (`::after`) and a grip for the themes that show one
- * (`--dk-grip`).
- */
+/** The bar between two children of a row; with the styles, a grip for the themes that show one. */
 function Splitter({
     styled,
     ...props
@@ -267,34 +205,10 @@ function Splitter({
         <Dockable.Splitter
             {...props}
             aria-label="Resize"
-            className={
-                styled
-                    ? cn(
-                          "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
-                          "after:absolute after:transition-colors after:duration-(--dk-motion)",
-                          "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
-                          // side by side: a vertical bar
-                          "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
-                          "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
-                          "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
-                          "rtl:data-[orientation=vertical]:after:translate-x-1/2",
-                          // stacked: a horizontal bar
-                          "data-[orientation=horizontal]:h-(--dk-splitter-size) data-[orientation=horizontal]:cursor-ns-resize",
-                          "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
-                          "data-[orientation=horizontal]:after:h-(--dk-splitter-grab) data-[orientation=horizontal]:after:-translate-y-1/2",
-                      )
-                    : undefined
-            }
+            className={styles.splitter(styled)}
         >
             {styled ? (
-                <span
-                    aria-hidden="true"
-                    className={cn(
-                        "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
-                        "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
-                        "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
-                    )}
-                />
+                <span aria-hidden="true" className={styles.splitterGrip} />
             ) : null}
         </Dockable.Splitter>
     );

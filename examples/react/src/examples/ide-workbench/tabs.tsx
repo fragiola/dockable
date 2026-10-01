@@ -10,8 +10,8 @@ import { Bug, Maximize2, Minimize2, SquareTerminal, X } from "lucide-react";
 
 import { ContextMenu } from "#/components/ui/context-menu";
 import { Select } from "#/components/ui/select";
-import { cn } from "#/lib/cn";
 import { FileIcon } from "./explorer";
+import * as styles from "./styles";
 import { editorData, type Types } from "./workspace";
 
 // The workbench's tabset: file tabs with an icon, a dirty dot and a close button, a context
@@ -41,13 +41,10 @@ function TabIcon({ tab }: { tab: TabOf<Types> }) {
             return <FileIcon path={tab.data.path} />;
         case "terminal":
             return (
-                <SquareTerminal
-                    aria-hidden="true"
-                    className="size-3.5 shrink-0"
-                />
+                <SquareTerminal aria-hidden="true" className={styles.tabIcon} />
             );
         default:
-            return <Bug aria-hidden="true" className="size-3.5 shrink-0" />;
+            return <Bug aria-hidden="true" className={styles.tabIcon} />;
     }
 }
 
@@ -72,16 +69,10 @@ function WorkbenchTab({
                 node={tab}
                 render={<ContextMenu.Trigger />}
                 data-dirty={dirty ? "" : undefined}
-                className={cn(
-                    "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 ps-2.5 pe-1",
-                    "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
-                    "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
-                    "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
-                    "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
-                )}
+                className={styles.tab}
             >
                 <TabIcon tab={tab} />
-                <span className="truncate">{tab.data.name}</span>
+                <span className={styles.tabName}>{tab.data.name}</span>
                 {canClose ? (
                     <button
                         type="button"
@@ -94,35 +85,23 @@ function WorkbenchTab({
                             event.stopPropagation(); // do not select the tab being closed
                             close();
                         }}
-                        className={cn(
-                            "grid size-5 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
-                            "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
-                        )}
+                        className={styles.closeButton}
                     >
                         {/* VS Code's convention: a dot while modified, the cross on hover */}
                         {dirty ? (
                             <span
                                 data-testid="dirty-dot"
-                                className="size-2 rounded-full bg-palette-contrast group-hover/tab:hidden"
+                                className={styles.dirtyDot}
                             />
                         ) : null}
                         <X
                             aria-hidden="true"
-                            className={cn(
-                                "size-3.5",
-                                dirty
-                                    ? "hidden group-hover/tab:block"
-                                    : "opacity-0 group-hover/tab:opacity-100 group-data-selected/tab:opacity-100",
-                            )}
+                            className={styles.closeIcon(dirty)}
                         />
                     </button>
                 ) : null}
-                {/* the active tabset's marker: `in-data-active:` reads the enclosing TabSet's
-                    data-active, `group-data-selected/tab:` this tab's */}
-                <span
-                    aria-hidden="true"
-                    className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"
-                />
+                {/* the active tabset's marker */}
+                <span aria-hidden="true" className={styles.tabMarker} />
             </Dockable.Tab>
             <ContextMenu.Content>
                 <ContextMenu.Item disabled={!canClose} onClick={close}>
@@ -195,20 +174,15 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
         model.get("maximized-tabset", { layoutId })?.id === node.id;
 
     return (
-        <Dockable.TabSet
-            node={node}
-            className="palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line) data-maximized:shadow-none"
-        >
-            <div className="flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line">
+        <Dockable.TabSet node={node} className={styles.tabset}>
+            <div className={styles.strip}>
                 <Dockable.TabList<Types>
                     aria-label={node.id === "panel" ? "Panel" : "Editors"}
-                    // the start padding is load-bearing: a tab flush with the tabset's edge could
-                    // not take a drop before it (that edge is the tabset's side drop)
-                    className="flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]"
+                    className={styles.tabList}
                 >
                     {(tab) => <WorkbenchTab tab={tab} tabset={node} />}
                 </Dockable.TabList>
-                <div className="flex items-center gap-0.5 pe-1">
+                <div className={styles.tabsetActions}>
                     {/* the tabs that do not fit, one click away (rendered only while there are some) */}
                     <Select.Root
                         value={null}
@@ -222,7 +196,9 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                             aria-label={`${hiddenTabs.length} more tabs`}
                             data-testid="overflow-select"
                             render={
-                                <Select.Trigger className="h-6 min-w-0 gap-1 rounded-sm px-2 py-0 text-xs" />
+                                <Select.Trigger
+                                    className={styles.overflowTrigger}
+                                />
                             }
                         >
                             {`+${hiddenTabs.length}`}
@@ -245,20 +221,17 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                                 value: !maximized,
                             })
                         }
-                        className={cn(
-                            "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
-                            "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
-                        )}
+                        className={styles.maximizeButton}
                     >
                         {maximized ? (
                             <Minimize2
                                 aria-hidden="true"
-                                className="size-3.5"
+                                className={styles.maximizeIcon}
                             />
                         ) : (
                             <Maximize2
                                 aria-hidden="true"
-                                className="size-3.5"
+                                className={styles.maximizeIcon}
                             />
                         )}
                     </button>
@@ -269,7 +242,7 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                 render={
                     <div>
                         {node.children.length === 0 ? (
-                            <p className="grid h-full place-items-center p-4 text-center text-sm text-palette-accent/85">
+                            <p className={styles.emptyState}>
                                 Open a file from the explorer.
                             </p>
                         ) : null}

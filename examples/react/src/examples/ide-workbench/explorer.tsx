@@ -9,11 +9,14 @@ import {
     RotateCcw,
 } from "lucide-react";
 import { useState } from "react";
-import { cn } from "#/lib/cn";
 import { FILE_PATHS, fileName, folderOf } from "./files";
+import * as styles from "./styles";
 
 // The file tree. It is the content of the left border's "Explorer" tab, and opens files through
 // the callback it is given (the example turns that into the `tab.add` / `tab.select` commands).
+
+/** A file type: its icon, and the tone that colours it. */
+type FileType = [typeof FileCode2, styles.FileTone];
 
 /** A file icon, coloured by type through a palette (so every theme recolours it). */
 export function FileIcon({
@@ -23,30 +26,17 @@ export function FileIcon({
     path: string;
     className?: string;
 }) {
-    const [Icon, palette] = path.endsWith(".json")
-        ? [FileJson, "palette-orange"]
+    const [Icon, tone]: FileType = path.endsWith(".json")
+        ? [FileJson, "orange"]
         : path.endsWith(".md")
-          ? [FileText, "palette-green"]
+          ? [FileText, "green"]
           : path.endsWith(".css")
-            ? [Hash, "palette-purple"]
-            : [FileCode2, "palette-blue"];
+            ? [Hash, "purple"]
+            : [FileCode2, "blue"];
     return (
-        <Icon
-            aria-hidden="true"
-            className={cn(
-                palette,
-                "size-3.5 shrink-0 text-palette-accent",
-                className,
-            )}
-        />
+        <Icon aria-hidden="true" className={styles.fileIcon(tone, className)} />
     );
 }
-
-const row = [
-    "flex h-6 w-full items-center gap-1.5 pe-2 text-start text-[13px] outline-none",
-    "text-palette-accent/85 hover:bg-palette-soft hover:text-palette-contrast",
-    "focus-visible:ring-1 focus-visible:ring-palette-ring focus-visible:ring-inset",
-].join(" ");
 
 export function Explorer({
     activePath,
@@ -71,20 +61,23 @@ export function Explorer({
         });
 
     return (
-        <nav aria-label="Explorer" className="flex h-full min-w-0 flex-col">
-            <div className="flex h-(--dk-tab-height) min-h-8 items-center justify-between ps-3 pe-1 text-[11px] font-semibold tracking-wider text-palette-accent/85 uppercase">
+        <nav aria-label="Explorer" className={styles.explorer}>
+            <div className={styles.explorerHeader}>
                 Explorer
                 <button
                     type="button"
                     aria-label="Reset the saved layout"
                     title="Reset the saved layout"
                     onClick={onResetLayout}
-                    className="grid size-6 place-items-center rounded-sm outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-1 focus-visible:ring-palette-ring"
+                    className={styles.resetButton}
                 >
-                    <RotateCcw aria-hidden="true" className="size-3.5" />
+                    <RotateCcw
+                        aria-hidden="true"
+                        className={styles.resetIcon}
+                    />
                 </button>
             </div>
-            <ul className="min-h-0 flex-1 overflow-auto pb-2">
+            <ul className={styles.explorerTree}>
                 {folders.map((folder) => {
                     const files = FILE_PATHS.filter(
                         (path) => folderOf(path) === folder,
@@ -97,14 +90,11 @@ export function Explorer({
                                     type="button"
                                     aria-expanded={open}
                                     onClick={() => toggle(folder)}
-                                    className={cn(row, "ps-2")}
+                                    className={styles.folderRow}
                                 >
                                     <ChevronRight
                                         aria-hidden="true"
-                                        className={cn(
-                                            "size-3.5 shrink-0 transition-transform rtl:-scale-x-100",
-                                            open && "rotate-90 rtl:-rotate-90",
-                                        )}
+                                        className={styles.folderChevron(open)}
                                     />
                                     {folder}
                                 </button>
@@ -122,21 +112,23 @@ export function Explorer({
                                                         : undefined
                                                 }
                                                 onClick={() => onOpen(path)}
-                                                className={cn(
-                                                    row,
-                                                    folder ? "ps-7" : "ps-3",
-                                                    "aria-[current]:bg-palette-soft aria-[current]:text-palette-contrast",
+                                                className={styles.fileRow(
+                                                    Boolean(folder),
                                                 )}
                                             >
                                                 <FileIcon path={path} />
-                                                <span className="truncate">
+                                                <span
+                                                    className={styles.fileName}
+                                                >
                                                     {fileName(path)}
                                                 </span>
                                                 {dirtyPaths.has(path) ? (
                                                     <span
                                                         role="img"
                                                         aria-label="modified"
-                                                        className="ms-auto size-2 shrink-0 rounded-full bg-palette-accent"
+                                                        className={
+                                                            styles.fileModified
+                                                        }
                                                     />
                                                 ) : null}
                                             </button>

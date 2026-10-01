@@ -17,8 +17,8 @@ import {
     Trash2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { cn } from "#/lib/cn";
 import { Card } from "../_kit/card";
+import * as styles from "./styles";
 
 // Drop zones: elements outside the layout that take a dragged tab. While a drag the zone takes is
 // in progress it has `data-drop-active`; while the pointer is over it, `data-drop-over` (and the
@@ -73,17 +73,15 @@ export default function DropZones() {
     };
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col">
-            {/* The root needs a size. Its row is `position: absolute; inset: 0`, so the gutter
-                around the layout goes on a wrapper: padding on the root would not move the row. */}
-            <div className="flex min-h-0 flex-1 flex-col p-(--dk-gap)">
+        <div className={styles.page}>
+            <div className={styles.frame}>
                 <Dockable.Root
                     model={model}
                     popoutURL={popoutURL}
                     // copies <html> and <body>'s attributes (light/dark, the example theme) into
                     // each popout window, kept in sync
                     popoutMirrorRoot
-                    className="palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast"
+                    className={styles.root}
                 >
                     <Dockable.Row<Types>
                         renderSplitter={(props) => <Splitter {...props} />}
@@ -92,22 +90,14 @@ export default function DropZones() {
                     </Dockable.Row>
                     <Dockable.Panels<Types>>
                         {(tab) => (
-                            <Dockable.Panel
-                                node={tab}
-                                // panels sit in a layer above the tabsets, whose overflow cannot
-                                // clip them: the panel repeats the tabset's inner radius on its
-                                // corners
-                                className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
-                            >
+                            <Dockable.Panel node={tab} className={styles.panel}>
                                 <Card name={tab.data.name} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    {/* Panels are portalled into the root after the indicator: it needs a
-                        stacking order to paint above them. */}
                     <DropIndicator />
                     {/* a popped-out tab's window: its own layout, and its own outline */}
-                    <Dockable.Popout<Types> className="palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast">
+                    <Dockable.Popout<Types> className={styles.popout}>
                         {() => (
                             <>
                                 <Dockable.Row<Types>
@@ -123,13 +113,13 @@ export default function DropZones() {
                     </Dockable.Popout>
                 </Dockable.Root>
             </div>
-            <div className="palette-surface flex flex-wrap items-stretch gap-2 border-t border-palette-line bg-palette-base p-2">
+            <div className={styles.zones}>
                 <Zone
                     model={model}
                     id="close"
                     icon={Trash2}
                     label="Close"
-                    tone="palette-danger"
+                    tone="danger"
                     // only tabs that may be closed
                     accepts={(tab) => model.can("tab.close", { tabId: tab.id })}
                     onDrop={(tab) =>
@@ -144,7 +134,7 @@ export default function DropZones() {
                     id="right"
                     icon={PanelRight}
                     label="Open to the right"
-                    tone="palette-blue"
+                    tone="blue"
                     accepts={() => true}
                     onDrop={(tab) => {
                         const root = model.get("root-row");
@@ -165,7 +155,7 @@ export default function DropZones() {
                     id="popout"
                     icon={ExternalLink}
                     label="Pop out"
-                    tone="palette-green"
+                    tone="green"
                     accepts={(tab) =>
                         model.can("tab.popout", { tabId: tab.id })
                     }
@@ -176,11 +166,7 @@ export default function DropZones() {
                         )
                     }
                 />
-                <p
-                    role="status"
-                    data-testid="status"
-                    className="basis-full text-center text-xs text-palette-accent/85"
-                >
+                <p role="status" data-testid="status" className={styles.status}>
                     {status}
                 </p>
             </div>
@@ -208,7 +194,7 @@ function Zone({
     label: ReactNode;
     accepts: (tab: TabOf<Types>) => boolean;
     onDrop: (tab: TabOf<Types>) => void;
-    tone: string;
+    tone: styles.Tone;
 }) {
     return (
         <Dockable.DropZone
@@ -223,16 +209,9 @@ function Zone({
                 if (tab) onDrop(tab);
             }}
             data-testid={`zone-${id}`}
-            className={[
-                tone,
-                "flex flex-1 items-center justify-center gap-2 rounded-(--dk-radius) border-2 border-dashed border-palette-line p-3 text-sm",
-                "text-palette-accent/85 transition-[opacity,background-color] duration-(--dk-motion)",
-                // idle: faded; a drag it would take: armed; the pointer over it: filled
-                "opacity-50 data-drop-active:border-palette-base data-drop-active:opacity-100",
-                "data-drop-over:border-solid data-drop-over:bg-palette-base data-drop-over:text-palette-contrast",
-            ].join(" ")}
+            className={styles.zone(tone)}
         >
-            <Icon aria-hidden className="size-4" />
+            <Icon aria-hidden className={styles.zoneIcon} />
             {label}
         </Dockable.DropZone>
     );
@@ -256,34 +235,21 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 /** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
-        <Dockable.TabSet
-            node={node}
-            className="palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)"
-        >
-            <div className="flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line">
+        <Dockable.TabSet node={node} className={styles.tabset}>
+            <div className={styles.strip}>
                 <Dockable.TabList<Types>
                     aria-label="Tabs"
-                    // the start padding is load-bearing: a tab flush with the tabset's edge could
-                    // not take a drop before it (that edge is the tabset's side drop)
-                    className="flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]"
+                    className={styles.tabList}
                 >
                     {(tab) => (
-                        <Dockable.Tab
-                            node={tab}
-                            className={cn(
-                                "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
-                                "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
-                                "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
-                                "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
-                                "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
-                            )}
-                        >
-                            <span className="truncate">{tab.data.name}</span>
-                            {/* the active tabset's marker: `in-data-active:` reads the enclosing
-                                TabSet's data-active, `group-data-selected/tab:` this tab's */}
+                        <Dockable.Tab node={tab} className={styles.tab}>
+                            <span className={styles.tabName}>
+                                {tab.data.name}
+                            </span>
+                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
-                                className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"
+                                className={styles.tabMarker}
                             />
                         </Dockable.Tab>
                     )}
@@ -294,38 +260,15 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/**
- * The bar between two children of a row: `--dk-splitter-size` thick (the engine measures it), with
- * a wider grab area (`::after`) and a grip for the themes that show one (`--dk-grip`).
- */
+/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter
             {...props}
             aria-label="Resize"
-            className={cn(
-                "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
-                "after:absolute after:transition-colors after:duration-(--dk-motion)",
-                "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
-                // side by side: a vertical bar
-                "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
-                "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
-                "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
-                "rtl:data-[orientation=vertical]:after:translate-x-1/2",
-                // stacked: a horizontal bar
-                "data-[orientation=horizontal]:h-(--dk-splitter-size) data-[orientation=horizontal]:cursor-ns-resize",
-                "data-[orientation=horizontal]:after:inset-x-0 data-[orientation=horizontal]:after:top-1/2",
-                "data-[orientation=horizontal]:after:h-(--dk-splitter-grab) data-[orientation=horizontal]:after:-translate-y-1/2",
-            )}
+            className={styles.splitter}
         >
-            <span
-                aria-hidden="true"
-                className={cn(
-                    "pointer-events-none [display:var(--dk-grip)] rounded-full bg-palette-line",
-                    "group-data-[orientation=vertical]/splitter:h-8 group-data-[orientation=vertical]/splitter:w-1",
-                    "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
-                )}
-            />
+            <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
     );
 }
@@ -334,14 +277,7 @@ function Splitter(props: RowSplitterProps<Types>) {
 function DropIndicator() {
     return (
         <Dockable.DropIndicator
-            className={(state) =>
-                cn(
-                    "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
-                    state.kind === "edge"
-                        ? "palette-orange bg-palette-base/25"
-                        : "palette-blue bg-palette-base/20",
-                )
-            }
+            className={styles.dropIndicator}
             style={(state) => ({
                 transitionDuration: `${state.tabDragSpeed}s`,
             })}

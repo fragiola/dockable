@@ -7,6 +7,7 @@ rendered alone by this app at `index.html?id=<folder>`.
 src/examples/
   <slug>/index.tsx     the example (default export, "use client")
   <slug>/meta.ts       title, description, category, order, features, docs link, layout, height
+  <slug>/styles.ts     how it looks: one class string (or state function) per part
   <slug>/*.ts(x)       optional sibling files, shown in the code panel
   _kit/                shared demo content and app logic (cards, charts, tables, the rename
                        field, the undo manager); no Dockable assembly, no styles
@@ -46,31 +47,40 @@ looking for its feature would search, and `order` is its place inside the catego
 
 ## Anatomy of an example
 
-A reader opens `index.tsx` and sees the whole layout: what is rendered, how Dockable is assembled,
-and every class it is styled with. The code panel shows the example's files, the shared demo
-content it imports and the theme's CSS, and nothing else.
+A reader opens `index.tsx` and sees the logic first: what is rendered, how Dockable is assembled,
+which API is called. How it looks is one click away, in `styles.ts`. The code panel shows the
+example's files, the shared demo content it imports and the theme's CSS, and nothing else.
 
 ```tsx
+import * as styles from "./styles";
+
 export default function HelloLayout() {
     const [model] = useState(() => createModel<Types>(json));
     return (
-        <div className="flex min-h-0 flex-1 flex-col p-(--dk-gap)">
-            <Dockable.Root model={model} className="palette-surface min-h-0 flex-1 …">
+        <div className={styles.frame}>
+            <Dockable.Root model={model} className={styles.root}>
                 <Dockable.Row<Types> renderSplitter={(props) => <Splitter {...props} />}>
                     {renderNode}
                 </Dockable.Row>
                 <Dockable.Panels<Types>>
                     {(tab) => (
-                        <Dockable.Panel node={tab} className="palette-raised overflow-auto …">
+                        <Dockable.Panel node={tab} className={styles.panel}>
                             <Card name={tab.data.name} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                <Dockable.DropIndicator className={(state) => …} />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
 }
+```
+
+```ts
+// styles.ts
+export const panel = "palette-raised overflow-auto rounded-b-[…] bg-palette-base …";
+export const dropIndicator = (state: DropIndicatorState) =>
+    cn("z-20 rounded-(--dk-radius) border-2 …", state.kind === "edge" ? "palette-orange …" : "palette-blue …");
 ```
 
 `hello-layout` is the reference: the recursion (`renderNode`), the `TabSet` and the `Splitter` are
@@ -84,11 +94,23 @@ functions in the same file, below the default export.
   `Dockable.EdgeIndicator` only when it shows edge targets.
 - **No option bags.** A part takes what it renders (`node`, a callback that is the subject of the
   example), not `options` or `renderX` hooks that hide what it renders.
-- **Classes inline**, on the element they style, with `cn()` for several strings or conditions.
-  A class that does a job beyond looks keeps a short comment: the tab list's start padding (a tab
-  flush with the edge cannot take a drop before it), the panel's bottom radius (panels sit above
-  the tabsets, which cannot clip them), the drop indicator's `z-20` (panels are portalled after
-  it), the splitter's `::after` grab area, `in-data-active:` on the active marker.
+- **Classes in `styles.ts`**, beside `index.tsx`. It exports one `const` per styled part, named
+  after the part (`root`, `tabset`, `tabList`, `tab`, `tabMarker`, `panel`, `splitter`,
+  `dropIndicator`, …): a class string, built with `cn()` when it is long or has conditions, or a
+  function of the part's state when the classes depend on it (`(state: DropIndicatorState) =>
+  cn(…)`, or a plain argument such as a tone). The `.tsx` files `import * as styles from
+  "./styles"` and write `className={styles.tab}`; a state function goes straight to the part
+  (`className={styles.dropIndicator}`). No `.tsx` file of an example holds a class string or calls
+  `cn()` (`tests/examples.test.ts`). An example with several `.tsx` files shares its `styles.ts`.
+- **Classes are complete literals.** Tailwind finds a class by reading the source, so
+  `` `palette-${tone}` `` is never generated: map a value to a full class instead
+  (`{ ok: "palette-green", … }[tone]`).
+- **A class that does a job beyond looks keeps a short comment** in `styles.ts`: the tab list's
+  start padding (a tab flush with the edge cannot take a drop before it), the panel's bottom radius
+  (panels sit above the tabsets, which cannot clip them), the drop indicator's `z-20` (panels are
+  portalled after it), the splitter's `::after` grab area, `in-data-active:` on the active marker.
+  What is not a class stays in the `.tsx`: `aria-*`, `data-*`, structural `style` props (the
+  indicator's `transitionDuration`), what renders when.
 - **Accessible names inline**: `aria-label="Resize"` on each splitter (through `renderSplitter`),
   on each icon button, on each tab list.
 - **Tokens, not values that differ per theme**: radius, sizes, fonts, the selected tab and the
