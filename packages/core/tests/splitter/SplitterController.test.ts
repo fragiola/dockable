@@ -17,7 +17,7 @@ let controller: SplitterController | undefined;
 afterEach(() => {
     controller?.dispose();
     controller = undefined;
-    engine?.dispose();
+    engine?.adapter.dispose();
     engine = undefined;
     document.body.innerHTML = "";
     vi.useRealTimers();
@@ -52,7 +52,7 @@ function setup(realtimeResize = true) {
         realtimeResize,
     });
     const dom = mountTwoTabsets(engine, rects);
-    engine.sync();
+    engine.run("measure-and-position");
     controller = createSplitterController(engine, "row", 1);
     controller.attach(dom.splitter);
     return { model, rects, actions, engine, controller, ...dom };
@@ -158,18 +158,18 @@ describe("SplitterController pointer drag", () => {
     it("clamps the position to the splitter bounds", () => {
         const { engine, splitter, controller } = setup(false);
         const children = ["ts0", "ts1"].map((id) => ({
-            rect: engine.rect("tabset", id) ?? {
+            rect: engine.adapter.rect("tabset", id) ?? {
                 x: 0,
                 y: 0,
                 width: 0,
                 height: 0,
             },
-            range: engine.minMax(id),
+            range: engine.get("size-limits", { node: id }),
         }));
         const bounds = splitterBounds(
             children,
             "horizontal",
-            engine.splitterSize(),
+            engine.get("splitter-size"),
             1,
         );
         pointerDown(splitter, controller);
@@ -188,7 +188,7 @@ describe("SplitterController pointer drag", () => {
         pointer("pointercancel", document, 230);
         expect(realtime.actions.at(-1)?.transient).toBe(false);
         realtime.controller.dispose();
-        realtime.engine.dispose();
+        realtime.engine.adapter.dispose();
         document.body.innerHTML = "";
 
         const outline = setup(false);
@@ -203,11 +203,11 @@ describe("SplitterController pointer drag", () => {
         vi.useFakeTimers();
         const { engine, splitter, controller } = setup(true);
         pointerDown(splitter, controller);
-        expect(engine.isSplitterDragging()).toBe(true);
+        expect(engine.is("splitter-dragging")).toBe(true);
         pointer("pointerup", document, 210);
-        expect(engine.isSplitterDragging()).toBe(true);
+        expect(engine.is("splitter-dragging")).toBe(true);
         vi.advanceTimersByTime(300);
-        expect(engine.isSplitterDragging()).toBe(false);
+        expect(engine.is("splitter-dragging")).toBe(false);
     });
 
     it("disables pointer events on iframes during the drag", () => {
@@ -235,7 +235,7 @@ describe("SplitterController pointer drag", () => {
         const { actions, engine, splitter, controller } = setup(true);
         pointerDown(splitter, controller);
         controller.dispose();
-        expect(engine.isSplitterDragging()).toBe(false);
+        expect(engine.is("splitter-dragging")).toBe(false);
         expect(controller.getState().dragging).toBe(false);
 
         pointer("pointermove", document, 260);
@@ -309,15 +309,15 @@ describe("SplitterController pointer guards", () => {
 
     it("measures the splitter along its current orientation", () => {
         const { model, rects, engine, splitter } = setup(true);
-        engine.sync();
-        expect(engine.splitterSize()).toBe(8);
+        engine.run("measure-and-position");
+        expect(engine.get("splitter-size")).toBe(8);
         // the row turns vertical: the same splitter is now a horizontal bar, 8px high
         rects.set(splitter, 10, 180, 400, 8);
         model.run("layout.configure", {
             defaults: { layout: { rootOrientation: "vertical" } },
         });
-        engine.sync();
-        expect(engine.splitterSize()).toBe(8);
+        engine.run("measure-and-position");
+        expect(engine.get("splitter-size")).toBe(8);
     });
 });
 
@@ -403,11 +403,13 @@ describe("SplitterController ARIA", () => {
 
     it("registers its element for splitter-size discovery", () => {
         const { engine, splitter } = setup();
-        expect(engine.getRegistrations().splitters.get(splitter)?.()).toBe(
-            true,
-        );
+        expect(
+            engine.adapter.getRegistrations().splitters.get(splitter)?.(),
+        ).toBe(true);
         controller?.attach(null);
-        expect(engine.getRegistrations().splitters.has(splitter)).toBe(false);
+        expect(engine.adapter.getRegistrations().splitters.has(splitter)).toBe(
+            false,
+        );
     });
 });
 
@@ -447,19 +449,19 @@ describe("border splitters", () => {
             600,
         );
         const el = () => root.appendChild(document.createElement("div"));
-        engine.attachRoot(root);
-        engine.registerMeasurable(
+        engine.adapter.attachRoot(root);
+        engine.adapter.registerMeasurable(
             "border_left",
             "borderheader",
             rects.set(el(), 0, 0, 30, 600),
         );
-        engine.registerMeasurable(
+        engine.adapter.registerMeasurable(
             "row",
             "row",
             rects.set(el(), 238, 0, 562, 600),
         );
         const splitterElement = rects.set(el(), 230, 0, 8, 600);
-        engine.sync();
+        engine.run("measure-and-position");
         controller = createSplitterController(engine, "border_left", 0);
         controller.attach(splitterElement);
         expect(controller.isHorizontal()).toBe(true);

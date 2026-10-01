@@ -25,9 +25,9 @@ const engines: LayoutEngine[] = [];
 
 afterEach(() => {
     DragDropManager.getDragState() &&
-        engines[0]?.getDragDropManager().onDragEnded();
+        engines[0]?.adapter.getDragDropManager().onDragEnded();
     for (const engine of engines.splice(0)) {
-        engine.dispose();
+        engine.adapter.dispose();
     }
     document.body.innerHTML = "";
 });
@@ -71,17 +71,17 @@ function setup(
     const tb0 = button(10, 20);
     const tb1 = button(70, 20);
     const tb2 = button(214, 20);
-    engine.registerMeasurable("t0", "tabbutton", tb0);
-    engine.registerMeasurable("t1", "tabbutton", tb1);
-    engine.registerMeasurable("t2", "tabbutton", tb2);
-    engine.sync();
+    engine.adapter.registerMeasurable("t0", "tabbutton", tb0);
+    engine.adapter.registerMeasurable("t1", "tabbutton", tb1);
+    engine.adapter.registerMeasurable("t2", "tabbutton", tb2);
+    engine.run("measure-and-position");
     return {
         model,
         rects,
         commands,
         onExternalDrag: options.onExternalDrag,
         engine,
-        manager: engine.getDragDropManager(),
+        manager: engine.adapter.getDragDropManager(),
         ...dom,
         tb0,
         tb1,
@@ -202,7 +202,7 @@ describe("drops", () => {
                 to: "ts1",
                 location,
             });
-            for (const engine of engines.splice(0)) engine.dispose();
+            for (const engine of engines.splice(0)) engine.adapter.dispose();
             document.body.innerHTML = "";
         }
     });
@@ -403,18 +403,18 @@ function openPopout(s: Setup, tab: string) {
     if (!win) throw new Error("no window");
     const openWindow = vi.fn(() => win);
     // setOptions takes every option an adapter passes, so the external drag handler goes along
-    s.engine.setOptions({
+    s.engine.adapter.setOptions({
         popout: { supportsPopout: true, openWindow },
         onExternalDrag: s.onExternalDrag,
     });
     const result = s.model.run("tab.popout", { tab });
     const windowId = result.ok ? result.value.window : "";
-    const sub = s.engine.getPopoutManager().getLayoutEngine(windowId);
+    const sub = s.engine.adapter.getPopoutManager().getLayoutEngine(windowId);
     if (!sub) throw new Error("no popout engine");
     const subRoot = win.document.body.appendChild(
         win.document.createElement("div"),
     );
-    sub.attachRoot(subRoot);
+    sub.adapter.attachRoot(subRoot);
     return { sub, subRoot, windowId, openWindow };
 }
 
@@ -427,9 +427,9 @@ describe("layout arbitration", () => {
         expect(s.manager.getIndicatorState().dragging).toBe(true);
         s.root.dispatchEvent(dragEvent("dragleave", 100, 100));
         subRoot.dispatchEvent(dragEvent("dragenter", 100, 100));
-        expect(sub.getDragDropManager().getIndicatorState().dragging).toBe(
-            true,
-        );
+        expect(
+            sub.adapter.getDragDropManager().getIndicatorState().dragging,
+        ).toBe(true);
         expect(s.manager.getIndicatorState().dragging).toBe(false);
     });
 
@@ -601,7 +601,7 @@ describe("add drags (a consumer element dragged in)", () => {
                 { ...tab },
             ),
         ).toBe(false);
-        s.engine.detachRoot();
+        s.engine.adapter.detachRoot();
         expect(
             DragDropManager.startAddDrag(
                 s.model,
@@ -940,7 +940,7 @@ describe("drop zones", () => {
         );
         const onDrop = vi.fn();
         const onOverChange = vi.fn();
-        const unregister = s.engine.registerDropZone(element, {
+        const unregister = s.engine.adapter.registerDropZone(element, {
             onDrop,
             onOverChange,
             ...options,

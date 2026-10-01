@@ -57,9 +57,9 @@ const jsonWith = (prefix: string): LayoutJson => ({
 const engines: LayoutEngine[] = [];
 afterEach(() => {
     if (DragDropManager.getDragState()) {
-        engines[0]?.getDragDropManager().onDragEnded();
+        engines[0]?.adapter.getDragDropManager().onDragEnded();
     }
-    for (const engine of engines.splice(0)) engine.dispose();
+    for (const engine of engines.splice(0)) engine.adapter.dispose();
     document.body.innerHTML = "";
 });
 
@@ -90,40 +90,44 @@ function layout(
     const root = document.body.appendChild(document.createElement("div"));
     rects.set(root, 10, 20, 400, 300);
     const el = () => root.appendChild(document.createElement("div"));
-    engine.attachRoot(root);
-    engine.prepare();
-    engine.registerMeasurable("row", "row", rects.set(el(), 10, 20, 400, 300));
-    engine.registerMeasurable(
+    engine.adapter.attachRoot(root);
+    engine.adapter.prepare();
+    engine.adapter.registerMeasurable(
+        "row",
+        "row",
+        rects.set(el(), 10, 20, 400, 300),
+    );
+    engine.adapter.registerMeasurable(
         "ts0",
         "tabset",
         rects.set(el(), 10, 20, 196, 300),
     );
-    engine.registerMeasurable(
+    engine.adapter.registerMeasurable(
         "ts0",
         "tabsetcontent",
         rects.set(el(), 10, 50, 196, 270),
     );
-    engine.registerMeasurable(
+    engine.adapter.registerMeasurable(
         "ts1",
         "tabset",
         rects.set(el(), 214, 20, 196, 300),
     );
-    engine.registerMeasurable(
+    engine.adapter.registerMeasurable(
         "ts1",
         "tabsetcontent",
         rects.set(el(), 214, 50, 196, 270),
     );
     for (const id of [`${prefix}0`, `${prefix}1`, `${prefix}2`]) {
-        engine.registerTabPanel(id, el());
+        engine.adapter.registerTabPanel(id, el());
     }
-    engine.sync();
+    engine.run("measure-and-position");
     return {
         model,
         engine,
         root,
         commands,
         metas,
-        manager: engine.getDragDropManager(),
+        manager: engine.adapter.getDragDropManager(),
     };
 }
 
@@ -158,7 +162,7 @@ describe("dragging between two models", () => {
         const group = new DragGroup();
         const a = layout("a", { dragGroup: group });
         const b = layout("b", { dragGroup: group });
-        const moveable = a.engine.getMoveableElement("a0");
+        const moveable = a.engine.adapter.getMoveableElement("a0");
         const transfers: Transfer[] = [];
         group.onTransfer((transfer) => transfers.push(transfer));
 
@@ -169,7 +173,7 @@ describe("dragging between two models", () => {
         expect(b.model.get("node", { node: "a0" })).toMatchObject({
             data: { name: "a0" },
         });
-        expect(b.engine.getMoveableElement("a0")).toBe(moveable);
+        expect(b.engine.adapter.getMoveableElement("a0")).toBe(moveable);
 
         // each side ran its own command, marked as a transfer
         expect(b.commands.map((x) => x.command)).toEqual(["tab.add"]);
@@ -252,14 +256,14 @@ describe("dragging between two models", () => {
                 ctx.command === "tab.close" && !ctx.dryRun ? veto() : next(),
         });
         const b = layout("b", { dragGroup: group });
-        const moveable = a.engine.getMoveableElement("a0");
+        const moveable = a.engine.adapter.getMoveableElement("a0");
         const transfers: Transfer[] = [];
         group.onTransfer((transfer) => transfers.push(transfer));
 
         dragBetween(a, "a0", b);
         expect(ids(b.model, "ts1")).toEqual(["b2"]);
         expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);
-        expect(a.engine.getMoveableElement("a0")).toBe(moveable);
+        expect(a.engine.adapter.getMoveableElement("a0")).toBe(moveable);
         expect(transfers).toEqual([]);
     });
 
@@ -357,7 +361,7 @@ describe("DragGroup.transfer (from code)", () => {
         const group = new DragGroup();
         const a = layout("a", { dragGroup: group });
         expect(group.has(a.engine)).toBe(true);
-        a.engine.dispose();
+        a.engine.adapter.dispose();
         expect(group.has(a.engine)).toBe(false);
     });
 });

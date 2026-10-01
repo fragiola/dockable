@@ -81,7 +81,7 @@ function domId(prefix: string, nodeId: string) {
 /**
  * The DOM id of a tab's button, referenced by its panel's `aria-labelledby`. `scope` keeps the ids
  * of two layouts on one page apart (their models may both have a `tab-1`):
- * `engine.tabButtonId(id)` passes the engine's own.
+ * `engine.get("tab-button-id", { tab })` passes the engine's own.
  */
 export function getTabButtonId(tabId: string, scope = ""): string {
     return domId(`dockable-${scope}tabbutton-`, tabId);

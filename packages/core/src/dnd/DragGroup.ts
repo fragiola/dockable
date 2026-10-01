@@ -91,7 +91,7 @@ export class DragGroup {
     /** The main engine of `model` in this group, if it joined. */
     engineOf(model: ModelHandle): LayoutEngine<AnyTypes> | undefined {
         for (const engine of this.engines) {
-            if (engine.model === model) {
+            if (engine.adapter.model === model) {
                 return engine;
             }
         }
@@ -117,7 +117,7 @@ export class DragGroup {
         if (
             !source ||
             !target ||
-            !source.model.get("node", { node: request.tab })
+            !source.adapter.model.get("node", { node: request.tab })
         ) {
             return undefined;
         }
@@ -143,8 +143,8 @@ export class DragGroup {
         location: DockLocation,
         index: number,
     ): string | undefined {
-        const source = sourceEngine.model as unknown as Model<AnyTypes>;
-        const target = targetEngine.model as unknown as Model<AnyTypes>;
+        const source = sourceEngine.adapter.model as unknown as Model<AnyTypes>;
+        const target = targetEngine.adapter.model as unknown as Model<AnyTypes>;
         const tab = source.get("node", { node: tabId });
         if (source === target || tab?.type !== "tab") {
             return undefined;
@@ -166,13 +166,16 @@ export class DragGroup {
         }
         const from = endOf(source, tabId);
         // the content moves with the tab: take its element before the source forgets it
-        const moveable = sourceEngine.main.takeMoveable(tabId);
+        const moveable = sourceEngine.adapter.main.adapter.takeMoveable(tabId);
         const added = target.run("tab.add", add, { meta: { ...meta } });
         if (!added.ok) {
-            sourceEngine.main.adoptMoveable(tabId, moveable);
+            sourceEngine.adapter.main.adapter.adoptMoveable(tabId, moveable);
             return undefined;
         }
-        targetEngine.main.adoptMoveable(added.value.tab, moveable);
+        targetEngine.adapter.main.adapter.adoptMoveable(
+            added.value.tab,
+            moveable,
+        );
         const closed = source.run(
             "tab.close",
             { tab: tabId },
@@ -181,16 +184,21 @@ export class DragGroup {
         if (!closed.ok) {
             // the source refused after all (its answer changed since the dry run): undo the add,
             // and the content goes back with the tab
-            const back = targetEngine.main.takeMoveable(added.value.tab);
+            const back = targetEngine.adapter.main.adapter.takeMoveable(
+                added.value.tab,
+            );
             const undone = target.run(
                 "tab.close",
                 { tab: added.value.tab },
                 { meta: { ...meta } },
             );
             if (undone.ok) {
-                sourceEngine.main.adoptMoveable(tabId, back);
+                sourceEngine.adapter.main.adapter.adoptMoveable(tabId, back);
             } else {
-                targetEngine.main.adoptMoveable(added.value.tab, back);
+                targetEngine.adapter.main.adapter.adoptMoveable(
+                    added.value.tab,
+                    back,
+                );
             }
             return undefined;
         }

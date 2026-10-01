@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    engine?.dispose();
+    engine?.adapter.dispose();
     engine = undefined;
     vi.restoreAllMocks();
 });
@@ -83,7 +83,7 @@ function setup(
         popout: { supportsPopout: true, ...popout },
     });
     const root = document.body.appendChild(document.createElement("div"));
-    engine.attachRoot(root);
+    engine.adapter.attachRoot(root);
     const opened: Window[] = [];
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => {
         const win = open();
@@ -96,7 +96,7 @@ function setup(
         model,
         engine,
         root,
-        manager: engine.getPopoutManager(),
+        manager: engine.adapter.getPopoutManager(),
         layoutId,
         layout: () => model.get("window", { window: layoutId }),
         opened,
@@ -114,7 +114,7 @@ describe("opening", () => {
         // the name is scoped to the engine: two models may both have a "window-1"
         expect(openSpy).toHaveBeenCalledWith(
             `popout.html?id=${encodeURIComponent(layoutId)}`,
-            `dockable-${engine.idScope}${layoutId}`,
+            `dockable-${engine.adapter.idScope}${layoutId}`,
             `left=${rect?.x},top=${rect?.y},width=${rect?.width},height=${rect?.height}`,
         );
     });
@@ -125,7 +125,7 @@ describe("opening", () => {
         const { engine, manager, layoutId, openSpy } = setup({ openWindow });
         expect(openWindow).toHaveBeenCalledWith(
             `popout.html?id=${encodeURIComponent(layoutId)}`,
-            `dockable-${engine.idScope}${layoutId}`,
+            `dockable-${engine.adapter.idScope}${layoutId}`,
             expect.stringContaining("width="),
         );
         expect(openSpy).not.toHaveBeenCalled();
@@ -134,8 +134,8 @@ describe("opening", () => {
 
     it("keeps one window through a StrictMode-style detach and reattach", async () => {
         const { engine, root, manager, layoutId, openSpy, opened } = setup();
-        engine.detachRoot();
-        engine.attachRoot(root);
+        engine.adapter.detachRoot();
+        engine.adapter.attachRoot(root);
         await tick();
         expect(openSpy).toHaveBeenCalledTimes(1);
         expect(opened[0]?.close).not.toHaveBeenCalled();
@@ -144,7 +144,7 @@ describe("opening", () => {
 
     it("closes the windows after the current task once the engine detaches", async () => {
         const { engine, manager, layoutId, opened } = setup();
-        engine.detachRoot();
+        engine.adapter.detachRoot();
         expect(opened[0]?.close).not.toHaveBeenCalled();
         await tick();
         expect(opened[0]?.close).toHaveBeenCalled();
@@ -209,10 +209,12 @@ describe("opening", () => {
         await load(win);
         const sub = manager.getLayoutEngine(layoutId);
         const root = manager.getContentRoot(layoutId) as HTMLElement;
-        sub?.attachRoot(root.appendChild(win.document.createElement("div")));
-        expect(sub?.main).toBe(engine);
+        sub?.adapter.attachRoot(
+            root.appendChild(win.document.createElement("div")),
+        );
+        expect(sub?.adapter.main).toBe(engine);
         expect(sub?.layoutId).toBe(layoutId);
-        expect(sub?.isMainLayout()).toBe(false);
+        expect(sub?.is("main-layout")).toBe(false);
     });
 
     it("records the window's rect when it resizes, as a transient window.configure", async () => {
@@ -286,7 +288,7 @@ describe("opening", () => {
         const nameB = b.openSpy.mock.calls.at(-1)?.[1];
         expect(a.layoutId).toBe(b.layoutId);
         expect(nameA).not.toBe(nameB);
-        a.engine.dispose();
+        a.engine.adapter.dispose();
     });
 });
 
@@ -301,9 +303,9 @@ describe("opening edge cases", () => {
         const openSpy = vi
             .spyOn(window, "open")
             .mockImplementation(() => fakePopout());
-        engine.getPopoutManager().sync();
+        engine.adapter.getPopoutManager().sync();
         expect(openSpy).not.toHaveBeenCalled(); // not attached yet
-        engine.attachRoot(
+        engine.adapter.attachRoot(
             document.body.appendChild(document.createElement("div")),
         );
         expect(openSpy).toHaveBeenCalledTimes(1);
@@ -327,10 +329,10 @@ describe("opening edge cases", () => {
             model: first.model,
             popout: { supportsPopout: true },
         });
-        second.attachRoot(
+        second.adapter.attachRoot(
             document.body.appendChild(document.createElement("div")),
         );
-        first.engine.detachRoot();
+        first.engine.adapter.detachRoot();
         await tick();
         expect(win.close).not.toHaveBeenCalled(); // the old manager let go without closing
         // the reload's beforeunload does not dock the layout back through the old manager
@@ -338,8 +340,10 @@ describe("opening edge cases", () => {
         expect(
             first.model.get("window", { window: first.layoutId }),
         ).toBeDefined();
-        expect(second.getPopoutManager().getWindow(first.layoutId)).toBe(win);
-        second.dispose();
+        expect(
+            second.adapter.getPopoutManager().getWindow(first.layoutId),
+        ).toBe(win);
+        second.adapter.dispose();
     });
 });
 
@@ -548,7 +552,7 @@ describe("resources", () => {
     it("dispose closes every window", async () => {
         const { manager, opened } = setup();
         await load(opened[0] as Window);
-        engine?.dispose();
+        engine?.adapter.dispose();
         engine = undefined;
         expect(opened[0]?.close).toHaveBeenCalled();
         expect(manager.getOpenLayoutIds()).toEqual([]);
@@ -561,7 +565,7 @@ describe("moveable elements across documents", () => {
         const win = opened[0] as Window;
         await load(win);
         const b = "b";
-        const moveable = engine?.getMoveableElement(b) as HTMLElement;
+        const moveable = engine?.adapter.getMoveableElement(b) as HTMLElement;
         expect(moveable.ownerDocument).toBe(document); // created in the main document
         const input = moveable.appendChild(document.createElement("input"));
         input.value = "kept";
@@ -569,12 +573,12 @@ describe("moveable elements across documents", () => {
         const popoutPanel = (
             manager.getContentRoot(layoutId) as HTMLElement
         ).appendChild(win.document.createElement("div"));
-        engine?.attachMoveable(b, popoutPanel);
+        engine?.adapter.attachMoveable(b, popoutPanel);
         expect(moveable.ownerDocument).toBe(win.document);
         expect(popoutPanel.firstChild).toBe(moveable);
 
         const mainPanel = root.appendChild(document.createElement("div"));
-        engine?.attachMoveable(b, mainPanel);
+        engine?.adapter.attachMoveable(b, mainPanel);
         expect(moveable.ownerDocument).toBe(document);
         expect(mainPanel.firstChild).toBe(moveable);
         expect(input.value).toBe("kept");

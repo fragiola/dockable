@@ -173,7 +173,7 @@ export class DragState {
     subjectOf<T extends DockableTypes>(
         model: Model<T>,
     ): DragSubject<T> | undefined {
-        return sameModel(this.mainEngine.model, model)
+        return sameModel(this.mainEngine.adapter.model, model)
             ? (this.subject as unknown as DragSubject<T>)
             : undefined;
     }
@@ -280,7 +280,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     /** Ends the page's drag, if any (a drag source's `dragend`). */
     static endDrag() {
-        DragDropManager.dragState?.mainEngine
+        DragDropManager.dragState?.mainEngine.adapter
             .getDragDropManager()
             .onDragEnded();
     }
@@ -325,7 +325,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             dragging: false,
             dragNodeId: undefined,
             showEdges: false,
-            tabDragSpeed: this.engine.getTabDragSpeed(),
+            tabDragSpeed: this.engine.adapter.getTabDragSpeed(),
             targetNodeId: undefined,
             targetTabSetId: undefined,
             index: -1,
@@ -379,7 +379,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     }
 
     private state(): AnyState {
-        return this.engine.model.state as unknown as AnyState;
+        return this.engine.adapter.model.state as unknown as AnyState;
     }
 
     private begin(
@@ -390,7 +390,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     ) {
         DragDropManager.setDragState(
             new DragState(
-                this.engine.main as unknown as LayoutEngine<AnyTypes>,
+                this.engine.adapter.main as unknown as LayoutEngine<AnyTypes>,
                 source,
                 subject,
                 onNewTabDropped,
@@ -419,7 +419,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         id: string,
         dragImage?: Element | null,
     ) => {
-        const node = this.engine.model.get("node", { node: id });
+        const node = this.engine.adapter.model.get("node", { node: id });
         if (node?.type !== "tab" && node?.type !== "tabset") {
             return;
         }
@@ -436,16 +436,16 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         }
         let x = 10;
         let y = 10;
-        const parent = this.engine.model.get("parent", { node: id });
+        const parent = this.engine.adapter.model.get("parent", { node: id });
         const inSideBorder =
             parent?.type === "border" &&
             (parent.location === "left" || parent.location === "right");
         if (node.type === "tab" && !inSideBorder) {
             // keep the grab point: the image is offset by the pointer position within the element
-            const r = this.engine.getBoundingClientRect(
+            const r = this.engine.adapter.rectInLayout(
                 dragImage as HTMLElement,
             );
-            const root = this.engine.getDomRect();
+            const root = this.engine.adapter.getDomRect();
             x = event.clientX - root.x - r.x;
             y = event.clientY - root.y - r.y;
         }
@@ -476,13 +476,13 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     /** Asks the main engine's `onExternalDrag` whether a foreign drag can be dropped here. */
     private startExternalDrag(event: DragEventLike) {
-        const external = this.engine.getOnExternalDrag()?.(event);
+        const external = this.engine.adapter.getOnExternalDrag()?.(event);
         if (!external) {
             return;
         }
         DragDropManager.setDragState(
             new DragState(
-                this.engine.main as unknown as LayoutEngine<AnyTypes>,
+                this.engine.adapter.main as unknown as LayoutEngine<AnyTypes>,
                 "external",
                 { kind: "new", tab: external.tab as TabInitOf<AnyTypes> },
                 external.onDrop,
@@ -505,7 +505,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
      */
     private installLostDragGuard() {
         this.removeLostDragGuard?.();
-        const doc = this.engine.getCurrentDocument();
+        const doc = this.engine.get("owner-document");
         if (!doc) {
             return;
         }
@@ -553,7 +553,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const onDocumentEnd = () => {
             this.clearDragLocal();
             if (DragDropManager.dragState) {
-                DragDropManager.dragState.mainEngine
+                DragDropManager.dragState.mainEngine.adapter
                     .getDragDropManager()
                     .onDragEnded();
             }
@@ -561,17 +561,21 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         doc.addEventListener("dragend", onDocumentEnd);
         doc.addEventListener("drop", onDocumentEnd);
         const self = this as unknown as DragDropManager<AnyTypes>;
-        const main = this.engine.main === this.engine;
+        const main = this.engine.adapter.main === this.engine;
         if (main) {
             const managers =
-                DragDropManager.attachedMains.get(this.engine.model) ?? [];
+                DragDropManager.attachedMains.get(this.engine.adapter.model) ??
+                [];
             managers.push(self);
-            DragDropManager.attachedMains.set(this.engine.model, managers);
+            DragDropManager.attachedMains.set(
+                this.engine.adapter.model,
+                managers,
+            );
         }
         return () => {
             if (main) {
                 const managers = DragDropManager.attachedMains.get(
-                    this.engine.model,
+                    this.engine.adapter.model,
                 );
                 const index = managers?.indexOf(self) ?? -1;
                 if (index >= 0) {
@@ -594,13 +598,13 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     /** the managers of every layout of this model: the main one and the popout windows' */
     private managers(): DragDropManager<T>[] {
-        const main = this.engine.main;
-        const managers = [main.getDragDropManager()];
-        const popouts = main.getPopoutManager();
+        const main = this.engine.adapter.main;
+        const managers = [main.adapter.getDragDropManager()];
+        const popouts = main.adapter.getPopoutManager();
         for (const layoutId of popouts.getOpenLayoutIds()) {
             const manager = popouts
                 .getLayoutEngine(layoutId)
-                ?.getDragDropManager();
+                ?.adapter.getDragDropManager();
             if (manager) {
                 managers.push(manager);
             }
@@ -636,7 +640,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const state = DragDropManager.dragState;
         if (state && state.source !== "external" && isForeignDrag(event)) {
             // a drag that is not Dockable's while a stale state lingers (its dragend never came)
-            state.mainEngine.getDragDropManager().onDragEnded();
+            state.mainEngine.adapter.getDragDropManager().onDragEnded();
         }
         // ask onExternalDrag once per entry into this layout: dragenter also bubbles from every
         // child the pointer crosses, which the enter count already tracks
@@ -681,7 +685,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private setPointerOnAllWindows(enable: boolean) {
         const docs = new Set<Document>();
         for (const manager of this.managers()) {
-            const doc = manager.engine.getCurrentDocument();
+            const doc = manager.engine.get("owner-document");
             if (doc) {
                 docs.add(doc);
             }
@@ -700,7 +704,9 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         if (event && state.source !== "external" && isForeignDrag(event)) {
             return false; // not Dockable's drag
         }
-        if (sameModel(state.mainEngine.model, this.engine.model)) {
+        if (
+            sameModel(state.mainEngine.adapter.model, this.engine.adapter.model)
+        ) {
             return true;
         }
         return this.isGroupTransfer(state);
@@ -708,12 +714,15 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     /** a drag of a tab of another model whose layout is in this layout's drag group */
     private isGroupTransfer(state: DragState): boolean {
-        const group = this.engine.getDragGroup();
+        const group = this.engine.adapter.getDragGroup();
         return (
             group !== undefined &&
             state.source === "internal" &&
             state.subject.kind === "tab" &&
-            !sameModel(state.mainEngine.model, this.engine.model) &&
+            !sameModel(
+                state.mainEngine.adapter.model,
+                this.engine.adapter.model,
+            ) &&
             group.has(state.mainEngine)
         );
     }
@@ -734,9 +743,9 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const layout = this.engine.layoutId;
         const settings = resolveLayout(this.state().defaults);
         const showEdges =
-            this.engine.model.get("maximized-tabset", { layout }) ===
+            this.engine.adapter.model.get("maximized-tabset", { layout }) ===
                 undefined && settings.edgeDock;
-        const root = this.engine.getFreshDomRect();
+        const root = this.engine.adapter.getFreshDomRect();
         // the outline starts as a 1x1 rect at the pointer (a view may animate from it)
         this.setIndicator({
             visible: false,
@@ -746,7 +755,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             dragging: true,
             dragNodeId: state.dragId,
             showEdges,
-            tabDragSpeed: this.engine.getTabDragSpeed(),
+            tabDragSpeed: this.engine.adapter.getTabDragSpeed(),
             targetNodeId: undefined,
             targetTabSetId: undefined,
             index: -1,
@@ -760,12 +769,14 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private geometry(): DropGeometry {
         const engine = this.engine;
         return {
-            node: (id) => engine.rect("row", id) ?? engine.rect("tabset", id),
-            tabStrip: (id) => engine.rect("tabstrip", id),
-            content: (id) => engine.rect("tabsetcontent", id),
-            tabButton: (id) => engine.rect("tabbutton", id),
-            borderStrip: (id) => engine.rect("borderheader", id),
-            borderContent: (id) => engine.rect("bordercontent", id),
+            node: (id) =>
+                engine.adapter.rect("row", id) ??
+                engine.adapter.rect("tabset", id),
+            tabStrip: (id) => engine.adapter.rect("tabstrip", id),
+            content: (id) => engine.adapter.rect("tabsetcontent", id),
+            tabButton: (id) => engine.adapter.rect("tabbutton", id),
+            borderStrip: (id) => engine.adapter.rect("borderheader", id),
+            borderContent: (id) => engine.adapter.rect("bordercontent", id),
         };
     }
 
@@ -792,11 +803,18 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                 payload: { ...(subject.tab as TabInit), ...placement },
             };
         }
-        if (!sameModel(state.mainEngine.model, this.engine.model)) {
+        if (
+            !sameModel(
+                state.mainEngine.adapter.model,
+                this.engine.adapter.model,
+            )
+        ) {
             // a drag group transfer: the target adds the tab (with its id when it is free)
             const tab = subject.tab;
             const { type: _type, ...fields } = tab;
-            const payload = this.engine.model.get("node", { node: tab.id })
+            const payload = this.engine.adapter.model.get("node", {
+                node: tab.id,
+            })
                 ? { ...fields, id: undefined }
                 : fields;
             return {
@@ -813,7 +831,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     /** whether the model accepts a command (asked once per candidate during a drag) */
     private accepts(state: DragState, command: DropCommand): boolean {
         // the subject is the drag's: within one drag and one state, the placement decides
-        const model = this.engine.model as unknown as Model<AnyTypes>;
+        const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
         if (this.verdictsFor !== state || this.verdictsState !== model.state) {
             this.verdictsFor = state;
             this.verdictsState = model.state;
@@ -828,13 +846,16 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             const subject = state.subject;
             const transfer =
                 subject.kind === "tab" &&
-                !sameModel(state.mainEngine.model, this.engine.model)
+                !sameModel(
+                    state.mainEngine.adapter.model,
+                    this.engine.adapter.model,
+                )
                     ? {
                           meta: {
                               transfer: {
                                   tabId: subject.tab.id,
-                                  from: state.mainEngine.model,
-                                  to: this.engine.model,
+                                  from: state.mainEngine.adapter.model,
+                                  to: this.engine.adapter.model,
                               },
                           },
                       }
@@ -848,7 +869,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                         // a transfer also closes the tab in its own model: that must be allowed too
                         (transfer === undefined ||
                             subject.kind !== "tab" ||
-                            state.mainEngine.model.can(
+                            state.mainEngine.adapter.model.can(
                                 "tab.close",
                                 { tab: subject.tab.id },
                                 transfer,
@@ -866,7 +887,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         if (!state) {
             return;
         }
-        const root = this.engine.getFreshDomRect();
+        const root = this.engine.adapter.getFreshDomRect();
         const x = event.clientX - root.x;
         const y = event.clientY - root.y;
 
@@ -957,11 +978,11 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         x: number,
         y: number,
     ): DropIndicatorState["revealedBorder"] {
-        if (!this.engine.isMainLayout()) {
+        if (!this.engine.is("main-layout")) {
             return undefined;
         }
         const state = this.state();
-        const r = this.engine.rect("row", state.root.id);
+        const r = this.engine.adapter.rect("row", state.root.id);
         if (!r || r.width === 0 || r.height === 0) {
             return undefined;
         }
@@ -1012,7 +1033,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         // an external drag's source is outside the page, so no dragend ends it: it ends when it
         // has left every layout
         const external = DragDropManager.dragState?.source === "external";
-        if (this.engine.isMainLayout() || external) {
+        if (this.engine.is("main-layout") || external) {
             const anyDragging = this.managers().some((manager) =>
                 manager.isDragging(),
             );
@@ -1036,9 +1057,14 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             }
             this.clearDragMain();
             this.removeLostDragGuard?.();
-            if (!sameModel(state.mainEngine.model, this.engine.model)) {
+            if (
+                !sameModel(
+                    state.mainEngine.adapter.model,
+                    this.engine.adapter.model,
+                )
+            ) {
                 // a drag from another layout of the group: clear the source's layouts too
-                state.mainEngine.getDragDropManager().clearDragMain();
+                state.mainEngine.adapter.getDragDropManager().clearDragMain();
             }
             DragDropManager.setDragState(undefined);
         }
@@ -1051,13 +1077,13 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         target: DropCommand,
         event: DragEventLike,
     ) {
-        const model = this.engine.model as unknown as Model<AnyTypes>;
+        const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
         if (
             this.isGroupTransfer(state) &&
             state.subject.kind === "tab" &&
             target.command === "tab.add"
         ) {
-            const group = this.engine.getDragGroup();
+            const group = this.engine.adapter.getDragGroup();
             group?.transferTab(
                 state.mainEngine,
                 this.engine as unknown as LayoutEngine<AnyTypes>,
@@ -1123,7 +1149,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             const state = DragDropManager.dragState;
             return (
                 state !== undefined &&
-                sameModel(state.mainEngine.model, model) &&
+                sameModel(state.mainEngine.adapter.model, model) &&
                 (zone.options.accepts?.(state.subject) ?? true)
             );
         };
@@ -1166,7 +1192,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             DragDropManager.setZoneOver(zone, false);
             zone.options.onDrop(state.subject, event as DragEvent);
             // the drag is over: the source's dragend (if any) finds nothing left to end
-            state.mainEngine.getDragDropManager().clearDragMain();
+            state.mainEngine.adapter.getDragDropManager().clearDragMain();
             DragDropManager.setDragState(undefined);
         };
         element.addEventListener("dragenter", onEnter);
@@ -1194,12 +1220,12 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const state = DragDropManager.dragState;
         if (
             state?.source !== "external" ||
-            state.mainEngine.model !== model ||
+            state.mainEngine.adapter.model !== model ||
             DragDropManager.isOverAnyZone()
         ) {
             return;
         }
-        const manager = state.mainEngine.getDragDropManager();
+        const manager = state.mainEngine.adapter.getDragDropManager();
         if (manager.managers().some((m) => m.isDragging())) return;
         manager.onDragEnded();
     }
@@ -1213,10 +1239,10 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     private static hideIndicators(model: object) {
         const state = DragDropManager.dragState;
-        if (state?.mainEngine.model !== model) {
+        if (state?.mainEngine.adapter.model !== model) {
             return;
         }
-        for (const manager of state.mainEngine
+        for (const manager of state.mainEngine.adapter
             .getDragDropManager()
             .managers()) {
             manager.hideIndicator();
