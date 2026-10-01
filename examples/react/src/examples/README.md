@@ -20,8 +20,9 @@ src/examples/
    themes and its source: `http://localhost:5173/?example=<slug>`. The embed alone is
    `pnpm --filter examples-react dev` (`http://localhost:5180/?id=<slug>`, it regenerates the
    loaders); `pnpm site:dev --base /dockable` serves it the way the site proxies it.
-3. The smoke e2e visits it in every theme, and inside an iframe. Add a spec for its main
-   behaviour in `e2e/examples/<slug>.spec.ts`.
+3. The smoke e2e visits it in the reference theme (every theme only for the representative
+   examples in `e2e/smoke.spec.ts`; `E2E_ALL_THEMES=1` runs them all), and inside an iframe. Add
+   a spec for its main behaviour in `e2e/examples/<slug>.spec.ts`.
 
 ## Rules (the docs Epic, DD6–DD12)
 
