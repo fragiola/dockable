@@ -55,10 +55,7 @@ const json: LayoutJson<Types> = {
 };
 
 function activeTabset(model: Model<Types>): TabsetNode<Types> | undefined {
-    return (
-        model.get("active-tabset-by-layout-id") ??
-        model.get("tabsets-by-layout-id")[0]
-    );
+    return model.get("active-tabset") ?? model.get("tabsets")[0];
 }
 
 function describe(result: CommandResult<unknown> | undefined): string {
@@ -131,10 +128,10 @@ export default function CommandsScenario() {
         [
             "Move to next tabset",
             () => {
-                const all = model.get("tabsets-by-layout-id");
+                const all = model.get("tabsets");
                 const tabset = activeTabset(model);
                 const tab = tabset
-                    ? model.get("selected-tab-by-tabset-id", {
+                    ? model.get("selected-tab-by", {
                           tabsetId: tabset.id,
                       })
                     : undefined;
@@ -154,7 +151,7 @@ export default function CommandsScenario() {
             () => {
                 const tabset = activeTabset(model);
                 const tab = tabset
-                    ? model.get("selected-tab-by-tabset-id", {
+                    ? model.get("selected-tab-by", {
                           tabsetId: tabset.id,
                       })
                     : undefined;
@@ -173,16 +170,14 @@ export default function CommandsScenario() {
                 if (!tabset) return undefined;
                 return model.run("tabset.maximize", {
                     tabsetId: tabset.id,
-                    value:
-                        model.get("maximized-tabset-by-layout-id")?.id !==
-                        tabset.id,
+                    value: model.get("maximized-tabset")?.id !== tabset.id,
                 });
             },
         ],
         [
             "Even weights",
             () => {
-                const row = model.get("root-row-by-layout-id");
+                const row = model.get("root-row");
                 if (!row) return undefined;
                 return model.run("row.resize", {
                     rowId: row.id,
@@ -195,7 +190,7 @@ export default function CommandsScenario() {
             () => {
                 const tabset = activeTabset(model);
                 const tab = tabset
-                    ? model.get("selected-tab-by-tabset-id", {
+                    ? model.get("selected-tab-by", {
                           tabsetId: tabset.id,
                       })
                     : undefined;

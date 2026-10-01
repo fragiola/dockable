@@ -147,7 +147,7 @@ export default function DropZones() {
                     tone="palette-blue"
                     accepts={() => true}
                     onDrop={(tab) => {
-                        const root = model.get("root-row-by-layout-id");
+                        const root = model.get("root-row");
                         if (!root) return;
                         // the right edge of the root row: a new tabset on the right of the layout
                         report(

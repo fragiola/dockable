@@ -2,6 +2,7 @@
 
 import {
     type BorderNode,
+    MAIN_LAYOUT,
     type RowNode,
     type TabOf,
     type TabsetNode,
@@ -57,7 +58,7 @@ export default function IdeWorkbench() {
                     return next();
                 }
                 const id = ctx.payload.tabId;
-                if (!editorData(ctx.get("node-by-id", { nodeId: id }))?.dirty) {
+                if (!editorData(ctx.get("node-by", { id }))?.dirty) {
                     return next();
                 }
                 if (confirmed.current.delete(id)) {
@@ -94,7 +95,7 @@ export default function IdeWorkbench() {
 
     // answer the first pending question
     const pendingData = pending[0]
-        ? editorData(model.get("node-by-id", { nodeId: pending[0] }))
+        ? editorData(model.get("node-by", { id: pending[0] }))
         : undefined;
     const answer = (choice: "save" | "discard" | "cancel") => {
         const id = pending[0];
@@ -112,7 +113,9 @@ export default function IdeWorkbench() {
         const data = editorData(tab);
         if (data?.dirty) dirtyPaths.add(data.path);
     }
-    const activePath = editorData(model.get("selected-tab-by-layout-id"))?.path;
+    const activePath = editorData(
+        model.get("selected-tab-by", { layoutId: MAIN_LAYOUT }),
+    )?.path;
 
     const renderContent = (tab: TabOf<Types>) => {
         switch (tab.component) {

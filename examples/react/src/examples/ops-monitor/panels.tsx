@@ -184,7 +184,7 @@ export function OverviewPanel({ simulation }: { simulation: Simulation }) {
     const { model } = useDockable<Types>();
     const { services } = useSimulation(simulation);
     const open = (id: ServiceId) => {
-        if (model.get("node-by-id", { nodeId: `service-${id}` })) {
+        if (model.get("node-by", { id: `service-${id}` })) {
             model.run("tab.select", { tabId: `service-${id}` });
         }
     };

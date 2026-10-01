@@ -86,9 +86,7 @@ export default function LayoutLab() {
     );
 
     const addTab = () => {
-        const target =
-            model.get("active-tabset-by-layout-id") ??
-            model.get("tabsets-by-layout-id")[0];
+        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
         if (!target) return;
         added += 1;
         model.run("tab.add", {

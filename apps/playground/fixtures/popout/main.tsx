@@ -70,13 +70,13 @@ function DockBack({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
     const inWindow = useModelState<Types, boolean>(
         (_state, m) =>
-            m.get("layout-id-by-node-id", { nodeId: tab.id }) !== MAIN_LAYOUT,
+            m.get("layout-id-by", { nodeId: tab.id }) !== MAIN_LAYOUT,
     );
     if (!inWindow) {
         return null;
     }
     const onClick = () => {
-        const target = model.get("tabsets-by-layout-id", {
+        const target = model.get("tabsets", {
             layoutId: MAIN_LAYOUT,
         })[0];
         if (target) {
@@ -106,11 +106,9 @@ function App() {
     });
 
     const popOutSelected = () => {
-        const tabset =
-            model.get("active-tabset-by-layout-id") ??
-            model.get("tabsets-by-layout-id")[0];
+        const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
         const tab = tabset
-            ? model.get("selected-tab-by-tabset-id", { tabsetId: tabset.id })
+            ? model.get("selected-tab-by", { tabsetId: tabset.id })
             : undefined;
         if (tab) {
             model.run("tab.popout", { tabId: tab.id });

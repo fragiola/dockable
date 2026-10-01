@@ -70,8 +70,7 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model, layoutId } = useDockable<Types>();
     const maximized = useModelState<Types, boolean>(
         (_state, model) =>
-            model.get("maximized-tabset-by-layout-id", { layoutId })?.id ===
-            tabset.id,
+            model.get("maximized-tabset", { layoutId })?.id === tabset.id,
     );
     return (
         <button
@@ -95,7 +94,7 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
 function TabPlace({ id }: { id: string }) {
     const parent = useModelState<Types, string>(
         (_state, model) =>
-            model.get("node-parent-by-id", { nodeId: id })?.id ?? "",
+            model.get("node-parent-by", { nodeId: id })?.id ?? "",
     );
     return <p className="text-palette-accent/85">{`${parent} · ${id}`}</p>;
 }

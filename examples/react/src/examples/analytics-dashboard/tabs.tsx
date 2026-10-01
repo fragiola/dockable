@@ -78,14 +78,12 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
 /** The tabset's header buttons: maximize, and pop out (or dock back when already popped out). */
 export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
-    const selected = model.get("selected-tab-by-tabset-id", {
+    const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
     const inPopout =
-        model.get("layout-id-by-node-id", { nodeId: tabset.id }) !==
-        MAIN_LAYOUT;
-    const maximized =
-        model.get("maximized-tabset-by-layout-id")?.id === tabset.id;
+        model.get("layout-id-by", { nodeId: tabset.id }) !== MAIN_LAYOUT;
+    const maximized = model.get("maximized-tabset")?.id === tabset.id;
 
     // one trigger both ways: it pops the selected tab out, and in the window docks it back
     const popoutTrigger = selected ? (

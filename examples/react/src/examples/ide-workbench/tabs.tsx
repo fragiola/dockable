@@ -22,7 +22,7 @@ import { editorData, type Types } from "./workspace";
 /** Whether a tab may be closed at all (its `enableClose`, else the layout default). */
 function closable(model: Model<Types>, tab: TabOf<Types>) {
     return (
-        model.get("tab-settings-by-id", { tabId: tab.id })?.enableClose === true
+        model.get("tab-settings-by", { tabId: tab.id })?.enableClose === true
     );
 }
 
@@ -192,8 +192,7 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
     const { model, layoutId } = useDockable<Types>();
     const { hiddenTabs } = useTabOverflow(node);
     const maximized =
-        model.get("maximized-tabset-by-layout-id", { layoutId })?.id ===
-        node.id;
+        model.get("maximized-tabset", { layoutId })?.id === node.id;
 
     return (
         <Dockable.TabSet

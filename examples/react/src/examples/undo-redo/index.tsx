@@ -300,7 +300,7 @@ let added = 0;
 /** Add a tab to this tabset, and close its selected tab: two undoable edits. */
 function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
-    const selected = model.get("selected-tab-by-tabset-id", {
+    const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
     const closeable =

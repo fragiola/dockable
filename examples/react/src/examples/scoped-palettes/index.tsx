@@ -257,7 +257,7 @@ function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
  */
 function Content({ tab }: { tab: TabOf<Types> }) {
     const palette = useModelState<Types, string>((_, model) =>
-        paletteOf(model.get("node-parent-by-id", { nodeId: tab.id })),
+        paletteOf(model.get("node-parent-by", { nodeId: tab.id })),
     );
     return (
         <div

@@ -69,7 +69,7 @@ export default function DropFiles() {
                     data: { name: first.name },
                 });
                 const added = new Map([[tab, first]]);
-                const container = model.get("node-parent-by-id", {
+                const container = model.get("node-parent-by", {
                     nodeId: tab,
                 });
                 for (const file of others) {

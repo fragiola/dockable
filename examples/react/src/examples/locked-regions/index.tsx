@@ -129,7 +129,7 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
     // what is placed: an existing tab (tab.move), a new tab (tab.add) or a tabset (tabset.move)
     const moving =
         "tabId" in payload
-            ? ctx.get("node-by-id", { nodeId: payload.tabId })
+            ? ctx.get("node-by", { id: payload.tabId })
             : "component" in payload
               ? payload
               : undefined;
@@ -143,7 +143,7 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
     const target =
         payload.to === MAIN_LAYOUT
             ? ctx.state.root
-            : ctx.get("node-by-id", { nodeId: payload.to });
+            : ctx.get("node-by", { id: payload.to });
     if (target?.type === "row") {
         const children = target.children;
         const beside =
@@ -366,7 +366,7 @@ function DocPanel({
                     : "Reference refuses this tab: try dragging it there."}
             </p>
             {region !== REFERENCE &&
-            model.get("node-parent-by-id", { nodeId: tab.id })?.id !==
+            model.get("node-parent-by", { nodeId: tab.id })?.id !==
                 REFERENCE ? (
                 <div>
                     <button

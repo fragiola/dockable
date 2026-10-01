@@ -85,7 +85,7 @@ export default function MultiMonitor() {
     const bringBack = () => {
         const windows = model.state.windows;
         const panels = windows.flatMap((layout) =>
-            model.get("tabs-by-layout-id", { layoutId: layout.id }),
+            model.get("tabs", { layoutId: layout.id }),
         );
         const commands = windows.map(
             (layout): BatchEntry<Types> => ({
