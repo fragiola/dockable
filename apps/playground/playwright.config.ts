@@ -10,7 +10,8 @@ export default defineConfig({
     forbidOnly: CI,
     retries: CI ? 2 : 0,
     // Native HTML5 drag tests are timing sensitive and flake when too many tests contend for
-    // the dev server, so the workers are capped (as in FlexLayout).
+    // the dev server, so the workers are capped (as in FlexLayout). CI gets its speed from
+    // shards on separate machines instead (.github/workflows/ci.yml), one worker each.
     workers: CI ? 1 : 4,
     reporter: CI ? [["line"], ["html", { open: "never" }]] : "line",
     use: {
