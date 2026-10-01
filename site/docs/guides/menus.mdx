@@ -57,7 +57,7 @@ in the trigger instead.
 
 ## The usual items
 
-`parent` is `model.get("node-parent-by-id", { nodeId: tab.id })`: the tab's tabset, or its border.
+`parent` is `model.get("node-parent-by", { nodeId: tab.id })`: the tab's tabset, or its border.
 
 | item | command | enable when |
 | --- | --- | --- |
@@ -79,7 +79,7 @@ not make the whole batch fail:
 ```ts
 import type { BatchEntry, TabOf } from "@fragiola/dockable";
 
-const parent = model.get("node-parent-by-id", { nodeId: tab.id });
+const parent = model.get("node-parent-by", { nodeId: tab.id });
 const siblings = parent && parent.type !== "row" ? parent.children : [];
 const others = siblings.filter((t) => t.id !== tab.id && model.can("tab.close", { tabId: t.id }));
 

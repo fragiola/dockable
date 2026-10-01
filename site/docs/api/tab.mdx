@@ -19,7 +19,7 @@ Enter or Space on the selected tab moves focus into its panel. Renders only its 
 
 Render it from a `Dockable.TabList` child function. The tab is a plain `TabOf<T>` node: its
 text is the app's (`tab.data`), and what it may do is asked of the model (`model.can`,
-`model.get("tab-settings-by-id", { tabId })`), never read from the node.
+`model.get("tab-settings-by", { tabId })`), never read from the node.
 
 ## Props
 
@@ -52,13 +52,13 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | `data-dragging` | being dragged |
 | `data-popout-enabled` | popouts are supported and the model accepts `tab.popout` for it (`model.can`: its resolved `enablePopout`, and every middleware) |
 | `data-overflow-hidden` | the tab does not fit in its strip, so it is hidden (tab overflow); it also gets `display: none` |
-| `id` | `engine.get("tab-button-dom-id-by-tab-id", { tabId: tab.id })`, unique on the page (`getTabButtonId(id, scope)`: `dockable-<scope>tabbutton-<id>`) |
+| `id` | `engine.get("tab-button-dom-id-by", { tabId: tab.id })`, unique on the page (`getTabButtonId(id, scope)`: `dockable-<scope>tabbutton-<id>`) |
 | `role` | `"tab"` |
 | `aria-selected` | `true` or `false` |
-| `aria-controls` | its panel's id (`engine.get("tab-panel-dom-id-by-tab-id", { tabId: tab.id })`) |
+| `aria-controls` | its panel's id (`engine.get("tab-panel-dom-id-by", { tabId: tab.id })`) |
 | `aria-keyshortcuts` | `focusTabToggle` and, when its resolved `enableClose` is true and it is not pinned, `closeTab` |
 | `tabIndex` | `0` on the tab stop (the selected tab, or the first tab when none is), else `-1` |
-| `draggable` | the tab's resolved `enableDrag` (`model.get("tab-settings-by-id", { tabId })?.enableDrag`) |
+| `draggable` | the tab's resolved `enableDrag` (`model.get("tab-settings-by", { tabId })?.enableDrag`) |
 
 ## Keyboard
 

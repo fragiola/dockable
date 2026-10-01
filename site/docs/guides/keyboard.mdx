@@ -89,7 +89,7 @@ function useMaximizeShortcut() {
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.defaultPrevented || !matchesKey(event, "Ctrl+Shift+M")) return;
-            const tabset = model.get("active-tabset-by-layout-id");
+            const tabset = model.get("active-tabset");
             if (!tabset) return;
             const maximized = model.is("tabset-maximized", { tabsetId: tabset.id });
             // refused (not allowed, or the only tabset): the key is left to others

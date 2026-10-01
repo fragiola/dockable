@@ -68,7 +68,7 @@ const toolsStayTogether: Middleware<Types> = (ctx, next) => {
     let tab: TabOf<Types> | TabAddPayload<Types> | undefined;
     let to: string;
     if (ctx.command === "tab.move") {
-        const node = ctx.get("node-by-id", { nodeId: ctx.payload.tabId });
+        const node = ctx.get("node-by", { id: ctx.payload.tabId });
         tab = node?.type === "tab" ? node : undefined;
         to = ctx.payload.to;
     } else if (ctx.command === "tab.add") {
@@ -77,7 +77,7 @@ const toolsStayTogether: Middleware<Types> = (ctx, next) => {
     } else {
         return next();
     }
-    const target = ctx.get("node-by-id", { nodeId: to });
+    const target = ctx.get("node-by", { id: to });
     // tabs of the "tools" group only go into tools tabsets
     if (tab?.component === "doc" && tab.data.group === "tools") {
         return target?.type === "tabset" && target.data?.kind === "tools"
@@ -91,7 +91,7 @@ const model = createModel<Types>(json);
 model.use(toolsStayTogether); // returns the function that removes it
 ```
 
-`ctx.command` narrows `ctx.payload`, and `ctx.get("node-by-id", …)` / `ctx.get("node-parent-by-id", …)` read the
+`ctx.command` narrows `ctx.payload`, and `ctx.get("node-by", …)` / `ctx.get("node-parent-by", …)` read the
 layout as the command sees it. A middleware belongs to the model: install it once, right after `createModel`. Loading
 another layout (`layout.load`, an [undo step](/docs/guides/undo-redo), a
 [restore](/docs/guides/persistence)) keeps the same model, so the rule stays.

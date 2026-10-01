@@ -16,7 +16,7 @@ Each object has five verbs, and each verb takes a key and a payload, the way a c
 | `run` | do it | `model.run("tab.close", { tabId })`: change the layout | `engine.run("popout", { nodeId })`: a screen action |
 | `can` | could I? (a `boolean`) | `model.can("tab.close", { tabId })` | `engine.can("popout", { nodeId })` |
 | `check` | what would happen? (the result, or why not) | `model.check("tab.close", { tabId })` | `engine.check("dock-back", { nodeId })` |
-| `get` | read it | `model.get("selected-tab-by-tabset-id", { tabsetId })` | `engine.get("tab-panel-dom-id-by-tab-id", { tabId })` |
+| `get` | read it | `model.get("selected-tab-by", { tabsetId })` | `engine.get("tab-panel-dom-id-by", { tabId })` |
 | `is` | yes or no? | `model.is("tabset-maximized", { tabsetId })` | `engine.is("popout-supported")` |
 
 Keys are kebab-case, typed, and listed on [Model](/docs/api/model) and
@@ -50,25 +50,30 @@ function TabActions({ tabId }: { tabId: string }) {
 
 ## Reading a key
 
-A key says what it does and what it takes, so a call reads without the reference:
+A key and its payload read as one sentence, so a call reads without the reference:
+`model.can("tab.move", { tabId, to: "main" })` is "can tab move, this tab, to main", and
+`model.get("node-parent-by", { nodeId })` is "get the node's parent by its id".
 
 - **A field that holds an id ends in `Id`**: `tabId`, `tabsetId`, `borderId`, `rowId`, `windowId`,
   `nodeId` (any node) and `layoutId` (`MAIN_LAYOUT` or a window's id); a list of ids ends in
   `Ids` (`tabIds`). That holds for every payload and result, commands included:
   `model.run("tab.close", { tabId })` returns `{ tabId }`. Two fields are not references and
   keep their names: `to`, where a tab or a tabset goes (a tabset, a row, a border or a layout),
-  and a new node's own `id`.
-- **A `get` key names what it returns, then whose id it takes**: `node-by-id` takes `{ nodeId }`,
-  `node-parent-by-id` the same node's id, `selected-tab-by-tabset-id` a tabset's id. A
-  `-by-layout-id` key's `layoutId` is optional and defaults to the main layout:
-  `model.get("active-tabset-by-layout-id")` reads the main layout's. A key that takes nothing has
-  a plain name (`all-tabs`, `layout-json`).
+  and a node's own `id` (a new node's, or the one a `get` key returns).
+- **A `get` key names what it returns; the payload says whose.** A key that takes an id ends in
+  `-by`, and the payload's field completes it: `id` when it is the id of what the key returns
+  (`node-by { id }`, `window-by { id }`), `<entity>Id` otherwise (`node-parent-by { nodeId }`,
+  `layout-id-by { nodeId }`, `tab-settings-by { tabId }`). `selected-tab-by` takes exactly one of
+  `{ tabsetId }`, `{ borderId }` and `{ layoutId }`. A key whose only input is a layout has no
+  `-by`: its `layoutId` is optional and defaults to the main layout, so
+  `model.get("active-tabset")` reads the main layout's. A key that takes nothing has a plain name
+  (`all-tabs`, `layout-json`).
 - **An `is` key is the question after "is"**: `<entity>-<state>`, taking that entity's id.
   `model.is("tabset-active", { tabsetId })` asks whether the tabset is active,
   `model.is("tab-pinned", { tabId })` whether the tab is pinned.
 
-A key reads only the kind it names: `selected-tab-by-tabset-id` with a border's id reads
-`undefined`, and `tabset-empty` with a border's id answers `false`.
+A field reads only the kind it names: `selected-tab-by` with `{ tabsetId }` set to a border's id
+reads `undefined`, and `tabset-empty` with a border's id answers `false`.
 
 ## Selected and active
 
@@ -76,16 +81,16 @@ The two words never mean the same thing:
 
 - A **tab is selected**: it is the one its tabset (or border) shows. Every tabset has one
   selected tab (none when it is empty), and so has an open border. `tab.select` selects a tab;
-  `model.get("selected-tab-by-tabset-id", { tabsetId })` and `model.is("tab-selected", { tabId })`
+  `model.get("selected-tab-by", { tabsetId })` and `model.is("tab-selected", { tabId })`
   read it; the tab carries `data-selected` and `aria-selected`.
 - A **tabset is active**: it is the one tabset of its layout the user is working in (the last one
   pressed in), where docked-back tabs land. Each layout has at most one. `tabset.activate`
   activates a tabset (selecting one of its tabs does too);
-  `model.get("active-tabset-by-layout-id")` and `model.is("tabset-active", { tabsetId })` read
+  `model.get("active-tabset")` and `model.is("tabset-active", { tabsetId })` read
   it; the tabset carries `data-active`.
 
 So a tabset that is not active still has a selected tab, and "the tab the user is looking at" is
-the selected tab of the active tabset: `model.get("selected-tab-by-layout-id")`.
+the selected tab of the active tabset: `model.get("selected-tab-by", { layoutId: MAIN_LAYOUT })`.
 
 ## The model: the layout's data and its rules
 
@@ -146,9 +151,9 @@ main engine is reachable only as `engine.adapter.main`, for adapter authors.
 | run a command given as JSON (a stored layout, an AI tool call) | `model.dispatch({ command, payload })` |
 | know whether a change is allowed: enable a button or a menu item | `model.can("tab.close", { tabId })` |
 | show why a change is not allowed | `model.check("tab.close", { tabId })`, then `error.message` |
-| read the layout: a node, its parent, the selected tab, the active tabset | `model.get("selected-tab-by-tabset-id", { tabsetId })` |
-| read the tab the user is looking at: the selected tab of the active tabset | `model.get("selected-tab-by-layout-id")` |
-| read a node's effective settings (its own value, else the default) | `model.get("tab-settings-by-id", { tabId })` |
+| read the layout: a node, its parent, the selected tab, the active tabset | `model.get("selected-tab-by", { tabsetId })` |
+| read the tab the user is looking at: the selected tab of the active tabset | `model.get("selected-tab-by", { layoutId: MAIN_LAYOUT })` |
+| read a node's effective settings (its own value, else the default) | `model.get("tab-settings-by", { tabId })` |
 | save the layout | `model.get("layout-json")` |
 | ask a yes/no question about the layout | `model.is("tabset-maximized", { tabsetId })` |
 | veto, rewrite or observe every change | `model.use(middleware)` |
@@ -156,9 +161,9 @@ main engine is reachable only as `engine.adapter.main`, for adapter authors.
 | pop a tab or a tabset out into a window, or dock it back | `engine.run("popout", { nodeId })`, `engine.run("dock-back", { nodeId })` |
 | move focus to the next or previous tabset | `engine.run("focus-tabset", { direction: "next" })` |
 | measure again after a change the engine cannot see | `engine.run("measure-and-position")` |
-| link your own markup to a tab or its panel (ARIA ids, layout paths) | `engine.get("tab-panel-dom-id-by-tab-id", { tabId })`, `engine.get("layout-path-by-node-id", { nodeId })` |
+| link your own markup to a tab or its panel (ARIA ids, layout paths) | `engine.get("tab-panel-dom-id-by", { tabId })`, `engine.get("layout-path-by", { nodeId })` |
 | listen to the document a layout renders in (from a part of that layout) | `engine.get("owner-document")` |
-| find the window a tab is in, or the document its content is in now | `model.get("layout-id-by-node-id", { nodeId })`; your content element's `ownerDocument` |
+| find the window a tab is in, or the document its content is in now | `model.get("layout-id-by", { nodeId })`; your content element's `ownerDocument` |
 | know whether popout windows are supported here | `engine.is("popout-supported")` |
 | build an adapter for another framework | `engine.adapter` ([For adapter authors](/docs/api/layout-engine#for-adapter-authors-engineadapter)) |
 
