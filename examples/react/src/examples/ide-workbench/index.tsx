@@ -414,6 +414,9 @@ function Splitter({
             aria-label="Resize"
             className={cn(
                 "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
+                // an overlay border's splitter lies over the layout, not a gutter: it gets the
+                // surface underneath, with the theme's splitter colour layered on top
+                "in-data-overlay:bg-palette-base in-data-overlay:bg-[image:linear-gradient(var(--dk-splitter-bg),var(--dk-splitter-bg))]",
                 "after:absolute after:transition-colors after:duration-(--dk-motion)",
                 "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
                 // side by side: a vertical bar
