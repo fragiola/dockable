@@ -69,7 +69,7 @@ splitter has no name: `renderSplitter` is where you give it one.
 
 `display: flex` (`none` while a tabset maximized outside the row fills the layout), `flex-direction` (`row` or `column`), `flex-basis: 0`, `flex-grow` from the
 weight (at least 1), `min-width`/`min-height`/`max-width`/`max-height` from the engine
-(`engine.get("size-limits-by-node-id", { nodeId })`, aggregated from the tabsets inside), `overflow: hidden`. The root row adds
+(`engine.get("size-limits-by", { nodeId })`, aggregated from the tabsets inside), `overflow: hidden`. The root row adds
 `position: absolute; inset: 0` to fill the root.
 
 ## Notes

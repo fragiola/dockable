@@ -208,7 +208,7 @@ function MenuTab({
     const renameOnClose = useRef(false);
 
     // a tab lives in a tabset or a border; maximize is a tabset's
-    const parent = model.get("node-parent-by-id", { nodeId: tab.id });
+    const parent = model.get("node-parent-by", { nodeId: tab.id });
     const tabset = parent?.type === "tabset" ? parent : undefined;
     const siblings = parent && parent.type !== "row" ? parent.children : [];
     const right = siblings.slice(
@@ -222,8 +222,7 @@ function MenuTab({
     const pinned = tab.pinned === true;
     const maximized =
         tabset !== undefined &&
-        model.get("maximized-tabset-by-layout-id", { layoutId })?.id ===
-            tabset.id;
+        model.get("maximized-tabset", { layoutId })?.id === tabset.id;
     const rename = (name: string) =>
         model.run("tab.update", {
             tabId: tab.id,

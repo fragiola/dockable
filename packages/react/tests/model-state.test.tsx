@@ -82,7 +82,7 @@ describe("useModelState, selectors and contexts", () => {
         function Name({ id }: { id: string }) {
             const name = useModelState<Types, string | undefined>(
                 (_state, m) => {
-                    const tab = m.get("node-by-id", { nodeId: id });
+                    const tab = m.get("node-by", { id });
                     return tab?.type === "tab" ? tab.data.name : undefined;
                 },
             );
@@ -217,8 +217,8 @@ describe("useDockable", () => {
         await act(async () => {
             result?.model.run("tab.select", { tabId: "t1" });
         });
-        expect(
-            model.get("selected-tab-by-tabset-id", { tabsetId: "ts0" })?.id,
-        ).toBe("t1");
+        expect(model.get("selected-tab-by", { tabsetId: "ts0" })?.id).toBe(
+            "t1",
+        );
     });
 });

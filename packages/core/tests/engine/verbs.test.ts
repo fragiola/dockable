@@ -13,7 +13,9 @@ import {
     ENGINE_GET_KEYS,
     ENGINE_IS_KEYS,
     type EngineGetKey,
+    type EngineGetMap,
 } from "../../src/engine/verbs";
+import type { NoPayload } from "../../src/state/queries";
 import { recordCommands, twoTabsets } from "./fixture";
 
 const COMMAND_NAMES = createModel()
@@ -118,9 +120,7 @@ describe("engine.run / can / check", () => {
             ok: true,
             value: { tabIds: ["t0"] },
         });
-        expect(model.get("layout-id-by-node-id", { nodeId: "t0" })).toBe(
-            MAIN_LAYOUT,
-        );
+        expect(model.get("layout-id-by", { nodeId: "t0" })).toBe(MAIN_LAYOUT);
         expect(sub.run("popout", { nodeId: "t2" }).ok).toBe(true);
         expect(sub.check("dock-back", { nodeId: "t2" }).ok).toBe(true);
     });
@@ -175,7 +175,7 @@ describe("engine.run / can / check", () => {
         const root = document.body.appendChild(document.createElement("div"));
         engine.adapter.attachRoot(root);
         const button = root.appendChild(document.createElement("button"));
-        button.id = engine.get("tab-button-dom-id-by-tab-id", { tabId: "b0" });
+        button.id = engine.get("tab-button-dom-id-by", { tabId: "b0" });
         button.focus();
         let prevented = false;
         const handled = engine.adapter.handleOverlayKeyDown(
@@ -229,18 +229,14 @@ describe("engine.get / is", () => {
     it("reads paths, DOM ids and size limits", () => {
         const { engine } = setup();
         engine.adapter.prepare();
-        expect(engine.get("layout-path-by-node-id", { nodeId: "ts1" })).toBe(
-            "/ts1",
+        expect(engine.get("layout-path-by", { nodeId: "ts1" })).toBe("/ts1");
+        expect(engine.get("tab-button-dom-id-by", { tabId: "t0" })).toMatch(
+            /t0/,
         );
-        expect(
-            engine.get("tab-button-dom-id-by-tab-id", { tabId: "t0" }),
-        ).toMatch(/t0/);
-        expect(
-            engine.get("tab-panel-dom-id-by-tab-id", { tabId: "t0" }),
-        ).not.toBe(engine.get("tab-button-dom-id-by-tab-id", { tabId: "t0" }));
-        expect(
-            engine.get("size-limits-by-node-id", { nodeId: "ts0" }),
-        ).toMatchObject({
+        expect(engine.get("tab-panel-dom-id-by", { tabId: "t0" })).not.toBe(
+            engine.get("tab-button-dom-id-by", { tabId: "t0" }),
+        );
+        expect(engine.get("size-limits-by", { nodeId: "ts0" })).toMatchObject({
             minWidth: expect.any(Number),
             maxWidth: expect.any(Number),
         });
@@ -297,27 +293,36 @@ describe("the key lists", () => {
         ]);
     });
 
-    it("name the entity whose id they take", () => {
-        // a get key that takes an id ends in `-by-<entity>-id`; an is key starts with its entity
-        const getFields: { [K in EngineGetKey]: string | undefined } = {
-            "layout-path-by-node-id": "nodeId",
-            "tab-button-dom-id-by-tab-id": "tabId",
-            "tab-panel-dom-id-by-tab-id": "tabId",
-            "size-limits-by-node-id": "nodeId",
-            "splitter-size": undefined,
-            "owner-document": undefined,
-            "owner-window": undefined,
+    it("read as a sentence: the key names its result, the payload whose", () => {
+        // a get key that takes an id ends in `-by`, its payload is required, and its field
+        // completes the key (`tab-panel-dom-id-by { tabId }`); any other key takes nothing
+        const getInputs: {
+            [K in EngineGetKey]: {
+                required: NoPayload extends EngineGetMap[K]["payload"]
+                    ? false
+                    : true;
+                fields: readonly (keyof EngineGetMap[K]["payload"])[];
+            };
+        } = {
+            "layout-path-by": { required: true, fields: ["nodeId"] },
+            "tab-button-dom-id-by": { required: true, fields: ["tabId"] },
+            "tab-panel-dom-id-by": { required: true, fields: ["tabId"] },
+            "size-limits-by": { required: true, fields: ["nodeId"] },
+            "splitter-size": { required: false, fields: [] },
+            "owner-document": { required: false, fields: [] },
+            "owner-window": { required: false, fields: [] },
         };
-        expect(Object.keys(getFields).sort()).toEqual(
+        expect(Object.keys(getInputs).sort()).toEqual(
             [...ENGINE_GET_KEYS].sort(),
         );
-        for (const [key, field] of Object.entries(getFields)) {
-            expect(
-                field === undefined
-                    ? !key.includes("-by-")
-                    : key.endsWith(`-by-${field.replace(/Id$/, "")}-id`),
-                key,
-            ).toBe(true);
+        for (const [key, { required, fields }] of Object.entries(getInputs)) {
+            const fieldList: readonly string[] = fields;
+            expect(key, key).not.toMatch(/-by-/);
+            expect(required, key).toBe(key.endsWith("-by"));
+            expect(fieldList.length > 0, key).toBe(required);
+            for (const field of fieldList) {
+                expect(field === "id" || field.endsWith("Id"), key).toBe(true);
+            }
         }
         expect(ENGINE_IS_KEYS).toContain("tab-panel-visible");
     });

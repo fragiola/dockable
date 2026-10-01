@@ -59,7 +59,7 @@ A node is told apart by its `type` field (`"row"`, `"tabset"`, `"tab"`, `"border
 fields are read directly:
 
 ```ts
-const tabset = model.get("node-by-id", { nodeId: "editors" });
+const tabset = model.get("node-by", { id: "editors" });
 if (tabset?.type === "tabset") {
     tabset.children; // readonly TabOf<Types>[]
     tabset.selected; // the index of the selected tab, -1 when none
@@ -170,7 +170,7 @@ const remove = model.use(policy); // returns the function that removes it
 ```
 
 Checking `ctx.command` narrows `ctx.payload` to that command's payload. The context also carries
-the committed `state`, `ctx.get("node-by-id", { nodeId })` and `ctx.get("node-parent-by-id", { nodeId })` (as the
+the committed `state`, `ctx.get("node-by", { id })` and `ctx.get("node-parent-by", { nodeId })` (as the
 command sees them, inside a batch too), `meta`, `transient`, and `dryRun`.
 
 A drag is not special. While you drag, the engine asks the model for the command each drop target
@@ -219,16 +219,17 @@ key and a payload, like a command; each is O(1) or a walk of the tree, and safe 
 
 ```ts
 model.state; // LayoutState<Types>: root, borders, windows, active, maximized, defaults
-model.get("node-by-id", { nodeId: "readme" }); // a node by id
-model.get("node-parent-by-id", { nodeId: "readme" }); // its row, tabset or border
-model.get("layout-id-by-node-id", { nodeId: "readme" }); // MAIN_LAYOUT, or a window id
-model.get("root-row-by-layout-id"); // a layout's root row (default the main layout)
+model.get("node-by", { id: "readme" }); // a node by id
+model.get("node-parent-by", { nodeId: "readme" }); // its row, tabset or border
+model.get("layout-id-by", { nodeId: "readme" }); // MAIN_LAYOUT, or a window id
+model.get("root-row"); // a layout's root row (default the main layout)
 model.get("all-tabs"); // every tab, in tree order: TabOf<Types>[]
-model.get("tabsets-by-layout-id"); // a layout's tabsets
-model.get("selected-tab-by-tabset-id", { tabsetId: "editors" }); // a tabset's (or border's) selected tab
-model.get("active-tabset-by-layout-id"); // the active tabset of a layout
-model.get("maximized-tabset-by-layout-id"); // the maximized tabset of a layout
-model.get("tab-settings-by-id", { tabId: "readme" }); // a tab's flags, resolved through the defaults
+model.get("tabsets"); // a layout's tabsets
+model.get("selected-tab-by", { tabsetId: "editors" }); // a tabset's selected tab
+model.get("selected-tab-by", { borderId: "left" }); // a border's (none while it is closed)
+model.get("active-tabset"); // the active tabset of a layout
+model.get("maximized-tabset"); // the maximized tabset of a layout
+model.get("tab-settings-by", { tabId: "readme" }); // a tab's flags, resolved through the defaults
 model.get("layout-settings"); // the layout-wide settings, resolved
 model.is("tabset-maximized", { tabsetId: "editors" }); // is this tabset maximized?
 model.is("node-hidden-by-maximize", { nodeId: "tools" }); // hidden because another tabset is maximized
@@ -236,7 +237,7 @@ model.is("node-hidden-by-maximize", { nodeId: "tools" }); // hidden because anot
 
 Every key is on [the Model reference](/docs/api/model#reading-get). A flag a node does not set
 comes from the layout `defaults` (then from the built-in value), so read it through the
-`*-settings` keys, not from the node: `model.get("tab-settings-by-id", { tabId: tab.id })?.enableClose`.
+`*-settings` keys, not from the node: `model.get("tab-settings-by", { tabId: tab.id })?.enableClose`.
 To know whether something is allowed right now (the defaults, the rules and your middleware
 together), ask `model.can("tab.close", { tabId: tab.id })`.
 

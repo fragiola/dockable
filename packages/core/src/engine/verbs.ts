@@ -56,19 +56,19 @@ export type EngineActionResult<K extends EngineActionKey> =
  */
 export interface EngineGetMap {
     /** a node's `data-layout-path` in this layout (`/ts0/t1`) */
-    "layout-path-by-node-id": { payload: { nodeId: string }; result: string };
+    "layout-path-by": { payload: { nodeId: string }; result: string };
     /** the DOM id of a tab's button (unique on the page): its panel's `aria-labelledby` */
-    "tab-button-dom-id-by-tab-id": {
+    "tab-button-dom-id-by": {
         payload: { tabId: string };
         result: string;
     };
     /** the DOM id of a tab's panel (unique on the page): its button's `aria-controls` */
-    "tab-panel-dom-id-by-tab-id": {
+    "tab-panel-dom-id-by": {
         payload: { tabId: string };
         result: string;
     };
     /** a row's or a tabset's size limits (its flex min/max), in pixels */
-    "size-limits-by-node-id": {
+    "size-limits-by": {
         payload: { nodeId: string };
         result: SizeRange;
     };
@@ -122,10 +122,10 @@ export const ENGINE_ACTION_KEYS = Object.freeze(
 /** Every key of `engine.get`, for documentation coverage. */
 export const ENGINE_GET_KEYS = Object.freeze(
     Object.keys({
-        "layout-path-by-node-id": true,
-        "tab-button-dom-id-by-tab-id": true,
-        "tab-panel-dom-id-by-tab-id": true,
-        "size-limits-by-node-id": true,
+        "layout-path-by": true,
+        "tab-button-dom-id-by": true,
+        "tab-panel-dom-id-by": true,
+        "size-limits-by": true,
         "splitter-size": true,
         "owner-document": true,
         "owner-window": true,

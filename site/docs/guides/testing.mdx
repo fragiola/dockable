@@ -37,8 +37,8 @@ it("moves a tab into the other tabset", () => {
     const model = createModel<Types>(json);
     const result = model.run("tab.move", { tabId: "notes", to: "right" });
     expect(result).toEqual({ ok: true, value: { tabId: "notes" } });
-    expect(model.get("node-parent-by-id", { nodeId: "notes" })?.id).toBe("right");
-    expect(model.get("selected-tab-by-tabset-id", { tabsetId: "right" })?.id).toBe("notes");
+    expect(model.get("node-parent-by", { nodeId: "notes" })?.id).toBe("right");
+    expect(model.get("selected-tab-by", { tabsetId: "right" })?.id).toBe("notes");
 });
 ```
 
@@ -54,8 +54,8 @@ order. What to assert on:
   if (!refused.ok) expect(refused.error).toMatchObject({ code: "not_found", path: "/to" });
   ```
 
-- **the queries**: `model.get` (`"node-by-id"`, `"node-parent-by-id"`, `"selected-tab-by-tabset-id"`,
-  `"active-tabset-by-layout-id"`, `"all-tabs"`, `"tabsets-by-layout-id"`) and `model.is`
+- **the queries**: `model.get` (`"node-by"`, `"node-parent-by"`, `"selected-tab-by"`,
+  `"active-tabset"`, `"all-tabs"`, `"tabsets"`) and `model.is`
   (`"tab-selected"`, `"node-hidden-by-maximize"`, …) read the current state;
 - **the state**: `model.state` is a plain, immutable object tree (`state.root`, `state.borders`,
   `state.windows`, `state.active`), so `toEqual` and `toMatchObject` work on any part of it;

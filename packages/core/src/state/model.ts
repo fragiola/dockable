@@ -75,7 +75,7 @@ export interface ModelHandle {
  * - `run` changes the layout (a command, through the middleware chain); `dispatch` is `run` for
  *   untrusted JSON;
  * - `can` answers whether `run` would succeed; `check` returns what it would return;
- * - `get` reads (`model.get("selected-tab-by-tabset-id", { tabsetId })`); `is` asks a yes/no
+ * - `get` reads (`model.get("selected-tab-by", { tabsetId })`); `is` asks a yes/no
  *   question (`model.is("tabset-maximized", { tabsetId })`);
  * - `use` adds a middleware around every command; `subscribe` listens to every commit.
  *
@@ -491,17 +491,18 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
             state: this.committed.state as unknown as LayoutState<T>,
             get: (
                 key: CommandContextGetKey,
-                payload?: { nodeId?: unknown },
+                payload?: { id?: unknown; nodeId?: unknown },
             ) => {
-                const node = payload?.nodeId;
-                if (typeof node !== "string") {
-                    return undefined;
+                if (key === "node-by") {
+                    const id = payload?.id;
+                    return typeof id === "string" ? draft.get(id) : undefined;
                 }
-                if (key === "node-by-id") {
-                    return draft.get(node);
-                }
-                if (key === "node-parent-by-id") {
-                    const parent = draft.parentOf(node);
+                if (key === "node-parent-by") {
+                    const nodeId = payload?.nodeId;
+                    const parent =
+                        typeof nodeId === "string"
+                            ? draft.parentOf(nodeId)
+                            : undefined;
                     return parent === undefined ? undefined : draft.get(parent);
                 }
                 return undefined;

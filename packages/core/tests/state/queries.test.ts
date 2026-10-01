@@ -3,8 +3,10 @@ import { createModel, type LayoutJson, MAIN_LAYOUT } from "../../src";
 import {
     MODEL_GET_KEYS,
     MODEL_IS_KEYS,
+    type ModelGetKey,
     type ModelGetMap,
     type ModelIsMap,
+    type NoPayload,
 } from "../../src/state/queries";
 import { must } from "./harness";
 
@@ -77,174 +79,156 @@ const json: LayoutJson = {
 const model = () => createModel(structuredClone(json));
 const ids = (nodes: readonly { id: string }[]) => nodes.map((n) => n.id);
 
+/** Every field a payload (or any member of a payload union) can carry. */
+type FieldOf<P> = P extends unknown ? keyof P : never;
+
 describe("model.get", () => {
-    it("node-by-id: a node by its id, undefined when unknown", () => {
+    it("node-by { id }: a node by its id, undefined when unknown", () => {
         const m = model();
-        expect(m.get("node-by-id", { nodeId: "a" })).toMatchObject({
+        expect(m.get("node-by", { id: "a" })).toMatchObject({
             type: "tab",
             id: "a",
         });
-        expect(m.get("node-by-id", { nodeId: "nope" })).toBeUndefined();
+        expect(m.get("node-by", { id: "nope" })).toBeUndefined();
     });
 
-    it("node-parent-by-id: a tab's tabset or border, a tabset's row; none for a root", () => {
+    it("node-parent-by { nodeId }: a tab's tabset or border, a tabset's row; none for a root", () => {
         const m = model();
-        expect(m.get("node-parent-by-id", { nodeId: "a" })?.id).toBe("ts0");
-        expect(m.get("node-parent-by-id", { nodeId: "d" })?.id).toBe("left");
-        expect(m.get("node-parent-by-id", { nodeId: "ts1" })?.id).toBe("r1");
-        expect(m.get("node-parent-by-id", { nodeId: "root" })).toBeUndefined();
-        expect(m.get("node-parent-by-id", { nodeId: "nope" })).toBeUndefined();
+        expect(m.get("node-parent-by", { nodeId: "a" })?.id).toBe("ts0");
+        expect(m.get("node-parent-by", { nodeId: "d" })?.id).toBe("left");
+        expect(m.get("node-parent-by", { nodeId: "ts1" })?.id).toBe("r1");
+        expect(m.get("node-parent-by", { nodeId: "root" })).toBeUndefined();
+        expect(m.get("node-parent-by", { nodeId: "nope" })).toBeUndefined();
     });
 
-    it("layout-id-by-node-id: main for the main layout and its borders, the window's id in a window", () => {
+    it("layout-id-by { nodeId }: main for the main layout and its borders, the window's id in a window", () => {
         const m = model();
-        expect(m.get("layout-id-by-node-id", { nodeId: "a" })).toBe(
-            MAIN_LAYOUT,
-        );
-        expect(m.get("layout-id-by-node-id", { nodeId: "d" })).toBe(
-            MAIN_LAYOUT,
-        );
-        expect(m.get("layout-id-by-node-id", { nodeId: "e" })).toBe("w0");
-        expect(
-            m.get("layout-id-by-node-id", { nodeId: "nope" }),
-        ).toBeUndefined();
+        expect(m.get("layout-id-by", { nodeId: "a" })).toBe(MAIN_LAYOUT);
+        expect(m.get("layout-id-by", { nodeId: "d" })).toBe(MAIN_LAYOUT);
+        expect(m.get("layout-id-by", { nodeId: "e" })).toBe("w0");
+        expect(m.get("layout-id-by", { nodeId: "nope" })).toBeUndefined();
     });
 
-    it("root-row-by-layout-id: the main layout's by default, a window's by id", () => {
+    it("root-row: the main layout's by default, a window's by id", () => {
         const m = model();
-        expect(m.get("root-row-by-layout-id")?.id).toBe("root");
-        expect(m.get("root-row-by-layout-id", { layoutId: "w0" })?.id).toBe(
-            "wroot",
-        );
-        expect(
-            m.get("root-row-by-layout-id", { layoutId: "nope" }),
-        ).toBeUndefined();
+        expect(m.get("root-row")?.id).toBe("root");
+        expect(m.get("root-row", { layoutId: "w0" })?.id).toBe("wroot");
+        expect(m.get("root-row", { layoutId: "nope" })).toBeUndefined();
     });
 
-    it("window-by-id: a popout window's layout", () => {
+    it("window-by { id }: a popout window's layout", () => {
         const m = model();
-        expect(m.get("window-by-id", { windowId: "w0" })?.root.id).toBe(
-            "wroot",
-        );
-        expect(m.get("window-by-id", { windowId: "nope" })).toBeUndefined();
+        expect(m.get("window-by", { id: "w0" })?.root.id).toBe("wroot");
+        expect(m.get("window-by", { id: "nope" })).toBeUndefined();
     });
 
     it("all-tabs: every tab of the model, its borders' and its windows' included", () => {
         expect(ids(model().get("all-tabs"))).toEqual(["a", "b", "c", "d", "e"]);
     });
 
-    it("tabs-by-layout-id: a layout's tabs (main with its borders, and by default)", () => {
+    it("tabs: a layout's tabs (main with its borders, and by default)", () => {
         const m = model();
-        expect(ids(m.get("tabs-by-layout-id"))).toEqual(["a", "b", "c", "d"]);
-        expect(
-            ids(m.get("tabs-by-layout-id", { layoutId: MAIN_LAYOUT })),
-        ).toEqual(["a", "b", "c", "d"]);
-        expect(ids(m.get("tabs-by-layout-id", { layoutId: "w0" }))).toEqual([
-            "e",
+        expect(ids(m.get("tabs"))).toEqual(["a", "b", "c", "d"]);
+        expect(ids(m.get("tabs", { layoutId: MAIN_LAYOUT }))).toEqual([
+            "a",
+            "b",
+            "c",
+            "d",
         ]);
+        expect(ids(m.get("tabs", { layoutId: "w0" }))).toEqual(["e"]);
     });
 
-    it("tabsets-by-layout-id: a layout's, in tree order (main by default)", () => {
+    it("tabsets: a layout's, in tree order (main by default)", () => {
         const m = model();
-        expect(ids(m.get("tabsets-by-layout-id"))).toEqual([
-            "ts0",
-            "ts1",
-            "ts2",
-        ]);
-        expect(ids(m.get("tabsets-by-layout-id", { layoutId: "w0" }))).toEqual([
-            "ts3",
-        ]);
-        expect(m.get("tabsets-by-layout-id", { layoutId: "nope" })).toEqual([]);
+        expect(ids(m.get("tabsets"))).toEqual(["ts0", "ts1", "ts2"]);
+        expect(ids(m.get("tabsets", { layoutId: "w0" }))).toEqual(["ts3"]);
+        expect(m.get("tabsets", { layoutId: "nope" })).toEqual([]);
     });
 
-    it("selected-tab-by-tabset-id: a tabset's, undefined when none or not a tabset", () => {
+    it("selected-tab-by { tabsetId }: a tabset's, undefined when none or not a tabset", () => {
         const m = model();
-        expect(
-            m.get("selected-tab-by-tabset-id", { tabsetId: "ts0" })?.id,
-        ).toBe("b");
-        expect(
-            m.get("selected-tab-by-tabset-id", { tabsetId: "ts2" }),
-        ).toBeUndefined();
-        expect(
-            m.get("selected-tab-by-tabset-id", { tabsetId: "a" }),
-        ).toBeUndefined();
+        expect(m.get("selected-tab-by", { tabsetId: "ts0" })?.id).toBe("b");
+        expect(m.get("selected-tab-by", { tabsetId: "ts2" })).toBeUndefined();
+        expect(m.get("selected-tab-by", { tabsetId: "a" })).toBeUndefined();
         // a border is not a tabset
-        expect(
-            m.get("selected-tab-by-tabset-id", { tabsetId: "left" }),
-        ).toBeUndefined();
+        expect(m.get("selected-tab-by", { tabsetId: "left" })).toBeUndefined();
     });
 
-    it("selected-tab-by-border-id: a border's, undefined when closed or not a border", () => {
+    it("selected-tab-by { borderId }: a border's, undefined when closed or not a border", () => {
         const m = model();
-        expect(
-            m.get("selected-tab-by-border-id", { borderId: "left" })?.id,
-        ).toBe("d");
-        expect(
-            m.get("selected-tab-by-border-id", { borderId: "ts0" }),
-        ).toBeUndefined();
+        expect(m.get("selected-tab-by", { borderId: "left" })?.id).toBe("d");
+        expect(m.get("selected-tab-by", { borderId: "ts0" })).toBeUndefined();
         must(m.run("border.configure", { borderId: "left", open: false }));
-        expect(
-            m.get("selected-tab-by-border-id", { borderId: "left" }),
-        ).toBeUndefined();
+        expect(m.get("selected-tab-by", { borderId: "left" })).toBeUndefined();
     });
 
-    it("selected-tab-by-layout-id: the selected tab of a layout's active tabset (main by default)", () => {
+    it("selected-tab-by { layoutId }: the selected tab of a layout's active tabset", () => {
         const m = model();
-        expect(m.get("selected-tab-by-layout-id")?.id).toBe("c");
+        const main = { layoutId: MAIN_LAYOUT };
+        expect(m.get("selected-tab-by", main)?.id).toBe("c");
         must(m.run("tabset.activate", { tabsetId: "ts0" }));
-        expect(m.get("selected-tab-by-layout-id")?.id).toBe("b");
+        expect(m.get("selected-tab-by", main)?.id).toBe("b");
         // the window has no active tabset until one is activated
-        expect(
-            m.get("selected-tab-by-layout-id", { layoutId: "w0" }),
-        ).toBeUndefined();
+        expect(m.get("selected-tab-by", { layoutId: "w0" })).toBeUndefined();
         must(m.run("tabset.activate", { tabsetId: "ts3" }));
-        expect(m.get("selected-tab-by-layout-id", { layoutId: "w0" })?.id).toBe(
-            "e",
-        );
+        expect(m.get("selected-tab-by", { layoutId: "w0" })?.id).toBe("e");
         // an active tabset with no tabs has no selected tab
         must(m.run("tabset.activate", { tabsetId: "ts2" }));
-        expect(m.get("selected-tab-by-layout-id")).toBeUndefined();
+        expect(m.get("selected-tab-by", main)).toBeUndefined();
+        expect(m.get("selected-tab-by", { layoutId: "nope" })).toBeUndefined();
     });
 
-    it("active-tabset-by-layout-id and maximized-tabset-by-layout-id: a layout's (main by default)", () => {
+    it("selected-tab-by: exactly one of tabsetId, borderId and layoutId, else none", () => {
         const m = model();
-        expect(m.get("active-tabset-by-layout-id")?.id).toBe("ts1");
-        expect(m.get("maximized-tabset-by-layout-id")).toBeUndefined();
-        must(m.run("tabset.maximize", { tabsetId: "ts0", value: true }));
-        expect(m.get("maximized-tabset-by-layout-id")?.id).toBe("ts0");
-        must(m.run("tabset.activate", { tabsetId: "ts3" }));
+        const read = (payload: object) =>
+            m.get("selected-tab-by", payload as never);
+        expect(read({})).toBeUndefined();
+        expect(read({ tabsetId: "ts0", borderId: "left" })).toBeUndefined();
         expect(
-            m.get("active-tabset-by-layout-id", { layoutId: "w0" })?.id,
-        ).toBe("ts3");
+            read({ tabsetId: "ts0", layoutId: MAIN_LAYOUT }),
+        ).toBeUndefined();
         expect(
-            m.get("maximized-tabset-by-layout-id", { layoutId: "w0" }),
+            read({ borderId: "left", layoutId: MAIN_LAYOUT }),
+        ).toBeUndefined();
+        // an untyped call with no payload reads nothing either
+        expect(
+            (m.get as (key: string) => unknown)("selected-tab-by"),
         ).toBeUndefined();
     });
 
-    it("tab-, tabset- and border-settings-by-id: the node's own value, else the default", () => {
+    it("active-tabset and maximized-tabset: a layout's (main by default)", () => {
         const m = model();
-        expect(m.get("tab-settings-by-id", { tabId: "a" })?.enableClose).toBe(
+        expect(m.get("active-tabset")?.id).toBe("ts1");
+        expect(m.get("maximized-tabset")).toBeUndefined();
+        must(m.run("tabset.maximize", { tabsetId: "ts0", value: true }));
+        expect(m.get("maximized-tabset")?.id).toBe("ts0");
+        must(m.run("tabset.activate", { tabsetId: "ts3" }));
+        expect(m.get("active-tabset", { layoutId: "w0" })?.id).toBe("ts3");
+        expect(m.get("maximized-tabset", { layoutId: "w0" })).toBeUndefined();
+    });
+
+    it("tab-, tabset- and border-settings-by: the node's own value, else the default", () => {
+        const m = model();
+        expect(m.get("tab-settings-by", { tabId: "a" })?.enableClose).toBe(
             false,
         );
-        expect(m.get("tab-settings-by-id", { tabId: "b" })?.enableClose).toBe(
+        expect(m.get("tab-settings-by", { tabId: "b" })?.enableClose).toBe(
             true,
         );
         expect(
-            m.get("tabset-settings-by-id", { tabsetId: "ts2" })?.enableClose,
+            m.get("tabset-settings-by", { tabsetId: "ts2" })?.enableClose,
         ).toBe(false);
-        expect(
-            m.get("border-settings-by-id", { borderId: "left" }),
-        ).toMatchObject({
-            mode: "overlay",
-            size: 220,
-        });
+        expect(m.get("border-settings-by", { borderId: "left" })).toMatchObject(
+            {
+                mode: "overlay",
+                size: 220,
+            },
+        );
         // a node of another kind has no such settings
-        expect(m.get("tab-settings-by-id", { tabId: "ts0" })).toBeUndefined();
+        expect(m.get("tab-settings-by", { tabId: "ts0" })).toBeUndefined();
+        expect(m.get("tabset-settings-by", { tabsetId: "a" })).toBeUndefined();
         expect(
-            m.get("tabset-settings-by-id", { tabsetId: "a" }),
-        ).toBeUndefined();
-        expect(
-            m.get("border-settings-by-id", { borderId: "nope" }),
+            m.get("border-settings-by", { borderId: "nope" }),
         ).toBeUndefined();
     });
 
@@ -274,11 +258,9 @@ describe("model.get", () => {
     it("reads the state committed last", () => {
         const m = model();
         must(m.run("tab.select", { tabId: "a" }));
-        expect(
-            m.get("selected-tab-by-tabset-id", { tabsetId: "ts0" })?.id,
-        ).toBe("a");
+        expect(m.get("selected-tab-by", { tabsetId: "ts0" })?.id).toBe("a");
         must(m.run("tab.close", { tabId: "b" }));
-        expect(m.get("node-by-id", { nodeId: "b" })).toBeUndefined();
+        expect(m.get("node-by", { id: "b" })).toBeUndefined();
     });
 });
 
@@ -379,7 +361,7 @@ describe("the key lists", () => {
     it("list every key once", () => {
         expect(new Set(MODEL_GET_KEYS).size).toBe(MODEL_GET_KEYS.length);
         expect(new Set(MODEL_IS_KEYS).size).toBe(MODEL_IS_KEYS.length);
-        expect(MODEL_GET_KEYS).toContain("selected-tab-by-tabset-id");
+        expect(MODEL_GET_KEYS).toContain("selected-tab-by");
         expect(MODEL_IS_KEYS).toContain("node-hidden-by-maximize");
     });
 
@@ -389,43 +371,64 @@ describe("the key lists", () => {
         }
     });
 
-    it("name the entity whose id they take", () => {
-        // a get key that takes an id ends in `-by-id` (its first word's id) or `-by-<entity>-id`;
-        // an is key starts with the entity whose id it takes
-        const getFields: { [K in keyof ModelGetMap]: string | undefined } = {
-            "node-by-id": "nodeId",
-            "node-parent-by-id": "nodeId",
-            "layout-id-by-node-id": "nodeId",
-            "root-row-by-layout-id": "layoutId",
-            "window-by-id": "windowId",
-            "all-tabs": undefined,
-            "tabs-by-layout-id": "layoutId",
-            "tabsets-by-layout-id": "layoutId",
-            "selected-tab-by-tabset-id": "tabsetId",
-            "selected-tab-by-border-id": "borderId",
-            "selected-tab-by-layout-id": "layoutId",
-            "active-tabset-by-layout-id": "layoutId",
-            "maximized-tabset-by-layout-id": "layoutId",
-            "tab-settings-by-id": "tabId",
-            "tabset-settings-by-id": "tabsetId",
-            "border-settings-by-id": "borderId",
-            "layout-settings": undefined,
-            "layout-json": undefined,
-            commands: undefined,
+    it("read as a sentence: the key names its result, the payload whose", () => {
+        // a get key that takes an id ends in `-by`, its payload is required, and its field
+        // completes the key: `id` (the result's own) or `<entity>Id` (`node-by { id }`,
+        // `selected-tab-by { tabsetId }`); any other key takes nothing or an optional `layoutId`
+        const getInputs: {
+            [K in ModelGetKey]: {
+                required: NoPayload extends ModelGetMap[K]["payload"]
+                    ? false
+                    : true;
+                fields: readonly FieldOf<ModelGetMap[K]["payload"]>[];
+            };
+        } = {
+            "node-by": { required: true, fields: ["id"] },
+            "node-parent-by": { required: true, fields: ["nodeId"] },
+            "layout-id-by": { required: true, fields: ["nodeId"] },
+            "root-row": { required: false, fields: ["layoutId"] },
+            "window-by": { required: true, fields: ["id"] },
+            "all-tabs": { required: false, fields: [] },
+            tabs: { required: false, fields: ["layoutId"] },
+            tabsets: { required: false, fields: ["layoutId"] },
+            "selected-tab-by": {
+                required: true,
+                fields: ["tabsetId", "borderId", "layoutId"],
+            },
+            "active-tabset": { required: false, fields: ["layoutId"] },
+            "maximized-tabset": { required: false, fields: ["layoutId"] },
+            "tab-settings-by": { required: true, fields: ["tabId"] },
+            "tabset-settings-by": { required: true, fields: ["tabsetId"] },
+            "border-settings-by": { required: true, fields: ["borderId"] },
+            "layout-settings": { required: false, fields: [] },
+            "layout-json": { required: false, fields: [] },
+            commands: { required: false, fields: [] },
         };
-        expect(Object.keys(getFields).sort()).toEqual(
+        expect(Object.keys(getInputs).sort()).toEqual(
             [...MODEL_GET_KEYS].sort(),
         );
-        for (const [key, field] of Object.entries(getFields)) {
-            if (field === undefined) {
-                expect(key).not.toMatch(/-by-/);
-                continue;
+        for (const [key, { required, fields }] of Object.entries(getInputs)) {
+            const fieldList: readonly string[] = fields;
+            expect(key, key).not.toMatch(/-by-/);
+            expect(required, key).toBe(key.endsWith("-by"));
+            if (required) {
+                expect(fieldList.length, key).toBeGreaterThan(0);
+                for (const field of fieldList) {
+                    expect(field === "id" || field.endsWith("Id"), key).toBe(
+                        true,
+                    );
+                }
+            } else {
+                expect(
+                    fieldList.every((field) => field === "layoutId"),
+                    key,
+                ).toBe(true);
             }
-            const entity = field.replace(/Id$/, "");
-            const byOwnId =
-                key.endsWith("-by-id") && key.startsWith(`${entity}-`);
-            expect(byOwnId || key.endsWith(`-by-${entity}-id`), key).toBe(true);
         }
+    });
+
+    it("name the entity whose id they take (is)", () => {
+        // an is key starts with the entity whose id it takes
         const isFields: { [K in keyof ModelIsMap]: keyof ModelIsMap[K] } = {
             "tab-selected": "tabId",
             "tab-pinned": "tabId",

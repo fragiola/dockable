@@ -16,7 +16,7 @@ and reads view facts. Where to go for what: [Model and engine](/docs/concepts/mo
 ```tsx
 const { engine } = useDockable<Types>();
 if (engine.can("popout", { nodeId: tab.id })) engine.run("popout", { nodeId: tab.id });
-const panelId = engine.get("tab-panel-dom-id-by-tab-id", { tabId: tab.id }); // for aria-controls
+const panelId = engine.get("tab-panel-dom-id-by", { tabId: tab.id }); // for aria-controls
 ```
 
 | member | does |
@@ -56,14 +56,15 @@ See [Popouts](/docs/guides/popouts) and [Dockable.PopoutTrigger](/docs/api/popou
 ## Reading view facts
 
 `engine.get(key, payload)` reads what the screen knows and the model does not. As on the model, a
-key names what it returns and whose id it takes (`tab-panel-dom-id-by-tab-id` takes `{ tabId }`):
+key names what it returns, and one that takes an id ends in `-by`, completed by the payload's field
+(`engine.get("tab-panel-dom-id-by", { tabId })`):
 
 | key | payload | returns | reads |
 | --- | --- | --- | --- |
-| `"layout-path-by-node-id"` | `{ nodeId }` | `string` | the node's `data-layout-path` in this layout (the root row's is the layout's prefix: `""` for the main layout, `/sublayout<n>` for a window). See [Layout paths](/docs/concepts/layout-paths) |
-| `"tab-button-dom-id-by-tab-id"` | `{ tabId }` | `string` | the DOM id of a tab's button, unique on the page (see `idScope`): its panel's `aria-labelledby` |
-| `"tab-panel-dom-id-by-tab-id"` | `{ tabId }` | `string` | the DOM id of a tab's panel, unique on the page: its button's `aria-controls` |
-| `"size-limits-by-node-id"` | `{ nodeId }` | `SizeRange` | a row's or a tabset's flex min/max, from its own limits, its tabs' and its tab strip's height |
+| `"layout-path-by"` | `{ nodeId }` | `string` | the node's `data-layout-path` in this layout (the root row's is the layout's prefix: `""` for the main layout, `/sublayout<n>` for a window). See [Layout paths](/docs/concepts/layout-paths) |
+| `"tab-button-dom-id-by"` | `{ tabId }` | `string` | the DOM id of a tab's button, unique on the page (see `idScope`): its panel's `aria-labelledby` |
+| `"tab-panel-dom-id-by"` | `{ tabId }` | `string` | the DOM id of a tab's panel, unique on the page: its button's `aria-controls` |
+| `"size-limits-by"` | `{ nodeId }` | `SizeRange` | a row's or a tabset's flex min/max, from its own limits, its tabs' and its tab strip's height |
 | `"splitter-size"` | none | `number` | the measured splitter thickness, shared by every layout of the model |
 | `"owner-document"` | none | `Document \| undefined` | the document this layout renders in (a popout's own, for a window's layout): attach listeners for a part of this layout here. Tab content renders under the main layout's root, so it reads its own element's `ownerDocument` to follow the tab into a popout |
 | `"owner-window"` | none | `Window \| undefined` | the window this layout renders in |
@@ -285,8 +286,8 @@ selectors work across frameworks. See [Layout paths](/docs/concepts/layout-paths
 | `getTabStripPath(tabsetPath)` | a tabset's tab strip path (`/ts0/tabstrip`) |
 | `getSplitterPath(nodePath, index)` | the path of the splitter before child `index` (1-based) of a row or border (`/s0` is between the root row's first two children) |
 | `DROP_INDICATOR_PATH` | `"/outline"`, the drop indicator's path |
-| `getTabButtonId(tabId, scope?)` | the DOM id of a tab's button; `engine.get("tab-button-dom-id-by-tab-id", { tabId })` passes the engine's scope |
-| `getTabPanelId(tabId, scope?)` | the DOM id of a tab's panel; `engine.get("tab-panel-dom-id-by-tab-id", { tabId })` passes the engine's scope |
+| `getTabButtonId(tabId, scope?)` | the DOM id of a tab's button; `engine.get("tab-button-dom-id-by", { tabId })` passes the engine's scope |
+| `getTabPanelId(tabId, scope?)` | the DOM id of a tab's panel; `engine.get("tab-panel-dom-id-by", { tabId })` passes the engine's scope |
 
 ## Attributes
 

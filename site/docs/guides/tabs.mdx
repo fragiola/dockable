@@ -41,7 +41,7 @@ function AddTabButton() {
     const { model } = useDockable<Types>();
     const add = () => {
         // the tabset the user last pressed in, else the first one
-        const target = model.get("active-tabset-by-layout-id") ?? model.get("tabsets-by-layout-id")[0];
+        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
         model.run("tab.add", {
             component: "chart",
             data: { name: "Untitled" }, // must be a chart's data
@@ -123,7 +123,7 @@ model.use((ctx, next) => {
     if (ctx.command !== "tab.close" || ctx.dryRun || ctx.meta?.confirmed === true) {
         return next();
     }
-    const tab = ctx.get("node-by-id", { nodeId: ctx.payload.tabId });
+    const tab = ctx.get("node-by", { id: ctx.payload.tabId });
     if (tab?.type !== "tab" || tab.component !== "editor" || !tab.data.dirty) {
         return next();
     }
@@ -135,7 +135,7 @@ model.use((ctx, next) => {
 });
 ```
 
-`ctx.command` narrows `ctx.payload` (here to `{ tabId: string }`), and `ctx.get("node-by-id", …)` reads nodes
+`ctx.command` narrows `ctx.payload` (here to `{ tabId: string }`), and `ctx.get("node-by", …)` reads nodes
 as the command sees them. The [IDE workbench](/examples/ide-workbench) does this with a dialog. More on
 middleware in [the command bus](/docs/api/command-bus).
 

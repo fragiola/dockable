@@ -47,7 +47,7 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
 The command needs only the tabset: each layout has its own maximized tabset, so in a popout window
 maximize applies to that window's layout, and `model.is("tabset-maximized", { tabsetId })` answers for the
 tabset's own layout. `layoutId` from `useDockable` is the layout the component renders in
-(`MAIN_LAYOUT` or a window's id), which `model.get("maximized-tabset-by-layout-id", { layoutId })` takes.
+(`MAIN_LAYOUT` or a window's id), which `model.get("maximized-tabset", { layoutId })` takes.
 
 A double click on the tab strip is a common shortcut; attach it to your header element, and skip
 presses on the tabs and buttons inside it:
@@ -85,11 +85,11 @@ are hidden too (`Panel`'s `data-visible` is absent), and their content stays mou
 
 ## Reading it
 
-`model.get("maximized-tabset-by-layout-id", { layoutId })` returns the maximized tabset of a layout (the main
+`model.get("maximized-tabset", { layoutId })` returns the maximized tabset of a layout (the main
 one without `layout`), or `undefined`. To re-render when it changes, select it with `useModelState`:
 
 ```tsx
-const maximized = useModelState((_state, model) => model.get("maximized-tabset-by-layout-id")?.id);
+const maximized = useModelState((_state, model) => model.get("maximized-tabset")?.id);
 ```
 
 The maximized state is part of the layout: `model.get("layout-json")` saves it as the layout's `maximized`

@@ -52,10 +52,10 @@ export interface TransferRequest {
 }
 
 function endOf(model: Model<AnyTypes>, tab: string): TransferEnd {
-    const parent = model.get("node-parent-by-id", { nodeId: tab });
+    const parent = model.get("node-parent-by", { nodeId: tab });
     return {
         model,
-        layoutId: model.get("layout-id-by-node-id", { nodeId: tab }) ?? "",
+        layoutId: model.get("layout-id-by", { nodeId: tab }) ?? "",
         tabsetId: parent?.id,
         index: parent
             ? parent.children.findIndex((child) => child.id === tab)
@@ -117,7 +117,7 @@ export class DragGroup {
         if (
             !source ||
             !target ||
-            !source.adapter.model.get("node-by-id", { nodeId: request.tab })
+            !source.adapter.model.get("node-by", { id: request.tab })
         ) {
             return undefined;
         }
@@ -145,12 +145,12 @@ export class DragGroup {
     ): string | undefined {
         const source = sourceEngine.adapter.model as unknown as Model<AnyTypes>;
         const target = targetEngine.adapter.model as unknown as Model<AnyTypes>;
-        const tab = source.get("node-by-id", { nodeId: tabId });
+        const tab = source.get("node-by", { id: tabId });
         if (source === target || tab?.type !== "tab") {
             return undefined;
         }
         const { type: _type, ...init } = tab;
-        const fields: TabInit = target.get("node-by-id", { nodeId: tabId })
+        const fields: TabInit = target.get("node-by", { id: tabId })
             ? { ...init, id: undefined }
             : init;
         const meta: TransferMeta = {

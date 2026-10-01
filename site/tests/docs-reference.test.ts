@@ -52,7 +52,7 @@ const verbs = (await import(join(CORE_SRC, "engine/verbs.ts"))) as {
     ENGINE_IS_KEYS: readonly string[];
 };
 
-/** `key` appears in the page as a quoted key in code: `` `"selected-tab-by-tabset-id"` ``. */
+/** `key` appears in the page as a quoted key in code: `` `"selected-tab-by"` ``. */
 function mentionsKey(mdx: string, key: string): boolean {
     return mdx.includes(`\`"${key}"\``);
 }

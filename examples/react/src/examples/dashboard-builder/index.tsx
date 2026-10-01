@@ -75,7 +75,7 @@ const dropRules: Middleware<Types> = (ctx, next) => {
     // the command narrows the payload
     if (ctx.command === "tabset.move") {
         const { tabsetId, to, location = "center" } = ctx.payload;
-        const moved = ctx.get("node-by-id", { nodeId: tabsetId });
+        const moved = ctx.get("node-by", { id: tabsetId });
         const carriesKpis =
             moved?.type === "tabset" &&
             moved.children.some((tab) => isKpi(tab.component));
@@ -94,7 +94,7 @@ const dropRules: Middleware<Types> = (ctx, next) => {
     if (ctx.command === "tab.add") {
         placed = ctx.payload;
     } else if (ctx.command === "tab.move") {
-        const moved = ctx.get("node-by-id", { nodeId: ctx.payload.tabId });
+        const moved = ctx.get("node-by", { id: ctx.payload.tabId });
         placed = {
             ...ctx.payload,
             component: moved?.type === "tab" ? moved.component : undefined,

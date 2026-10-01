@@ -77,7 +77,7 @@ function title(tab: TabOf<Types>): string {
 }
 ```
 
-Every query returns typed tabs (`model.get("all-tabs")`, `model.get("selected-tab-by-tabset-id", { tabsetId })`,
+Every query returns typed tabs (`model.get("all-tabs")`, `model.get("selected-tab-by", { tabsetId })`,
 a tabset's `children`),
 and so does every children function of the React parts. A tab of one known component is a
 `TabNode<K, D>`: `TabNode<"editor", Types["tabs"]["editor"]>`.
@@ -108,7 +108,7 @@ model.run("tab.add", { component: "chart", data: { name: "Sales", series: [] }, 
 // @ts-expect-error: `path` is not in the chart's data
 model.run("tab.add", { component: "chart", data: { name: "Sales", path: "/x" }, to: "main" });
 
-const tab = model.get("selected-tab-by-tabset-id", { tabsetId: "main" });
+const tab = model.get("selected-tab-by", { tabsetId: "main" });
 if (tab?.component === "editor") {
     // `data` is the whole new value, not a patch: keep the rest of it
     model.run("tab.update", { tabId: tab.id, component: "editor", data: { ...tab.data, dirty: true } });

@@ -3,7 +3,11 @@
 import type { Middleware } from "../../src/commands/types";
 import type { TabInitOf } from "../../src/state/json";
 import { createModel, type Model } from "../../src/state/model";
-import type { TabOf, TabsetNode } from "../../src/state/types";
+import {
+    MAIN_LAYOUT,
+    type TabOf,
+    type TabsetNode,
+} from "../../src/state/types";
 
 type Types = {
     tabs: {
@@ -105,66 +109,83 @@ export function commands(model: Model<Types>): void {
 }
 
 export function queries(model: Model<Types>): void {
-    const node = model.get("node-by-id", { nodeId: "x" });
+    const node = model.get("node-by", { id: "x" });
     // @ts-expect-error: a node can be missing
     use(node.id);
     use(node?.id);
-    const name: string | undefined = model.get("active-tabset-by-layout-id")
-        ?.data?.name;
+    const name: string | undefined = model.get("active-tabset")?.data?.name;
     use(name);
     for (const tab of model.get("all-tabs")) {
         if (tab.component === "editor") {
             use(tab.data.path.length);
         }
     }
-    const selected = model.get("selected-tab-by-tabset-id", {
+    const selected = model.get("selected-tab-by", {
         tabsetId: "ts0",
     });
     if (selected?.component === "chart") {
         const series: string[] = selected.data.series;
         use(series);
     }
-    const found = model.get("node-by-id", { nodeId: "t0" });
+    const found = model.get("node-by", { id: "t0" });
     if (found?.type === "tab" && found.component === "editor") {
         const dirty: boolean = found.data.dirty;
         use(dirty);
     }
     const parentType: "row" | "tabset" | "border" | undefined = model.get(
-        "node-parent-by-id",
+        "node-parent-by",
         { nodeId: "t0" },
     )?.type;
     use(parentType);
-    const layout: string | undefined = model.get("layout-id-by-node-id", {
+    const layout: string | undefined = model.get("layout-id-by", {
         nodeId: "t0",
     });
-    const closable: boolean | undefined = model.get("tab-settings-by-id", {
+    const closable: boolean | undefined = model.get("tab-settings-by", {
         tabId: "t0",
     })?.enableClose;
     const json: number = model.get("layout-json").version;
     const commands: number = model.get("commands").length;
     use(layout, closable, json, commands, model.get("layout-settings"));
     use(
-        model.get("tabsets-by-layout-id", { layoutId: "w0" }),
-        model.get("root-row-by-layout-id"),
+        model.get("tabsets", { layoutId: "w0" }),
+        model.get("tabsets"),
+        model.get("tabs"),
+        model.get("root-row"),
+        model.get("selected-tab-by", { borderId: "left" }),
+        model.get("selected-tab-by", { layoutId: MAIN_LAYOUT }),
+        model.get("window-by", { id: "w0" })?.root,
     );
 
     // @ts-expect-error: not a query
     model.get("nope");
     // @ts-expect-error: an old key
     model.get("node", { node: "t0" });
-    // @ts-expect-error: node-parent-by-id needs its payload
-    model.get("node-parent-by-id");
-    // @ts-expect-error: node-parent-by-id takes `nodeId`, not `tab`
-    model.get("node-parent-by-id", { tab: "t0" });
+    // @ts-expect-error: an old key
+    model.get("node-by-id", { nodeId: "t0" });
+    // @ts-expect-error: node-parent-by needs its payload
+    model.get("node-parent-by");
+    // @ts-expect-error: node-parent-by takes `nodeId`, not `tab`
+    model.get("node-parent-by", { tab: "t0" });
+    // @ts-expect-error: node-by takes the node's own `id`
+    model.get("node-by", { nodeId: "t0" });
+    // @ts-expect-error: node-parent-by takes the child's `nodeId`, not an `id`
+    model.get("node-parent-by", { id: "t0" });
+    // @ts-expect-error: window-by takes the window's own `id`
+    model.get("window-by", { windowId: "w0" });
+    // @ts-expect-error: selected-tab-by needs one of tabsetId, borderId or layoutId
+    model.get("selected-tab-by");
+    // @ts-expect-error: selected-tab-by takes exactly one of them
+    model.get("selected-tab-by", {});
+    // @ts-expect-error: selected-tab-by takes exactly one of them, not two
+    model.get("selected-tab-by", { tabsetId: "ts0", borderId: "left" });
+    // @ts-expect-error: selected-tab-by takes exactly one of them, not two
+    model.get("selected-tab-by", { tabsetId: "ts0", layoutId: MAIN_LAYOUT });
     // @ts-expect-error: a tabset's selected tab is read by the tabset's id, not a container's
-    model.get("selected-tab-by-tabset-id", { container: "ts0" });
-    // @ts-expect-error: selected-tab-by-tabset-id answers a tab, not a tabset
-    const wrong: TabsetNode<Types> | undefined = model.get(
-        "selected-tab-by-tabset-id",
-        {
-            tabsetId: "ts0",
-        },
-    );
+    model.get("selected-tab-by", { container: "ts0" });
+    // @ts-expect-error: selected-tab-by answers a tab, not a tabset
+    const wrong: TabsetNode<Types> | undefined = model.get("selected-tab-by", {
+        tabsetId: "ts0",
+    });
     use(wrong);
 
     const maximized: boolean = model.is("tabset-maximized", {
@@ -201,9 +222,9 @@ export function middleware(model: Model<Types>): void {
     };
     const reads: Middleware<Types> = (ctx, next) => {
         if (ctx.command === "tab.close") {
-            const tab = ctx.get("node-by-id", { nodeId: ctx.payload.tabId });
+            const tab = ctx.get("node-by", { id: ctx.payload.tabId });
             const parentType: "row" | "tabset" | "border" | undefined = ctx.get(
-                "node-parent-by-id",
+                "node-parent-by",
                 { nodeId: ctx.payload.tabId },
             )?.type;
             use(tab?.id, parentType);
@@ -211,6 +232,10 @@ export function middleware(model: Model<Types>): void {
             ctx.get("all-tabs");
             // @ts-expect-error: the old key
             ctx.get("node", { node: "x" });
+            // @ts-expect-error: node-by takes the node's own `id`
+            ctx.get("node-by", { nodeId: "x" });
+            // @ts-expect-error: node-parent-by takes the child's `nodeId`
+            ctx.get("node-parent-by", { id: "x" });
         }
         return next();
     };

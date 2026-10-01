@@ -216,8 +216,7 @@ describe("Dockable.Borders", () => {
         );
         expect(
             bottom &&
-                model.get("border-settings-by-id", { borderId: bottom.id })
-                    ?.size,
+                model.get("border-settings-by", { borderId: bottom.id })?.size,
         ).toBe(130);
         expect(path("/border/bottom/area")?.style.height).toBe("130px");
     });

@@ -58,7 +58,7 @@ export function Splitter<T extends DockableTypes = AnyTypes>(
             ...separatorProps,
             ...dataAttributes({
                 "layout-path": getSplitterPath(
-                    engine.get("layout-path-by-node-id", { nodeId: node.id }),
+                    engine.get("layout-path-by", { nodeId: node.id }),
                     index,
                 ),
                 orientation: state.orientation,

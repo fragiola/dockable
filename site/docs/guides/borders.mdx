@@ -208,7 +208,7 @@ Switch one at runtime with `border.configure`:
 model.run("border.configure", { borderId: "border_left", mode: "overlay" }); // or "docked"
 ```
 
-`model.get("border-settings-by-id", { borderId })?.mode` reads the mode in effect (the border's own, else
+`model.get("border-settings-by", { borderId })?.mode` reads the mode in effect (the border's own, else
 the default), and `model.is("border-overlay", { borderId })` answers the same as a boolean.
 
 - It **closes on a press** in the layout outside its panel (a tabset, a splitter), and on

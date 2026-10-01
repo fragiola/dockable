@@ -224,7 +224,7 @@ import { type Middleware, veto } from "@fragiola/dockable";
 const lockConsole: Middleware<Types> = (ctx, next) => {
     if (
         ctx.command === "tab.move" &&
-        ctx.get("node-parent-by-id", { nodeId: ctx.payload.tabId })?.id === "console"
+        ctx.get("node-parent-by", { nodeId: ctx.payload.tabId })?.id === "console"
     ) {
         return veto("Console tabs cannot move.");
     }
@@ -283,7 +283,7 @@ registry. The fields every command shares are `CommandContextBase<T>`.
 | `inBatch` | `boolean` | the command runs inside a `batch` (the batch itself runs with `false`) |
 | `meta` | `Readonly<Record<string, unknown>> \| undefined` | the caller's `RunOptions.meta` (a batch passes its own to its commands) |
 | `state` | `LayoutState<T>` | the committed state the command applies to |
-| `get(key, { node })` | `Node<T> \| undefined`, `ParentNode<T> \| undefined` | reads as the command sees it, inside a batch after the batch's earlier commands: `ctx.get("node-by-id", { nodeId })` is a node, `ctx.get("node-parent-by-id", { nodeId })` its parent (`CommandContextGetKey` is `"node" \| "parent"`) |
+| `get(key, payload)` | `Node<T> \| undefined`, `ParentNode<T> \| undefined` | reads as the command sees it, inside a batch after the batch's earlier commands: `ctx.get("node-by", { id })` is a node, `ctx.get("node-parent-by", { nodeId })` its parent (`CommandContextGetKey` is `"node-by" \| "node-parent-by"`; `CommandContextGetMap<T>` types each key's payload and result) |
 
 Read nodes with `ctx.get` rather than `ctx.state` (or `model.get`) when the middleware may run
 inside a batch: a tab the batch added a step earlier is in the draft, not yet in the committed

@@ -226,7 +226,7 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
 /** Pins or unpins the tabset's selected tab. */
 function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
-    const selected = model.get("selected-tab-by-tabset-id", {
+    const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
     if (!selected?.data.enablePin) {

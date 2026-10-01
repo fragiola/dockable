@@ -501,7 +501,7 @@ describe("interaction", () => {
             key: "Delete",
             ctrlKey: true,
         });
-        expect(model.get("node-by-id", { nodeId: "t1" })).toBeUndefined();
+        expect(model.get("node-by", { id: "t1" })).toBeUndefined();
     });
 
     it("moves focus to the previous tab when the last tab is closed", () => {
@@ -510,7 +510,7 @@ describe("interaction", () => {
         const last = mustPath("/ts0/tb1");
         last.focus();
         fireEvent.keyDown(last, { key: "Delete", ctrlKey: true });
-        expect(model.get("node-by-id", { nodeId: "t1" })).toBeUndefined();
+        expect(model.get("node-by", { id: "t1" })).toBeUndefined();
         expect(document.activeElement).toBe(mustPath("/ts0/tb0"));
     });
 
@@ -518,7 +518,7 @@ describe("interaction", () => {
         const model = fresh();
         render(<Layout model={model} />);
         fireEvent.pointerDown(mustPath("/ts1"), { button: 0 });
-        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
     });
 
     it("runs row.resize from the splitter keyboard", () => {
@@ -822,6 +822,6 @@ describe("hooks", () => {
             "aria-orientation",
             "horizontal",
         );
-        expect(model.get("root-row-by-layout-id")?.children).toHaveLength(2);
+        expect(model.get("root-row")?.children).toHaveLength(2);
     });
 });

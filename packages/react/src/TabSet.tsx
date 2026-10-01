@@ -31,9 +31,7 @@ export function useTabContainer<T extends DockableTypes = AnyTypes>(
     const { model } = useDockableContext(part);
     // the container of the registry the part's caller declares (`<Dockable.TabList<Types>>`)
     const container =
-        id === null
-            ? undefined
-            : typedModel<T>(model).get("node-by-id", { nodeId: id });
+        id === null ? undefined : typedModel<T>(model).get("node-by", { id });
     if (container?.type !== "tabset" && container?.type !== "border") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet or Dockable.Border`,
@@ -45,8 +43,7 @@ export function useTabContainer<T extends DockableTypes = AnyTypes>(
 export function useTabSetNode(part: string): TabsetNode {
     const id = React.useContext(TabSetContext);
     const { model } = useDockableContext(part);
-    const tabset =
-        id === null ? undefined : model.get("node-by-id", { nodeId: id });
+    const tabset = id === null ? undefined : model.get("node-by", { id });
     if (tabset?.type !== "tabset") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet`,
@@ -71,14 +68,14 @@ export function TabSet<T extends DockableTypes = AnyTypes>(
     const { node, children, ...rest } = props;
     const { engine } = useLayoutContext("TabSet");
     const { state, props: tabset } = useTabSet(node);
-    const range = engine.get("size-limits-by-node-id", { nodeId: node.id });
+    const range = engine.get("size-limits-by", { nodeId: node.id });
 
     const element = useRenderElement("div", rest, {
         state,
         ref: tabset.ref,
         props: {
             ...dataAttributes({
-                "layout-path": engine.get("layout-path-by-node-id", {
+                "layout-path": engine.get("layout-path-by", {
                     nodeId: node.id,
                 }),
                 active: state.active,

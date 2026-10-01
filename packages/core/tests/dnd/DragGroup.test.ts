@@ -144,7 +144,7 @@ function dragBetween(from: Layout, tabId: string, to: Layout) {
 }
 
 const ids = (model: Model, tabsetId: string) => {
-    const tabset = model.get("node-by-id", { nodeId: tabsetId });
+    const tabset = model.get("node-by", { id: tabsetId });
     return tabset?.type === "tabset" ? tabset.children.map((c) => c.id) : [];
 };
 
@@ -170,7 +170,7 @@ describe("dragging between two models", () => {
         expect(over.defaultPrevented).toBe(true);
         expect(ids(b.model, "ts1")).toEqual(["b2", "a0"]);
         expect(ids(a.model, "ts0")).toEqual(["a1"]);
-        expect(b.model.get("node-by-id", { nodeId: "a0" })).toMatchObject({
+        expect(b.model.get("node-by", { id: "a0" })).toMatchObject({
             data: { name: "a0" },
         });
         expect(b.engine.adapter.getMoveableElement("a0")).toBe(moveable);

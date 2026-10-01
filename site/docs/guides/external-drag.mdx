@@ -79,7 +79,7 @@ import type { TabInitOf } from "@fragiola/dockable";
 const widget: TabInitOf<Types> = { component: "chart", data: { name: "Revenue", metric: "revenue" } };
 
 const addToActiveTabset = () => {
-    const target = model.get("active-tabset-by-layout-id") ?? model.get("tabsets-by-layout-id")[0];
+    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
     if (target) model.run("tab.add", { ...widget, to: target.id, select: true });
 };
 

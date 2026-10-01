@@ -31,90 +31,95 @@ export type NoPayload = Record<never, never>;
 
 /**
  * The payload argument of a query: optional when the payload has no required field
- * (`model.get("all-tabs")`), required otherwise (`model.get("node-parent-by-id", { nodeId })`).
+ * (`model.get("all-tabs")`), required otherwise (`model.get("node-parent-by", { nodeId })`).
  */
 export type QueryArgs<P> = NoPayload extends P ? [payload?: P] : [payload: P];
 
 /**
- * What `model.get(key, payload)` reads: each key's payload and result. A key names what it returns
- * and whose id it takes (`node-parent-by-id` takes `{ nodeId }`, `selected-tab-by-tabset-id` takes
- * `{ tabsetId }`). A `-by-layout-id` key's `layoutId` defaults to the main layout (`MAIN_LAYOUT`).
+ * Where `selected-tab-by` reads: exactly one of a tabset, a border or a layout (the selected tab of
+ * the layout's active tabset).
+ */
+export type SelectedTabByPayload =
+    | { tabsetId: string; borderId?: never; layoutId?: never }
+    | { borderId: string; tabsetId?: never; layoutId?: never }
+    | { layoutId: string; tabsetId?: never; borderId?: never };
+
+/**
+ * What `model.get(key, payload)` reads: each key's payload and result. A key names what it returns;
+ * the payload says whose. A key that takes an id ends in `-by`, and the payload's field completes it:
+ * `id` when it is the id of what the key returns (`node-by { id }`), `<entity>Id` otherwise
+ * (`node-parent-by { nodeId }`, `selected-tab-by { tabsetId }`). A key whose only input is an
+ * optional `layoutId` has no `-by`, and reads the main layout (`MAIN_LAYOUT`) without one
+ * (`tabsets`, `active-tabset`).
  */
 export interface ModelGetMap<T extends DockableTypes = AnyTypes> {
     /** a node by its id (O(1)) */
-    "node-by-id": {
-        payload: { nodeId: string };
+    "node-by": {
+        payload: { id: string };
         result: Node<T> | undefined;
     };
     /** a node's parent: a row, a tabset or a border */
-    "node-parent-by-id": {
+    "node-parent-by": {
         payload: { nodeId: string };
         result: ParentNode<T> | undefined;
     };
     /** the id of the layout a node is in: `MAIN_LAYOUT` or a window id */
-    "layout-id-by-node-id": {
+    "layout-id-by": {
         payload: { nodeId: string };
         result: string | undefined;
     };
     /** a layout's root row */
-    "root-row-by-layout-id": {
+    "root-row": {
         payload: { layoutId?: string | undefined };
         result: RowNode<T> | undefined;
     };
-    /** a popout window's layout */
-    "window-by-id": {
-        payload: { windowId: string };
+    /** a popout window's layout by its id */
+    "window-by": {
+        payload: { id: string };
         result: WindowLayout<T> | undefined;
     };
     /** every tab of the model: the main layout's, its borders' and the windows', in tree order */
     "all-tabs": { payload: NoPayload; result: TabOf<T>[] };
     /** the tabs of a layout (the main layout's include its borders'), in tree order */
-    "tabs-by-layout-id": {
+    tabs: {
         payload: { layoutId?: string | undefined };
         result: TabOf<T>[];
     };
     /** the tabsets of a layout, in tree order */
-    "tabsets-by-layout-id": {
+    tabsets: {
         payload: { layoutId?: string | undefined };
         result: TabsetNode<T>[];
     };
-    /** the selected tab of a tabset: the one it shows */
-    "selected-tab-by-tabset-id": {
-        payload: { tabsetId: string };
-        result: TabOf<T> | undefined;
-    };
-    /** the selected tab of a border: the one its open panel shows (none while it is closed) */
-    "selected-tab-by-border-id": {
-        payload: { borderId: string };
-        result: TabOf<T> | undefined;
-    };
-    /** the selected tab of a layout's active tabset */
-    "selected-tab-by-layout-id": {
-        payload: { layoutId?: string | undefined };
+    /**
+     * the selected tab of a tabset (the one it shows), of a border (the one its open panel shows;
+     * none while it is closed) or of a layout (its active tabset's)
+     */
+    "selected-tab-by": {
+        payload: SelectedTabByPayload;
         result: TabOf<T> | undefined;
     };
     /** a layout's active tabset */
-    "active-tabset-by-layout-id": {
+    "active-tabset": {
         payload: { layoutId?: string | undefined };
         result: TabsetNode<T> | undefined;
     };
     /** a layout's maximized tabset */
-    "maximized-tabset-by-layout-id": {
+    "maximized-tabset": {
         payload: { layoutId?: string | undefined };
         result: TabsetNode<T> | undefined;
     };
     /** a tab's effective settings: its own value, else the layout's default */
-    "tab-settings-by-id": {
+    "tab-settings-by": {
         payload: { tabId: string };
         result: ResolvedTab | undefined;
     };
     /** a tabset's effective settings: its own value, else the layout's default */
-    "tabset-settings-by-id": {
+    "tabset-settings-by": {
         payload: { tabsetId: string };
         result: ResolvedTabset | undefined;
     };
     /** a border's effective settings: its own value, else the layout's default */
-    "border-settings-by-id": {
+    "border-settings-by": {
         payload: { borderId: string };
         result: ResolvedBorder | undefined;
     };
@@ -332,22 +337,42 @@ function isEmpty(
     return found?.type === type && found.children.length === 0;
 }
 
+/** The selected tab `selected-tab-by` reads: exactly one of its fields, else none. */
+function selectedTabBy(
+    source: QuerySource,
+    payload: SelectedTabByPayload,
+): TabOf<AnyTypes> | undefined {
+    const { tabsetId, borderId, layoutId } = payload;
+    const given = [tabsetId, borderId, layoutId].filter(
+        (id) => id !== undefined,
+    );
+    if (given.length !== 1) {
+        return undefined;
+    }
+    if (tabsetId !== undefined) {
+        return selectedTab(source, tabsetId, "tabset");
+    }
+    if (borderId !== undefined) {
+        return selectedTab(source, borderId, "border");
+    }
+    const active = activeTabset(source, layoutId);
+    return active ? selectedTab(source, active.id, "tabset") : undefined;
+}
+
 const GETTERS: Getters = {
-    "node-by-id": (source, { nodeId }) => node(source, nodeId),
-    "node-parent-by-id": (source, { nodeId }) => {
+    "node-by": (source, { id }) => node(source, id),
+    "node-parent-by": (source, { nodeId }) => {
         const parent = source.index.parent(nodeId);
         return parent === undefined
             ? undefined
             : (node(source, parent) as ParentNode | undefined);
     },
-    "layout-id-by-node-id": (source, { nodeId }) => layoutOf(source, nodeId),
-    "root-row-by-layout-id": (source, { layoutId }) =>
-        rootRow(source, layoutId),
-    "window-by-id": (source, { windowId }) => windowLayout(source, windowId),
+    "layout-id-by": (source, { nodeId }) => layoutOf(source, nodeId),
+    "root-row": (source, { layoutId }) => rootRow(source, layoutId),
+    "window-by": (source, { id }) => windowLayout(source, id),
     "all-tabs": (source) => tabsOf(source),
-    "tabs-by-layout-id": (source, { layoutId }) =>
-        tabsOf(source, layoutId ?? MAIN_LAYOUT),
-    "tabsets-by-layout-id": (source, { layoutId }) => {
+    tabs: (source, { layoutId }) => tabsOf(source, layoutId ?? MAIN_LAYOUT),
+    tabsets: (source, { layoutId }) => {
         const tabsets: TabsetNode[] = [];
         const root = rootRow(source, layoutId);
         if (root) {
@@ -359,31 +384,23 @@ const GETTERS: Getters = {
         }
         return tabsets;
     },
-    "selected-tab-by-tabset-id": (source, { tabsetId }) =>
-        selectedTab(source, tabsetId, "tabset"),
-    "selected-tab-by-border-id": (source, { borderId }) =>
-        selectedTab(source, borderId, "border"),
-    "selected-tab-by-layout-id": (source, { layoutId }) => {
-        const active = activeTabset(source, layoutId);
-        return active ? selectedTab(source, active.id, "tabset") : undefined;
-    },
-    "active-tabset-by-layout-id": (source, { layoutId }) =>
-        activeTabset(source, layoutId),
-    "maximized-tabset-by-layout-id": (source, { layoutId }) =>
+    "selected-tab-by": selectedTabBy,
+    "active-tabset": (source, { layoutId }) => activeTabset(source, layoutId),
+    "maximized-tabset": (source, { layoutId }) =>
         maximizedTabset(source, layoutId),
-    "tab-settings-by-id": (source, { tabId }) => {
+    "tab-settings-by": (source, { tabId }) => {
         const found = node(source, tabId);
         return found?.type === "tab"
             ? resolveTab(source.state.defaults, found)
             : undefined;
     },
-    "tabset-settings-by-id": (source, { tabsetId }) => {
+    "tabset-settings-by": (source, { tabsetId }) => {
         const found = node(source, tabsetId);
         return found?.type === "tabset"
             ? resolveTabset(source.state.defaults, found)
             : undefined;
     },
-    "border-settings-by-id": (source, { borderId }) => {
+    "border-settings-by": (source, { borderId }) => {
         const found = node(source, borderId);
         return found?.type === "border"
             ? resolveBorder(source.state.defaults, found)

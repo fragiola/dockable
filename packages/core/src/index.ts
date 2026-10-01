@@ -6,6 +6,7 @@ export type {
     CommandContext,
     CommandContextBase,
     CommandContextGetKey,
+    CommandContextGetMap,
     CommandError,
     CommandErrorCode,
     CommandEvent,
@@ -170,6 +171,7 @@ export type {
     ModelIsPayload,
     NoPayload,
     QueryArgs,
+    SelectedTabByPayload,
 } from "./state/queries";
 export {
     type AnyTypes,

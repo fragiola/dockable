@@ -253,12 +253,10 @@ export function useTabSet<T extends DockableTypes>(
     const { engine, layoutId } = useLayoutContext("useTabSet");
     const id = node.id;
     const drop = useTabSetDropState(engine, id);
-    const active =
-        model.get("active-tabset-by-layout-id", { layoutId })?.id === id;
+    const active = model.get("active-tabset", { layoutId })?.id === id;
     const state: TabSetState = {
         active,
-        maximized:
-            model.get("maximized-tabset-by-layout-id", { layoutId })?.id === id,
+        maximized: model.get("maximized-tabset", { layoutId })?.id === id,
         hidden: model.is("node-hidden-by-maximize", { nodeId: id }),
         empty: node.children.length === 0,
         dropTarget: drop.target,
@@ -275,7 +273,7 @@ export function useTabSet<T extends DockableTypes>(
     const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
         if (
             !isAuxEvent(event) &&
-            model.get("active-tabset-by-layout-id", { layoutId })?.id !== id
+            model.get("active-tabset", { layoutId })?.id !== id
         ) {
             model.run("tabset.activate", { tabsetId: id });
         }
@@ -532,17 +530,16 @@ export function useDragNode<T extends DockableTypes>(
     const dragState = useDragState();
     const id = node.id;
     const enabled = () => {
-        const current = model.get("node-by-id", { nodeId: id });
+        const current = model.get("node-by", { id });
         if (current?.type === "tab") {
             return (
-                model.get("tab-settings-by-id", { tabId: id })?.enableDrag ??
-                false
+                model.get("tab-settings-by", { tabId: id })?.enableDrag ?? false
             );
         }
         if (current?.type === "tabset") {
             return (
-                model.get("tabset-settings-by-id", { tabsetId: id })
-                    ?.enableDrag ?? false
+                model.get("tabset-settings-by", { tabsetId: id })?.enableDrag ??
+                false
             );
         }
         return false;

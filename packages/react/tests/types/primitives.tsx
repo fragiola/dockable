@@ -169,7 +169,7 @@ export function Hooks() {
         m.get("all-tabs").map((tab) => tab.data.name),
     );
     // the engine of the layout this renders in: screen actions and view facts
-    const panelId: string = engine.get("tab-panel-dom-id-by-tab-id", {
+    const panelId: string = engine.get("tab-panel-dom-id-by", {
         tabId: "t0",
     });
     void panelId;

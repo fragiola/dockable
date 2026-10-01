@@ -71,11 +71,18 @@ Do not "fix" these.
     read or question is a new key, not a new method; guard tests keep both surfaces exact.
     **Names say what they take.** A field holding an id is `<entity>Id` (`tabId`, `tabsetId`,
     `nodeId`, `layoutId`; a list `tabIds`), in every payload and result, commands included; only
-    `to` (a placement target) and a node's own `id` are exempt. A `get` key names its result and
-    whose id it takes (`node-by-id { nodeId }`, `selected-tab-by-tabset-id { tabsetId }`; a
-    `-by-layout-id` key defaults to the main layout); an `is` key is `<entity>-<state>`
-    (`tabset-active { tabsetId }`). A tab is **selected** (the one its tabset or border shows); a
-    tabset is **active** (one per layout); the two words are never swapped.
+    `to` (a placement target) and an entity's own `id` (a new node's, or the one a `get` key
+    returns) are exempt. **A key and its payload read as one sentence**
+    (`model.can("tab.move", { tabId, to: "main" })`). A `get` key names its result; one that takes
+    an id ends in `-by` and the payload's field completes it: `id` when it is the id of what the
+    key returns (`node-by { id }`, `window-by { id }`), `<entity>Id` otherwise
+    (`node-parent-by { nodeId }`, `layout-id-by { nodeId }`, `tab-settings-by { tabId }`);
+    `selected-tab-by` takes exactly one of `{ tabsetId }`, `{ borderId }`, `{ layoutId }`. A key
+    whose only input is an optional `layoutId` has no `-by` and defaults to the main layout
+    (`tabsets`, `active-tabset`); one that takes nothing has a plain name (`all-tabs`). Never
+    `-by-<entity>-id`. An `is` key is `<entity>-<state>` (`tabset-active { tabsetId }`). A tab is
+    **selected** (the one its tabset or border shows); a tabset is **active** (one per layout);
+    the two words are never swapped.
 
 ## Commands
 
