@@ -32,6 +32,7 @@ also commented in the example's code, since users copy it.
 | E16 | `close-tabs` | Middle-click to close. | `onAuxClick` dispatching `Actions.deleteTab`. | Optional `closeOnMiddleClick` (FlexLayout has it), or a documented recipe. |
 | E17 | `event-toasts` (Epic #86) | Read a committed command's payload and result by command, typed. `CommandEvent.payload` and `result` are `unknown` (one listener sees every command). | A small `field(value, key)` reader (`Reflect.get` after an object check) and a type check on each field it reads; no cast. | A `CommandEvent<T>` union discriminated by `command`, as `CommandContext<T>` already is for middleware. |
 | E18 | `splitter-wide`, `splitter-dotted-handle`, `splitter-framed-handle` (Epic #86) | `aria-valuenow` after one arrow key on a splitter. The first press moves the splitter but the separator's value updates only with the next one. | The specs press the arrow key twice. | The splitter re-reads its value after a keyboard step commits. |
+| E19 | `drop-indicator-colours` (Epic #86) | Style the drop indicator by the tabset it targets. The core's indicator state has `targetTabSetId`, but `Dockable.DropIndicator`'s state (what `className`/`style` receive) does not. | Each tabset reads its own `useTabSet(node).state.dropTarget` and reports its id to the example's state in an effect; the indicator's class reads it. | `targetTabSetId` (and `targetNodeId`) in `DropIndicatorState`. |
 
 ## 2. Site and Fragiola UI (not package gaps)
 

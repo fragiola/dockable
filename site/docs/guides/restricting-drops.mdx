@@ -126,4 +126,7 @@ Over a target that a rule refuses, the outline hides, the browser shows its "not
 and `Dockable.Root`, `DropIndicator` and the refusing `TabSet` (or `Border`) get
 `data-drop-refused`. Style them to say why: see
 [Drop zones and drop feedback](/docs/guides/drop-zones#refused-drops) and the `locked-regions`
-example above.
+example above, where a refusing tabset turns red with a lock over its whole area. The overlay is a
+child of the `TabSet` with a `z-index` (panels are portalled after the tabsets), shown by the
+tabset's own attribute: the root has `data-drop-refused` too, so read it through a group on the
+tabset rather than any ancestor.

@@ -40,22 +40,36 @@ export const dropIndicator = (state: DropIndicatorState) =>
             : "palette-blue bg-palette-base/20",
     );
 
-/** Hidden until the root has data-drop-refused (`in-data-drop-refused:flex`). */
-export const refusedNotice =
-    "palette-danger pointer-events-none absolute start-1/2 top-3 z-30 hidden -translate-x-1/2 items-center gap-2 rounded-full bg-palette-base px-3 py-1.5 text-sm text-palette-contrast shadow-md in-data-drop-refused:flex rtl:translate-x-1/2";
-
-export const refusedIcon = "size-4";
-
 // ─── tabsets ───
 
-/** A locked tabset has a dashed frame; a tabset refusing the current drag is marked by
- * data-drop-refused. */
+/** A locked tabset has a dashed frame. `relative` places the refused overlay over it, and
+ * `group/tabset` lets the overlay read this tabset's own `data-drop-refused` (the root has the
+ * attribute too, so `in-data-drop-refused:` would light up every tabset). */
 export const tabset = (locked: boolean) =>
     cn(
-        "palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)",
+        "group/tabset palette-raised relative rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)",
         locked && "border-dashed",
-        "data-drop-refused:opacity-60",
     );
+
+/**
+ * Over the whole tabset while it refuses the drag: red stripes, a red inset frame and a lock.
+ * Panels are portalled into the root after the tabsets: `z-30` paints the overlay above this
+ * tabset's panel. It takes no pointer events, so the drag keeps its enter and leave events.
+ */
+export const refusedOverlay = cn(
+    "palette-danger pointer-events-none absolute inset-0 z-30 hidden flex-col items-center justify-center gap-3",
+    "rounded-(--dk-radius) ring-2 ring-palette-base ring-inset",
+    "[background:repeating-linear-gradient(135deg,color-mix(in_oklab,var(--palette-base)_24%,transparent)_0_12px,color-mix(in_oklab,var(--palette-base)_12%,transparent)_12px_24px)]",
+    "group-data-drop-refused/tabset:flex",
+);
+
+export const refusedBadge =
+    "grid size-14 place-items-center rounded-full bg-palette-base text-palette-contrast shadow-lg";
+
+export const refusedIcon = "size-7";
+
+export const refusedText =
+    "rounded-full bg-palette-base px-3 py-1 text-sm font-medium text-palette-contrast shadow-md";
 
 export const strip =
     "flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line";

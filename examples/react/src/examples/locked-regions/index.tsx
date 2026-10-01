@@ -17,7 +17,7 @@ import {
     type RowSplitterProps,
     useDockable,
 } from "@fragiola/dockable-react";
-import { Ban, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useState } from "react";
 import { Tooltip } from "#/components/ui/tooltip";
 import { PanelBody } from "../_kit/card";
@@ -32,7 +32,8 @@ import * as styles from "./styles";
 //    drag asks it on every hover with `model.can` (a dry run, `ctx.dryRun`), so over a refused
 //    target the outline hides, the browser shows its "not allowed" cursor, and the target
 //    tabset and the root get `data-drop-refused`; a drop, or a command run from code, is vetoed
-//    the same way.
+//    the same way. Each tabset styles its own `data-drop-refused`: the whole region turns red,
+//    with a lock in its middle, for as long as the drag hovers it.
 // 2. Node flags: the "Console" tabset has `enableDrop: false` (nothing merges into it) and
 //    `enableDivide: false` (nothing splits it), and its tabs `enableDrag: false`.
 //
@@ -212,11 +213,6 @@ export default function LockedRegions() {
                             transitionDuration: `${state.tabDragSpeed}s`,
                         })}
                     />
-                    {/* inside the root: shown while the root has data-drop-refused */}
-                    <div role="status" className={styles.refusedNotice}>
-                        <Ban aria-hidden className={styles.refusedIcon} />
-                        Not allowed here
-                    </div>
                 </Dockable.Root>
             </div>
         </>
@@ -269,6 +265,17 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 </div>
             </div>
             <Dockable.TabSetContent />
+            {/* over the whole tabset (its strip and its panel) while it refuses the drag */}
+            <div
+                aria-hidden="true"
+                data-testid="refused-overlay"
+                className={styles.refusedOverlay}
+            >
+                <span className={styles.refusedBadge}>
+                    <Lock className={styles.refusedIcon} />
+                </span>
+                <span className={styles.refusedText}>Not allowed here</span>
+            </div>
         </Dockable.TabSet>
     );
 }
