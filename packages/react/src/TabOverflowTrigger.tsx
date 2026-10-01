@@ -61,7 +61,7 @@ export function TabOverflowTrigger<T extends DockableTypes = AnyTypes>(
             type: "button",
             ...dataAttributes({
                 // FlexLayout's path for a tabset's overflow button
-                "layout-path": `${engine.get("path", { node: id })}/button/overflow`,
+                "layout-path": `${engine.get("layout-path-by-node-id", { nodeId: id })}/button/overflow`,
                 count: hiddenTabs.length,
             }),
             children,

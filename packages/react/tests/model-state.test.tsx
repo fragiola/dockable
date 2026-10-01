@@ -14,7 +14,7 @@ describe("useModelState", () => {
         const renders: number[] = [];
         function TabCount() {
             const count = useModelState<Types, number>(
-                (_state, m) => m.get("tabs").length,
+                (_state, m) => m.get("all-tabs").length,
             );
             renders.push(count);
             return <output data-testid="count">{count}</output>;
@@ -31,13 +31,13 @@ describe("useModelState", () => {
         // a change that leaves the count alone: the selection is equal, so no re-render (the
         // root re-renders the layout, but this element is the same `children` it was given)
         await act(async () => {
-            model.run("tab.select", { tab: "t1" });
+            model.run("tab.select", { tabId: "t1" });
         });
         expect(renders.length).toBe(before);
         const afterSelect = renders.length;
 
         await act(async () => {
-            model.run("tab.close", { tab: "t2" });
+            model.run("tab.close", { tabId: "t2" });
         });
         expect(screen.getByTestId("count")).toHaveTextContent("2");
         expect(renders.length).toBeGreaterThan(afterSelect);
@@ -48,7 +48,7 @@ describe("useModelState", () => {
         const seen: string[][] = [];
         function Names() {
             const names = useModelState<Types, string[]>(
-                (_state, m) => m.get("tabs").map((tab) => tab.data.name),
+                (_state, m) => m.get("all-tabs").map((tab) => tab.data.name),
                 (a, b) => a.join() === b.join(),
             );
             seen.push(names);
@@ -62,12 +62,12 @@ describe("useModelState", () => {
         await act(async () => {});
         const first = seen.at(-1);
         await act(async () => {
-            model.run("tab.select", { tab: "t1" }); // a new state, the same names
+            model.run("tab.select", { tabId: "t1" }); // a new state, the same names
         });
         expect(seen.at(-1)).toBe(first);
         await act(async () => {
             model.run("tab.update", {
-                tab: "t0",
+                tabId: "t0",
                 component: "test",
                 data: { name: "Uno" },
             });
@@ -82,7 +82,7 @@ describe("useModelState, selectors and contexts", () => {
         function Name({ id }: { id: string }) {
             const name = useModelState<Types, string | undefined>(
                 (_state, m) => {
-                    const tab = m.get("node", { node: id });
+                    const tab = m.get("node-by-id", { nodeId: id });
                     return tab?.type === "tab" ? tab.data.name : undefined;
                 },
             );
@@ -107,7 +107,7 @@ describe("useModelState, selectors and contexts", () => {
         const model = freshModel();
         function Count() {
             const count = useModelState<Types, number>(
-                (_state, m) => m.get("tabs").length,
+                (_state, m) => m.get("all-tabs").length,
             );
             return <output data-testid="grouped-count">{count}</output>;
         }
@@ -215,8 +215,10 @@ describe("useDockable", () => {
         ]);
         expect(result?.engine.is("main-layout")).toBe(true);
         await act(async () => {
-            result?.model.run("tab.select", { tab: "t1" });
+            result?.model.run("tab.select", { tabId: "t1" });
         });
-        expect(model.get("selected-tab", { container: "ts0" })?.id).toBe("t1");
+        expect(
+            model.get("selected-tab-by-tabset-id", { tabsetId: "ts0" })?.id,
+        ).toBe("t1");
     });
 });

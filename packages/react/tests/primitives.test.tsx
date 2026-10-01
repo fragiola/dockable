@@ -118,13 +118,13 @@ describe("composition and ARIA", () => {
         expect(mustPath("/ts0")).not.toHaveAttribute("data-active");
 
         act(() => {
-            model.run("tabset.activate", { tabset: "ts0" });
+            model.run("tabset.activate", { tabsetId: "ts0" });
         });
         expect(mustPath("/ts0")).toHaveAttribute("data-active", "");
         expect(mustPath("/ts1")).not.toHaveAttribute("data-active");
 
         act(() => {
-            model.run("tabset.maximize", { tabset: "ts1", value: true });
+            model.run("tabset.maximize", { tabsetId: "ts1", value: true });
         });
         expect(mustPath("/ts1")).toHaveAttribute("data-maximized", "");
         expect(mustPath("/layout")).toHaveAttribute("data-maximized", "");
@@ -418,7 +418,7 @@ describe("ref stability", () => {
             </Dockable.Root>,
         );
         act(() => {
-            model.run("tab.select", { tab: "t1" });
+            model.run("tab.select", { tabId: "t1" });
         });
         expect(elementRef.current).toBe(mustPath("/layout"));
         // the child's layout effect patches attachRoot before the root's ref attaches: that first
@@ -441,7 +441,7 @@ describe("inline callback refs", () => {
         const { rerender } = render(<App />);
         rerender(<App />);
         act(() => {
-            model.run("tab.select", { tab: "t1" });
+            model.run("tab.select", { tabId: "t1" });
         });
         expect(calls.filter((el) => el !== null)).toHaveLength(1);
         expect(calls).not.toContain(null);
@@ -455,7 +455,11 @@ describe("interaction", () => {
         render(<Layout model={model} />);
         fireEvent.click(mustPath("/ts0/tb1"));
         expect(commands).toEqual([
-            { command: "tab.select", payload: { tab: "t1" }, transient: false },
+            {
+                command: "tab.select",
+                payload: { tabId: "t1" },
+                transient: false,
+            },
         ]);
         expect(mustPath("/ts0/tb1")).toHaveAttribute("aria-selected", "true");
     });
@@ -481,7 +485,11 @@ describe("interaction", () => {
 
         fireEvent.keyDown(tab1, { key: "Enter" });
         expect(commands).toEqual([
-            { command: "tab.select", payload: { tab: "t1" }, transient: false },
+            {
+                command: "tab.select",
+                payload: { tabId: "t1" },
+                transient: false,
+            },
         ]);
         expect(tab1).toHaveAttribute("aria-selected", "true");
     });
@@ -493,7 +501,7 @@ describe("interaction", () => {
             key: "Delete",
             ctrlKey: true,
         });
-        expect(model.get("node", { node: "t1" })).toBeUndefined();
+        expect(model.get("node-by-id", { nodeId: "t1" })).toBeUndefined();
     });
 
     it("moves focus to the previous tab when the last tab is closed", () => {
@@ -502,7 +510,7 @@ describe("interaction", () => {
         const last = mustPath("/ts0/tb1");
         last.focus();
         fireEvent.keyDown(last, { key: "Delete", ctrlKey: true });
-        expect(model.get("node", { node: "t1" })).toBeUndefined();
+        expect(model.get("node-by-id", { nodeId: "t1" })).toBeUndefined();
         expect(document.activeElement).toBe(mustPath("/ts0/tb0"));
     });
 
@@ -510,7 +518,7 @@ describe("interaction", () => {
         const model = fresh();
         render(<Layout model={model} />);
         fireEvent.pointerDown(mustPath("/ts1"), { button: 0 });
-        expect(model.get("active-tabset")?.id).toBe("ts1");
+        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
     });
 
     it("runs row.resize from the splitter keyboard", () => {
@@ -521,7 +529,7 @@ describe("interaction", () => {
         fireEvent.keyDown(splitter, { key: "ArrowRight" });
         const resize = commands.find((c) => c.command === "row.resize");
         expect(resize).toMatchObject({
-            payload: { row: "row" },
+            payload: { rowId: "row" },
             transient: false,
         });
     });
@@ -542,10 +550,10 @@ describe("panels and content", () => {
 
         rerender(<Layout model={model} />);
         act(() => {
-            model.run("tab.select", { tab: "t1" });
+            model.run("tab.select", { tabId: "t1" });
         });
         act(() => {
-            model.run("tab.select", { tab: "t0" });
+            model.run("tab.select", { tabId: "t0" });
         });
 
         expect(
@@ -564,7 +572,7 @@ describe("panels and content", () => {
 
         act(() => {
             model.run("tab.move", {
-                tab: "t2",
+                tabId: "t2",
                 to: "ts0",
                 location: "center",
                 index: 0,
@@ -591,7 +599,7 @@ describe("panels and content", () => {
 
         act(() => {
             model.run("tab.move", {
-                tab: "t2",
+                tabId: "t2",
                 to: "ts0",
                 location: "center",
                 index: -1,
@@ -668,7 +676,7 @@ describe("panels and content", () => {
         const moveable = content.closest(`[${MOVEABLE_ATTRIBUTE}]`);
 
         act(() => {
-            const result = model.run("tab.popout", { tab: "t2" });
+            const result = model.run("tab.popout", { tabId: "t2" });
             expect(result.ok).toBe(true);
         });
 
@@ -731,7 +739,7 @@ describe("hooks", () => {
                 <button
                     type="button"
                     data-testid="select"
-                    onClick={() => model.run("tab.select", { tab: "t1" })}
+                    onClick={() => model.run("tab.select", { tabId: "t1" })}
                 >
                     select
                 </button>
@@ -744,7 +752,11 @@ describe("hooks", () => {
         );
         fireEvent.click(screen.getByTestId("select"));
         expect(commands).toEqual([
-            { command: "tab.select", payload: { tab: "t1" }, transient: false },
+            {
+                command: "tab.select",
+                payload: { tabId: "t1" },
+                transient: false,
+            },
         ]);
         expect(mustPath("/ts0/tb1")).toHaveAttribute("aria-selected", "true");
     });
@@ -810,6 +822,6 @@ describe("hooks", () => {
             "aria-orientation",
             "horizontal",
         );
-        expect(model.get("root-row")?.children).toHaveLength(2);
+        expect(model.get("root-row-by-layout-id")?.children).toHaveLength(2);
     });
 });

@@ -176,7 +176,7 @@ describe("Dockable.Borders", () => {
         fireEvent.click(element("/border/left/tb1"));
         expect(commands.at(-1)).toEqual({
             command: "tab.select",
-            payload: { tab: "search" },
+            payload: { tabId: "search" },
             transient: false,
         });
         expect(path("/border/left")).toHaveAttribute("data-open", "");
@@ -186,7 +186,7 @@ describe("Dockable.Borders", () => {
         fireEvent.click(element("/border/left/tb1"));
         expect(commands.at(-1)).toEqual({
             command: "border.configure",
-            payload: { border: "border_left", open: false },
+            payload: { borderId: "border_left", open: false },
             transient: false,
         });
         expect(path("/border/left")).not.toHaveAttribute("data-open");
@@ -209,13 +209,15 @@ describe("Dockable.Borders", () => {
         });
         expect(commands.at(-1)).toMatchObject({
             command: "border.resize",
-            payload: { border: "border_bottom", size: 130 },
+            payload: { borderId: "border_bottom", size: 130 },
         });
         const bottom = model.state.borders.find(
             (border) => border.location === "bottom",
         );
         expect(
-            bottom && model.get("border-settings", { border: bottom.id })?.size,
+            bottom &&
+                model.get("border-settings-by-id", { borderId: bottom.id })
+                    ?.size,
         ).toBe(130);
         expect(path("/border/bottom/area")?.style.height).toBe("130px");
     });
@@ -225,10 +227,10 @@ describe("Dockable.Borders", () => {
         render(<BorderLayout model={model} />);
         act(() => {
             model.run("border.configure", {
-                border: "border_left",
+                borderId: "border_left",
                 mode: "overlay",
             });
-            model.run("tab.select", { tab: "files" });
+            model.run("tab.select", { tabId: "files" });
         });
         const content = element("/border/left/content");
         expect(path("/border/left")).toHaveAttribute("data-overlay", "");

@@ -42,7 +42,7 @@ export function Panels<T extends DockableTypes = AnyTypes>(
     // mounted (yet): the content of a tab moving to a window that is still opening must stay
     // mounted
     const tabs = model
-        .get("tabs")
+        .get("all-tabs")
         .filter((tab) =>
             engine.adapter.shouldRender(
                 tab.id,

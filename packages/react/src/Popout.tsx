@@ -57,15 +57,15 @@ export function Popout<T extends DockableTypes = AnyTypes>(
     // the root calls these by window layout id: hand the typed layout over
     popoutHooks.current = {
         title: (id) => {
-            const layout = model.get("window", { window: id });
+            const layout = model.get("window-by-id", { windowId: id });
             return layout && title ? title(layout) : undefined;
         },
         onOpen: (id, win, doc) => {
-            const layout = model.get("window", { window: id });
+            const layout = model.get("window-by-id", { windowId: id });
             if (layout) onOpen?.(layout, win, doc);
         },
         onClose: (id, win, doc) => {
-            const layout = model.get("window", { window: id });
+            const layout = model.get("window-by-id", { windowId: id });
             if (layout) onClose?.(layout, win, doc);
         },
     };
@@ -159,8 +159,9 @@ function PopoutLayout<T extends DockableTypes>({
         props: {
             ...dataAttributes({
                 "layout-path":
-                    engine.get("path", { node: layout.root.id }) ||
-                    `/${layoutId}`,
+                    engine.get("layout-path-by-node-id", {
+                        nodeId: layout.root.id,
+                    }) || `/${layoutId}`,
             }),
             children: (
                 <LayoutContext.Provider value={layoutContext}>

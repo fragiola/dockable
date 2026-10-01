@@ -58,7 +58,9 @@ export function Border<T extends DockableTypes = AnyTypes>(
         ref: strip.ref,
         props: {
             ...dataAttributes({
-                "layout-path": engine.get("path", { node: node.id }),
+                "layout-path": engine.get("layout-path-by-node-id", {
+                    nodeId: node.id,
+                }),
                 ...borderAttributes(state),
                 "tab-direction": state.tabDirection,
                 "drop-target": state.dropTarget,

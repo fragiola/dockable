@@ -57,7 +57,7 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
     const { model } = useDockableContext("Row");
     const { engine, layoutId } = useLayoutContext("Row");
     const row =
-        node ?? typedModel<T>(model).get("root-row", { layout: layoutId });
+        node ?? typedModel<T>(model).get("root-row-by-layout-id", { layoutId });
     if (!row) {
         throw new Error(`Dockable.Row: layout "${layoutId}" has no root row`);
     }
@@ -94,9 +94,9 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
         orientation: horizontal ? "horizontal" : "vertical",
         root,
         // a maximized tabset fills the layout: the rows off its path give up their space
-        hidden: model.is("hidden-by-maximize", { node: id }),
+        hidden: model.is("node-hidden-by-maximize", { nodeId: id }),
     };
-    const range = engine.get("size-limits", { node: id });
+    const range = engine.get("size-limits-by-node-id", { nodeId: id });
     const structural: React.CSSProperties = {
         display: state.hidden ? "none" : "flex",
         flexDirection: horizontal ? "row" : "column",
@@ -119,7 +119,9 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
         ref,
         props: {
             ...dataAttributes({
-                "layout-path": root ? "/row" : engine.get("path", { node: id }),
+                "layout-path": root
+                    ? "/row"
+                    : engine.get("layout-path-by-node-id", { nodeId: id }),
                 orientation: state.orientation,
                 root,
             }),
