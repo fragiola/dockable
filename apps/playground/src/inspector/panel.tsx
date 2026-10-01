@@ -7,7 +7,7 @@ import type { InspectedEvent, InspectedModel } from "./context";
 //   Commands  every command the model commits (engine-issued or a direct `model.run` alike,
 //             through `model.subscribe`), newest first: its name, payload and result, and whether
 //             it was transient (a step of a gesture); a batch lists the commands it ran
-//   Model     `model.toJSON()` after the last command
+//   Model     `model.get("layout-json")` after the last command
 //   State     each `[data-layout-path]` element of the stage with its `data-*` and ARIA
 //             attributes, re-read on every attribute change, so drag and drop state shows while
 //             it happens
@@ -143,7 +143,7 @@ export function InspectorPanel({
     const state = useLayoutState(stage, view === "state");
     // biome-ignore lint/correctness/useExhaustiveDependencies: `version` moves with each command (`model.state` is replaced)
     const json = useMemo(
-        () => (view === "model" ? stringify(model.toJSON(), 2) : ""),
+        () => (view === "model" ? stringify(model.get("layout-json"), 2) : ""),
         [model, view, version],
     );
 

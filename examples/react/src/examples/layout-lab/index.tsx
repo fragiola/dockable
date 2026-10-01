@@ -86,7 +86,7 @@ export default function LayoutLab() {
     );
 
     const addTab = () => {
-        const target = model.activeTabset() ?? model.tabsets()[0];
+        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
         if (!target) return;
         added += 1;
         model.run("tab.add", {
@@ -99,7 +99,7 @@ export default function LayoutLab() {
     return (
         <div className="flex min-h-0 flex-1 font-(family-name:--dk-font)">
             <JsonEditor
-                json={model.toJSON()}
+                json={model.get("layout-json")}
                 // untrusted JSON: `dispatch` validates it (JSON v1, ids) before the layout
                 // changes; a command like any other, so it is logged, vetoable and undoable
                 onApply={(layout) =>
@@ -154,7 +154,7 @@ export default function LayoutLab() {
                     <div className="ms-auto">
                         <VetoControl
                             veto={veto}
-                            commands={model.commands()}
+                            commands={model.get("commands")}
                             onChange={setVeto}
                         />
                     </div>
@@ -232,7 +232,7 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 
 /** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     return (
         <Dockable.TabSet
             node={node}
@@ -268,7 +268,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 }
                                 onClick={(event) => {
                                     event.stopPropagation();
-                                    run("tab.close", { tab: tab.id });
+                                    model.run("tab.close", { tab: tab.id });
                                 }}
                                 className={cn(
                                     "-me-1.5 grid size-5 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",

@@ -186,7 +186,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
 
 /** The inside of a tab: an icon when pinned (the name is kept for screen readers). */
 function TabLabel({ tab }: { tab: TabOf<Types> }) {
-    const { model, run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const Icon = ICONS[tab.data.icon ?? ""] ?? FileText;
     if (tab.pinned === true) {
         return (
@@ -199,7 +199,7 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
     return (
         <>
             <span className="truncate">{tab.data.name}</span>
-            {model.can("tab.close", { tab: tab.id }).ok ? (
+            {model.can("tab.close", { tab: tab.id }) ? (
                 <button
                     type="button"
                     // the tab is the tab stop; the close button is reached with the mouse
@@ -213,7 +213,7 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
                     )}
                     onClick={(event) => {
                         event.stopPropagation(); // not a click on the tab
-                        run("tab.close", { tab: tab.id });
+                        model.run("tab.close", { tab: tab.id });
                     }}
                 >
                     <X aria-hidden className="size-3" />
@@ -225,8 +225,8 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
 
 /** Pins or unpins the tabset's selected tab. */
 function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { model, run } = useDockable<Types>();
-    const selected = model.selectedTab(tabset.id);
+    const { model } = useDockable<Types>();
+    const selected = model.get("selected-tab", { container: tabset.id });
     if (!selected?.data.enablePin) {
         return null;
     }
@@ -241,7 +241,9 @@ function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
                 "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
                 "disabled:pointer-events-none disabled:opacity-40",
             )}
-            onClick={() => run("tab.pin", { tab: selected.id, value: !pinned })}
+            onClick={() =>
+                model.run("tab.pin", { tab: selected.id, value: !pinned })
+            }
         >
             {pinned ? (
                 <PinOff aria-hidden className="size-3.5" />

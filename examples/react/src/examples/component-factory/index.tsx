@@ -81,7 +81,7 @@ export default function ComponentFactory() {
     // this component is outside Dockable.Root: it follows the model through `subscribe`
     const total = useSyncExternalStore(
         model.subscribe,
-        () => model.tabs().length,
+        () => model.get("tabs").length,
     );
     return (
         <>
@@ -219,7 +219,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
 
 /** The "Add" menu of a tabset: a new tab of any kind, with its own data. */
 function AddMenu({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger
@@ -238,7 +238,7 @@ function AddMenu({ tabset }: { tabset: TabsetNode<Types> }) {
                     <DropdownMenu.Item
                         key={kind}
                         onClick={() =>
-                            run("tab.add", {
+                            model.run("tab.add", {
                                 ...TEMPLATES[kind],
                                 to: tabset.id,
                                 select: true, // select it: its content mounts now

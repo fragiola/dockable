@@ -14,7 +14,7 @@ import { CommandConsole } from "./console";
 
 // The layout as data an assistant can drive: every change is a named command with a JSON Schema,
 // so a script, a test, a chat assistant or this console can run it by name plus JSON. The console
-// beside the layout lists the commands (`model.commands()`), runs one typed as JSON
+// beside the layout lists the commands (`model.get("commands")`), runs one typed as JSON
 // (`model.dispatch`), shows its result or its structured error, and logs every change
 // (`model.subscribe`).
 

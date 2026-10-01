@@ -137,8 +137,14 @@ export interface TabSetState {
     dropLocation: DropLocation | undefined;
     /** the current drag is over this tabset, but a drop rule refuses it */
     dropRefused: boolean;
+    /**
+     * while the drag aims at this tabset's strip: the index among its tabs the tab would be
+     * inserted at (its length for the end), else `undefined`
+     */
+    dropIndex: number | undefined;
 }
 
+/** @internal what `TabList` and `Border` read of the current drop; apps read `TabSetState` */
 export interface TabSetDropState {
     /** the current drag would drop into or beside this tabset */
     target: boolean;
@@ -257,6 +263,7 @@ export function useTabSet<T extends DockableTypes>(
         dropTarget: drop.target,
         dropLocation: drop.location,
         dropRefused: drop.refused,
+        dropIndex: drop.strip ? drop.index : undefined,
     };
     const ref = React.useCallback(
         (element: HTMLElement | null) => {

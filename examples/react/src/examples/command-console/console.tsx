@@ -287,7 +287,7 @@ function ErrorBox({
 function CommandList<T extends DockableTypes>({ model }: { model: Model<T> }) {
     return (
         <ul data-testid="command-list" className="flex flex-col">
-            {model.commands().map((command) => (
+            {model.get("commands").map((command) => (
                 <li
                     key={command.name}
                     data-command={command.name}
@@ -324,7 +324,7 @@ function CommandList<T extends DockableTypes>({ model }: { model: Model<T> }) {
 }
 
 function ToolsView<T extends DockableTypes>({ model }: { model: Model<T> }) {
-    const commands = model.commands();
+    const commands = model.get("commands");
     const tools = toTools(commands);
     // what an assistant's call turns into: the command and its payload, for model.dispatch
     const example = fromToolCall(commands, {

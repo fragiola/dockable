@@ -21,7 +21,7 @@ import { editorData, type Types } from "./workspace";
 
 /** Whether a tab may be closed at all (its `enableClose`, else the layout default). */
 function closable(model: Model<Types>, tab: TabOf<Types>) {
-    return model.resolve(tab).enableClose;
+    return model.get("tab-settings", { tab: tab.id })?.enableClose === true;
 }
 
 function closeAll(model: Model<Types>, tabs: readonly TabOf<Types>[]) {
@@ -188,8 +188,9 @@ function WorkbenchTab({
 
 export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
     const { model, layoutId } = useDockable<Types>();
-    const { hidden } = useTabOverflow(node);
-    const maximized = model.maximizedTabset(layoutId)?.id === node.id;
+    const { hiddenTabs } = useTabOverflow(node);
+    const maximized =
+        model.get("maximized-tabset", { layout: layoutId })?.id === node.id;
 
     return (
         <Dockable.TabSet
@@ -216,16 +217,16 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                         }}
                     >
                         <Dockable.TabOverflowTrigger
-                            aria-label={`${hidden.length} more tabs`}
+                            aria-label={`${hiddenTabs.length} more tabs`}
                             data-testid="overflow-select"
                             render={
                                 <Select.Trigger className="h-6 min-w-0 gap-1 rounded-sm px-2 py-0 text-xs" />
                             }
                         >
-                            {`+${hidden.length}`}
+                            {`+${hiddenTabs.length}`}
                         </Dockable.TabOverflowTrigger>
                         <Select.Content>
-                            {hidden.map((tab) => (
+                            {hiddenTabs.map((tab) => (
                                 <Select.Item key={tab.id} value={tab.id}>
                                     {tab.data.name}
                                 </Select.Item>

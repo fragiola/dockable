@@ -37,7 +37,7 @@ interface CommandInfo {
 // the core's registry, loaded at run time from its source: a computed path keeps the site's
 // typecheck from checking the core too (it has its own)
 const core = (await import(join(CORE_SRC, "index.ts"))) as {
-    createModel(): { commands(): readonly CommandInfo[] };
+    createModel(): { get(key: "commands"): readonly CommandInfo[] };
 };
 const page = (slug: string) => read(join(API, `${slug}.mdx`));
 
@@ -297,7 +297,7 @@ describe("the React reference", () => {
 });
 
 describe("the core reference", () => {
-    const commands = core.createModel().commands();
+    const commands = core.createModel().get("commands");
     const commandsPage = page("commands");
 
     /** The part of the commands page about one command: from its `###` to the next heading. */

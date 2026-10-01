@@ -57,7 +57,7 @@ export default function IdeWorkbench() {
                     return next();
                 }
                 const id = ctx.payload.tab;
-                if (!editorData(ctx.get(id))?.dirty) {
+                if (!editorData(ctx.get("node", { node: id }))?.dirty) {
                     return next();
                 }
                 if (confirmed.current.delete(id)) {
@@ -94,7 +94,7 @@ export default function IdeWorkbench() {
 
     // answer the first pending question
     const pendingData = pending[0]
-        ? editorData(model.get(pending[0]))
+        ? editorData(model.get("node", { node: pending[0] }))
         : undefined;
     const answer = (choice: "save" | "discard" | "cancel") => {
         const id = pending[0];
@@ -108,13 +108,14 @@ export default function IdeWorkbench() {
 
     // what the explorer and the status bar show, read from the model
     const dirtyPaths = new Set<string>();
-    for (const tab of model.tabs()) {
+    for (const tab of model.get("tabs")) {
         const data = editorData(tab);
         if (data?.dirty) dirtyPaths.add(data.path);
     }
-    const activeTabset = model.activeTabset();
+    const activeTabset = model.get("active-tabset");
     const activePath = activeTabset
-        ? editorData(model.selectedTab(activeTabset.id))?.path
+        ? editorData(model.get("selected-tab", { container: activeTabset.id }))
+              ?.path
         : undefined;
 
     const renderContent = (tab: TabOf<Types>) => {

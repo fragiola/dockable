@@ -200,7 +200,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
 
 /** The tabset's palette picker: a Fragiola DropdownMenu with a radio group. */
 function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger
@@ -219,7 +219,7 @@ function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
                     <DropdownMenu.RadioGroup
                         value={paletteOf(tabset)}
                         onValueChange={(palette) =>
-                            run("tabset.configure", {
+                            model.run("tabset.configure", {
                                 tabset: tabset.id,
                                 data: { ...tabset.data, palette },
                             })
@@ -257,7 +257,7 @@ function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
  */
 function Content({ tab }: { tab: TabOf<Types> }) {
     const palette = useModelState<Types, string>((_, model) =>
-        paletteOf(model.parentOf(tab.id)),
+        paletteOf(model.get("parent", { node: tab.id })),
     );
     return (
         <div

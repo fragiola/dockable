@@ -191,7 +191,7 @@ function ModeSwitch({
     border: BorderNode<Types>;
 }) {
     // the border's mode, resolved against the layout defaults
-    const overlay = model.resolve(border).mode === "overlay";
+    const overlay = model.is("overlay", { border: border.id });
     const name = border.location;
     return (
         <button

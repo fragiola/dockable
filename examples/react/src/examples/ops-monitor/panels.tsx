@@ -81,7 +81,7 @@ export function ServicePanel({
     tab: TabNode<"service", ServiceData>;
     simulation: Simulation;
 }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const config = tab.data;
     const state = useSimulation(simulation).services[config.service];
     const ref = useRef<HTMLDivElement | null>(null);
@@ -89,13 +89,13 @@ export function ServicePanel({
 
     useEffect(() => {
         if (config.status !== state.level || config.alerts !== state.alerts) {
-            run("tab.update", {
+            model.run("tab.update", {
                 tab: tab.id,
                 component: "service",
                 data: { ...config, status: state.level, alerts: state.alerts },
             });
         }
-    }, [run, tab.id, config, state.level, state.alerts]);
+    }, [model, tab.id, config, state.level, state.alerts]);
 
     const option = useMemo<EChartsOption>(
         () => ({
@@ -181,11 +181,11 @@ export function ServicePanel({
 
 /** Every service at a glance; a row opens the service's tab. */
 export function OverviewPanel({ simulation }: { simulation: Simulation }) {
-    const { model, run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const { services } = useSimulation(simulation);
     const open = (id: ServiceId) => {
-        if (model.get(`service-${id}`)) {
-            run("tab.select", { tab: `service-${id}` });
+        if (model.get("node", { node: `service-${id}` })) {
+            model.run("tab.select", { tab: `service-${id}` });
         }
     };
     return (

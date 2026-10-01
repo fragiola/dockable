@@ -299,11 +299,10 @@ let added = 0;
 
 /** Add a tab to this tabset, and close its selected tab: two undoable edits. */
 function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { model, run } = useDockable<Types>();
-    const selected = model.selectedTab(tabset.id);
+    const { model } = useDockable<Types>();
+    const selected = model.get("selected-tab", { container: tabset.id });
     const closeable =
-        selected !== undefined &&
-        model.can("tab.close", { tab: selected.id }).ok;
+        selected !== undefined && model.can("tab.close", { tab: selected.id });
     return (
         <>
             <button
@@ -317,7 +316,7 @@ function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
                 )}
                 onClick={() => {
                     added += 1;
-                    run("tab.add", {
+                    model.run("tab.add", {
                         component: "card",
                         data: { name: `Tab ${added}` },
                         to: tabset.id,
@@ -337,7 +336,7 @@ function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
                     "disabled:pointer-events-none disabled:opacity-40",
                 )}
                 onClick={() =>
-                    selected && run("tab.close", { tab: selected.id })
+                    selected && model.run("tab.close", { tab: selected.id })
                 }
             >
                 <X aria-hidden className="size-3.5" />
@@ -349,7 +348,7 @@ function TabsetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
 /** The layout's JSON, live: undo brings back exactly the previous text. */
 function LayoutJsonPanel() {
     const text = useModelState((_state, model) =>
-        JSON.stringify(model.toJSON(), null, 2),
+        JSON.stringify(model.get("layout-json"), null, 2),
     );
     return (
         <PanelBody title="Layout JSON">

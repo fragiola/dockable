@@ -38,7 +38,7 @@ const ICONS: Record<ComponentOf<Types>, LucideIcon> = {
 
 /** What goes inside each tab button: the widget's icon (or a warning), its name, a close button. */
 export function TabContent({ tab }: { tab: TabOf<Types> }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const Icon = ICONS[tab.component];
     const alert = isAlert(tab);
     return (
@@ -61,7 +61,7 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
-                    run("tab.close", { tab: tab.id });
+                    model.run("tab.close", { tab: tab.id });
                 }}
                 className={cn(
                     "-me-1.5 grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85 opacity-0",
@@ -77,10 +77,11 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
 
 /** The tabset's header buttons: maximize, and pop out (or dock back when already popped out). */
 export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { model, run } = useDockable<Types>();
-    const selected = model.selectedTab(tabset.id);
-    const inPopout = model.layoutOf(tabset.id) !== MAIN_LAYOUT;
-    const maximized = model.maximizedTabset()?.id === tabset.id;
+    const { model } = useDockable<Types>();
+    const selected = model.get("selected-tab", { container: tabset.id });
+    const inPopout =
+        model.get("layout-id", { node: tabset.id }) !== MAIN_LAYOUT;
+    const maximized = model.get("maximized-tabset")?.id === tabset.id;
 
     // one trigger both ways: it pops the selected tab out, and in the window docks it back
     const popoutTrigger = selected ? (
@@ -117,7 +118,7 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
                 aria-pressed={maximized}
                 data-testid="maximize"
                 onClick={() =>
-                    run("tabset.maximize", {
+                    model.run("tabset.maximize", {
                         tabset: tabset.id,
                         value: !maximized,
                     })

@@ -158,42 +158,31 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
 
 /**
  * A splitter built on the lower layer, `useSplitter`, instead of `Dockable.Splitter`: the hook
- * gives the controller (pointer and keyboard handling), its state (`dragging`) and the ARIA
- * values. The element is 12px thick (the engine measures it); a grip of three dots sits in
- * the middle, and while you drag or focus it a bubble shows `aria-valuenow`: where the
- * splitter sits in its row, from 0 to 100.
+ * gives its state (`dragging`, `orientation`) and the props of the separator element (the ref,
+ * `role`, the ARIA values, the pointer and keyboard handlers, and the structural style that hides
+ * it while a tabset is maximized). The element is 12px thick (the engine measures it); a grip of
+ * three dots sits in the middle, and while you drag or focus it a bubble shows `aria-valuetext`:
+ * where the splitter sits in its row.
  */
 function WideSplitter({ node, index }: RowSplitterProps<Types>) {
-    const { controller, state, aria, hidden, ref } = useSplitter(node, index);
+    const { state, props } = useSplitter(node, index);
     // the path (`/r0/s0`) comes from the row's own, which the engine knows by id
     const { engine } = useDockable<Types>();
-    // `aria.orientation` is the separator's: "vertical" is a bar between side-by-side panes
-    const vertical = aria.orientation === "vertical";
+    // the separator's orientation: "vertical" is a bar between side-by-side panes
+    const vertical = state.orientation === "vertical";
     return (
         // biome-ignore lint/a11y/useSemanticElements: a focusable separator widget with a grip; an <hr> cannot hold children
         <div
-            ref={ref}
+            {...props}
             role="separator"
-            tabIndex={0}
             // a splitter has no name of its own: the app gives it one
             aria-label="Resize"
-            aria-orientation={aria.orientation}
-            aria-valuenow={aria.valueNow}
-            aria-valuemin={aria.valueMin}
-            aria-valuemax={aria.valueMax}
-            aria-valuetext={aria.valueText}
-            data-layout-path={getSplitterPath(engine.path(node.id), index)}
-            data-orientation={aria.orientation}
+            data-layout-path={getSplitterPath(
+                engine.get("path", { node: node.id }),
+                index,
+            )}
+            data-orientation={state.orientation}
             data-dragging={state.dragging ? "" : undefined}
-            onPointerDown={(event) =>
-                controller.onPointerDown(event.nativeEvent)
-            }
-            onKeyDown={(event) => {
-                controller.onKeyDown(event.nativeEvent);
-                if (event.nativeEvent.defaultPrevented) event.preventDefault();
-            }}
-            // structural only: hidden while a tabset is maximized
-            style={hidden ? { display: "none" } : undefined}
             className={[
                 "group/splitter relative z-10 flex shrink-0 items-center justify-center rounded-full outline-none",
                 "transition-colors duration-(--dk-motion) hover:bg-palette-soft",
@@ -226,7 +215,7 @@ function WideSplitter({ node, index }: RowSplitterProps<Types>) {
                         : "start-[calc(50%+1.5rem)] top-1/2 -translate-y-1/2",
                 ].join(" ")}
             >
-                {aria.valueText}
+                {props["aria-valuetext"]}
             </span>
         </div>
     );

@@ -45,11 +45,13 @@ function nameOf(init: { readonly data?: unknown }): string {
 function targetIn<T extends DockableTypes>(
     end: StepEnd<T>,
 ): string | undefined {
-    const tabset = end.tabsetId ? end.model.get(end.tabsetId) : undefined;
+    const tabset = end.tabsetId
+        ? end.model.get("node", { node: end.tabsetId })
+        : undefined;
     if (tabset?.type === "tabset") {
         return tabset.id;
     }
-    return end.model.tabsets()[0]?.id ?? end.model.root()?.id;
+    return end.model.get("tabsets")[0]?.id ?? end.model.get("root-row")?.id;
 }
 
 /**

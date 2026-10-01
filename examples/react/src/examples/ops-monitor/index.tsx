@@ -112,7 +112,7 @@ const lockIncidentRegion: Middleware<Types> = (ctx, next) => {
     if (ctx.command === "tab.move") {
         const { tab, to, location = "center" } = ctx.payload;
         const intoRegion = to === INCIDENT_TABSET && location === "center";
-        if (inIncidentRegion(ctx.get(tab))) {
+        if (inIncidentRegion(ctx.get("node", { node: tab }))) {
             return intoRegion ? next() : refuse();
         }
         return to === INCIDENT_TABSET ? refuse() : next();

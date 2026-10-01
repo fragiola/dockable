@@ -240,14 +240,14 @@ function StatusTab({ tab }: { tab: TabOf<Types> }) {
 
 /** Content that reports its status to its tab. */
 function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const data = tab.data;
     const report = (status: Status) => {
         if (status === data.status) {
             return;
         }
         // `tab.update` replaces the whole data, checked against the monitor's type
-        run("tab.update", {
+        model.run("tab.update", {
             tab: tab.id,
             component: "monitor",
             data: {
@@ -292,13 +292,13 @@ function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
 
 /** An editor that marks its tab as modified while its text differs from the saved one. */
 function Editor({ tab }: { tab: TabNode<"document", DocumentData> }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const [saved, setSaved] = useState(`# ${tab.data.name}\n`);
     const [text, setText] = useState(saved);
     const setDirty = (dirty: boolean) => {
         // only run the command when the flag changes, not on every keystroke
         if (tab.data.dirty !== dirty) {
-            run("tab.update", {
+            model.run("tab.update", {
                 tab: tab.id,
                 component: "document",
                 data: { ...tab.data, dirty },

@@ -43,8 +43,8 @@ const json: FixtureLayout = {
 };
 
 function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { hidden } = useTabOverflow(tabset);
-    const { run } = useDockable<Types>();
+    const { hiddenTabs } = useTabOverflow(tabset);
+    const { model } = useDockable<Types>();
     const [open, setOpen] = useState(false);
     return (
         <>
@@ -55,19 +55,19 @@ function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
             >
                 <span aria-hidden="true">»</span>
             </Dockable.TabOverflowTrigger>
-            {open && hidden.length > 0 ? (
+            {open && hiddenTabs.length > 0 ? (
                 <div
                     role="menu"
                     aria-label="Hidden tabs"
                     data-testid={`menu-${tabset.id}`}
                 >
-                    {hidden.map((tab) => (
+                    {hiddenTabs.map((tab) => (
                         <div key={tab.id} role="none">
                             <button
                                 type="button"
                                 role="menuitem"
                                 onClick={() => {
-                                    run("tab.select", { tab: tab.id });
+                                    model.run("tab.select", { tab: tab.id });
                                     setOpen(false);
                                 }}
                             >

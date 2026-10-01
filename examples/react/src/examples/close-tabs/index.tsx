@@ -165,11 +165,11 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
 
 /** A tab with its own close button, closed by a middle click too. */
 function ClosableTab({ tab }: { tab: TabOf<Types> }) {
-    const { model, run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     // whether `tab.close` would apply: the tab's `enableClose` (resolved against the layout
     // defaults), not pinned, and no middleware veto. A dry run: nothing changes.
-    const closeable = model.can("tab.close", { tab: tab.id }).ok;
-    const close = () => run("tab.close", { tab: tab.id });
+    const closeable = model.can("tab.close", { tab: tab.id });
+    const close = () => model.run("tab.close", { tab: tab.id });
     return (
         <Dockable.Tab
             node={tab}
@@ -228,7 +228,7 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
 }
 
 function CloseTabsetButton({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { run } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     if (tabset.children.length === 0) return null;
     return (
         <button
@@ -241,7 +241,7 @@ function CloseTabsetButton({ tabset }: { tabset: TabsetNode<Types> }) {
                 "disabled:pointer-events-none disabled:opacity-40",
             )}
             // closes every closeable tab; the tabset goes too once it is empty
-            onClick={() => run("tabset.close", { tabset: tabset.id })}
+            onClick={() => model.run("tabset.close", { tabset: tabset.id })}
         >
             <X aria-hidden className="size-4" />
         </button>

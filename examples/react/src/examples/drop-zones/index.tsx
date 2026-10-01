@@ -131,9 +131,7 @@ export default function DropZones() {
                     label="Close"
                     tone="palette-danger"
                     // only tabs that may be closed
-                    accepts={(tab) =>
-                        model.can("tab.close", { tab: tab.id }).ok
-                    }
+                    accepts={(tab) => model.can("tab.close", { tab: tab.id })}
                     onDrop={(tab) =>
                         report(
                             model.run("tab.close", { tab: tab.id }).ok,
@@ -149,7 +147,7 @@ export default function DropZones() {
                     tone="palette-blue"
                     accepts={() => true}
                     onDrop={(tab) => {
-                        const root = model.root();
+                        const root = model.get("root-row");
                         if (!root) return;
                         // the right edge of the root row: a new tabset on the right of the layout
                         report(
@@ -168,9 +166,7 @@ export default function DropZones() {
                     icon={ExternalLink}
                     label="Pop out"
                     tone="palette-green"
-                    accepts={(tab) =>
-                        model.can("tab.popout", { tab: tab.id }).ok
-                    }
+                    accepts={(tab) => model.can("tab.popout", { tab: tab.id })}
                     onDrop={(tab) =>
                         report(
                             model.run("tab.popout", { tab: tab.id }).ok,

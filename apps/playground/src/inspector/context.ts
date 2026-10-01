@@ -17,7 +17,7 @@ export type InspectedEvent = Pick<
  */
 export interface InspectedModel {
     subscribe(listener: (event: InspectedEvent) => void): () => void;
-    toJSON(): unknown;
+    get(key: "layout-json"): unknown;
 }
 
 export type InspectorRegistry = {

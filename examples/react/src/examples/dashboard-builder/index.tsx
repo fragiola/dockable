@@ -75,7 +75,7 @@ const dropRules: Middleware<Types> = (ctx, next) => {
     // the command narrows the payload
     if (ctx.command === "tabset.move") {
         const { tabset, to, location = "center" } = ctx.payload;
-        const moved = ctx.get(tabset);
+        const moved = ctx.get("node", { node: tabset });
         const carriesKpis =
             moved?.type === "tabset" &&
             moved.children.some((tab) => isKpi(tab.component));
@@ -94,7 +94,7 @@ const dropRules: Middleware<Types> = (ctx, next) => {
     if (ctx.command === "tab.add") {
         placed = ctx.payload;
     } else if (ctx.command === "tab.move") {
-        const moved = ctx.get(ctx.payload.tab);
+        const moved = ctx.get("node", { node: ctx.payload.tab });
         placed = {
             ...ctx.payload,
             component: moved?.type === "tab" ? moved.component : undefined,
@@ -133,7 +133,7 @@ function describe(error: unknown): NonNullable<Restored["error"]> {
     };
 }
 
-/** The saved layout (JSON v1, from `model.toJSON()`), or the empty dashboard. */
+/** The saved layout (JSON v1, from `model.get("layout-json")`), or the empty dashboard. */
 function restore(): Restored {
     let saved: string | null = null;
     try {
@@ -173,7 +173,7 @@ export default function DashboardBuilder() {
             window.localStorage.setItem(
                 STORAGE_KEY,
                 // the layout document (JSON v1): what createModel and layout.load read back
-                JSON.stringify(model.toJSON()),
+                JSON.stringify(model.get("layout-json")),
             );
             setSaved(true);
         } catch {
