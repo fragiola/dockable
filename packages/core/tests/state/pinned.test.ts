@@ -108,6 +108,37 @@ describe("pinned tabs", () => {
         );
     });
 
+    it("a refused move points at the payload's id field", () => {
+        const { model } = setup({
+            version: 1,
+            root: {
+                type: "row",
+                children: [
+                    {
+                        type: "tabset",
+                        id: "ts0",
+                        children: [tab("P1", { pinned: true }), tab("A")],
+                    },
+                    { type: "tabset", id: "ts1", children: [tab("B")] },
+                ],
+            },
+        });
+        // a pinned tab cannot leave its tabset
+        expect(model.run("tab.move", { tabId: "P1", to: "ts1" })).toMatchObject(
+            {
+                ok: false,
+                error: { code: "refused", path: "/tabId" },
+            },
+        );
+        // a tabset holding pinned tabs cannot merge into another
+        expect(
+            model.run("tabset.move", { tabsetId: "ts0", to: "ts1" }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "refused", path: "/tabsetId" },
+        });
+    });
+
     it("pinning an already pinned tab changes nothing", () => {
         const { model } = setup(tabsets(["One", "Two"]));
         must(model.run("tab.pin", { tabId: "Two", value: true }));

@@ -38,7 +38,7 @@ test("an invalid payload comes back as a structured error and changes nothing", 
     const result = page.getByTestId("result");
     await expect(result.getByRole("alert")).toContainText("invalid_payload");
     await expect(result).toContainText("/payload/to");
-    await expect(result).toContainText("/payload/tab");
+    await expect(result).toContainText("/payload/tabId");
     await expect(page.getByTestId("log")).toBeEmpty();
     await expect(path(page, "/ts1/tb0")).toHaveText("Ideas");
 
