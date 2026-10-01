@@ -58,7 +58,7 @@ describe("pinned tabs", () => {
         must(model.run("tab.select", { tabId: "B" }));
         must(model.run("tab.pin", { tabId: "C", value: true }));
         expect(text()).toBe("/ts0/t0[P],/ts0/t1[C],/ts0/t2[A],/ts0/t3[B]*");
-        expect(model.get("node-by-id", { nodeId: "C" })).toMatchObject({
+        expect(model.get("node-by", { id: "C" })).toMatchObject({
             pinned: true,
         });
     });
@@ -83,9 +83,7 @@ describe("pinned tabs", () => {
         });
         must(model.run("tab.pin", { tabId: "P1", value: false }));
         expect(text()).toBe("/ts0/t0[P2],/ts0/t1[P1]*,/ts0/t2[A]");
-        expect(model.get("node-by-id", { nodeId: "P1" })).not.toHaveProperty(
-            "pinned",
-        );
+        expect(model.get("node-by", { id: "P1" })).not.toHaveProperty("pinned");
     });
 
     it("cannot be closed, popped out or pinned in a border", () => {

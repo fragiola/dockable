@@ -419,8 +419,8 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         id: string,
         dragImage?: Element | null,
     ) => {
-        const node = this.engine.adapter.model.get("node-by-id", {
-            nodeId: id,
+        const node = this.engine.adapter.model.get("node-by", {
+            id: id,
         });
         if (node?.type !== "tab" && node?.type !== "tabset") {
             return;
@@ -438,7 +438,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         }
         let x = 10;
         let y = 10;
-        const parent = this.engine.adapter.model.get("node-parent-by-id", {
+        const parent = this.engine.adapter.model.get("node-parent-by", {
             nodeId: id,
         });
         const inSideBorder =
@@ -747,7 +747,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const layout = this.engine.layoutId;
         const settings = resolveLayout(this.state().defaults);
         const showEdges =
-            this.engine.adapter.model.get("maximized-tabset-by-layout-id", {
+            this.engine.adapter.model.get("maximized-tabset", {
                 layoutId: layout,
             }) === undefined && settings.edgeDock;
         const root = this.engine.adapter.getFreshDomRect();
@@ -817,8 +817,8 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             // a drag group transfer: the target adds the tab (with its id when it is free)
             const tab = subject.tab;
             const { type: _type, ...fields } = tab;
-            const payload = this.engine.adapter.model.get("node-by-id", {
-                nodeId: tab.id,
+            const payload = this.engine.adapter.model.get("node-by", {
+                id: tab.id,
             })
                 ? { ...fields, id: undefined }
                 : fields;

@@ -372,7 +372,7 @@ const scrollTracking = new WeakMap<
  *
  * - `run` performs a screen action (`engine.run("popout", { nodeId })`); `can` answers whether it
  *   would succeed, `check` returns what it would return;
- * - `get` reads a view fact (`engine.get("tab-panel-dom-id-by-tab-id", { tabId })`); `is` asks a yes/no question
+ * - `get` reads a view fact (`engine.get("tab-panel-dom-id-by", { tabId })`); `is` asks a yes/no question
  *   (`engine.is("popout-supported")`).
  *
  * Page-wide actions and questions work from any engine: an app never needs the main one.
@@ -552,10 +552,10 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             payload: EngineGetPayload<K>,
         ) => EngineGetResult<K>;
     } = {
-        "layout-path-by-node-id": ({ nodeId }) => this.path(nodeId),
-        "tab-button-dom-id-by-tab-id": ({ tabId }) => this.tabButtonId(tabId),
-        "tab-panel-dom-id-by-tab-id": ({ tabId }) => this.tabPanelId(tabId),
-        "size-limits-by-node-id": ({ nodeId }) => this.minMax(nodeId),
+        "layout-path-by": ({ nodeId }) => this.path(nodeId),
+        "tab-button-dom-id-by": ({ tabId }) => this.tabButtonId(tabId),
+        "tab-panel-dom-id-by": ({ tabId }) => this.tabPanelId(tabId),
+        "size-limits-by": ({ nodeId }) => this.minMax(nodeId),
         "splitter-size": () => this.splitterSize(),
         "owner-document": () => this.getCurrentDocument(),
         "owner-window": () => this.getCurrentWindow(),
@@ -867,9 +867,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private rowOrientation(rowId: string): Orientation {
         let orientation = resolveLayout(this.state().defaults).rootOrientation;
         for (
-            let parent = this.model.get("node-parent-by-id", { nodeId: rowId });
+            let parent = this.model.get("node-parent-by", { nodeId: rowId });
             parent !== undefined;
-            parent = this.model.get("node-parent-by-id", { nodeId: parent.id })
+            parent = this.model.get("node-parent-by", { nodeId: parent.id })
         ) {
             orientation =
                 orientation === "horizontal" ? "vertical" : "horizontal";
@@ -1046,12 +1046,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private forgetRemoved() {
         const shared = this.shared;
         for (const id of [...shared.moveables.keys()]) {
-            if (this.model.get("node-by-id", { nodeId: id })?.type !== "tab") {
+            if (this.model.get("node-by", { id })?.type !== "tab") {
                 shared.moveables.delete(id);
             }
         }
         for (const id of [...shared.rendered]) {
-            if (this.model.get("node-by-id", { nodeId: id })?.type !== "tab") {
+            if (this.model.get("node-by", { id })?.type !== "tab") {
                 shared.rendered.delete(id);
                 shared.scroll.delete(id);
             }
@@ -1060,7 +1060,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** the engine of the layout a node is in (a popout's, or this main one) */
     private engineOf(id: string): LayoutEngine<T> {
-        const layout = this.model.get("layout-id-by-node-id", { nodeId: id });
+        const layout = this.model.get("layout-id-by", { nodeId: id });
         if (layout === undefined || layout === MAIN_LAYOUT) {
             return this.main;
         }
@@ -1071,7 +1071,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         rowId: string;
         weights: number[];
     }): boolean {
-        const row = this.model.get("node-by-id", { nodeId: payload.rowId });
+        const row = this.model.get("node-by", { id: payload.rowId });
         if (row?.type !== "row") {
             return false;
         }
@@ -1092,8 +1092,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     }
 
     private applyTransientBorderSize(payload: { borderId: string }): boolean {
-        const border = this.model.get("node-by-id", {
-            nodeId: payload.borderId,
+        const border = this.model.get("node-by", {
+            id: payload.borderId,
         });
         if (border?.type !== "border") {
             return false;
@@ -1243,7 +1243,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private updateTabOverflow() {
         let changed = false;
         for (const [id, list] of this.tabLists) {
-            const container = this.model.get("node-by-id", { nodeId: id });
+            const container = this.model.get("node-by", { id });
             if (container?.type !== "tabset" && container?.type !== "border") {
                 continue; // the container left the model
             }
@@ -1381,7 +1381,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** The content area a tab's panel is positioned over (its tabset's, or its border's). */
     private contentRect(containerId: string): Rect | undefined {
-        const container = this.model.get("node-by-id", { nodeId: containerId });
+        const container = this.model.get("node-by", { id: containerId });
         if (container?.type === "border") {
             return this.rect("bordercontent", containerId);
         }
@@ -1426,7 +1426,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** Whether a tab's panel is shown: selected, and not hidden by a maximize or a hidden border. */
     private isPanelVisible(tabId: string): boolean {
-        const container = this.model.get("node-parent-by-id", {
+        const container = this.model.get("node-parent-by", {
             nodeId: tabId,
         });
         if (container?.type !== "tabset" && container?.type !== "border") {
@@ -1436,13 +1436,13 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             return false;
         }
         if (container.type === "tabset") {
-            const layout = this.model.get("layout-id-by-node-id", {
+            const layout = this.model.get("layout-id-by", {
                 nodeId: container.id,
             });
             const maximized =
                 layout === undefined
                     ? undefined
-                    : this.model.get("maximized-tabset-by-layout-id", {
+                    : this.model.get("maximized-tabset", {
                           layoutId: layout,
                       });
             return maximized === undefined || maximized.id === container.id;
@@ -1456,7 +1456,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
      */
     private positionTabPanels() {
         for (const [tabId, element] of this.tabPanels) {
-            const container = this.model.get("node-parent-by-id", {
+            const container = this.model.get("node-parent-by", {
                 nodeId: tabId,
             });
             if (!container) {
@@ -1672,7 +1672,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         const home = this.shared.moveablesHome;
         if (
             home &&
-            this.model.get("node-by-id", { nodeId: tabId }) &&
+            this.model.get("node-by", { id: tabId }) &&
             options.remountInWindow !== true
         ) {
             home.appendChild(element); // keep it parented, so it stays in the document
@@ -1694,7 +1694,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (shared.rendered.has(tabId)) {
             return true;
         }
-        const container = this.model.get("node-parent-by-id", {
+        const container = this.model.get("node-parent-by", {
             nodeId: tabId,
         });
         if (container?.type !== "tabset" && container?.type !== "border") {
@@ -1736,7 +1736,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         borderId: string,
         dryRun = false,
     ): CommandResult<{ borderId: string }> {
-        const border = this.model.get("node-by-id", { nodeId: borderId });
+        const border = this.model.get("node-by", { id: borderId });
         if (border?.type !== "border") {
             return notFound(`"${borderId}" is not a border`);
         }
@@ -1859,14 +1859,14 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             return refused("focus is in a text field or a menu");
         }
         if (
-            this.model.get("maximized-tabset-by-layout-id", {
+            this.model.get("maximized-tabset", {
                 layoutId: this.layoutId,
             }) !== undefined
         ) {
             return refused("a tabset is maximized: it is the only one shown");
         }
         const tabsets = this.model
-            .get("tabsets-by-layout-id", { layoutId: this.layoutId })
+            .get("tabsets", { layoutId: this.layoutId })
             .filter((tabset) => tabset.children[tabset.selected] !== undefined);
         if (tabsets.length < 2) {
             return refused("no other tabset to move focus to");
@@ -1887,7 +1887,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         };
         let index = tabsets.findIndex(containsFocus);
         if (index === -1) {
-            const activeTabset = this.model.get("active-tabset-by-layout-id", {
+            const activeTabset = this.model.get("active-tabset", {
                 layoutId: this.layoutId,
             });
             index = activeTabset
@@ -1984,7 +1984,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (!this.isSupportsPopout()) {
             return refused("popout windows are not supported here");
         }
-        const node = this.model.get("node-by-id", { nodeId: id });
+        const node = this.model.get("node-by", { id });
         if (node?.type === "tabset") {
             // a dry run asks the model only: where the window would open does not change the answer
             return dryRun
@@ -2000,7 +2000,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (dryRun) {
             return this.model.check("tab.popout", { tabId: id });
         }
-        const container = this.model.get("node-parent-by-id", { nodeId: id });
+        const container = this.model.get("node-parent-by", { nodeId: id });
         return this.model.run("tab.popout", {
             tabId: id,
             ...(container ? this.screenRectOf("content", container.id) : {}),
@@ -2029,12 +2029,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         id: string,
         dryRun: boolean,
     ): CommandResult<{ tabIds: string[] }> {
-        const layout = this.model.get("layout-id-by-node-id", { nodeId: id });
+        const layout = this.model.get("layout-id-by", { nodeId: id });
         if (layout === undefined || layout === MAIN_LAYOUT) {
             return refused(`"${id}" is not in a window`);
         }
         const execute = dryRun ? this.model.check : this.model.run;
-        const node = this.model.get("node-by-id", { nodeId: id });
+        const node = this.model.get("node-by", { id });
         const tabs =
             node?.type === "tabset" ? node.children.map((t) => t.id) : [id];
         const docked = (
@@ -2043,14 +2043,13 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         ): CommandResult<{ tabIds: string[] }> =>
             result.ok ? { ok: true, value: { tabIds: moved } } : result;
         const all = this.model
-            .get("tabs-by-layout-id", { layoutId: layout })
+            .get("tabs", { layoutId: layout })
             .map((t) => t.id);
         if (all.length === tabs.length) {
             return docked(execute("window.close", { windowId: layout }));
         }
         const target =
-            this.model.get("active-tabset-by-layout-id") ??
-            this.model.get("tabsets-by-layout-id")[0];
+            this.model.get("active-tabset") ?? this.model.get("tabsets")[0];
         if (!target) {
             // no tabset to dock into: closing the window docks all of it
             return docked(execute("window.close", { windowId: layout }), all);
@@ -2058,7 +2057,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         // a pinned tab may not leave its tabset: it is unpinned for the move and pinned again
         const commands: BatchEntry<T>[] = [];
         for (const tab of tabs) {
-            const node = this.model.get("node-by-id", { nodeId: tab });
+            const node = this.model.get("node-by", { id: tab });
             const pinned = node?.type === "tab" && node.pinned === true;
             if (pinned) {
                 commands.push({

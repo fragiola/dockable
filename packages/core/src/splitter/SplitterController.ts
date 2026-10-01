@@ -162,15 +162,15 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     }
 
     private row(): AnyRow | undefined {
-        const node = this.engine.adapter.model.get("node-by-id", {
-            nodeId: this.nodeId,
+        const node = this.engine.adapter.model.get("node-by", {
+            id: this.nodeId,
         });
         return node?.type === "row" ? (node as unknown as AnyRow) : undefined;
     }
 
     private border(): AnyBorder | undefined {
-        const node = this.engine.adapter.model.get("node-by-id", {
-            nodeId: this.nodeId,
+        const node = this.engine.adapter.model.get("node-by", {
+            id: this.nodeId,
         });
         return node?.type === "border"
             ? (node as unknown as AnyBorder)
@@ -190,7 +190,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     isHidden(): boolean {
         return (
             !this.border() &&
-            this.engine.adapter.model.get("maximized-tabset-by-layout-id", {
+            this.engine.adapter.model.get("maximized-tabset", {
                 layoutId: this.engine.layoutId,
             }) !== undefined
         );
@@ -249,7 +249,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
                 width: 0,
                 height: 0,
             },
-            range: this.engine.get("size-limits-by-node-id", {
+            range: this.engine.get("size-limits-by", {
                 nodeId: child.id,
             }),
         }));
@@ -321,7 +321,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             border.location as BorderLocation,
             strip,
             layout,
-            this.engine.get("size-limits-by-node-id", {
+            this.engine.get("size-limits-by", {
                 nodeId: state.root.id,
             }),
             this.engine.get("splitter-size"),

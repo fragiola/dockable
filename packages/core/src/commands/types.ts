@@ -286,8 +286,19 @@ export interface RunOptions {
     meta?: Readonly<Record<string, unknown>>;
 }
 
+/** What a middleware's `ctx.get` reads: each key's payload and result, as on `model.get`. */
+export interface CommandContextGetMap<T extends DockableTypes = AnyTypes> {
+    /** a node by its id */
+    "node-by": { payload: { id: string }; result: Node<T> | undefined };
+    /** a node's parent: a row, a tabset or a border */
+    "node-parent-by": {
+        payload: { nodeId: string };
+        result: ParentNode<T> | undefined;
+    };
+}
+
 /** What a middleware's `ctx.get` reads. */
-export type CommandContextGetKey = "node-by-id" | "node-parent-by-id";
+export type CommandContextGetKey = keyof CommandContextGetMap;
 
 /** What a middleware sees of any command. */
 export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
@@ -300,15 +311,13 @@ export interface CommandContextBase<T extends DockableTypes = AnyTypes> {
     /** the committed state the command applies to */
     readonly state: LayoutState<T>;
     /**
-     * reads a node (`"node-by-id"`) or its parent (`"node-parent-by-id"`) as the command sees it:
+     * reads a node (`"node-by"`) or its parent (`"node-parent-by"`) as the command sees it:
      * inside a batch, after the batch's earlier commands
      */
     get<K extends CommandContextGetKey>(
         key: K,
-        payload: { nodeId: string },
-    ): K extends "node-parent-by-id"
-        ? ParentNode<T> | undefined
-        : Node<T> | undefined;
+        payload: CommandContextGetMap<T>[K]["payload"],
+    ): CommandContextGetMap<T>[K]["result"];
 }
 
 /**

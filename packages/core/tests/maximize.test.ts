@@ -75,7 +75,7 @@ describe('model.is("node-hidden-by-maximize")', () => {
         expect(hidden("b")).toBe(false); // a tab: its panel follows the engine's visibility
         // a tabset popped out into a window is in another layout: no maximized tabset there
         model.run("tabset.popout", { tabsetId: "ts1" });
-        expect(model.get("layout-id-by-node-id", { nodeId: "ts1" })).not.toBe(
+        expect(model.get("layout-id-by", { nodeId: "ts1" })).not.toBe(
             MAIN_LAYOUT,
         );
         expect(hidden("ts1")).toBe(false);

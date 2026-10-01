@@ -120,8 +120,8 @@ describe("loading JSON v1", () => {
     it("keeps the active and maximized tabsets on their layouts", () => {
         const json = tabsets(["One"], ["Two"]);
         const model = createModel({ ...json, active: "ts1", maximized: "ts0" });
-        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
-        expect(model.get("maximized-tabset-by-layout-id")?.id).toBe("ts0");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
+        expect(model.get("maximized-tabset")?.id).toBe("ts0");
         expect(model.state.active).toBe("ts1");
     });
 

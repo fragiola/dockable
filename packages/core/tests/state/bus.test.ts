@@ -14,7 +14,7 @@ const model2 = () => createModel(tabsets(["One", "Two"], ["Three"]));
 describe("results", () => {
     it("uses up no generated id in a dry run", () => {
         const model = model2();
-        const to = model.get("tabsets-by-layout-id")[0]?.id ?? "";
+        const to = model.get("tabsets")[0]?.id ?? "";
         const asked = model.check("tab.add", { component: "x", to });
         const added = model.run("tab.add", { component: "x", to });
         expect(asked.ok && added.ok && asked.value.tabId).toBe(
@@ -241,7 +241,7 @@ describe("middleware", () => {
             ok: false,
             error: { code: "vetoed", message: "closing is disabled" },
         });
-        expect(model.get("node-by-id", { nodeId: "One" })).toBeDefined();
+        expect(model.get("node-by", { id: "One" })).toBeDefined();
     });
 
     it("rewrites the payload, which is validated again", () => {
@@ -256,9 +256,9 @@ describe("middleware", () => {
             return next();
         });
         must(model.run("tab.select", { tabId: "Two" }));
-        expect(
-            model.get("selected-tab-by-tabset-id", { tabsetId: "ts0" })?.id,
-        ).toBe("One");
+        expect(model.get("selected-tab-by", { tabsetId: "ts0" })?.id).toBe(
+            "One",
+        );
         expect(model.run("tab.close", { tabId: "One" })).toMatchObject({
             ok: false,
             error: { code: "invalid_payload", path: "/tabId" },
@@ -317,9 +317,9 @@ describe("middleware", () => {
             "tab.select (in batch)",
             "tab.close (in batch)",
         ]);
-        expect(
-            model.get("selected-tab-by-tabset-id", { tabsetId: "ts0" })?.id,
-        ).toBe("One");
+        expect(model.get("selected-tab-by", { tabsetId: "ts0" })?.id).toBe(
+            "One",
+        );
     });
 
     it("reports a throw as middleware_error and commits nothing", () => {
@@ -340,7 +340,7 @@ describe("middleware", () => {
         let seen: unknown;
         model.use((ctx, next) => {
             if (ctx.command === "tab.select") {
-                seen = ctx.get("node-by-id", { nodeId: "n" })?.type;
+                seen = ctx.get("node-by", { id: "n" })?.type;
             }
             return next();
         });
@@ -363,7 +363,7 @@ describe("middleware", () => {
         let parent: string | undefined;
         model.use((ctx, next) => {
             if (ctx.command === "tab.select") {
-                parent = ctx.get("node-parent-by-id", {
+                parent = ctx.get("node-parent-by", {
                     nodeId: ctx.payload.tabId,
                 })?.id;
             }
@@ -381,9 +381,7 @@ describe("middleware", () => {
             }),
         );
         expect(parent).toBe("ts1");
-        expect(model.get("node-parent-by-id", { nodeId: "One" })?.id).toBe(
-            "ts1",
-        );
+        expect(model.get("node-parent-by", { nodeId: "One" })?.id).toBe("ts1");
     });
 });
 
@@ -394,8 +392,8 @@ describe("ctx.get", () => {
         model.use((ctx, next) => {
             const get = ctx.get as (key: string, payload?: unknown) => unknown;
             seen.push(
-                get("layout-id-by-node-id", { nodeId: "One" }),
-                get("node-by-id"),
+                get("layout-id-by", { nodeId: "One" }),
+                get("node-by"),
                 get("One"),
             );
             return next();
@@ -586,9 +584,9 @@ describe("events", () => {
             "listener",
         );
         expect(second).toHaveBeenCalledTimes(1);
-        expect(
-            model.get("selected-tab-by-tabset-id", { tabsetId: "ts0" })?.id,
-        ).toBe("Two");
+        expect(model.get("selected-tab-by", { tabsetId: "ts0" })?.id).toBe(
+            "Two",
+        );
     });
 });
 
@@ -614,7 +612,7 @@ describe("re-entrancy", () => {
             "a:tabset.activate",
             "b:tabset.activate",
         ]);
-        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
     });
 
     it("a run from a middleware is queued after the current command", () => {
@@ -632,7 +630,7 @@ describe("re-entrancy", () => {
         remove();
         expect(queued).toMatchObject({ ok: false, error: { code: "queued" } });
         expect(commands).toEqual(["tab.select", "tabset.activate"]);
-        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
     });
 });
 
@@ -677,27 +675,19 @@ describe("state", () => {
         expect(after.root).not.toBe(before.root);
         // the untouched subtree is the same object
         expect(after.root.children[1]).toBe(before.root.children[1]);
-        expect(model.get("node-by-id", { nodeId: "r" })).toBe(
-            before.root.children[1],
-        );
-        expect(model.get("node-by-id", { nodeId: "a" })).toBe(
-            after.root.children[0],
-        );
-        expect(Object.isFrozen(model.get("node-by-id", { nodeId: "a" }))).toBe(
-            true,
-        );
+        expect(model.get("node-by", { id: "r" })).toBe(before.root.children[1]);
+        expect(model.get("node-by", { id: "a" })).toBe(after.root.children[0]);
+        expect(Object.isFrozen(model.get("node-by", { id: "a" }))).toBe(true);
     });
 
     it("keeps the id index current after moves (O(1) lookups)", () => {
         const model = model2();
         must(model.run("tab.move", { tabId: "Three", to: "ts0", index: 0 }));
-        expect(model.get("node-by-id", { nodeId: "ts1" })).toBeUndefined();
-        expect(model.get("node-parent-by-id", { nodeId: "Three" })?.id).toBe(
+        expect(model.get("node-by", { id: "ts1" })).toBeUndefined();
+        expect(model.get("node-parent-by", { nodeId: "Three" })?.id).toBe(
             "ts0",
         );
-        expect(model.get("layout-id-by-node-id", { nodeId: "Three" })).toBe(
-            "main",
-        );
+        expect(model.get("layout-id-by", { nodeId: "Three" })).toBe("main");
         expect(render(model)).toBe("/ts0/t0[Three]*,/ts0/t1[One],/ts0/t2[Two]");
     });
 
@@ -822,7 +812,7 @@ describe("review regressions", () => {
         );
         remove();
         unsubscribe();
-        expect(model.get("active-tabset-by-layout-id")?.id).toBe("ts1");
+        expect(model.get("active-tabset")?.id).toBe("ts1");
     });
 
     it("copies the data and defaults it is given: never freezes or shares them", () => {
@@ -846,7 +836,7 @@ describe("review regressions", () => {
         expect(Object.isFrozen(defaults)).toBe(false);
         data.nested.count = 2;
         defaults.tab.enablePopout = false;
-        expect(model.get("node-by-id", { nodeId: "a" })).toMatchObject({
+        expect(model.get("node-by", { id: "a" })).toMatchObject({
             data: { nested: { count: 1 } },
         });
         expect(model.state.defaults.tab?.enablePopout).toBe(true);
@@ -870,7 +860,7 @@ describe("review regressions", () => {
             }),
         );
         updated.name = "changed";
-        expect(model.get("node-by-id", { nodeId: "a" })).toMatchObject({
+        expect(model.get("node-by", { id: "a" })).toMatchObject({
             data: { name: "Uno" },
         });
 
@@ -885,7 +875,7 @@ describe("review regressions", () => {
             }),
         );
         shared.name = "leaked";
-        expect(unfrozen.get("node-by-id", { nodeId: "s" })).toMatchObject({
+        expect(unfrozen.get("node-by", { id: "s" })).toMatchObject({
             data: { name: "Shared" },
         });
     });
@@ -908,7 +898,7 @@ describe("review regressions", () => {
                 },
             }),
         );
-        const created = model.get("tabsets-by-layout-id")[0]?.id;
+        const created = model.get("tabsets")[0]?.id;
         expect(created).toBeDefined();
         expect(created).not.toBe("tabset-1");
         expect(result.removedNodeIds).toContain("tabset-1");

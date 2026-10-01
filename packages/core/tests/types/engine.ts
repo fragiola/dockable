@@ -43,13 +43,13 @@ export function actions(engine: LayoutEngine): void {
 }
 
 export function reads(engine: LayoutEngine): void {
-    const path: string = engine.get("layout-path-by-node-id", {
+    const path: string = engine.get("layout-path-by", {
         nodeId: "ts0",
     });
-    const panel: string = engine.get("tab-panel-dom-id-by-tab-id", {
+    const panel: string = engine.get("tab-panel-dom-id-by", {
         tabId: "t0",
     });
-    const min: number = engine.get("size-limits-by-node-id", {
+    const min: number = engine.get("size-limits-by", {
         nodeId: "ts0",
     }).minWidth;
     const size: number = engine.get("splitter-size");
@@ -59,13 +59,17 @@ export function reads(engine: LayoutEngine): void {
     use(path, panel, min, size, doc, supported, visible);
 
     // @ts-expect-error: not a view fact
-    engine.get("node-parent-by-id", { nodeId: "t0" });
+    engine.get("node-parent-by", { nodeId: "t0" });
     // @ts-expect-error: tab-panel-visible needs the tab's id
     engine.is("tab-panel-visible");
     // @ts-expect-error: an old key
     engine.get("path", { node: "ts0" });
-    // @ts-expect-error: tab-panel-dom-id-by-tab-id takes `tabId`
-    engine.get("tab-panel-dom-id-by-tab-id", { nodeId: "t0" });
+    // @ts-expect-error: an old key
+    engine.get("layout-path-by-node-id", { nodeId: "ts0" });
+    // @ts-expect-error: layout-path-by needs its payload
+    engine.get("layout-path-by");
+    // @ts-expect-error: tab-panel-dom-id-by takes `tabId`
+    engine.get("tab-panel-dom-id-by", { nodeId: "t0" });
 }
 
 export function adapter(engine: LayoutEngine): void {
