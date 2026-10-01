@@ -2,11 +2,9 @@
 
 import { type ReactNode, useState } from "react";
 import { cn } from "#/lib/cn";
-import { tabName } from "./layout";
-import * as styles from "./styles";
 
-// Demo content: a panel body, and a card with state you can see. Nothing here is part of
-// Dockable: a panel renders whatever the consumer gives it.
+// Demo content, shared by the examples: a panel body, and a card with state you can see. Nothing
+// here is part of Dockable: a panel renders whatever the consumer gives it.
 
 /** A padded, scrollable panel body with a title. */
 export function PanelBody({
@@ -31,14 +29,13 @@ export function PanelBody({
  * maximize it or pop it out, and both keep their value: the content is never remounted.
  */
 export function Card({
-    tab,
+    name,
     children,
 }: {
-    tab: { readonly data?: unknown };
+    name: string;
     children?: ReactNode;
 }) {
     const [count, setCount] = useState(0);
-    const name = tabName(tab);
     return (
         <PanelBody title={name}>
             <p className="text-palette-accent/85">
@@ -49,7 +46,7 @@ export function Card({
                 <button
                     type="button"
                     data-testid="counter"
-                    className={cn("palette-blue", styles.solidButton)}
+                    className="palette-blue inline-flex h-8 items-center gap-1.5 rounded-md bg-palette-base px-3 text-sm font-medium text-palette-contrast outline-none hover:bg-palette-base-hover focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-offset-2"
                     onClick={() => setCount((c) => c + 1)}
                 >
                     {`Count: ${count}`}

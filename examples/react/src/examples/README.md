@@ -8,8 +8,9 @@ src/examples/
   <slug>/index.tsx     the example (default export, "use client")
   <slug>/meta.ts       title, description, level, order, features, docs link, layout, height
   <slug>/*.ts(x)       optional sibling files, shown in the code panel
-  _kit/                the shared layout recursion, class names, labels and demo content
-  _themes/             the five themes (one CSS file each) and their list (themes.ts)
+  _kit/                shared demo content and app logic (cards, charts, tables, the rename
+                       field, the undo manager); no Dockable assembly, no styles
+  _themes/             the five themes (one CSS file each, values only) and their list
 ```
 
 ## Adding an example
@@ -23,13 +24,63 @@ src/examples/
 3. The smoke e2e visits it in every theme, and inside an iframe. Add a spec for its main
    behaviour in `e2e/examples/<slug>.spec.ts`.
 
+## Anatomy of an example
+
+A reader opens `index.tsx` and sees the whole layout: what is rendered, how Dockable is assembled,
+and every class it is styled with. The code panel shows the example's files, the shared demo
+content it imports and the theme's CSS, and nothing else.
+
+```tsx
+export default function HelloLayout() {
+    const [model] = useState(() => createModel<Types>(json));
+    return (
+        <div className="flex min-h-0 flex-1 flex-col p-(--dk-gap)">
+            <Dockable.Root model={model} className="palette-surface min-h-0 flex-1 …">
+                <Dockable.Row<Types> renderSplitter={(props) => <Splitter {...props} />}>
+                    {renderNode}
+                </Dockable.Row>
+                <Dockable.Panels<Types>>
+                    {(tab) => (
+                        <Dockable.Panel node={tab} className="palette-raised overflow-auto …">
+                            <Card name={tab.data.name} />
+                        </Dockable.Panel>
+                    )}
+                </Dockable.Panels>
+                <Dockable.DropIndicator className={(state) => …} />
+            </Dockable.Root>
+        </div>
+    );
+}
+```
+
+`hello-layout` is the reference: the recursion (`renderNode`), the `TabSet` and the `Splitter` are
+functions in the same file, below the default export.
+
+- **`index.tsx` renders `<Dockable.Root>`** and the tree under it. Parts may be components in the
+  same file or in sibling files of the same folder (`tabs.tsx`, `panels.tsx`), never in a shared
+  module: `_kit/` holds no Dockable assembly (`tests/examples.test.ts`).
+- **Only the parts the example uses.** `Dockable.Borders` only when the model has borders,
+  `Dockable.Popout` (and `popoutURL`, `popoutMirrorRoot` on the root) only when it pops out,
+  `Dockable.EdgeIndicator` only when it shows edge targets.
+- **No option bags.** A part takes what it renders (`node`, a callback that is the subject of the
+  example), not `options` or `renderX` hooks that hide what it renders.
+- **Classes inline**, on the element they style, with `cn()` for several strings or conditions.
+  A class that does a job beyond looks keeps a short comment: the tab list's start padding (a tab
+  flush with the edge cannot take a drop before it), the panel's bottom radius (panels sit above
+  the tabsets, which cannot clip them), the drop indicator's `z-20` (panels are portalled after
+  it), the splitter's `::after` grab area, `in-data-active:` on the active marker.
+- **Accessible names inline**: `aria-label="Resize"` on each splitter (through `renderSplitter`),
+  on each icon button, on each tab list.
+- **Tokens, not values that differ per theme**: radius, sizes, fonts, the selected tab and the
+  strip read the `--dk-*` tokens each theme declares (listed in `_themes/<name>.css`).
+
 ## Rules (the docs Epic, DD6–DD12)
 
 - **Copyable imports only**: `react`, `@fragiola/dockable`, `@fragiola/dockable-react`,
   `lucide-react`, Fragiola UI (`#/components/ui/*`, `#/components/atoms/*`, `#/lib/cn`,
   `#/hooks/*`), and relative files inside `src/examples/`. `#/` is the app's `src/`; `@name` is
   reserved for packages (site export contract, §6). `tests/examples.test.ts` enforces it.
-- **Theme-agnostic**: style through palette roles (`bg-palette-base`, …) and the kit tokens
+- **Theme-agnostic**: style through palette roles (`bg-palette-base`, …) and the theme tokens
   (`--dk-*`), never fixed colours, so the example works in all five themes.
 - **Through the model**: every change is a command (`model.run("tab.close", { tab })`, or `run`
   from `useDockable`), which the model's middleware (`model.use`) can veto or rewrite. Nodes are
