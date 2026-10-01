@@ -25,7 +25,7 @@ function Header({ tabset }: { tabset: TabsetNode<Types> }) {
                 </Dockable.TabOverflowTrigger>
                 <Menu.Content>
                     {hiddenTabs.map((tab) => (
-                        <Menu.Item key={tab.id} onClick={() => model.run("tab.select", { tab: tab.id })}>
+                        <Menu.Item key={tab.id} onClick={() => model.run("tab.select", { tabId: tab.id })}>
                             {tab.data.name}
                         </Menu.Item>
                     ))}

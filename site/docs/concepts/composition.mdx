@@ -76,7 +76,7 @@ function MyTabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className="tab">
                             {tab.data.name}
-                            {model.can("tab.close", { tab: tab.id }) ? <CloseButton tab={tab} /> : null}
+                            {model.can("tab.close", { tabId: tab.id }) ? <CloseButton tab={tab} /> : null}
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>

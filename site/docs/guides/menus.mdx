@@ -33,14 +33,14 @@ function TabWithMenu({ tab }: { tab: TabOf<Types> }) {
             </Dockable.Tab>
             <ContextMenu.Content>
                 <ContextMenu.Item
-                    disabled={!model.can("tab.close", { tab: tab.id })}
-                    onClick={() => model.run("tab.close", { tab: tab.id })}
+                    disabled={!model.can("tab.close", { tabId: tab.id })}
+                    onClick={() => model.run("tab.close", { tabId: tab.id })}
                 >
                     Close
                 </ContextMenu.Item>
                 <ContextMenu.Item
-                    disabled={!model.can("tab.pin", { tab: tab.id, value: !pinned })}
-                    onClick={() => model.run("tab.pin", { tab: tab.id, value: !pinned })}
+                    disabled={!model.can("tab.pin", { tabId: tab.id, value: !pinned })}
+                    onClick={() => model.run("tab.pin", { tabId: tab.id, value: !pinned })}
                 >
                     {pinned ? "Unpin" : "Pin"}
                 </ContextMenu.Item>
@@ -57,20 +57,20 @@ in the trigger instead.
 
 ## The usual items
 
-`parent` is `model.get("parent", { node: tab.id })`: the tab's tabset, or its border.
+`parent` is `model.get("node-parent-by-id", { nodeId: tab.id })`: the tab's tabset, or its border.
 
 | item | command | enable when |
 | --- | --- | --- |
-| Close | `tab.close` `{ tab }` | `model.can("tab.close", …)` |
+| Close | `tab.close` `{ tabId }` | `model.can("tab.close", …)` |
 | Close others | `batch` of `tab.close`, one per other closable tab | at least one |
 | Close to the right | `batch` of `tab.close` for the closable tabs after it | at least one |
-| Close all | `tabset.close` `{ tabset }`, or a `batch` of `tab.close` | `model.can("tabset.close", …)` |
+| Close all | `tabset.close` `{ tabsetId }`, or a `batch` of `tab.close` | `model.can("tabset.close", …)` |
 | Rename | start your rename UI, then `tab.update` with the new data | your own rule (in `data`), and `model.can("tab.update", …)` |
-| Pin / Unpin | `tab.pin` `{ tab, value }` | `model.can("tab.pin", …)` (refused in a border) |
-| Pop out | `tab.popout` `{ tab }` | `engine.is("popout-supported")` and `model.can("tab.popout", …)` |
-| Pop out the tabset | `tabset.popout` `{ tabset }` | as Pop out, with `tabset.popout` |
-| Maximize / Restore | `tabset.maximize` `{ tabset, value }` | `model.can("tabset.maximize", …)` |
-| Overlay / Docked (a border) | `border.configure` `{ border, mode }` | always |
+| Pin / Unpin | `tab.pin` `{ tabId, value }` | `model.can("tab.pin", …)` (refused in a border) |
+| Pop out | `tab.popout` `{ tabId }` | `engine.is("popout-supported")` and `model.can("tab.popout", …)` |
+| Pop out the tabset | `tabset.popout` `{ tabsetId }` | as Pop out, with `tabset.popout` |
+| Maximize / Restore | `tabset.maximize` `{ tabsetId, value }` | `model.can("tabset.maximize", …)` |
+| Overlay / Docked (a border) | `border.configure` `{ borderId, mode }` | always |
 
 "Several closes" are one `batch`: one change event, one undo step, and atomic (if one command
 fails, none applies). Filter the tabs with `model.can` first, so a pinned or unclosable tab does
@@ -79,16 +79,16 @@ not make the whole batch fail:
 ```ts
 import type { BatchEntry, TabOf } from "@fragiola/dockable";
 
-const parent = model.get("parent", { node: tab.id });
+const parent = model.get("node-parent-by-id", { nodeId: tab.id });
 const siblings = parent && parent.type !== "row" ? parent.children : [];
-const others = siblings.filter((t) => t.id !== tab.id && model.can("tab.close", { tab: t.id }));
+const others = siblings.filter((t) => t.id !== tab.id && model.can("tab.close", { tabId: t.id }));
 
 model.run("batch", {
-    commands: others.map((t): BatchEntry<Types> => ({ command: "tab.close", payload: { tab: t.id } })),
+    commands: others.map((t): BatchEntry<Types> => ({ command: "tab.close", payload: { tabId: t.id } })),
 });
 ```
 
-`tab.popout` from a menu opens the window at a default place; `engine.run("popout", { node: tab.id })`
+`tab.popout` from a menu opens the window at a default place; `engine.run("popout", { nodeId: tab.id })`
 (the engine from `useDockable`) runs the same command with the tab's current screen rect, so the window opens
 where the tab was. See [Popouts](/docs/guides/popouts).
 

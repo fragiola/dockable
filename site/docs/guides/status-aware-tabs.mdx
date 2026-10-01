@@ -41,7 +41,7 @@ function Editor({ tab }: { tab: TabNode<"document", Types["tabs"]["document"]> }
     const setDirty = (dirty: boolean) => {
         // only when the flag changes, not on every keystroke
         if (tab.data.dirty !== dirty) {
-            model.run("tab.update", { tab: tab.id, component: "document", data: { ...tab.data, dirty } });
+            model.run("tab.update", { tabId: tab.id, component: "document", data: { ...tab.data, dirty } });
         }
     };
     // … call setDirty(true) on edit, setDirty(false) on save
@@ -140,7 +140,7 @@ import { veto } from "@fragiola/dockable";
 
 model.use((ctx, next) => {
     if (ctx.command === "tab.close") {
-        const tab = ctx.get("node", { node: ctx.payload.tab });
+        const tab = ctx.get("node-by-id", { nodeId: ctx.payload.tabId });
         if (tab?.type === "tab" && tab.component === "document" && tab.data.dirty) {
             return veto("Save the document before closing it.");
         }
@@ -149,7 +149,7 @@ model.use((ctx, next) => {
 });
 ```
 
-`ctx.get("node", …)` returns a node of the registry, so `tab.data` narrows once `type` and `component` are
+`ctx.get("node-by-id", …)` returns a node of the registry, so `tab.data` narrows once `type` and `component` are
 checked. More on closing, and on asking the user first, in [Tabs](/docs/guides/tabs).
 
 ## A live dashboard

@@ -79,7 +79,7 @@ import type { TabInitOf } from "@fragiola/dockable";
 const widget: TabInitOf<Types> = { component: "chart", data: { name: "Revenue", metric: "revenue" } };
 
 const addToActiveTabset = () => {
-    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const target = model.get("active-tabset-by-layout-id") ?? model.get("tabsets-by-layout-id")[0];
     if (target) model.run("tab.add", { ...widget, to: target.id, select: true });
 };
 
@@ -112,7 +112,7 @@ const onExternalDrag: OnExternalDrag<Types> = (event) => {
         onDrop: (id, drop) => {
             const file = drop.dataTransfer?.files[0];
             if (!id || !file) return; // refused by a rule or a middleware
-            model.run("tab.update", { tab: id, component: "file", data: { name: file.name } });
+            model.run("tab.update", { tabId: id, component: "file", data: { name: file.name } });
             files.set(id, file);
         },
     };

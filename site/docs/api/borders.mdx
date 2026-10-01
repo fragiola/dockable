@@ -51,7 +51,7 @@ Borders come from the model's state (`model.state.borders`, declared in the layo
 
 ## Which borders show
 
-A border shows when its resolved `show` is on (`model.get("border-settings", { border })?.show`) and, if it
+A border shows when its resolved `show` is on (`model.get("border-settings-by-id", { borderId })?.show`) and, if it
 `autoHide`s (its own `autoHide`, else `defaults.border.autoHide`), when it has tabs or a drag
 reveals it: while a tab is dragged near the edge of the layout that has an empty auto-hide border
 (within `defaults.layout.edgeDockMargin`, away from the edge docking bands), that border appears so it can

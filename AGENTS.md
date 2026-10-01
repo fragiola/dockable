@@ -28,7 +28,7 @@ Do not "fix" these.
    `height`, `display: none`, flex sizing and indicator position. Nothing cosmetic.
    **Maximize (deviation from FlexLayout):** FlexLayout portals the maximized tabset over the
    layout; Dockable hides every tabset and row off its path
-   (`model.is("hidden-by-maximize", { node })`, `display: none`), so nothing remounts.
+   (`model.is("node-hidden-by-maximize", { nodeId })`, `display: none`), so nothing remounts.
 2. **Public API is composable primitives under one namespace** (`Dockable.Root`,
    `Row`, `TabSet`, `TabList`, `Tab`, `Panel`, `Splitter`, …). Hooks
    (`useDockable`, `useTabSet`, `useSplitter`, `useDragNode`) are exported as the
@@ -69,6 +69,13 @@ Do not "fix" these.
     Everything only an adapter calls is under `engine.adapter`; an app (and every example) never
     touches it, and never needs the main engine: page-wide actions work from any engine. A new
     read or question is a new key, not a new method; guard tests keep both surfaces exact.
+    **Names say what they take.** A field holding an id is `<entity>Id` (`tabId`, `tabsetId`,
+    `nodeId`, `layoutId`; a list `tabIds`), in every payload and result, commands included; only
+    `to` (a placement target) and a node's own `id` are exempt. A `get` key names its result and
+    whose id it takes (`node-by-id { nodeId }`, `selected-tab-by-tabset-id { tabsetId }`; a
+    `-by-layout-id` key defaults to the main layout); an `is` key is `<entity>-<state>`
+    (`tabset-active { tabsetId }`). A tab is **selected** (the one its tabset or border shows); a
+    tabset is **active** (one per layout); the two words are never swapped.
 
 ## Commands
 

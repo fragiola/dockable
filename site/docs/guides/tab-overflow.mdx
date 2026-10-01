@@ -59,7 +59,7 @@ function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
             </Dockable.TabOverflowTrigger>
             <Menu.Content>
                 {hiddenTabs.map((tab) => (
-                    <Menu.Item key={tab.id} onClick={() => model.run("tab.select", { tab: tab.id })}>
+                    <Menu.Item key={tab.id} onClick={() => model.run("tab.select", { tabId: tab.id })}>
                         {label(tab)}
                     </Menu.Item>
                 ))}
@@ -97,7 +97,7 @@ import { useModelState } from "@fragiola/dockable-react";
 
 function ScrollingTab({ tab }: { tab: TabOf<Types> }) {
     const ref = useRef<HTMLElement>(null);
-    const selected = useModelState<Types, boolean>((_, model) => model.is("selected", { tab: tab.id }));
+    const selected = useModelState<Types, boolean>((_, model) => model.is("tab-selected", { tabId: tab.id }));
     useEffect(() => {
         if (selected) ref.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }, [selected]);

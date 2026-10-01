@@ -89,22 +89,22 @@ it):
 
 From code, two commands create a window layout:
 
-- `tab.popout` `{ tab, rect? }` moves a tab into a new window. It is refused when the tab's
+- `tab.popout` `{ tabId, rect? }` moves a tab into a new window. It is refused when the tab's
   `enablePopout` resolves to false, when it is pinned, or when it is already in a window.
-- `tabset.popout` `{ tabset, rect? }` moves a whole tabset. It is refused when the tabset is empty
+- `tabset.popout` `{ tabsetId, rect? }` moves a whole tabset. It is refused when the tabset is empty
   or already in a window, or when any of its tabs does not allow popouts.
 
-Both return `{ window }`, the new window layout's id. `rect` is the window's screen rect; without
-one a default place is used. The engine's `engine.run("popout", { node })` runs the right command
+Both return `{ windowId }`, the new window layout's id. `rect` is the window's screen rect; without
+one a default place is used. The engine's `engine.run("popout", { nodeId })` runs the right command
 with the node's current screen rect, so the window opens where the tab was;
-`engine.can("popout", { node })` answers with `model.can` (and whether popouts are supported);
-`engine.run("dock-back", { node })` moves a tab or tabset of a window back into the main layout.
+`engine.can("popout", { nodeId })` answers with `model.can` (and whether popouts are supported);
+`engine.run("dock-back", { nodeId })` moves a tab or tabset of a window back into the main layout.
 Any engine does it, a popout's included.
 
 ```tsx
 const { model, engine } = useDockable<Types>();
-const popOut = () => engine.run("popout", { node: tab.id }); // or model.run("tab.popout", { tab: tab.id })
-const allowed = engine.can("popout", { node: tab.id });
+const popOut = () => engine.run("popout", { nodeId: tab.id }); // or model.run("tab.popout", { tabId: tab.id })
+const allowed = engine.can("popout", { nodeId: tab.id });
 ```
 
 `supportsPopout` on `Root` decides whether windows open at all; the default is "a desktop
@@ -145,7 +145,7 @@ other, so a listener sees it and an undo can reverse it.
 The same command closes a window from code:
 
 ```ts
-model.run("window.close", { window: windowId }); // e.g. the id tab.popout returned
+model.run("window.close", { windowId }); // e.g. the id tab.popout returned
 ```
 
 A "dock back" button inside popped-out content moves one tab home; the engine does it, closing
@@ -153,7 +153,7 @@ the window when it was the window's last tab:
 
 ```tsx
 const { engine } = useDockable<Types>();
-engine.run("dock-back", { node: tab.id });
+engine.run("dock-back", { nodeId: tab.id });
 ```
 
 Do not veto `window.close` in a middleware for a window the user closed: the window is already

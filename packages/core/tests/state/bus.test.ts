@@ -38,9 +38,9 @@ describe("results", () => {
         const tabId = model.get("all-tabs")[1]?.id ?? "";
         expect(can("tab.select", { tabId })).toBe(true);
         expect(run("tab.select", { tabId }).ok).toBe(true);
-        expect(
-            dispatch({ command: "tab.close", payload: { tabId } }).ok,
-        ).toBe(true);
+        expect(dispatch({ command: "tab.close", payload: { tabId } }).ok).toBe(
+            true,
+        );
         expect(events).toEqual(["tab.select", "tab.close"]);
     });
 
@@ -395,7 +395,7 @@ describe("ctx.get", () => {
             const get = ctx.get as (key: string, payload?: unknown) => unknown;
             seen.push(
                 get("layout-id-by-node-id", { nodeId: "One" }),
-                get("node"),
+                get("node-by-id"),
                 get("One"),
             );
             return next();

@@ -51,8 +51,8 @@ it: `position`, `inset`, `left`, `top`, `right`, `bottom`, `width`, `height`, `d
 
 | field | type | description |
 | --- | --- | --- |
-| `selected` | `boolean` | the tab is its tabset's selected tab (`model.is("selected", { tab })`) |
-| `visible` | `boolean` | the panel is shown (selected, and not hidden by another tabset being maximized): `engine.is("panel-visible", { tab: tab.id })` |
+| `selected` | `boolean` | the tab is its tabset's selected tab (`model.is("tab-selected", { tabId })`) |
+| `visible` | `boolean` | the panel is shown (selected, and not hidden by another tabset being maximized): `engine.is("tab-panel-visible", { tabId: tab.id })` |
 
 ## Data attributes and ARIA
 
@@ -61,7 +61,7 @@ it: `position`, `inset`, `left`, `top`, `right`, `bottom`, `width`, `height`, `d
 | `data-layout-path` | the tab's panel path: `/ts0/t1` |
 | `data-selected` | the selected tab |
 | `data-visible` | shown |
-| `id` | `engine.get("tab-panel-id", { tab: tab.id })`, unique on the page (`getTabPanelId(id, scope)`: `dockable-<scope>tab-<id>`) |
+| `id` | `engine.get("tab-panel-dom-id-by-tab-id", { tabId: tab.id })`, unique on the page (`getTabPanelId(id, scope)`: `dockable-<scope>tab-<id>`) |
 | `role` | `"tabpanel"` |
 | `aria-labelledby` | its tab button's id |
 | `aria-keyshortcuts` | the `focusTabToggle` binding, when set |

@@ -100,10 +100,10 @@ The commands name nodes by id, so give the assistant the layout with its ids.
 ```ts
 function describeLayout(model: Model<Types>) {
     return {
-        active: model.get("active-tabset")?.id,
-        tabsets: model.get("tabsets").map((tabset) => ({
+        active: model.get("active-tabset-by-layout-id")?.id,
+        tabsets: model.get("tabsets-by-layout-id").map((tabset) => ({
             id: tabset.id,
-            selected: model.get("selected-tab", { container: tabset.id })?.id,
+            selected: model.get("selected-tab-by-tabset-id", { tabsetId: tabset.id })?.id,
             tabs: tabset.children.map((tab) => ({ id: tab.id, component: tab.component, name: tab.data.name })),
         })),
     };
@@ -146,7 +146,7 @@ command's result, or `{ ok: false, error }` with a `code`, a `message`, a JSON p
 into the input, and for a schema failure the `issues`:
 
 ```ts
-model.dispatch({ command: "tab.move", payload: { tab: 3 } });
+model.dispatch({ command: "tab.move", payload: { tabId: 3 } });
 ```
 
 ```json
@@ -221,7 +221,7 @@ const assistantPolicy: Middleware<Types> = (ctx, next) => {
         case "batch": // each command inside it passes this middleware too, with the same meta
             return next();
         case "tab.close": {
-            const tab = ctx.get("node", { node: ctx.payload.tab });
+            const tab = ctx.get("node-by-id", { nodeId: ctx.payload.tabId });
             if (tab?.type === "tab" && tab.component === "editor" && tab.data.dirty) {
                 return veto(`"${tab.data.name}" has unsaved changes: ask the user to close it.`);
             }
@@ -254,8 +254,8 @@ is one question:
 ```ts
 const plan = {
     commands: [
-        { command: "tab.select", payload: { tab: "todo" } },
-        { command: "tab.close", payload: { tab: "code" } },
+        { command: "tab.select", payload: { tabId: "todo" } },
+        { command: "tab.close", payload: { tabId: "code" } },
     ],
 } satisfies PayloadOf<Types, "batch">;
 

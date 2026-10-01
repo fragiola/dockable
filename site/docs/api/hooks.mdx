@@ -24,9 +24,9 @@ type Types = { tabs: { card: { name: string } } };
 function CloseButton({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
     // a dry run: whether `tab.close` would apply (enableClose, pinned, middleware)
-    if (!model.can("tab.close", { tab: tab.id })) return null;
+    if (!model.can("tab.close", { tabId: tab.id })) return null;
     return (
-        <button type="button" onClick={() => model.run("tab.close", { tab: tab.id })}>
+        <button type="button" onClick={() => model.run("tab.close", { tabId: tab.id })}>
             Close {tab.data.name}
         </button>
     );
@@ -46,7 +46,7 @@ erased, and `useDockable<Types>()` states which registry you know it has. Tab co
 under the root wherever the tab is shown, so inside it `engine` is the main layout's engine and
 `layoutId` is `"main"`, even in a popout window: what concerns the whole page (whether popouts are
 supported, popping out, docking back) works from it all the same. The window a tab is in is
-`model.get("layout-id", { node: tab.id })`, and the document it renders in right now is its own
+`model.get("layout-id-by-node-id", { nodeId: tab.id })`, and the document it renders in right now is its own
 element's `ownerDocument`. Which object to go to for what:
 [Model and engine](/docs/concepts/model-and-engine).
 
@@ -59,7 +59,7 @@ changes (`isEqual`, `Object.is` by default). The selector runs once per state; k
 import { useModelState } from "@fragiola/dockable-react";
 
 function TabCount() {
-    const count = useModelState<Types, number>((state, model) => model.get("tabs").length);
+    const count = useModelState<Types, number>((state, model) => model.get("all-tabs").length);
     return <output>{count} tabs</output>;
 }
 ```
@@ -127,7 +127,7 @@ function MyTabSet({ node, children }: { node: TabsetNode<Types>; children: React
 ```
 
 A custom tabset must still apply the structural flex sizing `Dockable.TabSet` sets (flex-grow
-from `node.weight`, the min/max sizes from `engine.get("size-limits", { node: node.id })`,
+from `node.weight`, the min/max sizes from `engine.get("size-limits-by-node-id", { nodeId: node.id })`,
 `display: none` when `state.hidden`), and provide the tabset to `TabList`/`TabSetContent`, which
 only `Dockable.TabSet` does. Prefer `Dockable.TabSet` with `render` unless you need something it
 cannot express. Reading `state` alone is fine too: `useTabSet(node).state.dropIndex` places an
@@ -309,7 +309,7 @@ const zone = useDropZone({
     model,
     accepts: (drag) => drag.kind === "tab",
     onDrop: (drag) => {
-        if (drag.kind === "tab") model.run("tab.close", { tab: drag.tab.id });
+        if (drag.kind === "tab") model.run("tab.close", { tabId: drag.tab.id });
     },
 });
 return <div {...zone.props} data-over={zone.state.over ? "" : undefined}>Trash</div>;

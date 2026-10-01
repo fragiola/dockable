@@ -38,9 +38,9 @@ One `aria-label` names both actions. To name each one, read `mode` in a `render`
 
 | mode | target | command |
 | --- | --- | --- |
-| `"popout"` | `"tab"` | `tab.popout` (`engine.run("popout", { node: tabId })`): the tab moves into a new window layout, at its content area's screen rect |
-| `"popout"` | `"tabset"` | `tabset.popout` (`engine.run("popout", { node: tabsetId })`): the whole tabset moves into a new window layout |
-| `"dock"` | either | `engine.run("dock-back", { node: id })`: when the tab (or the tabset's tabs) is all its window holds, `window.close`, which docks every tab back and removes the window; otherwise a `batch` of `tab.move` into the main layout's active tabset (its first tabset when none is active) |
+| `"popout"` | `"tab"` | `tab.popout` (`engine.run("popout", { nodeId: tabId })`): the tab moves into a new window layout, at its content area's screen rect |
+| `"popout"` | `"tabset"` | `tabset.popout` (`engine.run("popout", { nodeId: tabsetId })`): the whole tabset moves into a new window layout |
+| `"dock"` | either | `engine.run("dock-back", { nodeId: id })`: when the tab (or the tabset's tabs) is all its window holds, `window.close`, which docks every tab back and removes the window; otherwise a `batch` of `tab.move` into the main layout's active tabset (its first tabset when none is active) |
 
 Every command goes through the model's middleware, so a veto stops it. A new window layout in the
 state is what opens the native window: the root's popout manager opens one for every window layout
@@ -78,11 +78,11 @@ state is what opens the native window: the root's popout manager opens one for e
 
 ## Notes
 
-- In the main layout it renders when `engine.can("popout", { node: id })` is true: popouts are supported
-  (`supportsPopout`) and `model.can("tab.popout", { tab })` (or `tabset.popout`) accepts it. The
+- In the main layout it renders when `engine.can("popout", { nodeId: id })` is true: popouts are supported
+  (`supportsPopout`) and `model.can("tab.popout", { tabId })` (or `tabset.popout`) accepts it. The
   model refuses a tab whose resolved `enablePopout` is false (the built-in default: popout is
   opt-in, per tab or with `defaults.tab.enablePopout`), a pinned tab, and a tabset that is empty
   or holds a tab that does not allow it. A middleware veto hides it too.
-- In a window (`model.is("in-window", { node: id })`) it always renders, in `"dock"` mode.
-- The engine actions it runs are public: `engine.run("popout", { node })` and
-  `engine.run("dock-back", { node })`, both returning a `CommandResult`. `model.run("tab.popout", { tab })` works as well, anywhere.
+- In a window (`model.is("node-in-window", { nodeId: id })`) it always renders, in `"dock"` mode.
+- The engine actions it runs are public: `engine.run("popout", { nodeId })` and
+  `engine.run("dock-back", { nodeId })`, both returning a `CommandResult`. `model.run("tab.popout", { tabId })` works as well, anywhere.

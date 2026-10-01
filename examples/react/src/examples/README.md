@@ -83,10 +83,10 @@ functions in the same file, below the default export.
   reserved for packages (site export contract, §6). `tests/examples.test.ts` enforces it.
 - **Theme-agnostic**: style through palette roles (`bg-palette-base`, …) and the theme tokens
   (`--dk-*`), never fixed colours, so the example works in all five themes.
-- **Through the model**: every change is a command (`model.run("tab.close", { tab })`, with the
+- **Through the model**: every change is a command (`model.run("tab.close", { tabId })`, with the
   `model` from `useDockable`), which the model's middleware (`model.use`) can veto or rewrite;
   reads go through `model.get`/`model.is`. Screen actions (pop out, dock back) are the engine's
-  (`engine.run("popout", { node })`); an example never reaches `engine.adapter`. Nodes are
+  (`engine.run("popout", { nodeId })`); an example never reaches `engine.adapter`. Nodes are
   immutable data: read them, never mutate them.
 - **Typed data**: each example declares its `Types` registry and reads `tab.data` narrowed by
   `tab.component`; no casts on node data or node kinds.

@@ -166,11 +166,11 @@ activity bar.
 - **From code**, with the border's id:
 
 ```ts
-model.run("tab.select", { tab: "search" }); // opens the left border on Search
-model.run("border.configure", { border: "border_left", open: false }); // closes its panel
-model.run("border.configure", { border: "border_left", open: true }); // reopens it (first tab if none)
-model.run("border.resize", { border: "border_left", size: 300 }); // clamped to minSize/maxSize
-model.run("border.configure", { border: "border_bottom", show: false }); // hides the whole border
+model.run("tab.select", { tabId: "search" }); // opens the left border on Search
+model.run("border.configure", { borderId: "border_left", open: false }); // closes its panel
+model.run("border.configure", { borderId: "border_left", open: true }); // reopens it (first tab if none)
+model.run("border.resize", { borderId: "border_left", size: 300 }); // clamped to minSize/maxSize
+model.run("border.configure", { borderId: "border_bottom", show: false }); // hides the whole border
 ```
 
 `border.configure` also changes `mode`, `autoHide`, `enableDrop`, the sizes and `data`; a `null`
@@ -205,11 +205,11 @@ drawer:
 Switch one at runtime with `border.configure`:
 
 ```ts
-model.run("border.configure", { border: "border_left", mode: "overlay" }); // or "docked"
+model.run("border.configure", { borderId: "border_left", mode: "overlay" }); // or "docked"
 ```
 
-`model.get("border-settings", { border })?.mode` reads the mode in effect (the border's own, else
-the default), and `model.is("overlay", { border })` answers the same as a boolean.
+`model.get("border-settings-by-id", { borderId })?.mode` reads the mode in effect (the border's own, else
+the default), and `model.is("border-overlay", { borderId })` answers the same as a boolean.
 
 - It **closes on a press** in the layout outside its panel (a tabset, a splitter), and on
   **Escape** (`keyMap.closeOverlayBorder`) with focus in the panel or on its tab button; focus goes

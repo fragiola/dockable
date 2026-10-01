@@ -39,9 +39,9 @@ const json: LayoutJson<Types> = {
 };
 
 const model = createModel<Types>(json);
-model.get("selected-tab", { container: "editors" })?.data; // typed by the registry
-model.is("maximized", { tabset: "editors" }); // false
-model.run("tab.close", { tab: "readme" });
+model.get("selected-tab-by-tabset-id", { tabsetId: "editors" })?.data; // typed by the registry
+model.is("tabset-maximized", { tabsetId: "editors" }); // false
+model.run("tab.close", { tabId: "readme" });
 const saved = model.get("layout-json"); // a LayoutJson<Types> again
 ```
 
@@ -134,30 +134,37 @@ of every tab whose id survives. Keep references by id, not by layout path.
 
 ## Reading: `get`
 
-`model.get(key, payload)` reads the current state. The key says what to read, the payload which
-node or layout: the same field names commands use (`node`, `tab`, `tabset`, `border`,
-`container`, `layout`). A `layout` is `MAIN_LAYOUT` (the default) or a popout window's id; a key
-whose payload has no required field takes none (`model.get("tabs")`). An unknown id reads
-`undefined`.
+`model.get(key, payload)` reads the current state. The key says what it returns and whose id it
+takes, and the payload names that id: `node-by-id` takes `{ nodeId }`, `selected-tab-by-tabset-id`
+takes `{ tabsetId }`. A `-by-layout-id` key's `layoutId` is `MAIN_LAYOUT` (the default) or a popout
+window's id; a key whose payload has no required field takes none (`model.get("all-tabs")`). An
+unknown id reads `undefined`.
 
 | key | payload | returns | reads |
 | --- | --- | --- | --- |
-| `"node"` | `{ node }` | `Node<T> \| undefined` | a node by id, in O(1); check its `type` to narrow it |
-| `"parent"` | `{ node }` | `ParentNode<T> \| undefined` | a node's parent: a row, a tabset or a border |
-| `"layout-id"` | `{ node }` | `string \| undefined` | the layout a node is in: `MAIN_LAYOUT` (borders included) or a window id |
-| `"root-row"` | `{ layout? }` | `RowNode<T> \| undefined` | a layout's root row |
-| `"window"` | `{ window }` | `WindowLayout<T> \| undefined` | a popout window's layout |
-| `"tabs"` | `{ layout? }` | `TabOf<T>[]` | the tabs of a layout (the main layout's include its borders'), or without a layout every tab of the model, windows included; in tree order |
-| `"tabsets"` | `{ layout? }` | `TabsetNode<T>[]` | every tabset of a layout (default the main one), in tree order |
-| `"selected-tab"` | `{ container }` | `TabOf<T> \| undefined` | the selected tab of a tabset or a border |
-| `"active-tabset"` | `{ layout? }` | `TabsetNode<T> \| undefined` | a layout's active tabset |
-| `"maximized-tabset"` | `{ layout? }` | `TabsetNode<T> \| undefined` | a layout's maximized tabset |
-| `"tab-settings"` | `{ tab }` | `ResolvedTab \| undefined` | a tab's effective settings ([below](#settings)) |
-| `"tabset-settings"` | `{ tabset }` | `ResolvedTabset \| undefined` | a tabset's effective settings |
-| `"border-settings"` | `{ border }` | `ResolvedBorder \| undefined` | a border's effective settings |
+| `"node-by-id"` | `{ nodeId }` | `Node<T> \| undefined` | a node by its id, in O(1); check its `type` to narrow it |
+| `"node-parent-by-id"` | `{ nodeId }` | `ParentNode<T> \| undefined` | a node's parent: a row, a tabset or a border |
+| `"layout-id-by-node-id"` | `{ nodeId }` | `string \| undefined` | the layout a node is in: `MAIN_LAYOUT` (borders included) or a window id |
+| `"root-row-by-layout-id"` | `{ layoutId? }` | `RowNode<T> \| undefined` | a layout's root row |
+| `"window-by-id"` | `{ windowId }` | `WindowLayout<T> \| undefined` | a popout window's layout |
+| `"all-tabs"` | none | `TabOf<T>[]` | every tab of the model: the main layout's, its borders' and the windows', in tree order |
+| `"tabs-by-layout-id"` | `{ layoutId? }` | `TabOf<T>[]` | the tabs of a layout (the main layout's include its borders'), in tree order |
+| `"tabsets-by-layout-id"` | `{ layoutId? }` | `TabsetNode<T>[]` | the tabsets of a layout, in tree order |
+| `"selected-tab-by-tabset-id"` | `{ tabsetId }` | `TabOf<T> \| undefined` | the tab a tabset shows |
+| `"selected-tab-by-border-id"` | `{ borderId }` | `TabOf<T> \| undefined` | the tab a border's open panel shows (none while it is closed) |
+| `"selected-tab-by-layout-id"` | `{ layoutId? }` | `TabOf<T> \| undefined` | the selected tab of a layout's active tabset |
+| `"active-tabset-by-layout-id"` | `{ layoutId? }` | `TabsetNode<T> \| undefined` | a layout's active tabset |
+| `"maximized-tabset-by-layout-id"` | `{ layoutId? }` | `TabsetNode<T> \| undefined` | a layout's maximized tabset |
+| `"tab-settings-by-id"` | `{ tabId }` | `ResolvedTab \| undefined` | a tab's effective settings ([below](#settings)) |
+| `"tabset-settings-by-id"` | `{ tabsetId }` | `ResolvedTabset \| undefined` | a tabset's effective settings |
+| `"border-settings-by-id"` | `{ borderId }` | `ResolvedBorder \| undefined` | a border's effective settings |
 | `"layout-settings"` | none | `ResolvedLayout` | the layout-wide settings |
 | `"layout-json"` | none | `LayoutJson<T>` | the state as a layout document ([below](#saving-and-loading)) |
 | `"commands"` | none | `readonly CommandInfo[]` | every command with its description and JSON Schemas ([The command bus](/docs/api/command-bus#listing-the-commands)) |
+
+A key that names an entity reads only that kind: `selected-tab-by-tabset-id` with a border's id
+reads `undefined`. A tab is *selected* and a tabset is *active*
+([Selected and active](/docs/concepts/model-and-engine#selected-and-active)).
 
 `state` is a property, not a key: `model.state` is the current `LayoutState<T>`, immutable, a new
 object after every change, with unchanged subtrees shared (compare with `===`).
@@ -166,20 +173,23 @@ object after every change, with unchanged subtrees shared (compare with `===`).
 
 `model.is(key, payload)` answers a yes/no question about the current state: every state a
 primitive shows as a `data-*` attribute that comes from the model alone, and where a node lives.
-An unknown id answers `false`.
+A key reads as the question after "is" (`tabset-active`: is the tabset active?), and its payload
+is the id of the entity it names first. An unknown id, or the id of another kind of node, answers
+`false`.
 
 | key | payload | answers |
 | --- | --- | --- |
-| `"selected"` | `{ tab }` | the tab is its tabset's (or border's) selected tab |
-| `"pinned"` | `{ tab }` | the tab is pinned |
-| `"active"` | `{ tabset }` | the tabset is its layout's active tabset |
-| `"maximized"` | `{ tabset }` | the tabset is its layout's maximized tabset |
-| `"hidden-by-maximize"` | `{ node }` | a tabset or row is hidden because another tabset of its layout is maximized: every other tabset, and every row not on the path to the maximized one (Dockable hides them instead of moving the maximized tabset, so nothing remounts) |
-| `"empty"` | `{ container }` | the tabset or border has no tabs |
-| `"open"` | `{ border }` | the border has a selected tab, so its panel is open |
-| `"overlay"` | `{ border }` | the border's panel opens over the layout (`mode: "overlay"`) |
-| `"root"` | `{ row }` | the row is its layout's root row |
-| `"in-window"` | `{ node }` | the node lives in a popout window's layout |
+| `"tab-selected"` | `{ tabId }` | the tab is the one its tabset or border shows |
+| `"tab-pinned"` | `{ tabId }` | the tab is pinned |
+| `"tabset-active"` | `{ tabsetId }` | the tabset is its layout's active tabset |
+| `"tabset-maximized"` | `{ tabsetId }` | the tabset is its layout's maximized tabset |
+| `"tabset-empty"` | `{ tabsetId }` | the tabset has no tabs |
+| `"node-hidden-by-maximize"` | `{ nodeId }` | a tabset or row is hidden because another tabset of its layout is maximized: every other tabset, and every row not on the path to the maximized one (Dockable hides them instead of moving the maximized tabset, so nothing remounts) |
+| `"node-in-window"` | `{ nodeId }` | the node lives in a popout window's layout |
+| `"border-empty"` | `{ borderId }` | the border has no tabs |
+| `"border-open"` | `{ borderId }` | the border has a selected tab, so its panel is open |
+| `"border-overlay"` | `{ borderId }` | the border's panel opens over the layout (`mode: "overlay"`) |
+| `"row-root"` | `{ rowId }` | the row is its layout's root row |
 
 The keys are typed: an unknown key or a wrong payload field does not compile, and `get`'s result
 is typed by its key and your registry. The key types are exported as `ModelGetKey`,
@@ -200,7 +210,7 @@ function title(tab: TabOf<Types>): string {
     }
 }
 
-const node = model.get("node", { node: "editors" });
+const node = model.get("node-by-id", { nodeId: "editors" });
 if (node?.type === "tabset") {
     node.children.map(title);
 }
@@ -222,9 +232,9 @@ There is no other inheritance: a tab does not inherit from its tabset. The `*-se
 
 | type | fields |
 | --- | --- |
-| `ResolvedTab` (`"tab-settings"`) | `enableClose`, `enableDrag`, `enablePopout`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
-| `ResolvedTabset` (`"tabset-settings"`) | `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose`, `deleteWhenEmpty`, `autoSelectTab`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
-| `ResolvedBorder` (`"border-settings"`) | `size`, `minSize`, `maxSize`, `mode`, `autoHide`, `enableDrop`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, `show` |
+| `ResolvedTab` (`"tab-settings-by-id"`) | `enableClose`, `enableDrag`, `enablePopout`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedTabset` (`"tabset-settings-by-id"`) | `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose`, `deleteWhenEmpty`, `autoSelectTab`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedBorder` (`"border-settings-by-id"`) | `size`, `minSize`, `maxSize`, `mode`, `autoHide`, `enableDrop`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, `show` |
 | `ResolvedLayout` | `rootOrientation`, `edgeDock`, `edgeDockMargin`, `edgeDockLength` (from `model.get("layout-settings")`) |
 
 A resolved border's `size`, `minSize` and `maxSize` are its panel's effective values: the
@@ -233,8 +243,8 @@ replaces `size`, and the tab's size limits narrow `minSize` and `maxSize`. `show
 the border sets it to `false`.
 
 ```ts
-const tab = model.get("selected-tab", { container: "editors" });
-if (tab && model.get("tab-settings", { tab: tab.id })?.enableClose) {
+const tab = model.get("selected-tab-by-tabset-id", { tabsetId: "editors" });
+if (tab && model.get("tab-settings-by-id", { tabId: tab.id })?.enableClose) {
     // render a close button
 }
 ```
@@ -266,7 +276,7 @@ changed at runtime with `layout.configure`.
 
 `layout.load` keeps the model (and so your middleware, listeners and the rendered view) and
 replaces its state. A node is the same node when its id is in both states, so the tabs whose ids
-survive keep their mounted content; the result lists the `added` and `removed` ids.
+survive keep their mounted content; the result lists the `addedNodeIds` and `removedNodeIds`.
 
 ```ts
 import { toLayoutJson } from "@fragiola/dockable";
@@ -297,16 +307,16 @@ take one: a [drag group](/docs/api/drag-group)'s transfers name their `from` and
 ## `MAIN_LAYOUT`
 
 `MAIN_LAYOUT` is `"main"`, the id of the main layout: the state's `root`, `active`, `maximized` and
-its borders. A popout window's layout id is its window's id. Every key and primitive that takes a
-layout id defaults to it, and no node or window may use it as an id.
+its borders. A popout window's layout id is its window's id. Every `-by-layout-id` key and every
+primitive that takes a layout id defaults to it, and no node or window may use it as an id.
 
 ```ts
 import { MAIN_LAYOUT } from "@fragiola/dockable";
 
 for (const windowLayout of model.state.windows) {
-    model.get("tabs", { layout: windowLayout.id }); // the tabs of one popout window
+    model.get("tabs-by-layout-id", { layoutId: windowLayout.id }); // the tabs of one popout window
 }
-model.get("tabs", { layout: MAIN_LAYOUT }); // the main layout's tabs, its borders' included
+model.get("tabs-by-layout-id", { layoutId: MAIN_LAYOUT }); // the main layout's tabs, its borders' included
 ```
 
 ## The type registry
