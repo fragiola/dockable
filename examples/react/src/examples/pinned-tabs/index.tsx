@@ -30,10 +30,9 @@ import * as styles from "./styles";
 
 // Pinned tabs: kept at the start of the strip by the model, shown as icons, and not closable
 // (`model.can("tab.close", …)` refuses a pinned tab). The styles read `data-pinned` on the tab.
-// Whether a tab offers the pin button is the app's choice: here, `enablePin` in its data.
 
-// Every component carries the tab's icon when pinned, and whether it offers the pin.
-type TabData = { icon?: string; enablePin: boolean };
+// Every component carries the icon its tab shows when pinned.
+type TabData = { icon?: string };
 type Types = {
     tabs: {
         chart: TabData & { kind: ChartKind; seed: number };
@@ -64,7 +63,6 @@ const json: LayoutJson<Types> = {
                         pinned: true,
                         data: {
                             icon: "home",
-                            enablePin: true,
                             kind: "area",
                             seed: 4,
                         },
@@ -73,14 +71,13 @@ const json: LayoutJson<Types> = {
                         component: "table",
                         label: "Mail",
                         pinned: true,
-                        data: { icon: "mail", enablePin: true },
+                        data: { icon: "mail" },
                     },
                     {
                         component: "chart",
                         label: "Calendar",
                         data: {
                             icon: "calendar",
-                            enablePin: true,
                             kind: "bar",
                             seed: 12,
                         },
@@ -88,12 +85,12 @@ const json: LayoutJson<Types> = {
                     {
                         component: "chart",
                         label: "Report.pdf",
-                        data: { enablePin: true, kind: "donut", seed: 8 },
+                        data: { kind: "donut", seed: 8 },
                     },
                     {
                         component: "kpi",
                         label: "Budget.xlsx",
-                        data: { enablePin: true, seed: 15, unit: "$" },
+                        data: { seed: 15, unit: "$" },
                     },
                 ],
             },
@@ -105,7 +102,6 @@ const json: LayoutJson<Types> = {
                         component: "doc",
                         label: "Notes",
                         data: {
-                            enablePin: true,
                             text: "Pin or unpin the selected tab with the pin button in the header.",
                         },
                     },
@@ -113,7 +109,6 @@ const json: LayoutJson<Types> = {
                         component: "doc",
                         label: "Drafts",
                         data: {
-                            enablePin: true,
                             text: "A pinned tab moves to the start of the strip and loses its close button.",
                         },
                     },
@@ -260,7 +255,7 @@ function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
-    if (!selected?.data.enablePin) {
+    if (!selected) {
         return null;
     }
     const pinned = selected.pinned === true;

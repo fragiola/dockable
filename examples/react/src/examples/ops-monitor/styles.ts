@@ -5,7 +5,7 @@ import type { Level } from "./simulation";
 // How ops-monitor looks: one class string per part, read by index.tsx, tabs.tsx and panels.tsx.
 
 /** A status as a palette: the same mapping colours tabs, badges and log lines. */
-export const levelPalette: Record<Level | "info", string> = {
+const levelPalette: Record<Level | "info", string> = {
     ok: "palette-green",
     warning: "palette-orange",
     critical: "palette-danger",

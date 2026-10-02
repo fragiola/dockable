@@ -23,17 +23,13 @@ import * as styles from "./styles";
 // renaming is one command, `tab.configure` with the new label, whatever the tab's component.
 // Whether a tab may be renamed is the app's choice (`renamable` in its data).
 
-// What the layout holds: a note, a chart and a KPI. Their data says whether they may be renamed.
+// What the layout holds: a note, a chart and a KPI. A note's data may say it keeps its name.
 // The chart's title and the KPI's caption are the tab's label: a rename shows in the content too.
 type Types = {
     tabs: {
         note: { text: string; renamable?: boolean };
-        chart: {
-            kind: ChartKind;
-            seed: number;
-            renamable?: boolean;
-        };
-        kpi: { seed: number; renamable?: boolean };
+        chart: { kind: ChartKind; seed: number };
+        kpi: { seed: number };
     };
 };
 
@@ -183,7 +179,7 @@ function RenamableTab({
 }) {
     const { model } = useDockable<Types>();
     const start = () => {
-        if (tab.data.renamable !== false) {
+        if (tab.component !== "note" || tab.data.renamable !== false) {
             setEditing(tab.id);
         }
     };
