@@ -270,8 +270,10 @@ A node's behaviour fields stay as the document set them (absent means "use the d
 `model.get("layout-json")` writes back exactly what was set. `selected` is an index into
 `children`, `-1` for none. Loading also tidies the tree, as every command does: an empty tabset is removed when it
 allows it (`deleteWhenEmpty` and `enableClose`), an empty nested row is removed, a nested row with one child is
-replaced by that child, an empty main layout gets a new empty tabset and an empty window is
-removed.
+replaced by that child, and an empty window is removed. The main layout always keeps a tabset: when
+tidying would leave it with none, its first empty tabset stays, with its id (so
+`{ "type": "tabset", "id": "editor", "children": [] }` loads as is, ready for a `tab.add` to
+`"editor"`), and a main layout with no tabset at all gets a new empty one. Either becomes active.
 
 ## Validation
 
