@@ -57,7 +57,7 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | `aria-selected` | `true` or `false` |
 | `aria-controls` | its panel's id (`engine.get("tab-panel-dom-id-by", { tabId: tab.id })`) |
 | `aria-keyshortcuts` | `focusTabToggle` and, when its resolved `enableClose` is true and it is not pinned, `closeTab` |
-| `tabIndex` | `0` on the tab stop (the selected tab, or the first tab when none is), else `-1` |
+| `tabIndex` | `0` on the tab stop (the selected tab, or the first tab when none is: `engine.is("tab-tabbable", { tabId })`), else `-1` |
 | `draggable` | the tab's resolved `enableDrag` (`model.get("tab-settings-by", { tabId })?.enableDrag`) |
 
 ## Keyboard
