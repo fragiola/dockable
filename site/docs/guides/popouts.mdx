@@ -176,5 +176,14 @@ moves or resizes), so a saved layout reopens it in place.
   block a window opened without a user gesture).
 - **Drags**: tabs drag between the main window and a popout, and between popouts, like between
   tabsets. See [Drag across windows and layouts](/docs/guides/cross-layout-drag).
+- **Libraries that use the global `document`**: popped-out content lives in the popout's
+  document, but `document` and `window` in your code (and in your libraries) are still the main
+  window's. A dialog, popover, tooltip or toast that portals into `document.body` opens in the
+  main window, behind the popout; a drag library or an outside-click handler that listens on
+  `window` hears nothing from the popout. The layout cannot fix that for them. Give such a library
+  the content's own document: a portal container of `element.ownerDocument.body`, listeners on
+  `element.ownerDocument` or its `defaultView` (most portal-based components take a container
+  prop for this). `onPopoutOpen` hands you the popout's `window` and `document` for set-up that
+  must happen once per window.
 
 <Example id="analytics-dashboard" />

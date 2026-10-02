@@ -2,50 +2,58 @@
 
 This report surveys the issue tracker of [caplin/FlexLayout](https://github.com/caplin/FlexLayout),
 the library Dockable was ported from, and records what Dockable does about each recurring problem.
-It is an input to the Engine v2 Epic (#43, design record in
-[`engine-v2-design.md`](./engine-v2-design.md)) and to the follow-up support Epic.
+Every concrete bug Dockable claims to avoid has a regression test named after the issue
+(`caplin/FlexLayout#<n>`); the [regression matrix](#regression-matrix) maps each one to its test.
+Dockable's design record is [`engine-v2-design.md`](./engine-v2-design.md), and what it does not
+do yet is listed, from the docs' side, in
+[`site/docs/limitations.mdx`](../site/docs/limitations.mdx).
 
-The survey was taken on 2026-09-30 and checked against the source of `flexlayout-react` 0.11.0
-(`../FlexLayout`, read-only). Issue states are as fetched that day.
+The survey was taken on 2026-09-30 against the source of `flexlayout-react` 0.11.0
+(`../FlexLayout`, read-only). The issue states and the stats below were fetched again on
+2026-10-02, and the verdicts describe Dockable's code as of that date.
 
 ## Stats
 
-- The tracker holds **288 issues**: 141 open and 147 closed. Of the closed ones, 133 were closed as
-  completed and 14 as "not planned" by the stale bot.
-- **139 issues carry the `stale` label** (122 open, 17 closed). "Stale" means nobody answered, not
-  that the problem went away.
+- The tracker holds **288 issues**: 133 open and 155 closed. Of the closed ones, 133 were closed as
+  completed and 22 as "not planned" by the stale bot. On 2026-10-02 the bot closed
+  [#486](https://github.com/caplin/FlexLayout/issues/486), [#494](https://github.com/caplin/FlexLayout/issues/494), [#496](https://github.com/caplin/FlexLayout/issues/496), [#497](https://github.com/caplin/FlexLayout/issues/497), [#498](https://github.com/caplin/FlexLayout/issues/498), [#501](https://github.com/caplin/FlexLayout/issues/501), [#504](https://github.com/caplin/FlexLayout/issues/504) and [#511](https://github.com/caplin/FlexLayout/issues/511) as not planned.
+  (GitHub's issue list and search count 287 and 132 open: they miss
+  [#319](https://github.com/caplin/FlexLayout/issues/319), which is open.)
+- **139 issues carry the `stale` label** (114 open, 25 closed). "Stale" means nobody answered, not
+  that the problem went away: a closed stale issue was closed for silence, not fixed.
 - "Open" overstates what is unresolved. These issues are fixed in the 0.11.0 source but were never
   closed: [#32](https://github.com/caplin/FlexLayout/issues/32), [#47](https://github.com/caplin/FlexLayout/issues/47), [#48](https://github.com/caplin/FlexLayout/issues/48), [#99](https://github.com/caplin/FlexLayout/issues/99), [#212](https://github.com/caplin/FlexLayout/issues/212), [#275](https://github.com/caplin/FlexLayout/issues/275), [#289](https://github.com/caplin/FlexLayout/issues/289), [#310](https://github.com/caplin/FlexLayout/issues/310).
-- This report cites 153 issues. 94 of them are open and 59 closed (9 of those as not planned); 90
-  carry `stale`.
+- This report cites 153 issues. 86 of them are open and 67 closed (17 of those as not
+  planned); 90 carry `stale`.
 
 ## Verdicts
 
 Each theme gets one verdict for Dockable:
 
-- **solved by this Epic**: the Engine v2 design removes the cause.
-- **addressed in this Epic**: the Epic takes a concrete step, and what is left is named.
-- **follow-up support Epic**: a feature that needs the new engine first; see the last section.
-- **out of scope for a headless lib**: Dockable ships no CSS, text or rendered menus, so the
-  problem cannot arise, or belongs to the app.
+- **solved**: Dockable's design removes the cause; where the bug is concrete, a test pins it.
+- **addressed**: Dockable takes a concrete step, and what is left is named.
+- **by design**: the behaviour is intended, or cannot arise in a headless library (no CSS, no
+  text, no rendered menus); the docs say how an app changes it when it can.
+- **not built**: the feature does not exist yet, and
+  [`limitations.mdx`](../site/docs/limitations.mdx) lists it.
 
 | theme | issues | verdict |
 |---|---|---|
 | T1 remount, state loss and re-renders on model change | 11 | solved: no view state in the model, and `layout.load` reconciles by id |
-| T2 programmatic-control gaps and inconsistent actions | 18 | solved: an orthogonal command catalogue, idempotent setters, batch, no silent auto-structure |
-| T3 event timing, duplicates, before and after | 11 | solved: middleware before and after, one `subscribe`, events that carry the result |
+| T2 programmatic-control gaps and inconsistent actions | 18 | solved: an orthogonal command catalogue, idempotent setters, batch, a documented tidy; an empty main area is by design |
+| T3 event timing, duplicates, before and after | 11 | solved: middleware before and after, one `subscribe`, one event per commit carrying the result |
 | T4 untyped `config`, TypeScript quality | 8 | solved: typed `data` registry, strict nullability, no import cycles |
 | T5 attribute and global-attribute confusion, docs that drift | 9 | solved: trimmed model, one defaults rule, generated command docs |
-| T6 serialization and migration across versions | 6 | addressed: `version`, schema validation, `data` separate from runtime state |
-| T7 styling and CSS lock-in | 11 | solved by design (headless) |
-| T8 popouts | 15 | addressed: an injectable window opener; libraries that use the global document are documented, not fixed |
-| T9 floats | 4 | follow-up support Epic |
-| T10 SSR, ESM and bundling | 9 | solved: Node-loadable core, no `crypto` needed, no forced ErrorBoundary |
-| T11 sizing and constraints | 10 | addressed where the model owns it (min/max, root orientation); "fill" and fixed sizes go to the follow-up |
-| T12 drag and drop interop and robustness | 13 | addressed: only claim our own drags, reset on every drop and dragend, drop policy as middleware; cross-window-tab drag goes to the follow-up |
-| T13 accessibility and keyboard | 6 | solved by design, plus a defensive `matchesKey` |
-| T14 RTL, i18n, hard-coded text | 5 | i18n solved by design; RTL goes to the follow-up |
-| T15 tab strip, overflow, borders, menus | 17 | menus solved by design; overflow loops addressed; multi-open borders go to the follow-up |
+| T6 serialization and migration across versions | 6 | addressed: `version`, schema validation, `data` separate from the layout's fields |
+| T7 styling and CSS lock-in | 11 | by design (headless) |
+| T8 popouts | 15 | addressed: style mirroring, one window under StrictMode, an injectable window opener; libraries that use the global `document` are documented; a document hook is not built |
+| T9 floats | 4 | not built |
+| T10 SSR, ESM and bundling | 9 | solved: Node-loadable core, server-renderable primitives, no `crypto` needed, no ErrorBoundary |
+| T11 sizing and constraints | 10 | addressed where the model owns it (min/max, root orientation); fill and fixed sizes are not built |
+| T12 drag and drop interop and robustness | 13 | addressed: only Dockable's drags are claimed and content drags never are, every drop and dragend resets from the capture phase, drop policy as middleware; cross-window tab drag is not built |
+| T13 accessibility and keyboard | 6 | solved: APG patterns, names from the app, a `matchesKey` that tolerates events with no key |
+| T14 RTL, i18n, hard-coded text | 5 | i18n by design; RTL interaction is not built (gaps 4 and 5) |
+| T15 tab strip, overflow, borders, menus | 17 | menus by design; overflow loops solved; several open tabs per border are not built |
 
 ## T1 Remount, state loss and re-renders on model change
 
@@ -55,7 +63,7 @@ to copy that state across ("adopt") so replacing the model does not remount the 
 that rebuilds the model (Redux, undo, sync) loses content or re-renders the whole layout.
 
 - [#456](https://github.com/caplin/FlexLayout/issues/456) Will onModelChange cause all the components rendered inside the factory to be re-rendered after modifying the model? (open, stale)
-- [#496](https://github.com/caplin/FlexLayout/issues/496) Too much rerender, whole FlexLayout rerender even when I perform some operation inside any tab (open, stale)
+- [#496](https://github.com/caplin/FlexLayout/issues/496) Too much rerender, whole FlexLayout rerender even when I perform some operation inside any tab (closed, not planned, stale)
 - [#524](https://github.com/caplin/FlexLayout/issues/524) Model updates trigger unnecessary re-renders for tab components (closed)
 - [#181](https://github.com/caplin/FlexLayout/issues/181) Rerender after changing tabs (open, stale)
 - [#482](https://github.com/caplin/FlexLayout/issues/482) Mount/Unmount Problem when conducting Action.MOVE_NODE (closed)
@@ -63,14 +71,17 @@ that rebuilds the model (Redux, undo, sync) loses content or re-renders the whol
 - [#149](https://github.com/caplin/FlexLayout/issues/149) avoid re-render of existing tabset? (closed)
 - [#121](https://github.com/caplin/FlexLayout/issues/121) Content of tabs not preserved when showing/hiding SubLayout (closed)
 - [#285](https://github.com/caplin/FlexLayout/issues/285) React context is not available inside onRenderTab when dragging the tab after updating to 0.6.0 (closed)
-- [#498](https://github.com/caplin/FlexLayout/issues/498) Maximum update depth exceeded (open, stale)
+- [#498](https://github.com/caplin/FlexLayout/issues/498) Maximum update depth exceeded (closed, not planned, stale)
 - [#517](https://github.com/caplin/FlexLayout/issues/517) "Maximum update depth exceeded" if sticky buttons in TabSet is wider than 10px (closed)
 
-**Verdict: solved by this Epic.** The model holds no DOM or view state. The engine keeps moveable
-elements, rects, scroll and "rendered" keyed by node id, so a new state with the same ids finds the
-same elements. `layout.load` replaces the state and reconciles by id, and the engine re-renders
-only what changed. React's `useModelState(selector)` re-renders a component only when its
-selection changes.
+**Verdict: solved.** The model holds no DOM or view state. The engine keeps moveable elements,
+rects, scroll and "rendered" keyed by node id, so a new state with the same ids finds the same
+elements. `layout.load` replaces the state and reconciles by id, and the engine re-renders only
+what changed. React's `useModelState(selector)` re-renders a component only when its selection
+changes. The two update loops of the list are pinned by tests: switching tabs across the overflow
+boundary under StrictMode commits a bounded number of times and logs no error
+([caplin/FlexLayout#498](https://github.com/caplin/FlexLayout/issues/498)), and tab overflow settles in a few passes even with a trigger whose width
+grows with the hidden count ([caplin/FlexLayout#517](https://github.com/caplin/FlexLayout/issues/517)).
 
 ## T2 Programmatic-control gaps and inconsistent actions
 
@@ -95,16 +106,29 @@ tabset, a missing active tabset is ignored).
 - [#127](https://github.com/caplin/FlexLayout/issues/127) Add Tab To Sub Layout (open, stale)
 - [#307](https://github.com/caplin/FlexLayout/issues/307) SelectTab does not select tab if multiple tabs are invoked (open, stale)
 - [#269](https://github.com/caplin/FlexLayout/issues/269) Actions for addTabWithDragAndDrop and addTabWithDragAndDropIndirect (closed, not planned, stale)
-- [#310](https://github.com/caplin/FlexLayout/issues/310) Is there a way to drag tabs/tabsets without having the tabSetStrip enabled? (open (fixed in 0.11.0), stale)
+- [#310](https://github.com/caplin/FlexLayout/issues/310) Is there a way to drag tabs/tabsets without having the tabSetStrip enabled? (open (open (fixed in 0.11.0), stale)
 - [#394](https://github.com/caplin/FlexLayout/issues/394) Layout with no tabset creates a random tabset by default (open)
 - [#93](https://github.com/caplin/FlexLayout/issues/93) Avoid empty canvas (open, stale)
 
-**Verdict: solved by this Epic.** One command catalogue, `<kind>.<verb>`, with payload keys that
-always name the kind (`tab`, `tabset`, `to`, `border`, `row`, `window`). Setters are idempotent
-(`tabset.maximize` takes a `value`), `tab.select` works in borders, `tab.add` and `tab.move` accept
-a tabset, a row, a border or a layout as `to`, `row.resize` sets weights, and `batch` runs several
-commands atomically. A command that cannot apply returns a structured error instead of doing
-nothing.
+**Verdict: solved.** One command catalogue, `<kind>.<verb>`, whose payload keys say what they take:
+an id is `tabId`, `tabsetId`, `borderId`, `rowId` or `windowId`, and `to` is a placement target.
+`tab.add` is flat: the new tab's fields and its placement (`to`, `location`, `index`) in one
+payload. Setters are idempotent (`tabset.maximize` takes a `value`), `tab.select` works in
+borders, `tab.add` and `tab.move` accept a tabset, a row, a border or a layout as `to`,
+`row.resize` sets weights, and `batch` runs several commands atomically. A command that cannot
+apply returns a structured error instead of doing nothing.
+
+The model does create structure, as FlexLayout does, and says so: after every command and on load,
+**tidy** removes empty rows, replaces a row of one child by that child, removes an empty tabset
+that allows it (`deleteWhenEmpty` and `enableClose`), removes an empty window, and keeps a tabset
+in the main layout. Since the fix for [caplin/FlexLayout#291](https://github.com/caplin/FlexLayout/issues/291), the main layout keeps the empty tabset it
+already has, with its id, so a layout loaded with an empty tabset can receive a `tab.add` to that
+id; a new tabset is made only when the main layout has none, which is by design
+([caplin/FlexLayout#394](https://github.com/caplin/FlexLayout/issues/394)). Moving every tab into a border or a popout leaves that tabset empty, also by
+design ([caplin/FlexLayout#93](https://github.com/caplin/FlexLayout/issues/93)): the
+[restricting-drops guide](../site/docs/guides/restricting-drops.mdx#keeping-the-main-layout-filled)
+shows the middleware that vetoes such a move. When the active tabset goes, `model.get("default-tabset")` answers with the layout's first
+tabset, so "add to the active tabset" keeps working ([caplin/FlexLayout#51](https://github.com/caplin/FlexLayout/issues/51)).
 
 ## T3 Event timing, duplicates, before and after
 
@@ -113,7 +137,7 @@ the action returned (the id of a new tabset). There is no "before" hook apart fr
 a direct `model.doAction` bypasses.
 
 - [#513](https://github.com/caplin/FlexLayout/issues/513) When calling model.doAction(...) success, onModelChange function is called twice. (open, stale)
-- [#504](https://github.com/caplin/FlexLayout/issues/504) Duplicate onModelChange listeners (open, stale)
+- [#504](https://github.com/caplin/FlexLayout/issues/504) Duplicate onModelChange listeners (closed, not planned, stale)
 - [#318](https://github.com/caplin/FlexLayout/issues/318) How do I get the tabset ID after the move? (closed)
 - [#355](https://github.com/caplin/FlexLayout/issues/355) Action FlexLayout_MaximizeToggle (onAction) dalayed execution (open)
 - [#192](https://github.com/caplin/FlexLayout/issues/192) Adding 'visible' event listener doesn't trigger first time hidden tab becomes visible (open, stale)
@@ -124,10 +148,13 @@ a direct `model.doAction` bypasses.
 - [#22](https://github.com/caplin/FlexLayout/issues/22) Custom button on Tab (closed)
 - [#237](https://github.com/caplin/FlexLayout/issues/237) Cannot call Model.doAction in render (closed, not planned, stale)
 
-**Verdict: solved by this Epic.** Middleware (`model.use`) runs around every command, the engine's
-and the app's alike, and can veto, rewrite or observe before and after. `model.subscribe` receives
-exactly one event per commit (one for a whole batch), carrying the command, the payload, the result
-and the `before` and `after` states.
+**Verdict: solved.** Middleware (`model.use`) runs around every command, the engine's and the
+app's alike, and can veto, rewrite or observe before and after. `model.subscribe` receives exactly
+one event per commit (one for a whole batch, none for a refused command), carrying the command, the
+payload, the result and the `before` and `after` states; the engine adds no event of its own
+([caplin/FlexLayout#513](https://github.com/caplin/FlexLayout/issues/513)). The engine subscribes once per model, and re-rendering `Dockable.Root` with
+new props under StrictMode keeps the model's listeners at one set
+([caplin/FlexLayout#504](https://github.com/caplin/FlexLayout/issues/504)).
 
 ## T4 Untyped `config`, TypeScript quality
 
@@ -138,16 +165,16 @@ had import cycles.
 - [#31](https://github.com/caplin/FlexLayout/issues/31) Config attribute in tab (open, stale)
 - [#92](https://github.com/caplin/FlexLayout/issues/92) pass args to addNode that are passed to the factory (open, stale)
 - [#371](https://github.com/caplin/FlexLayout/issues/371) How can I access the config of each tabNode together from any node?? (closed)
-- [#212](https://github.com/caplin/FlexLayout/issues/212) TypeScript issue with ILayoutState (open (fixed in 0.11.0), stale)
+- [#212](https://github.com/caplin/FlexLayout/issues/212) TypeScript issue with ILayoutState (open (open (fixed in 0.11.0), stale)
 - [#377](https://github.com/caplin/FlexLayout/issues/377) Model.getNodeById return type should be Node \| undefined (closed)
 - [#347](https://github.com/caplin/FlexLayout/issues/347) Fix Circular Dependencies with building with typescript? (open)
 - [#409](https://github.com/caplin/FlexLayout/issues/409) Add getName method to Node class (open)
 
-**Verdict: solved by this Epic.** A type registry maps each component to its data type
+**Verdict: solved.** A type registry maps each component to its data type
 (`createModel<{ tabs: { editor: EditorData } }>`); `tab.data` narrows on `tab.component`, and wrong
-data for a component is a compile error. Every query that can miss returns `| undefined`. The public
-declarations contain no `any` (a guard checks the built `.d.ts`). The state model is plain data with
-no class cycles.
+data for a component is a compile error. Every read that can miss returns `| undefined`
+(`model.get("node-by", { id })`). The public declarations contain no `any` (a guard checks the
+built `.d.ts`). The state model is plain data with no class cycles.
 
 ## T5 Attribute and global-attribute confusion, docs that drift
 
@@ -163,13 +190,19 @@ whether anything reads them.
 - [#263](https://github.com/caplin/FlexLayout/issues/263) TabSetMinWidth and tabSetMinHeight are invalid (closed)
 - [#455](https://github.com/caplin/FlexLayout/issues/455) tabEnableDrag: false, tabSetEnableDrag: false does not work. (closed)
 - [#395](https://github.com/caplin/FlexLayout/issues/395) Maximizing tabset through `updateNodeAttributes` doesn't work (closed)
-- [#289](https://github.com/caplin/FlexLayout/issues/289) Enable remove tabset header name (open (fixed in 0.11.0), stale)
+- [#289](https://github.com/caplin/FlexLayout/issues/289) Enable remove tabset header name (open (open (fixed in 0.11.0), stale)
 - [#13](https://github.com/caplin/FlexLayout/issues/13) Are onTabRender and onTabSetRender actually an option? (open, stale)
 
-**Verdict: solved by this Epic.** The model keeps only what it enforces; everything cosmetic moves to
-the app's typed `data` or to primitive props. One defaults rule replaces the global mirrors:
-`node.x ?? defaults[kind].x ?? built-in`. The command reference is generated from the registry and
-checked for drift.
+**Verdict: solved.** The model keeps the layout's data and its rules, and nothing cosmetic: class
+names, titles and icons are the app's, in its typed `data` or in primitive props. Most fields are
+rules the commands enforce (`enableDrag`, `enableDrop`, `enableClose`, `pinned`, …). Some are read
+only by the engine, and the docs say so: the size limits (`minWidth`, `maxWidth`, `minHeight`,
+`maxHeight`) by the split math, `defaults.layout.edgeDock`, `edgeDockMargin` and `edgeDockLength`
+by the drag, a border's `mode` and `autoHide` by the rendering and the drag, and a window's `rect`
+by the popout manager. A tab's `label` and `data` are stored for the app, which renders them; no
+primitive reads them. One defaults rule replaces the global mirrors:
+`node.x ?? defaults[kind].x ?? built-in`. The command reference is generated from the registry
+and checked for drift.
 
 ## T6 Serialization and migration across versions
 
@@ -183,17 +216,17 @@ malformed layout fails somewhere deep in the model.
 - [#92](https://github.com/caplin/FlexLayout/issues/92) pass args to addNode that are passed to the factory (open, stale)
 - [#477](https://github.com/caplin/FlexLayout/issues/477) Hidden tabs not working correctly (closed)
 
-**Verdict: addressed in this Epic.** JSON v1 carries `version: 1`, the hook for future migrations.
-`createModel` and `layout.load` validate against the exported `layoutSchema` and report every error
-with a JSON path. App data lives in `data`, apart from the layout's own fields. Migrating from
-FlexLayout's JSON is out of scope.
+**Verdict: addressed.** JSON v1 carries `version: 1`, the hook for future migrations. `createModel`
+and `layout.load` validate against the exported `layoutSchema` and report every error with a JSON
+path. App data lives in `data`, apart from the layout's own fields. Migrating from FlexLayout's
+JSON is not built.
 
 ## T7 Styling and CSS lock-in
 
 Class names that cannot be changed, a Sass build, inline images blocked by CSP, a drag glass that
 cannot be styled.
 
-- [#32](https://github.com/caplin/FlexLayout/issues/32) Feature request: Custom class names (open (fixed in 0.11.0), stale)
+- [#32](https://github.com/caplin/FlexLayout/issues/32) Feature request: Custom class names (open (open (fixed in 0.11.0), stale)
 - [#150](https://github.com/caplin/FlexLayout/issues/150) [Discuss] Will jss better than import a css? (closed)
 - [#460](https://github.com/caplin/FlexLayout/issues/460) [sass] `@import` is deprecated by sass (closed)
 - [#176](https://github.com/caplin/FlexLayout/issues/176) Problem with base 64 images in CSP directive (open, stale)
@@ -202,11 +235,11 @@ cannot be styled.
 - [#239](https://github.com/caplin/FlexLayout/issues/239) highlighting a tabset (open, stale)
 - [#339](https://github.com/caplin/FlexLayout/issues/339) How to conditional colour a tab button (closed)
 - [#306](https://github.com/caplin/FlexLayout/issues/306) Question: custom dock drop indicator (open, stale)
-- [#486](https://github.com/caplin/FlexLayout/issues/486) Feature request about tab and tabset (open, stale)
+- [#486](https://github.com/caplin/FlexLayout/issues/486) Feature request about tab and tabset (closed, not planned, stale)
 - [#286](https://github.com/caplin/FlexLayout/issues/286) buttonFactory prop for customizing buttons. (closed)
 
-**Verdict: solved by design.** Dockable ships no CSS, no icons and no class names; state is exposed
-as `data-*` and ARIA, and every primitive takes `className`, `style` and `render`.
+**Verdict: by design.** Dockable ships no CSS, no icons and no class names; state is exposed as
+`data-*` and ARIA, and every primitive takes `className`, `style` and `render`.
 
 ## T8 Popouts
 
@@ -229,11 +262,15 @@ window, the placeholder cannot be customised, and the window cannot be configure
 - [#525](https://github.com/caplin/FlexLayout/issues/525) Popout title id causes close/reopen cascade (closed)
 - [#512](https://github.com/caplin/FlexLayout/issues/512) Floating Tabs (Popouts) with shadcn Dialog/popover elements (open, stale)
 
-**Verdict: addressed in this Epic.** The popout manager already mirrors styles (links, style tags,
-CSSOM rules, adopted sheets), keeps one window under StrictMode, and renders no placeholder text.
-This Epic makes the window opener injectable (`openWindow`), so an app can open the window its own
-way. Libraries that use the global `document` instead of the element's `ownerDocument` cannot be
-fixed from the layout; the docs say so.
+**Verdict: addressed.** The popout manager mirrors styles (links, style tags, CSSOM rules, adopted
+sheets), keeps one window under StrictMode ([caplin/FlexLayout#322](https://github.com/caplin/FlexLayout/issues/322)), docks the tabs back when the
+window cannot open ([caplin/FlexLayout#235](https://github.com/caplin/FlexLayout/issues/235)), and renders no placeholder text. `Dockable.Root`
+takes `openWindow`, so an app can open the window its own way, and `onPopoutOpen` hands it the
+window and its document. Libraries that use the global `document` instead of the element's
+`ownerDocument` cannot be fixed from the layout: the
+[popouts guide](../site/docs/guides/popouts.mdx#what-works-across-windows-and-what-does-not) says
+what such a library does in a popout and how to give it the content's document. A document hook for those libraries is not
+built.
 
 ## T9 Floats
 
@@ -244,8 +281,7 @@ Floating windows inside the page.
 - [#126](https://github.com/caplin/FlexLayout/issues/126) Can i have (tabHeader + tabBody) in the floating window ? (closed)
 - [#296](https://github.com/caplin/FlexLayout/issues/296) Floating tab placeholder shows through maximised floating tab placeholder (closed)
 
-**Verdict: follow-up support Epic.** Floats are removed from the model in this Epic and come back
-designed on the command bus.
+**Verdict: not built.** A tab leaves the main layout only into a popout window.
 
 ## T10 SSR, ESM and bundling
 
@@ -257,14 +293,16 @@ packaging, a class ErrorBoundary that server components reject.
 - [#379](https://github.com/caplin/FlexLayout/issues/379) crypto.randomUUID is not supported for http (closed)
 - [#383](https://github.com/caplin/FlexLayout/issues/383) [Nextjs] crypto is not defined (closed)
 - [#440](https://github.com/caplin/FlexLayout/issues/440) NextJS Server component not supported due to ErrorBoundary being a class component (open)
-- [#501](https://github.com/caplin/FlexLayout/issues/501) Need to be able to disable the ErrorBoundary (open, stale)
+- [#501](https://github.com/caplin/FlexLayout/issues/501) Need to be able to disable the ErrorBoundary (closed, not planned, stale)
 - [#464](https://github.com/caplin/FlexLayout/issues/464) simple build with vite is breaking because it is not compatible to ESM type (open, stale)
 - [#367](https://github.com/caplin/FlexLayout/issues/367) Build Error: "Unexpected token export" when attempting to use actions (closed)
 - [#81](https://github.com/caplin/FlexLayout/issues/81) _this.model._setChangeListener is not a function (open, stale)
 
-**Verdict: solved by this Epic.** The core is ESM, touches no global `document`, `window` or
-`crypto` (a guard test enforces it), and the model loads and runs in Node. Ids come from an
-injectable generator whose default is deterministic. The primitives render no ErrorBoundary.
+**Verdict: solved.** The core is ESM, touches no global `document`, `window` or `crypto` (a guard
+test enforces it), and the model loads and runs in Node ([caplin/FlexLayout#50](https://github.com/caplin/FlexLayout/issues/50)). Ids come from an
+injectable generator whose default is deterministic, and a model works with no global `crypto`
+([caplin/FlexLayout#383](https://github.com/caplin/FlexLayout/issues/383)). The primitives render on the server (a test renders a layout to a string
+in Node, with no document), and they render no ErrorBoundary.
 
 ## T11 Sizing and constraints
 
@@ -282,23 +320,23 @@ a border's maximum size.
 - [#172](https://github.com/caplin/FlexLayout/issues/172) Add ability to make root row vertical (open, stale)
 - [#406](https://github.com/caplin/FlexLayout/issues/406) resizeObserver observe high frequency resize action inside Tabset (open)
 
-**Verdict: addressed in this Epic where the model owns it.** Min and max sizes are model fields
-enforced by the split math; realtime resize is an engine option; the root orientation and the
-border `minSize`/`maxSize` are model fields. "Fill the remaining space" and fixed pixel sizes go to
-the follow-up support Epic.
+**Verdict: addressed where the model owns it.** Min and max sizes are model fields enforced by the
+split math; realtime resize is an engine option (`realtimeResize`); the root orientation and the
+border `minSize`/`maxSize` are model fields. "Fill the remaining space" and fixed pixel sizes are
+not built.
 
 ## T12 Drag and drop interop and robustness
 
 FlexLayout claims every drag that enters it (breaking other drag libraries and nested layouts),
 leaves state behind after a text or file drop, and loses the next drag after a cancelled one.
 
-- [#497](https://github.com/caplin/FlexLayout/issues/497) Dragging external element into nested FlexLayout (open, stale)
+- [#497](https://github.com/caplin/FlexLayout/issues/497) Dragging external element into nested FlexLayout (closed, not planned, stale)
 - [#350](https://github.com/caplin/FlexLayout/issues/350) Drag and Drop between two lists is blocked by FlexLayout (open)
 - [#72](https://github.com/caplin/FlexLayout/issues/72) Feature Request: handle drag/drop of tab (open, stale)
 - [#203](https://github.com/caplin/FlexLayout/issues/203) Drag and drop between browser tabs (open, stale)
 - [#280](https://github.com/caplin/FlexLayout/issues/280) Using drag and drop outside of the layout (or, adding custom drag regions / widgets outside of the borders) (closed, not planned, stale)
-- [#47](https://github.com/caplin/FlexLayout/issues/47) addTabWithDragAndDrop does not work (open (fixed in 0.11.0), stale)
-- [#48](https://github.com/caplin/FlexLayout/issues/48) addTabWithDragAndDrop - duplicate id (open (fixed in 0.11.0), stale)
+- [#47](https://github.com/caplin/FlexLayout/issues/47) addTabWithDragAndDrop does not work (open (open (fixed in 0.11.0), stale)
+- [#48](https://github.com/caplin/FlexLayout/issues/48) addTabWithDragAndDrop - duplicate id (open (open (fixed in 0.11.0), stale)
 - [#268](https://github.com/caplin/FlexLayout/issues/268) [Question] Is it possible to detect when Layout#addTabWithDragAndDropIndirect is cancelled? (closed)
 - [#390](https://github.com/caplin/FlexLayout/issues/390) Drag n Drop leaving artifacts in layout (open)
 - [#527](https://github.com/caplin/FlexLayout/issues/527) A drop of text or files inside a tab leaves the next tab drag without an overlay or drop outline (open)
@@ -306,10 +344,17 @@ leaves state behind after a text or file drop, and loses the next drag after a c
 - [#471](https://github.com/caplin/FlexLayout/issues/471) No Dock Area (open, stale)
 - [#308](https://github.com/caplin/FlexLayout/issues/308) Not able to drag tabs while a tabset is maximized (closed)
 
-**Verdict: addressed in this Epic.** The drag and drop manager only claims drags that carry its own
-payload type, resets its state on every `drop`, `dragend` and cancel, and asks the model
-(`model.can`) whether a drop is allowed, so a middleware is the drop policy. Dragging a tab to
-another browser tab or window stays out of scope for now (follow-up).
+**Verdict: addressed.** The drag and drop manager claims only drags that carry its own payload
+type (`DRAG_TYPE`), so another library's drags pass through. `onExternalDrag` is never asked about
+a native drag that started in the layout's own content, so a drag between two lists in a tab stays
+the lists' ([caplin/FlexLayout#350](https://github.com/caplin/FlexLayout/issues/350)) and a layout nested in a tab keeps the drags meant for it
+([caplin/FlexLayout#497](https://github.com/caplin/FlexLayout/issues/497)). Every `drop` and `dragend` in the document resets the layout's drag
+state from the capture phase, so content that stops their propagation cannot leave it behind, and
+every drag starts from a clean slate ([caplin/FlexLayout#527](https://github.com/caplin/FlexLayout/issues/527)). A drag whose source unmounted is ended
+by the next foreign drag or the first pointer move with no button held
+([caplin/FlexLayout#528](https://github.com/caplin/FlexLayout/issues/528)), and a drop leaves no outline behind ([caplin/FlexLayout#390](https://github.com/caplin/FlexLayout/issues/390)). A drop is
+allowed exactly when the model allows its command (`model.can`), so a middleware is the drop
+policy. Dragging a tab to another browser tab or window is not built.
 
 ## T13 Accessibility and keyboard
 
@@ -318,13 +363,14 @@ Accessible names, keyboard-only use, screen readers.
 - [#83](https://github.com/caplin/FlexLayout/issues/83) Tab min button should have an aria-label (closed)
 - [#118](https://github.com/caplin/FlexLayout/issues/118) Button In Factory Title & Accessibility Support (open, stale)
 - [#298](https://github.com/caplin/FlexLayout/issues/298) Accessibility Support - Keyboard Only and Screen Readers (closed)
-- [#511](https://github.com/caplin/FlexLayout/issues/511) [Enhancement][a11y] Accessibility support and roadmap (open, stale)
+- [#511](https://github.com/caplin/FlexLayout/issues/511) [Enhancement][a11y] Accessibility support and roadmap (closed, not planned, stale)
 - [#481](https://github.com/caplin/FlexLayout/issues/481) Numpad Enter doesn't confirm rename (closed)
 - [#529](https://github.com/caplin/FlexLayout/issues/529) matchesKey throws on a keydown event without a key (open)
 
-**Verdict: solved by design.** The primitives follow the APG tabs and separator patterns, render
-no text of their own, and take accessible names from the app. `matchesKey` tolerates events without
-a `key` ([caplin/FlexLayout#529](https://github.com/caplin/FlexLayout/issues/529)).
+**Verdict: solved.** The primitives follow the APG tabs and separator patterns, render no text of
+their own, and take accessible names from the app. `matchesKey` ignores a keydown that carries no
+key (autofill and scripts send them), where FlexLayout throws
+([caplin/FlexLayout#529](https://github.com/caplin/FlexLayout/issues/529)).
 
 ## T14 RTL, i18n, hard-coded text
 
@@ -336,9 +382,12 @@ Right-to-left layouts and translated strings.
 - [#286](https://github.com/caplin/FlexLayout/issues/286) buttonFactory prop for customizing buttons. (closed)
 - [#52](https://github.com/caplin/FlexLayout/issues/52) Programmatic Tab Rename (open, stale)
 
-**Verdict: i18n solved by design; RTL goes to the follow-up.** There is no text to translate
-(`DockableLabel` keys with no defaults). RTL tab strips and splitters are gaps 4 and 5 of
-`limitations.mdx`.
+**Verdict: i18n by design; RTL interaction not built.** There is no text to translate: the
+packages ship no labels and no label keys, and every accessible name comes from the app. A layout
+renders right to left (the rows mirror, the tab strips run from the right), but interaction is not
+RTL-aware: splitter drags and arrow-key resizing, physical edge and side drops, and a runtime `dir`
+flip are gaps 4 and 5 of `limitations.mdx`, which
+[#118](https://github.com/fragiola/dockable/issues/118) is to solve.
 
 ## T15 Tab strip, overflow, borders, menus
 
@@ -350,22 +399,24 @@ open border tabs, auto-hide borders.
 - [#302](https://github.com/caplin/FlexLayout/issues/302) Tabs wrapping (open, stale)
 - [#228](https://github.com/caplin/FlexLayout/issues/228) Re-order tabs in overflow menu (closed, not planned, stale)
 - [#517](https://github.com/caplin/FlexLayout/issues/517) "Maximum update depth exceeded" if sticky buttons in TabSet is wider than 10px (closed)
-- [#498](https://github.com/caplin/FlexLayout/issues/498) Maximum update depth exceeded (open, stale)
+- [#498](https://github.com/caplin/FlexLayout/issues/498) Maximum update depth exceeded (closed, not planned, stale)
 - [#210](https://github.com/caplin/FlexLayout/issues/210) Open multiple border tabs (open, stale)
 - [#160](https://github.com/caplin/FlexLayout/issues/160) Show or hide border dock on tab selection (open, stale)
-- [#494](https://github.com/caplin/FlexLayout/issues/494) How to render a border tabset at the edge? (open, stale)
+- [#494](https://github.com/caplin/FlexLayout/issues/494) How to render a border tabset at the edge? (closed, not planned, stale)
 - [#518](https://github.com/caplin/FlexLayout/issues/518) Border with auto hide is still visible (open, stale)
 - [#439](https://github.com/caplin/FlexLayout/issues/439) multiple quick clicks on left border button not working properly (open)
 - [#232](https://github.com/caplin/FlexLayout/issues/232) No flexlayout__tabset-selected equivalent for borders (closed, not planned, stale)
-- [#275](https://github.com/caplin/FlexLayout/issues/275) request: onContextMenu prop for tabSet and tab (open (fixed in 0.11.0), stale)
+- [#275](https://github.com/caplin/FlexLayout/issues/275) request: onContextMenu prop for tabSet and tab (open (open (fixed in 0.11.0), stale)
 - [#273](https://github.com/caplin/FlexLayout/issues/273) TabSet context menu, how? (closed)
 - [#33](https://github.com/caplin/FlexLayout/issues/33) Changing Tabs or rendering all invisible tabs on startup. (closed)
 - [#111](https://github.com/caplin/FlexLayout/issues/111) How can i render a non selected tabs in a tabset (I want to render all of tabs in a tabset) (open, stale)
 - [#319](https://github.com/caplin/FlexLayout/issues/319) Keep all tabs mounted (open)
 
-**Verdict: menus solved by design; overflow loops addressed; multi-open borders go to the
-follow-up.** Menus are the app's (the package provides items and commands). Tab overflow is computed
-by a pure function that cannot loop. Several open tabs per border is a feature for the follow-up.
+**Verdict: menus by design; overflow loops solved; several open tabs per border not built.** Menus
+are the app's: the packages provide the commands and their `model.can` answers, never a rendered
+menu. Tab overflow is computed by a pure function from measured sizes, and the trigger's space is
+measured rather than a fixed hysteresis, so it settles ([caplin/FlexLayout#517](https://github.com/caplin/FlexLayout/issues/517),
+[caplin/FlexLayout#498](https://github.com/caplin/FlexLayout/issues/498)). A border shows one selected tab at a time.
 
 ## AI and automation
 
@@ -379,27 +430,56 @@ store or from outside the React tree:
 - [#38](https://github.com/caplin/FlexLayout/issues/38) Mobile size friendly (open, stale)
 
 [caplin/FlexLayout#456](https://github.com/caplin/FlexLayout/issues/456) asks to "make the model a dispatcher for actions". The command bus goes
-further: every command has a name, a description and a JSON Schema (`model.commands()`), and
-`model.dispatch({ command, payload })` validates untrusted JSON. That is what an assistant, a socket
-or a command palette needs to drive the layout, and it is new ground for this kind of library.
+further: every command has a name, a description and a JSON Schema (`model.get("commands")`), and
+`model.dispatch({ command, payload, transient? }, { meta })` validates untrusted JSON before
+anything changes. That is what an assistant, a socket or a command palette needs to drive the
+layout.
 
-## Input for the follow-up support Epic
+## Not built yet
 
-The follow-up verdicts, with the issues behind them. `limitations.mdx` lists the same gaps from the
-docs' side.
+The verdicts above that say "not built", with the issues behind them. `limitations.mdx` lists the
+same features from the docs' side.
 
-- **Floats** (T9): floating windows inside the page, designed on the command bus (a `window` kind
-  that is not a native window). [caplin/FlexLayout#11](https://github.com/caplin/FlexLayout/issues/11), [caplin/FlexLayout#61](https://github.com/caplin/FlexLayout/issues/61), [caplin/FlexLayout#126](https://github.com/caplin/FlexLayout/issues/126),
+- **Floats** (T9): floating windows inside the page. [caplin/FlexLayout#11](https://github.com/caplin/FlexLayout/issues/11), [caplin/FlexLayout#61](https://github.com/caplin/FlexLayout/issues/61), [caplin/FlexLayout#126](https://github.com/caplin/FlexLayout/issues/126),
   [caplin/FlexLayout#296](https://github.com/caplin/FlexLayout/issues/296).
-- **Tab groups**: removed from the model in this Epic; they come back with a design that renders
-  in the primitives.
-- **Sizing** (T11): a tabset that fills the remaining space, fixed pixel sizes, sizes that follow
-  the screen. [caplin/FlexLayout#351](https://github.com/caplin/FlexLayout/issues/351), [caplin/FlexLayout#56](https://github.com/caplin/FlexLayout/issues/56), [caplin/FlexLayout#162](https://github.com/caplin/FlexLayout/issues/162),
+- **Tab groups**: pills grouping tabs in a strip; a tabset or border holds tabs only.
+- **Fill and fixed sizes** (T11): a tabset that fills the remaining space, fixed pixel sizes, sizes
+  that follow the screen. [caplin/FlexLayout#351](https://github.com/caplin/FlexLayout/issues/351), [caplin/FlexLayout#56](https://github.com/caplin/FlexLayout/issues/56), [caplin/FlexLayout#162](https://github.com/caplin/FlexLayout/issues/162),
   [caplin/FlexLayout#470](https://github.com/caplin/FlexLayout/issues/470).
 - **Cross-window tab drag** (T12): dragging a tab to another browser tab or window.
   [caplin/FlexLayout#203](https://github.com/caplin/FlexLayout/issues/203).
-- **RTL** (T14): right-to-left tab strips, splitters and edge docking. [caplin/FlexLayout#225](https://github.com/caplin/FlexLayout/issues/225).
-- **Borders** (T15): several open tabs per border, and showing a border only while a tab is
-  selected. [caplin/FlexLayout#210](https://github.com/caplin/FlexLayout/issues/210), [caplin/FlexLayout#160](https://github.com/caplin/FlexLayout/issues/160), [caplin/FlexLayout#494](https://github.com/caplin/FlexLayout/issues/494).
-- **Popouts** (T8): a document-provider hook for libraries that portal into the global `document`.
+- **RTL interaction** (T14): splitters, arrow keys, logical drops and a runtime `dir` flip (gaps 4
+  and 5). [caplin/FlexLayout#225](https://github.com/caplin/FlexLayout/issues/225).
+- **Several open tabs per border** (T15): a border shows one selected tab at a time.
+  [caplin/FlexLayout#210](https://github.com/caplin/FlexLayout/issues/210).
+- **A popout document hook** (T8) for libraries that portal into the global `document`.
   [caplin/FlexLayout#161](https://github.com/caplin/FlexLayout/issues/161), [caplin/FlexLayout#512](https://github.com/caplin/FlexLayout/issues/512).
+
+## Regression matrix
+
+One test per concrete FlexLayout bug, named after it, so `git grep "caplin/FlexLayout#<n>"` finds
+it. "Fixed" means Dockable had the bug and the fix landed with its test; "pass" means Dockable did
+not have it and the test keeps it that way; "by design" pins the intended behaviour. No test is
+`fixme`. Paths are relative to the repository root; `content-drag`, `external` and `overflow` are
+playground fixtures driven by Playwright.
+
+| issue | FlexLayout failure | test (file: name) | status |
+|---|---|---|---|
+| [caplin/FlexLayout#529](https://github.com/caplin/FlexLayout/issues/529) | `matchesKey` throws on a `keydown` with no `key` (autofill, scripts) | `packages/core/tests/keyboard/KeyMap.test.ts`: never matches an event with no key, and does not throw<br>`packages/react/tests/primitives.test.tsx`: ignores a keydown that carries no key | fixed |
+| [caplin/FlexLayout#527](https://github.com/caplin/FlexLayout/issues/527) | after a text or file drop inside a tab, the next tab drag shows no overlay, outline or edges | `packages/core/tests/dnd/DragDropManager.test.ts`: resets after a drop whose propagation the content stopped; starts each drag from a clean slate, even after a drop the document never saw; ends the drag on a dragend whose propagation the source stopped<br>`apps/playground/e2e/content-drag.spec.ts`: a tab drag after a drop the content stopped shows its drop outline | fixed (Dockable had it when content stopped the drop's propagation) |
+| [caplin/FlexLayout#528](https://github.com/caplin/FlexLayout/issues/528) | a tab dragged out of an overflow menu that unmounts, let go outside, takes over the next drag | `packages/core/tests/dnd/DragDropManager.test.ts`: does not let a drag whose source unmounted take over the next one<br>`apps/playground/e2e/content-drag.spec.ts`: a tab dragged from a menu that closes, let go outside the layout, does not take over the next drag | pass |
+| [caplin/FlexLayout#390](https://github.com/caplin/FlexLayout/issues/390) | a widget dropped in from outside leaves the drop highlight on screen | `apps/playground/e2e/external.spec.ts`: leaves no drop outline behind after a drop from outside the layout | pass |
+| [caplin/FlexLayout#350](https://github.com/caplin/FlexLayout/issues/350) | native drag and drop between two lists inside a tab is blocked | `packages/core/tests/dnd/DragDropManager.test.ts`: leaves a native drag between two lists of a tab to the lists, even with a handler that accepts everything<br>`apps/playground/e2e/content-drag.spec.ts`: a native drag between two lists of a tab moves the item and nothing else (with and without an onExternalDrag that accepts everything) | fixed (pass without `onExternalDrag`; with one that accepts everything, the drop also added a tab) |
+| [caplin/FlexLayout#497](https://github.com/caplin/FlexLayout/issues/497) | nested layouts: the parent takes drags meant for the child | `packages/core/tests/dnd/DragDropManager.test.ts`: leaves a drag inside a nested layout to it: the outer layout neither asks nor claims it<br>`apps/playground/e2e/content-drag.spec.ts`: a layout nested in a tab keeps the drags meant for it | fixed (the same `onExternalDrag` origin rule) |
+| [caplin/FlexLayout#513](https://github.com/caplin/FlexLayout/issues/513) | `onModelChange` fires twice per action | `packages/core/tests/state/bus.test.ts`: emits exactly one event per run, dispatch or batch<br>`packages/core/tests/engine/LayoutEngine.test.ts`: adds no event of its own: one command, one model event | pass |
+| [caplin/FlexLayout#504](https://github.com/caplin/FlexLayout/issues/504) | listeners registered twice | `packages/react/tests/primitives.test.tsx`: keeps the model's listeners at one set, whatever props change | pass |
+| [caplin/FlexLayout#498](https://github.com/caplin/FlexLayout/issues/498) | "Maximum update depth exceeded" switching tabs | `packages/react/tests/overflow.test.tsx`: switches tabs at the overflow boundary under StrictMode without an update loop<br>`apps/playground/e2e/overflow.spec.ts`: switching tabs at the overflow boundary settles, with no update loop | pass |
+| [caplin/FlexLayout#517](https://github.com/caplin/FlexLayout/issues/517) | render loop when the overflow buttons are wider than a hard-coded hysteresis | `packages/core/tests/engine/overflow.test.ts`: settles in a few passes, at every width, with a trigger whose width grows with the hidden count<br>`apps/playground/e2e/overflow.spec.ts`: switching tabs at the overflow boundary settles, with no update loop | pass |
+| [caplin/FlexLayout#322](https://github.com/caplin/FlexLayout/issues/322) | a popout opens and closes at once under StrictMode | `packages/core/tests/popout/PopoutManager.test.ts`: keeps one window through a StrictMode-style detach and reattach<br>`packages/react/tests/popout.test.tsx`: opens exactly one window under StrictMode<br>`apps/playground/e2e/popout.spec.ts`: StrictMode opens exactly one window | pass |
+| [caplin/FlexLayout#235](https://github.com/caplin/FlexLayout/issues/235) | a popout closes at once (StrictMode, or a blocked popup) | `packages/core/tests/popout/PopoutManager.test.ts`: docks the tabs back when the window cannot open: a blocked popup | pass |
+| [caplin/FlexLayout#50](https://github.com/caplin/FlexLayout/issues/50) | SSR: `document is not defined` | `packages/core/tests/guard.test.ts`: never touches global document, window or frame scheduling: it loads in Node<br>`packages/react/tests/ssr.test.tsx`: renders a layout to a string without a document | pass |
+| [caplin/FlexLayout#383](https://github.com/caplin/FlexLayout/issues/383) | `crypto is not defined` (Next.js, plain HTTP) | `packages/core/tests/guard.test.ts`: never reaches for the global crypto (ids come from an injectable generator)<br>`packages/core/tests/state/load.test.ts`: creates and changes a model with no global crypto, as on plain HTTP | pass |
+| [caplin/FlexLayout#291](https://github.com/caplin/FlexLayout/issues/291) | adding a tab to an empty tabset from the JSON fails: loading removed the tabset | `packages/core/tests/state/tidy.test.ts`: keeps the JSON's empty tabset, with its id, instead of making a new one; keeps only the first of several empty tabsets of the main layout; still removes the empty tabsets beside a tabset with tabs | fixed |
+| [caplin/FlexLayout#51](https://github.com/caplin/FlexLayout/issues/51) | adding to the active tabset does nothing once it closed | `packages/core/tests/state/queries.test.ts`: default-tabset still answers once the active tabset is gone, so add-to-active lands | pass |
+| [caplin/FlexLayout#394](https://github.com/caplin/FlexLayout/issues/394) | a layout with no tabset gets one anyway | `packages/core/tests/state/tidy.test.ts`: gives a main layout with no tabset a new one, which becomes active | by design |
+| [caplin/FlexLayout#93](https://github.com/caplin/FlexLayout/issues/93) | moving every tab into a border leaves an empty main area | `packages/core/tests/state/commands.test.ts`: moving every tab into a border empties the main layout, as designed; a middleware can veto it | by design (the recipe is in `site/docs/guides/restricting-drops.mdx`) |
