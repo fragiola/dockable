@@ -97,11 +97,18 @@ Do not "fix" these.
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit) |
 | `pnpm test` | Vitest: `core` (node), `react` (jsdom), `playground`, `examples-react`, `site` |
 | `pnpm build` | `pnpm -r build` (tsdown for the packages, Vite for the playground) |
-| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are the repo's without the source condition (only `types`/`import`/`default`, targets in `dist`), runs `publint` and `attw --profile esm-only` on the tarballs, checks the React package pins the core's exact version, then a smoke test: a scratch Vite + React app outside the workspace installs the React tarball only (the core comes as its dependency), typechecks, builds and loads its dev server (`scripts/check-package.ts`) |
+| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are the repo's without the source condition (only `types`/`import`/`default`, targets in `dist`), runs `publint` and `attw --profile esm-only` on the tarballs, checks the React package pins the core's exact version, then a smoke test: a scratch Vite + React app outside the workspace installs the React tarball only (the core comes as its dependency), typechecks, builds and loads its dev server (`scripts/check-package.ts`; with `--tarballs <dir>` it checks the tarballs in `dir` instead of packing, which the release workflow does on what `changeset pack` wrote) |
+| `pnpm changeset` | adds a changeset (`.changeset/*.md`): every PR that changes what a package ships (`changedFilePatterns` in `.changeset/config.json`) carries one, and CI's Changesets job fails one that does not; the two packages are one `fixed` group, so they always share a version |
+| `pnpm release:version` | `changeset version`: bumps both packages and writes their `CHANGELOG.md`. Only the release workflow runs it (the Version Packages PR); never commit a version bump by hand |
 | `pnpm e2e` | Playwright (Chromium) against the playground and the examples app |
 | `pnpm dev` | the playground on <http://localhost:5173>: every example and scenario live, the Inspector, the fixtures (`PLAYGROUND_PORT` moves it) |
 | `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.2, `../www/CONTRACT.md`), self-validated |
 | `pnpm site:dev --base /dockable --port <n>` | the examples app with hot reload, under the base `www` proxies in dev |
+
+Releasing is a merge: `.github/workflows/release.yml` opens the Version Packages PR, and merging it
+publishes both packages with pnpm through npm trusted publishing (OIDC, no token). After the
+maintainer's first `0.0.0` stub, nobody but that workflow publishes; the maintainer's steps are in
+[`docs/releasing.md`](docs/releasing.md).
 
 ## Repository layout
 
