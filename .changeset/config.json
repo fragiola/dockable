@@ -5,11 +5,21 @@
     "format": false,
     "changelog": [
         "@changesets/changelog-github",
-        { "repo": "fragiola/dockable" }
+        {
+            "repo": "fragiola/dockable"
+        }
     ],
     "commit": false,
     "ignore": [],
     "fixed": [["@fragiola/dockable", "@fragiola/dockable-react"]],
     "linked": [],
-    "updateInternalDependencies": "patch"
+    "updateInternalDependencies": "patch",
+    "changedFilePatterns": [
+        "src/**",
+        "package.json",
+        "README.md",
+        "LICENSE",
+        "tsdown.config.ts",
+        "tsconfig*.json"
+    ]
 }
