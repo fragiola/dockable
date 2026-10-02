@@ -238,6 +238,16 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         }
     }
 
+    /** The main layout's direction changed: every window takes it (their engines re-measure). */
+    followDirection() {
+        const direction = this.engine.get("direction");
+        for (const entry of this.entries.values()) {
+            if (entry.cleanup) {
+                entry.window.document.documentElement.dir = direction;
+            }
+        }
+    }
+
     /** Closes a layout's window now (the layout stays in the state). */
     close(layoutId: string) {
         const entry = this.entries.get(layoutId);
@@ -323,12 +333,14 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         if (title !== undefined) {
             popoutDocument.title = title;
         }
-        // carry over the language/direction, and the root attributes the consumer asked to mirror
+        // carry over the language and the root attributes the consumer asked to mirror; the
+        // direction is the layout's, wherever the page sets it
         const stopMirroringRoot = mirrorRootAttributes(
             mainDocument,
             popoutDocument,
             this.options.mirrorRoot,
         );
+        popoutDocument.documentElement.dir = this.engine.get("direction");
         const contentRoot = popoutDocument.createElement("div");
         contentRoot.setAttribute(POPOUT_ATTRIBUTE, entry.layoutId);
         popoutDocument.body.appendChild(contentRoot);

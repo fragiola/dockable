@@ -288,6 +288,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             this.main.overlay.closeOverlayBorder(borderId, dryRun),
         "measure-and-position": (_payload, dryRun) => {
             if (!dryRun) {
+                this.followRootDocument();
+                this.readDirection();
                 this.measure.sync();
             }
             return { ok: true, value: {} };
@@ -363,6 +365,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 this.measure.subscribeGeometry(listener),
             getRegistrations: () => this.measure.getRegistrations(),
             rect: (kind, id) => this.measure.rect(kind, id),
+            inlineRect: (kind, id) => this.measure.inlineRect(kind, id),
             rectInLayout: (element) => this.measure.rectInLayout(element),
             getDomRect: () => this.measure.getDomRect(),
             getFreshDomRect: () => this.measure.getFreshDomRect(),
@@ -463,7 +466,11 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     }
 
     private attachRoot(element: HTMLElement) {
-        if (this.measure.layoutRef === element && this.teardown.length > 0) {
+        if (
+            this.measure.layoutRef === element &&
+            this.teardown.length > 0 &&
+            this.currentDocument === element.ownerDocument
+        ) {
             return;
         }
         this.detachRoot();
@@ -498,11 +505,19 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                     observer.disconnect();
                 });
             }
-            // a `dir` flip moves the tabsets without resizing any: the observers above miss it
+            // a `dir` flip on the root or above it moves the tabsets without resizing any: the
+            // observers above miss it (a `dir` in the content, an editor's paragraph, is not ours)
             if (win.MutationObserver) {
-                const observer = new win.MutationObserver(() =>
-                    this.measure.sync(),
-                );
+                const observer = new win.MutationObserver((records) => {
+                    if (
+                        records.some((record) =>
+                            record.target.contains(element),
+                        )
+                    ) {
+                        this.readDirection();
+                        this.measure.sync();
+                    }
+                });
                 observer.observe(doc, {
                     attributeFilter: ["dir"],
                     subtree: true,
@@ -528,9 +543,28 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
 
         this.measure.updateRect();
+        this.readDirection();
         if (this.popoutManager) {
             this.popoutManager.attach();
             this.teardown.push(() => this.popoutManager?.detach());
+        }
+    }
+
+    /**
+     * A root moved into another document (a nested layout's root, in a tab whose moveable element
+     * went into a popout): attach again, so the observers and listeners follow it.
+     */
+    private followRootDocument() {
+        const root = this.measure.layoutRef;
+        if (root && root.ownerDocument !== this.currentDocument) {
+            this.attachRoot(root);
+        }
+    }
+
+    /** reads the root's direction; a change reaches the popout windows of this layout */
+    private readDirection() {
+        if (this.measure.readDirection()) {
+            this.popoutManager?.followDirection();
         }
     }
 

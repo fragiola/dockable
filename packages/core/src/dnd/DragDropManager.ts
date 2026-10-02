@@ -159,10 +159,8 @@ export class DragDropManager {
         this.commands = new DropCommands(engine);
         this.indicator = this.idleIndicator();
         // the drop math runs from start to end: in RTL, it reads every rect mirrored
-        const rect = (kind: MeasurableKind) => (id: string) => {
-            const r = engine.adapter.rect(kind, id);
-            return r && inlineRect(r, engine.get("direction"));
-        };
+        const rect = (kind: MeasurableKind) => (id: string) =>
+            engine.adapter.inlineRect(kind, id);
         this.geometry = {
             node: (id) => rect("row")(id) ?? rect("tabset")(id),
             tabStrip: rect("tabstrip"),

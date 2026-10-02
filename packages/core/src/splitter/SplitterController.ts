@@ -10,6 +10,7 @@
 // A splitter between side by side children works from the start side: in RTL it reads the rects,
 // the pointer and the arrow keys mirrored, and mirrors the preview offset back.
 import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { MeasurableKind } from "../engine/measure";
 import { type Direction, inlineRect, inlineX } from "../geometry/direction";
 import type { BorderLocation, Orientation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect } from "../geometry/rect";
@@ -261,23 +262,41 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         return horizontal ? this.engine.get("direction") : "ltr";
     }
 
+    /** a measured rect, its x from the start side along x (`horizontal`), as is along y */
     private rect(
-        node: { type: string; id: string },
-        direction: Direction,
+        kind: MeasurableKind,
+        id: string,
+        horizontal: boolean,
     ): Rect | undefined {
-        const r = this.engine.adapter.rect(
-            node.type === "row" ? "row" : "tabset",
-            node.id,
-        );
-        return r && inlineRect(r, direction);
+        return horizontal
+            ? this.engine.adapter.inlineRect(kind, id)
+            : this.engine.adapter.rect(kind, id);
     }
 
-    /** the row's children as the split math sees them, and where this splitter can move */
+    private childRect(
+        node: { type: string; id: string },
+        horizontal: boolean,
+    ): Rect | undefined {
+        return this.rect(
+            node.type === "row" ? "row" : "tabset",
+            node.id,
+            horizontal,
+        );
+    }
+
+    /**
+     * the row's children as the split math sees them, and where this splitter can move. A row with
+     * an unmeasured child is unmeasured: where that child is cannot be guessed (a zero sum)
+     */
     private rowSplit(row: AnyRow): RowSplit {
         const orientation = this.engine.adapter.rowOrientation(row.id);
-        const direction = this.axisDirection(orientation === "horizontal");
-        const children = row.children.map((child) => ({
-            rect: this.rect(child, direction) ?? EMPTY_RECT,
+        const horizontal = orientation === "horizontal";
+        const rects = row.children.map((child) =>
+            this.childRect(child, horizontal),
+        );
+        const measured = rects.every((r) => r !== undefined);
+        const children = row.children.map((child, i) => ({
+            rect: (measured && rects[i]) || EMPTY_RECT,
             range: this.engine.get("flex-by", { nodeId: child.id }),
         }));
         const size = this.engine.get("splitter-size");
@@ -295,16 +314,13 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         origin: [number, number];
     } {
         const state = this.engine.adapter.model.state;
-        const direction = this.axisDirection(
-            border.location === "start" || border.location === "end",
-        );
-        const measured = this.engine.adapter.rect("borderheader", border.id);
-        const root = this.engine.adapter.rect("row", state.root.id);
-        if (!measured || !root) {
+        const horizontal =
+            border.location === "start" || border.location === "end";
+        const strip = this.rect("borderheader", border.id, horizontal);
+        const layout = this.rect("row", state.root.id, horizontal);
+        if (!strip || !layout) {
             return { bounds: [0, 0], origin: [0, 0] };
         }
-        const strip = inlineRect(measured, direction);
-        const layout = inlineRect(root, direction);
         const range = this.engine.get("flex-by", {
             nodeId: state.root.id,
         });
@@ -370,11 +386,9 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             aria.valueText = `${aria.valueNow}px`;
             return aria;
         }
-        const direction = this.axisDirection(horizontal);
-        const row = target && this.engine.adapter.rect("row", target.id);
-        const rowRect = row && inlineRect(row, direction);
+        const rowRect = target && this.rect("row", target.id, horizontal);
         const prev = target?.children[this.index - 1];
-        const prevRect = prev && this.rect(prev, direction);
+        const prevRect = prev && this.childRect(prev, horizontal);
         const extent = rowRect
             ? horizontal
                 ? rowRect.width

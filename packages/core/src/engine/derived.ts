@@ -182,13 +182,13 @@ export class Derived<T extends DockableTypes> {
     edgeBands(): EdgeBand[] {
         const settings = resolveLayout(this.state().defaults);
         const root = this.rootRow(this.state());
-        const rect = root ? this.measure.rect("row", root.id) : undefined;
+        const rect = root ? this.measure.inlineRect("row", root.id) : undefined;
         if (!settings.edgeDock || !rect) {
             return [];
         }
         const direction = this.measure.direction;
         return edgeBands(
-            inlineRect(rect, direction),
+            rect,
             settings.edgeDockMargin,
             settings.edgeDockLength,
         ).map((band) => ({ ...band, rect: inlineRect(band.rect, direction) }));

@@ -65,7 +65,8 @@ function setup(
     const commands = recordCommands(model);
     const engine = createLayoutEngine({
         model,
-        measure: rects.measure,
+        // through the instance, so a test can spy on what the engine measures
+        measure: (element) => rects.measure(element),
         realtimeResize,
     });
     engines.push(engine);
@@ -194,6 +195,22 @@ describe.each(DIRECTIONS)("a row splitter in %s", (direction) => {
         expect(lastWeights(s.commands)[0]).toBeCloseTo((206 * 100) / 392, 3);
         key(s.controller, towardsStart(direction));
         expect(lastWeights(s.commands)[0]).toBeCloseTo((186 * 100) / 392, 3);
+    });
+
+    it("leaves a row with an unmeasured child alone, rather than guess where it is", () => {
+        const json = structuredClone(twoTabsets);
+        json.root.children?.push({
+            type: "tabset",
+            id: "ts2",
+            children: [{ id: "t3", component: "test", label: "Four" }],
+        });
+        const s = setup(direction, json);
+        key(s.controller, towardsEnd(direction));
+        drag(s.splitter, s.controller, s.m.x(210), s.m.x(260));
+        pointer("pointerup", document, s.m.x(260));
+        expect(
+            s.commands.filter(({ command }) => command === "row.resize"),
+        ).toEqual([]);
     });
 
     it("announces the start child's share of the row", () => {
@@ -363,6 +380,19 @@ describe.each(DIRECTIONS)("drops in %s", (direction) => {
         });
     });
 
+    it("read the direction once per dragover", () => {
+        const s = setup(direction);
+        const manager = s.engine.adapter.getDragDropManager();
+        manager.startDrag(dragEvent("dragstart", 0, 0), "t0");
+        s.root.dispatchEvent(dragEvent("dragenter", s.m.x(220), 185));
+        const get = vi.spyOn(s.engine, "get");
+        s.root.dispatchEvent(dragEvent("dragover", s.m.x(220), 185));
+        expect(
+            get.mock.calls.filter(([key]) => key === "direction").length,
+        ).toBeLessThanOrEqual(1);
+        expect(manager.getIndicatorState().location).toBe("start");
+    });
+
     it("reveal the empty auto-hide border on the side the pointer is near", () => {
         const s = setup(direction, {
             ...structuredClone(twoTabsets),
@@ -428,6 +458,54 @@ describe("the direction", () => {
         expect(panel.style.left).toBe("204px");
         // overlay borders sit on a physical side: the adapter re-renders
         expect(redraws).toHaveBeenCalled();
+        document.documentElement.removeAttribute("dir");
+    });
+
+    it("re-measures for a dir change on the root or an ancestor only, not in content or elsewhere", async () => {
+        const s = setup("ltr");
+        const measure = vi.spyOn(s.rects, "measure");
+        // a rich-text editor sets dir on its paragraphs, in a panel or anywhere in the page
+        s.root.appendChild(document.createElement("p")).dir = "rtl";
+        document.body.appendChild(document.createElement("p")).dir = "rtl";
+        await Promise.resolve();
+        expect(measure).not.toHaveBeenCalled();
+        document.body.dir = "rtl";
+        await Promise.resolve();
+        expect(measure).toHaveBeenCalled();
+        document.body.removeAttribute("dir");
+    });
+
+    it("does not read the direction on every measure pass, only on the explicit one", () => {
+        const s = setup("ltr");
+        const computed = vi.spyOn(window, "getComputedStyle");
+        drag(s.splitter, s.controller, s.m.x(210), s.m.x(230));
+        pointer("pointermove", document, s.m.x(250));
+        pointer("pointerup", document, s.m.x(250));
+        expect(lastWeights(s.commands).length).toBe(2);
+        expect(computed).not.toHaveBeenCalled();
+        s.engine.run("measure-and-position");
+        expect(computed).toHaveBeenCalled();
+    });
+
+    it("follows its root into another document: the observer watches that document", async () => {
+        const s = setup("ltr");
+        s.root.removeAttribute("dir");
+        const frame = document.body.appendChild(
+            document.createElement("iframe"),
+        );
+        const other = frame.contentDocument as Document;
+        other.body.appendChild(s.root);
+        s.engine.run("measure-and-position");
+        expect(s.engine.get("owner-document")).toBe(other);
+        expect(s.engine.get("owner-window")).toBe(other.defaultView);
+        other.documentElement.dir = "rtl";
+        await Promise.resolve();
+        expect(s.engine.get("direction")).toBe("rtl");
+        // the first document is not watched any more
+        const measure = vi.spyOn(s.rects, "measure");
+        document.documentElement.dir = "rtl";
+        await Promise.resolve();
+        expect(measure).not.toHaveBeenCalled();
         document.documentElement.removeAttribute("dir");
     });
 
