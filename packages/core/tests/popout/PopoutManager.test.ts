@@ -142,6 +142,23 @@ describe("opening", () => {
         expect(manager.getWindow(layoutId)).toBe(opened[0]);
     });
 
+    it("closes the window once after a detach, reattach and detach", async () => {
+        const { engine, root, manager, layoutId, opened } = setup();
+        engine.adapter.detachRoot();
+        engine.adapter.attachRoot(root);
+        engine.adapter.detachRoot();
+        expect(opened[0]?.close).not.toHaveBeenCalled();
+        await tick();
+        expect(opened[0]?.close).toHaveBeenCalledTimes(1);
+        expect(manager.getWindow(layoutId)).toBeUndefined();
+        engine.adapter.attachRoot(root);
+        engine.adapter.detachRoot();
+        engine.adapter.attachRoot(root);
+        await tick();
+        expect(manager.getOpenLayoutIds()).toEqual([layoutId]);
+        expect(opened[1]?.close).not.toHaveBeenCalled();
+    });
+
     it("closes the windows after the current task once the engine detaches", async () => {
         const { engine, manager, layoutId, opened } = setup();
         engine.adapter.detachRoot();
