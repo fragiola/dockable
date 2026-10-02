@@ -55,20 +55,39 @@ export const rectSchema = {
     additionalProperties: false,
 } as const satisfies JsonSchema;
 
-/** `schema`, or `null` (a null removes a field so the defaults apply). */
-export function nullable<const S extends JsonSchema>(
-    schema: S,
-): {
+type Properties = { readonly [name: string]: JsonSchema };
+
+/** A schema that also accepts `null`. */
+type NullableSchema<S> = {
     readonly anyOf: readonly [S, { readonly const: null }];
     readonly description?: string;
-} {
+};
+
+/** `schema`, or `null` (a null removes a field so `then` applies). */
+export function nullable<const S extends JsonSchema>(
+    schema: S,
+    then = "the layout default applies",
+): NullableSchema<S> {
     // the description stays on the field, where readers (and assistants) look for it
     return schema.description === undefined
         ? { anyOf: [schema, { const: null }] }
         : {
               anyOf: [schema, { const: null }],
-              description: `${schema.description} (null removes it: the layout default applies)`,
+              description: `${schema.description} (null removes it: ${then})`,
           };
+}
+
+/** Each of `properties`, {@link nullable}. */
+export function nullableEach<const P extends Properties>(
+    properties: P,
+    then?: string,
+): { readonly [K in keyof P]: NullableSchema<P[K]> } {
+    return Object.fromEntries(
+        Object.entries(properties).map(([name, schema]) => [
+            name,
+            nullable(schema, then),
+        ]),
+    ) as { readonly [K in keyof P]: NullableSchema<P[K]> };
 }
 
 /** A described id field: `the tab's id`. */
@@ -81,8 +100,6 @@ export function describedId<const K extends string>(
 } {
     return { ...idSchema, description: `the ${kind}'s id` };
 }
-
-type Properties = { readonly [name: string]: JsonSchema };
 
 /** A closed object schema: only `properties`, the `required` ones present. */
 export function object<const P extends Properties>(
@@ -136,7 +153,7 @@ export const placementProperties = {
         ...booleanSchema,
         description: "whether the tab is selected in its new place",
     },
-} as const satisfies { readonly [name: string]: JsonSchema };
+} as const satisfies Properties;
 
 /** Size limits of a tab or tabset. */
 export const sizeLimitProperties = {
@@ -144,10 +161,50 @@ export const sizeLimitProperties = {
     minHeight: { ...sizeSchema, description: "the smallest height, in px" },
     maxWidth: { ...sizeSchema, description: "the largest width, in px" },
     maxHeight: { ...sizeSchema, description: "the largest height, in px" },
-} as const satisfies { readonly [name: string]: JsonSchema };
+} as const satisfies Properties;
 
-/** The behaviour fields of a tabset, described. */
-export const tabsetFieldProperties = {
+/** The fields of a tab a layout default applies to, described. */
+export const tabDefaultProperties = {
+    enableClose: {
+        ...booleanSchema,
+        description: "whether the tab can be closed",
+    },
+    enableDrag: {
+        ...booleanSchema,
+        description: "whether the tab can be dragged",
+    },
+    enablePopout: {
+        ...booleanSchema,
+        description: "whether the tab can be popped out into a window",
+    },
+    ...sizeLimitProperties,
+} as const satisfies Properties;
+
+/** A tab's own panel size in a border, described. */
+export const tabBorderSizeProperties = {
+    borderWidth: {
+        ...sizeSchema,
+        description: "its panel's width in a left or right border, in px",
+    },
+    borderHeight: {
+        ...sizeSchema,
+        description: "its panel's height in a top or bottom border, in px",
+    },
+} as const satisfies Properties;
+
+/** Every behaviour field of a tab, as `tab.add` and JSON take them. */
+export const tabFieldProperties = {
+    pinned: {
+        ...booleanSchema,
+        description:
+            "a pinned tab sits at the start of its strip, cannot close and cannot leave its tabset",
+    },
+    ...tabDefaultProperties,
+    ...tabBorderSizeProperties,
+} as const satisfies Properties;
+
+/** The behaviour fields of a tabset, described: a layout default applies to each. */
+export const tabsetDefaultProperties = {
     enableDrop: {
         ...booleanSchema,
         description: "whether tabs can be dropped into it",
@@ -177,17 +234,16 @@ export const tabsetFieldProperties = {
         description: "whether a tab added to it is selected",
     },
     ...sizeLimitProperties,
-} as const satisfies { readonly [name: string]: JsonSchema };
+} as const satisfies Properties;
 
-/** The behaviour fields of a border, described. */
-export const borderFieldProperties = {
+/** The fields of a border a layout default applies to, described. */
+export const borderDefaultProperties = {
+    size: { ...sizeSchema, description: "its panel's size, in px" },
+    minSize: { ...sizeSchema, description: "its panel's smallest size, in px" },
+    maxSize: { ...sizeSchema, description: "its panel's largest size, in px" },
     mode: {
         ...borderModeSchema,
         description: "docked (beside the layout) or overlay (over it)",
-    },
-    show: {
-        ...booleanSchema,
-        description: "false hides the border entirely",
     },
     autoHide: {
         ...booleanSchema,
@@ -207,43 +263,41 @@ export const borderFieldProperties = {
         description:
             "whether a tab added while its panel is closed is selected (which opens it)",
     },
-    size: { ...sizeSchema, description: "its panel's size, in px" },
-    minSize: { ...sizeSchema, description: "its panel's smallest size, in px" },
-    maxSize: { ...sizeSchema, description: "its panel's largest size, in px" },
-} as const satisfies { readonly [name: string]: JsonSchema };
+} as const satisfies Properties;
+
+/** Every behaviour field of a border, described. */
+export const borderFieldProperties = {
+    show: {
+        ...booleanSchema,
+        description: "false hides the border entirely",
+    },
+    ...borderDefaultProperties,
+} as const satisfies Properties;
+
+/** The layout-wide settings, described. */
+export const layoutSettingProperties = {
+    rootOrientation: {
+        ...orientationSchema,
+        description:
+            "the orientation of every layout's root row; nested rows alternate",
+    },
+    edgeDock: {
+        ...booleanSchema,
+        description: "whether a drag offers the layout's edges as drop targets",
+    },
+    edgeDockMargin: {
+        ...sizeSchema,
+        description: "the depth in px of each edge band",
+    },
+    edgeDockLength: {
+        ...sizeSchema,
+        description:
+            "the length in px of each edge band, centred on its edge (at most the edge)",
+    },
+} as const satisfies Properties;
 
 /** A tab's label: any string (refusing an empty one is the app's policy). */
 export const labelSchema = {
     type: "string",
     description: "the tab's name (the app renders it; the packages never do)",
 } as const satisfies JsonSchema;
-
-/** The behaviour fields of a tab, as `tab.add` and JSON take them. */
-export const tabFieldProperties = {
-    pinned: {
-        ...booleanSchema,
-        description:
-            "a pinned tab sits at the start of its strip, cannot close and cannot leave its tabset",
-    },
-    enableClose: {
-        ...booleanSchema,
-        description: "whether the tab can be closed",
-    },
-    enableDrag: {
-        ...booleanSchema,
-        description: "whether the tab can be dragged",
-    },
-    enablePopout: {
-        ...booleanSchema,
-        description: "whether the tab can be popped out into a window",
-    },
-    ...sizeLimitProperties,
-    borderWidth: {
-        ...sizeSchema,
-        description: "its panel's width in a left or right border, in px",
-    },
-    borderHeight: {
-        ...sizeSchema,
-        description: "its panel's height in a top or bottom border, in px",
-    },
-} as const satisfies { readonly [name: string]: JsonSchema };

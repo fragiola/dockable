@@ -5,15 +5,19 @@ import type { DataField, LayoutJson, TabInit } from "../state/json";
 import type {
     AnyTypes,
     BorderDataOf,
-    BorderMode,
+    BorderDefaults,
     ComponentOf,
     DockableTypes,
+    LayoutSettings,
     LayoutState,
     Node,
     ParentNode,
     RowDataOf,
     TabDataOf,
+    TabDefaults,
+    TabOwnFields,
     TabsetDataOf,
+    TabsetDefaults,
 } from "../state/types";
 
 /** Where a tab or tabset goes. */
@@ -75,51 +79,19 @@ export type TabConfigurePayload = {
     tabId: string;
     /** the tab's new name (a tab always has one: it cannot be removed) */
     label?: string;
-} & Nullable<{
-    enableClose: boolean;
-    enableDrag: boolean;
-    enablePopout: boolean;
-    minWidth: number;
-    minHeight: number;
-    maxWidth: number;
-    maxHeight: number;
-    borderWidth: number;
-    borderHeight: number;
-}>;
+} & Nullable<Required<TabDefaults & Omit<TabOwnFields, "pinned">>>;
 
 export type TabsetConfigurePayload<T extends DockableTypes> = {
     tabsetId: string;
-} & Nullable<{
-    enableDrop: boolean;
-    enableDrag: boolean;
-    enableDivide: boolean;
-    enableMaximize: boolean;
-    enableClose: boolean;
-    deleteWhenEmpty: boolean;
-    autoSelectTab: boolean;
-    minWidth: number;
-    minHeight: number;
-    maxWidth: number;
-    maxHeight: number;
-    data: TabsetDataOf<T>;
-}>;
+} & Nullable<Required<TabsetDefaults> & { data: TabsetDataOf<T> }>;
 
 export type BorderConfigurePayload<T extends DockableTypes> = {
     borderId: string;
     /** open (select its first tab when none is selected) or close the border's panel */
     open?: boolean;
-} & Nullable<{
-    mode: BorderMode;
-    show: boolean;
-    autoHide: boolean;
-    enableDrop: boolean;
-    autoSelectTabWhenOpen: boolean;
-    autoSelectTabWhenClosed: boolean;
-    size: number;
-    minSize: number;
-    maxSize: number;
-    data: BorderDataOf<T>;
-}>;
+} & Nullable<
+    Required<BorderDefaults> & { show: boolean; data: BorderDataOf<T> }
+>;
 
 export type RowConfigurePayload<T extends DockableTypes> = {
     rowId: string;
@@ -128,44 +100,10 @@ export type RowConfigurePayload<T extends DockableTypes> = {
 
 /** A patch of the layout defaults: fields are merged, `null` removes one (or a whole kind). */
 export type LayoutDefaultsPatch = {
-    tab?: Nullable<{
-        enableClose: boolean;
-        enableDrag: boolean;
-        enablePopout: boolean;
-        minWidth: number;
-        minHeight: number;
-        maxWidth: number;
-        maxHeight: number;
-    }> | null;
-    tabset?: Nullable<{
-        enableDrop: boolean;
-        enableDrag: boolean;
-        enableDivide: boolean;
-        enableMaximize: boolean;
-        enableClose: boolean;
-        deleteWhenEmpty: boolean;
-        autoSelectTab: boolean;
-        minWidth: number;
-        minHeight: number;
-        maxWidth: number;
-        maxHeight: number;
-    }> | null;
-    border?: Nullable<{
-        size: number;
-        minSize: number;
-        maxSize: number;
-        mode: BorderMode;
-        autoHide: boolean;
-        enableDrop: boolean;
-        autoSelectTabWhenOpen: boolean;
-        autoSelectTabWhenClosed: boolean;
-    }> | null;
-    layout?: Nullable<{
-        rootOrientation: "horizontal" | "vertical";
-        edgeDock: boolean;
-        edgeDockMargin: number;
-        edgeDockLength: number;
-    }> | null;
+    tab?: Nullable<Required<TabDefaults>> | null;
+    tabset?: Nullable<Required<TabsetDefaults>> | null;
+    border?: Nullable<Required<BorderDefaults>> | null;
+    layout?: Nullable<Required<LayoutSettings>> | null;
 };
 
 /** One command of a batch. */

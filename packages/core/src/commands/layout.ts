@@ -1,11 +1,12 @@
 import {
-    booleanSchema,
-    borderModeSchema,
+    borderDefaultProperties,
     idSchema,
+    layoutSettingProperties,
     nullable,
+    nullableEach,
     object,
-    orientationSchema,
-    sizeSchema,
+    tabDefaultProperties,
+    tabsetDefaultProperties,
 } from "../schema/fragments";
 import { layoutDefs, layoutDocumentSchema } from "../schema/layout";
 import type { JsonSchema } from "../schema/types";
@@ -16,56 +17,13 @@ import type { LayoutDefaults } from "../state/types";
 import { defineCommand, ok } from "./define";
 import type { CommandError } from "./types";
 
-const nullableBoolean = nullable(booleanSchema);
-const nullableSize = nullable(sizeSchema);
-
+/** Each kind's defaults, nullable: null removes a field (or a kind), so the built-in value applies. */
+const builtIn = "the built-in value applies";
 const defaultsPatchSchema = object({
-    tab: nullable(
-        object({
-            enableClose: nullableBoolean,
-            enableDrag: nullableBoolean,
-            enablePopout: nullableBoolean,
-            minWidth: nullableSize,
-            minHeight: nullableSize,
-            maxWidth: nullableSize,
-            maxHeight: nullableSize,
-        }),
-    ),
-    tabset: nullable(
-        object({
-            enableDrop: nullableBoolean,
-            enableDrag: nullableBoolean,
-            enableDivide: nullableBoolean,
-            enableMaximize: nullableBoolean,
-            enableClose: nullableBoolean,
-            deleteWhenEmpty: nullableBoolean,
-            autoSelectTab: nullableBoolean,
-            minWidth: nullableSize,
-            minHeight: nullableSize,
-            maxWidth: nullableSize,
-            maxHeight: nullableSize,
-        }),
-    ),
-    border: nullable(
-        object({
-            size: nullableSize,
-            minSize: nullableSize,
-            maxSize: nullableSize,
-            mode: nullable(borderModeSchema),
-            autoHide: nullableBoolean,
-            enableDrop: nullableBoolean,
-            autoSelectTabWhenOpen: nullableBoolean,
-            autoSelectTabWhenClosed: nullableBoolean,
-        }),
-    ),
-    layout: nullable(
-        object({
-            rootOrientation: nullable(orientationSchema),
-            edgeDock: nullableBoolean,
-            edgeDockMargin: nullableSize,
-            edgeDockLength: nullableSize,
-        }),
-    ),
+    tab: nullable(object(nullableEach(tabDefaultProperties, builtIn))),
+    tabset: nullable(object(nullableEach(tabsetDefaultProperties, builtIn))),
+    border: nullable(object(nullableEach(borderDefaultProperties, builtIn))),
+    layout: nullable(object(nullableEach(layoutSettingProperties, builtIn))),
 });
 
 const KINDS = ["tab", "tabset", "border", "layout"] as const;

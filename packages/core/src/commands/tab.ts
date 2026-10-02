@@ -6,16 +6,18 @@ import {
     describedId,
     idSchema,
     labelSchema,
-    nullable,
+    nullableEach,
     object,
     placementProperties,
     rectSchema,
+    tabBorderSizeProperties,
+    tabDefaultProperties,
     tabFieldProperties,
 } from "../schema/fragments";
 import { cloneJson } from "../state/clone";
 import { resolveTab } from "../state/defaults";
 import { type Draft, newRow, newTabset } from "../state/draft";
-import type { TabInit } from "../state/json";
+import { tabNode } from "../state/load";
 import {
     adjustSelectedIndex,
     pinnedRunLength,
@@ -33,38 +35,6 @@ import type { CommandError } from "./types";
 const tabIdSchema = { ...idSchema, description: "the tab's id" } as const;
 
 const tabIdResult = object({ tabId: describedId("tab") }, ["tabId"]);
-
-/** Removes the keys whose value is undefined (the state holds no undefined fields). */
-export function compact<O extends object>(value: O): O {
-    const out: Record<string, unknown> = {};
-    for (const [key, field] of Object.entries(value)) {
-        if (field !== undefined) {
-            out[key] = field;
-        }
-    }
-    return out as O;
-}
-
-/** A tab node from its init fields, with a generated id when it has none. */
-export function tabFromInit(draft: Draft, init: TabInit): AnyTab {
-    return compact({
-        type: "tab" as const,
-        id: init.id ?? draft.newId("tab"),
-        component: init.component,
-        label: init.label,
-        data: cloneJson(init.data),
-        pinned: init.pinned,
-        enableClose: init.enableClose,
-        enableDrag: init.enableDrag,
-        enablePopout: init.enablePopout,
-        minWidth: init.minWidth,
-        minHeight: init.minHeight,
-        maxWidth: init.maxWidth,
-        maxHeight: init.maxHeight,
-        borderWidth: init.borderWidth,
-        borderHeight: init.borderHeight,
-    });
-}
 
 /** Places a node (a tab or a tabset) at a resolved target. */
 export function place(
@@ -157,7 +127,9 @@ export const tabAdd = defineCommand({
         if (refused) {
             return { ok: false, error: refused };
         }
-        const tab = draft.create(tabFromInit(draft, payload));
+        const tab = draft.create(
+            tabNode(payload, payload.id ?? draft.newId("tab")),
+        );
         place(
             draft,
             target,
@@ -476,15 +448,10 @@ export const tabConfigure = defineCommand({
         {
             tabId: tabIdSchema,
             label: { ...labelSchema, description: "the tab's new name" },
-            enableClose: nullable(tabFieldProperties.enableClose),
-            enableDrag: nullable(tabFieldProperties.enableDrag),
-            enablePopout: nullable(tabFieldProperties.enablePopout),
-            minWidth: nullable(tabFieldProperties.minWidth),
-            minHeight: nullable(tabFieldProperties.minHeight),
-            maxWidth: nullable(tabFieldProperties.maxWidth),
-            maxHeight: nullable(tabFieldProperties.maxHeight),
-            borderWidth: nullable(tabFieldProperties.borderWidth),
-            borderHeight: nullable(tabFieldProperties.borderHeight),
+            ...nullableEach({
+                ...tabDefaultProperties,
+                ...tabBorderSizeProperties,
+            }),
         },
         ["tabId"],
     ),

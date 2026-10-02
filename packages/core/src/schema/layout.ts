@@ -1,16 +1,16 @@
 import {
-    booleanSchema,
+    borderDefaultProperties,
+    borderFieldProperties,
     borderLocationSchema,
-    borderModeSchema,
     dataSchema,
     idSchema,
     labelSchema,
+    layoutSettingProperties,
     object,
-    orientationSchema,
     rectSchema,
-    sizeLimitProperties,
-    sizeSchema,
+    tabDefaultProperties,
     tabFieldProperties,
+    tabsetDefaultProperties,
 } from "./fragments";
 import type { JsonSchema } from "./types";
 
@@ -23,28 +23,6 @@ const weightSchema = {
 const selectedSchema = {
     type: "integer",
     description: "index of the selected tab; -1 for none",
-} as const;
-
-const tabsetFlags = {
-    enableDrop: booleanSchema,
-    enableDrag: booleanSchema,
-    enableDivide: booleanSchema,
-    enableMaximize: booleanSchema,
-    enableClose: booleanSchema,
-    deleteWhenEmpty: booleanSchema,
-    autoSelectTab: booleanSchema,
-    ...sizeLimitProperties,
-} as const;
-
-const borderFields = {
-    size: sizeSchema,
-    minSize: sizeSchema,
-    maxSize: sizeSchema,
-    mode: borderModeSchema,
-    autoHide: booleanSchema,
-    enableDrop: booleanSchema,
-    autoSelectTabWhenOpen: booleanSchema,
-    autoSelectTabWhenClosed: booleanSchema,
 } as const;
 
 const tabs = { type: "array", items: { $ref: "#/$defs/tab" } } as const;
@@ -70,7 +48,7 @@ export const layoutDefs = {
             selected: selectedSchema,
             data: dataSchema,
             children: tabs,
-            ...tabsetFlags,
+            ...tabsetDefaultProperties,
         },
         ["type"],
     ),
@@ -98,10 +76,9 @@ export const layoutDefs = {
             id: idSchema,
             location: borderLocationSchema,
             selected: selectedSchema,
-            show: booleanSchema,
             data: dataSchema,
             children: tabs,
-            ...borderFields,
+            ...borderFieldProperties,
         },
         ["location"],
     ),
@@ -116,20 +93,10 @@ export const layoutDefs = {
         ["root"],
     ),
     defaults: object({
-        tab: object({
-            enableClose: booleanSchema,
-            enableDrag: booleanSchema,
-            enablePopout: booleanSchema,
-            ...sizeLimitProperties,
-        }),
-        tabset: object(tabsetFlags),
-        border: object(borderFields),
-        layout: object({
-            rootOrientation: orientationSchema,
-            edgeDock: booleanSchema,
-            edgeDockMargin: sizeSchema,
-            edgeDockLength: sizeSchema,
-        }),
+        tab: object(tabDefaultProperties),
+        tabset: object(tabsetDefaultProperties),
+        border: object(borderDefaultProperties),
+        layout: object(layoutSettingProperties),
     }),
 } as const satisfies { readonly [name: string]: JsonSchema };
 

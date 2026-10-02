@@ -5,10 +5,10 @@ import {
     dockLocationSchema,
     idSchema,
     indexSchema,
-    nullable,
+    nullableEach,
     object,
     rectSchema,
-    tabsetFieldProperties,
+    tabsetDefaultProperties,
 } from "../schema/fragments";
 import { cloneJson } from "../state/clone";
 import { resolveTab, resolveTabset } from "../state/defaults";
@@ -307,17 +307,7 @@ export const tabsetConfigure = defineCommand({
     payloadSchema: object(
         {
             tabsetId: tabsetIdSchema,
-            enableDrop: nullable(tabsetFieldProperties.enableDrop),
-            enableDrag: nullable(tabsetFieldProperties.enableDrag),
-            enableDivide: nullable(tabsetFieldProperties.enableDivide),
-            enableMaximize: nullable(tabsetFieldProperties.enableMaximize),
-            enableClose: nullable(tabsetFieldProperties.enableClose),
-            deleteWhenEmpty: nullable(tabsetFieldProperties.deleteWhenEmpty),
-            autoSelectTab: nullable(tabsetFieldProperties.autoSelectTab),
-            minWidth: nullable(tabsetFieldProperties.minWidth),
-            minHeight: nullable(tabsetFieldProperties.minHeight),
-            maxWidth: nullable(tabsetFieldProperties.maxWidth),
-            maxHeight: nullable(tabsetFieldProperties.maxHeight),
+            ...nullableEach(tabsetDefaultProperties),
             data: dataSchema,
         },
         ["tabsetId"],

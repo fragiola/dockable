@@ -9,6 +9,8 @@ import type {
     LayoutDefaults,
     RowDataOf,
     TabDataOf,
+    TabDefaults,
+    TabOwnFields,
     TabsetDataOf,
     TabsetDefaults,
 } from "./types";
@@ -23,17 +25,9 @@ export type TabInit<K extends string = string, D = unknown> = {
     component: K;
     /** the tab's name (the app renders it; the packages never do) */
     label: string;
-    pinned?: boolean;
-    enableClose?: boolean;
-    enableDrag?: boolean;
-    enablePopout?: boolean;
-    minWidth?: number;
-    minHeight?: number;
-    maxWidth?: number;
-    maxHeight?: number;
-    borderWidth?: number;
-    borderHeight?: number;
-} & DataField<D>;
+} & TabDefaults &
+    TabOwnFields &
+    DataField<D>;
 
 /** A new tab of the registry `T`: a union over its components, so `data` is checked per component. */
 export type TabInitOf<T extends DockableTypes> = {
