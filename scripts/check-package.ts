@@ -2,11 +2,14 @@
 // packages built. Each package is packed with pnpm, which applies `publishConfig` as the publish
 // does (npm would not: the packages are only ever packed and published through pnpm), then:
 //
-// - its packed `exports` point at `dist` only: no source condition, no `src`;
+// - its packed `exports` (from `publishConfig.exports`) are the repo's `exports` without the source
+//   condition, and use only the `types`, `import` and `default` conditions, with targets in `dist`;
+// - the React package depends on the core at its exact version;
 // - publint (strict) and attw (`esm-only` profile) pass on the tarball;
 // - the smoke test: a scratch Vite + React app outside the workspace installs the React tarball
-//   (the core tarball comes as its dependency) and imports everything from it, builds, and its dev
-//   server serves the entry with every import resolved. A consumer's dev server adds
+//   (the core tarball comes as its dependency) and imports everything from it, typechecks with the
+//   repo's TypeScript, builds, and its dev server serves the entry with every import resolved.
+//   A consumer's dev server adds
 //   the `development` condition, which once pointed the published `exports` at sources that are
 //   not in the tarball.
 import { execFileSync, spawn } from "node:child_process";
@@ -21,13 +24,17 @@ import {
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SOURCE_CONDITION } from "./source-condition.ts";
 
 const root = join(import.meta.dirname, "..");
 
-/** The condition that points the workspace packages at their sources; never published. */
-const SOURCE_CONDITION = "@fragiola/source";
+/** The only conditions a published `exports` may use: ESM, with its types. */
+const PUBLISHED_CONDITIONS = ["types", "import", "default"];
 
-/** What the packed `exports` must not contain: a source condition, or a target outside `dist`. */
+/**
+ * What is wrong with published `exports`: a condition other than `types`, `import` and `default`
+ * (a source condition, `development`, …), or a target outside `dist`.
+ */
 export function exportProblems(exports: unknown, path = "exports"): string[] {
     if (typeof exports === "string") {
         return exports.startsWith("./dist/") || exports === "./package.json"
@@ -38,11 +45,36 @@ export function exportProblems(exports: unknown, path = "exports"): string[] {
         return [`${path}: not a string or an object`];
     }
     return Object.entries(exports).flatMap(([key, value]) => [
-        ...(key === SOURCE_CONDITION || key === "development"
-            ? [`${path}: the "${key}" condition is published`]
-            : []),
+        ...(key.startsWith(".") || PUBLISHED_CONDITIONS.includes(key)
+            ? []
+            : [`${path}: the "${key}" condition is published`]),
         ...exportProblems(value, `${path}["${key}"]`),
     ]);
+}
+
+/** `exports` without the source condition, at any depth (key order kept: it is the priority). */
+export function withoutSource(exports: unknown): unknown {
+    if (exports === null || typeof exports !== "object") return exports;
+    return Object.fromEntries(
+        Object.entries(exports)
+            .filter(([key]) => key !== SOURCE_CONDITION)
+            .map(([key, value]) => [key, withoutSource(value)]),
+    );
+}
+
+/**
+ * Whether the published `exports` (`publishConfig.exports`, a hand-written copy) are the repo's
+ * `exports` without the source condition: the same subpaths, conditions, order and targets.
+ */
+export function publishedExportsProblems(
+    exports: unknown,
+    published: unknown,
+): string[] {
+    const expected = JSON.stringify(withoutSource(exports));
+    const actual = JSON.stringify(published);
+    return expected === actual
+        ? []
+        : [`published exports ${actual} are not the exports ${expected}`];
 }
 
 function run(command: string, args: string[], cwd: string): void {
@@ -75,11 +107,20 @@ function packedManifest(tarball: string): PackedManifest {
     );
 }
 
-function lint(tarball: string): string[] {
+/** The `exports` of `packages/<name>/package.json`, the source condition included. */
+function repoExports(name: string): unknown {
+    const manifest = JSON.parse(
+        readFileSync(join(root, "packages", name, "package.json"), "utf8"),
+    ) as { exports?: unknown };
+    return manifest.exports;
+}
+
+function lint(name: string, tarball: string): string[] {
     const manifest = packedManifest(tarball);
-    const problems = exportProblems(manifest.exports).map(
-        (problem) => `${manifest.name}: ${problem}`,
-    );
+    const problems = [
+        ...exportProblems(manifest.exports),
+        ...publishedExportsProblems(repoExports(name), manifest.exports),
+    ].map((problem) => `${manifest.name}: ${problem}`);
     run("pnpm", ["exec", "publint", tarball, "--strict"], root);
     run("pnpm", ["exec", "attw", tarball, "--profile", "esm-only"], root);
     return problems;
@@ -106,7 +147,9 @@ const SMOKE_MAIN = `import {
     createModel,
     Dockable,
     type LayoutJson,
+    type Model,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
@@ -125,14 +168,18 @@ const json: LayoutJson<Types> = {
     },
 };
 
-const model = createModel<Types>(json);
+const model: Model<Types> = createModel<Types>(json);
+
+function label(tab: TabOf<Types>): string {
+    return tab.label;
+}
 
 function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
     if (child.type === "tabset") {
         return (
             <Dockable.TabSet node={child}>
                 <Dockable.TabList<Types> aria-label="Tabs">
-                    {(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}
+                    {(tab) => <Dockable.Tab node={tab}>{label(tab)}</Dockable.Tab>}
                 </Dockable.TabList>
                 <Dockable.TabSetContent />
             </Dockable.TabSet>
@@ -169,7 +216,10 @@ function writeSmokeApp(dir: string, core: string, react: string): void {
             "react-dom": examplesVersion("react-dom"),
         },
         devDependencies: {
+            "@types/react": examplesVersion("@types/react"),
+            "@types/react-dom": examplesVersion("@types/react-dom"),
             "@vitejs/plugin-react": examplesVersion("@vitejs/plugin-react"),
+            typescript: examplesVersion("typescript"),
             vite: examplesVersion("vite"),
         },
     };
@@ -190,6 +240,26 @@ function writeSmokeApp(dir: string, core: string, react: string): void {
     writeFileSync(
         join(dir, "index.html"),
         `<!doctype html>\n<html lang="en">\n<body>\n<div id="root"></div>\n<script type="module" src="/src/main.tsx"></script>\n</body>\n</html>\n`,
+    );
+    // strict, with the published declarations checked too (no skipLibCheck)
+    const tsconfig = {
+        compilerOptions: {
+            target: "ES2022",
+            lib: ["ES2022", "DOM", "DOM.Iterable"],
+            module: "ESNext",
+            moduleResolution: "bundler",
+            jsx: "react-jsx",
+            strict: true,
+            noUncheckedIndexedAccess: true,
+            verbatimModuleSyntax: true,
+            noEmit: true,
+            types: [],
+        },
+        include: ["src"],
+    };
+    writeFileSync(
+        join(dir, "tsconfig.json"),
+        `${JSON.stringify(tsconfig, null, 4)}\n`,
     );
     mkdirSync(join(dir, "src"));
     writeFileSync(join(dir, "src/main.tsx"), SMOKE_MAIN);
@@ -240,6 +310,9 @@ async function loadThroughDevServer(dir: string): Promise<void> {
         ],
         { cwd: dir, stdio: "inherit" },
     );
+    const exited = new Promise<void>((resolve) => {
+        server.once("exit", () => resolve());
+    });
     try {
         const deadline = Date.now() + 30_000;
         for (;;) {
@@ -265,7 +338,9 @@ async function loadThroughDevServer(dir: string): Promise<void> {
             `check-package: the dev server loads the entry (${imports.length} imports)`,
         );
     } finally {
+        // the app's directory is removed next: the server must be gone first
         server.kill();
+        await exited;
     }
 }
 
@@ -277,10 +352,12 @@ async function main() {
         const tarballs = new Map(
             names.map((name) => [name, pack(name, packs)]),
         );
-        const problems = [...tarballs.values()].flatMap(lint);
+        const problems = [...tarballs].flatMap(([name, tarball]) =>
+            lint(name, tarball),
+        );
         if (problems.length > 0) {
             throw new Error(
-                `The packed exports are not dist-only:\n${problems.join("\n")}`,
+                `The packed exports are wrong:\n${problems.join("\n")}`,
             );
         }
         const core = tarballs.get("core");
@@ -299,15 +376,17 @@ async function main() {
         }
         writeSmokeApp(app, core, react);
         run("pnpm", ["install", "--no-frozen-lockfile"], app);
+        run("pnpm", ["exec", "tsc", "--noEmit"], app);
         run("pnpm", ["exec", "vite", "build"], app);
         await loadThroughDevServer(app);
         console.log("check-package: both packages can be published");
     } finally {
-        rmSync(packs, { recursive: true, force: true });
-        rmSync(app, { recursive: true, force: true });
+        rmSync(packs, { recursive: true, force: true, maxRetries: 5 });
+        rmSync(app, { recursive: true, force: true, maxRetries: 5 });
     }
 }
 
-if (process.argv[1] === import.meta.filename) {
+// only when run, not when a test imports it (`import.meta.main` holds through a symlinked path)
+if (import.meta.main) {
     await main();
 }

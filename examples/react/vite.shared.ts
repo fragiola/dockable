@@ -5,6 +5,7 @@ import {
     type Plugin,
     type UserConfig,
 } from "vite";
+import { withSourceCondition } from "../../scripts/source-condition.ts";
 import { THEMES } from "./src/examples/_themes/themes.ts";
 
 // How an app renders the examples in place: shared by this app's Vite config and
@@ -14,28 +15,23 @@ import { THEMES } from "./src/examples/_themes/themes.ts";
 export const EXAMPLES_SRC = resolve(import.meta.dirname, "src");
 
 /**
- * The export condition that points the workspace packages at their sources (first key of their
- * `exports`). Namespaced so that no consumer's tool ever sets it; the published `exports`
- * (`publishConfig`) do not carry it.
+ * For a Vitest project: the workspace packages from their sources in both environments, the
+ * client one (jsdom) and the server one (node), so that switching a test's environment never
+ * falls back to `dist` silently.
  */
-export const SOURCE_CONDITION = "@fragiola/source";
-
-/**
- * Vite's default conditions with the source one first. Setting `conditions` replaces Vite's
- * defaults, so they are spread back: `client` for the browser (and jsdom), `server` for the
- * node environment of Vitest.
- */
-export function sourceConditions(target: "client" | "server"): string[] {
-    return [
-        SOURCE_CONDITION,
-        ...(target === "client"
-            ? defaultClientConditions
-            : defaultServerConditions),
-    ];
+export function examplesTestResolve(): Pick<UserConfig, "resolve" | "ssr"> {
+    return {
+        resolve: examplesResolve("serve"),
+        ssr: {
+            resolve: {
+                conditions: withSourceCondition(defaultServerConditions),
+            },
+        },
+    };
 }
 
 /**
- * `#/` is src/. Dev resolves the workspace packages to their sources (`SOURCE_CONDITION`) so the
+ * `#/` is src/. Dev resolves the workspace packages to their sources (the source condition) so the
  * core and React sources hot-reload; the build uses `dist`. One React: the playground imports
  * these files from outside this app.
  */
@@ -46,7 +42,7 @@ export function examplesResolve(
         alias: [{ find: /^#\//, replacement: `${EXAMPLES_SRC}/` }],
         dedupe: ["react", "react-dom"],
         ...(command === "serve"
-            ? { conditions: sourceConditions("client") }
+            ? { conditions: withSourceCondition(defaultClientConditions) }
             : {}),
     };
 }

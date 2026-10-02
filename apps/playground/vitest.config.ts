@@ -1,13 +1,9 @@
 import { defineConfig } from "vitest/config";
-import {
-    examplesResolve,
-    sourceConditions,
-} from "../../examples/react/vite.shared.ts";
+import { examplesTestResolve } from "../../examples/react/vite.shared.ts";
 
 export default defineConfig({
-    resolve: examplesResolve("serve"),
-    // the node environment resolves through `ssr`: the packages from their sources there too
-    ssr: { resolve: { conditions: sourceConditions("server") } },
+    // the examples' wiring, and the packages from their sources in either environment
+    ...examplesTestResolve(),
     test: {
         name: "playground",
         environment: "node",
