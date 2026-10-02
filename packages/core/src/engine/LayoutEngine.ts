@@ -1006,14 +1006,15 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 shared.scroll.delete(id);
             }
         }
-        this.forgetRemovedNodes();
+        this.forgetNodesOutside();
         for (const { id } of this.state().windows) {
-            this.popoutManager?.getLayoutEngine(id)?.forgetRemovedNodes();
+            this.popoutManager?.getLayoutEngine(id)?.forgetNodesOutside();
         }
     }
 
-    private forgetRemovedNodes() {
-        const gone = (id: string) => !this.model.get("node-by", { id });
+    private forgetNodesOutside() {
+        const gone = (id: string) =>
+            this.model.get("layout-id-by", { nodeId: id }) !== this.layoutId;
         for (const key of this.rects.keys()) {
             if (gone(key.slice(key.indexOf(":") + 1))) {
                 this.rects.delete(key);
