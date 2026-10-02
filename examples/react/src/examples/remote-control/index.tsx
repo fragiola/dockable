@@ -366,7 +366,6 @@ function Action({
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -381,7 +380,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -406,7 +404,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

@@ -20,7 +20,6 @@ export interface EditorData {
     dirty?: boolean;
 }
 
-/** What the layout holds: each tab component and the type of its data. */
 export type Types = {
     tabs: {
         editor: EditorData;

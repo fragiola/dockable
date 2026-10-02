@@ -26,7 +26,6 @@ import * as styles from "./styles";
 // step; undo and redo load it back into the same model (`layout.load`), so mounted content is
 // kept. A splitter drag, many transient `row.resize` commands, is a single step.
 
-// What the layout holds: the live JSON, short documents and charts, each named by its label.
 type Types = {
     tabs: {
         json: undefined;
@@ -81,8 +80,7 @@ const IGNORED: readonly CommandName[] = ["tabset.activate", "tab.select"];
 
 export default function UndoRedo() {
     // one model and one manager for the example's lifetime: undo and redo load a layout into the
-    // same model, so nothing is swapped (and nothing is disposed in an effect cleanup: StrictMode
-    // would dispose it and remount the same instance)
+    // same model, so nothing is swapped
     const [model] = useState(() => createModel<Types>(json));
     const [undo] = useState(
         () => new UndoManager(model, { ignoreCommands: IGNORED }),
@@ -153,13 +151,8 @@ export default function UndoRedo() {
                     ))}
                 </ol>
             </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
-                <Dockable.Root
-                    // the same model throughout: undo and redo change its state, not the model
-                    model={model}
-                    className={styles.root}
-                >
+                <Dockable.Root model={model} className={styles.root}>
                     <Dockable.Row<Types>
                         renderSplitter={(props) => <Splitter {...props} />}
                     >
@@ -221,7 +214,6 @@ function describe(command: CommandName): string {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -248,7 +240,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -330,7 +321,6 @@ function LayoutJsonPanel() {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

@@ -241,7 +241,6 @@ function Zone({
     );
 }
 
-/** A tab's content: `tab.data` and the component narrow together. */
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "table":
@@ -261,7 +260,6 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -276,7 +274,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -288,7 +285,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -302,7 +298,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

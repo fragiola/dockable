@@ -84,7 +84,9 @@ export const dropIndicator = (state: DropIndicatorState) =>
 ```
 
 `hello-layout` is the reference: the recursion (`renderNode`), the `TabSet` and the `Splitter` are
-functions in the same file, below the default export.
+functions in the same file, below the default export. Its comments explain the parts every example
+shares (the sized wrapper, the recursion, the splitter, the active marker, the drop indicator);
+the other examples comment only what they do differently.
 
 - **`index.tsx` renders `<Dockable.Root>`** and the tree under it. Parts may be components in the
   same file or in sibling files of the same folder (`tabs.tsx`, `panels.tsx`), never in a shared

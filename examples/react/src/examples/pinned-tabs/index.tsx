@@ -141,7 +141,6 @@ export default function PinnedTabs() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -168,7 +167,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <TabLabel tab={tab} />
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -185,7 +183,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** A tab's content: `tab.data` and the component narrow together. */
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "chart":
@@ -278,7 +275,6 @@ function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

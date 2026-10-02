@@ -19,7 +19,6 @@ import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-// What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
         chart: { kind: ChartKind; seed: number };
@@ -110,7 +109,6 @@ export default function CloseTabs() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -223,7 +221,6 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
             ) : (
                 <Lock aria-hidden className={styles.lockIcon} />
             )}
-            {/* the active tabset's marker */}
             <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
@@ -245,7 +242,6 @@ function CloseTabsetButton({ tabset }: { tabset: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

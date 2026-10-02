@@ -292,7 +292,6 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -352,7 +351,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** A tab with a close button. */
 function ClosableTab({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
     return (
@@ -376,7 +374,6 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
     );
 }
 
-/** The bar between two children of a row. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

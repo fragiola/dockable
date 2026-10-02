@@ -62,7 +62,6 @@ const popoutURL = `${import.meta.env.BASE_URL}popout.html`;
 export default function Popout() {
     const [model] = useState(() => createModel<Types>(json));
     return (
-        // The root needs a size: the wrapper gives it one, and the gutter around it.
         <div className={styles.frame}>
             <Dockable.Root
                 model={model}
@@ -72,7 +71,6 @@ export default function Popout() {
                 popoutMirrorRoot
                 className={styles.root}
             >
-                {/* The layout's rows and tabsets: the developer owns the recursion. */}
                 <Dockable.Row<Types>
                     renderSplitter={(props) => <Splitter {...props} />}
                 >
@@ -117,7 +115,6 @@ export default function Popout() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -147,7 +144,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -195,7 +191,6 @@ function PopoutButton({ tabset }: { tabset: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

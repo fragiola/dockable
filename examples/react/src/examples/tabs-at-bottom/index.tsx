@@ -14,7 +14,6 @@ import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-// What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
         table: undefined;
@@ -65,7 +64,6 @@ export default function TabsAtBottom() {
     const [position, setPosition] = useState<Position>("bottom");
     const bottom = position === "bottom";
 
-    /** A row's child: a tabset, or a nested row rendered by this same function. */
     const renderNode = (node: TabsetNode<Types> | RowNode<Types>) =>
         node.type === "row" ? (
             <Dockable.Row
@@ -105,7 +103,6 @@ export default function TabsAtBottom() {
                     </button>
                 ))}
             </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
                 <Dockable.Root model={model} className={styles.root}>
                     <Dockable.Row<Types>
@@ -191,7 +188,6 @@ function TabSet({
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

@@ -159,8 +159,6 @@ export default function IdeWorkbench() {
             <div className={styles.stage}>
                 <div className={styles.frame}>
                     <Dockable.Root model={model} className={styles.root}>
-                        {/* the borders around the editors: a strip of tabs on each side that has
-                            some, and the area where the selected tab's panel opens */}
                         <Dockable.Borders<Types>
                             renderBar={(border) => <Border node={border} />}
                             renderContent={(border) => (
@@ -175,7 +173,6 @@ export default function IdeWorkbench() {
                                 {renderNode}
                             </Dockable.Row>
                         </Dockable.Borders>
-                        {/* every tab's content, editors and border panels alike */}
                         <Dockable.Panels<Types>>
                             {(tab) => (
                                 <Dockable.Panel
@@ -264,7 +261,6 @@ function StatusBar({ model }: { model: Model<Types> }) {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -342,11 +338,6 @@ function Border({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/**
- * Where a border's panel opens, with its splitter on the layout's side. An overlay border paints
- * over the layout, so it gets a stacking order (above the tabsets and their splitters), a shadow
- * and a line on the side facing the layout.
- */
 function BorderContent({ node }: { node: BorderNode<Types> }) {
     return (
         <Dockable.BorderContent
@@ -357,10 +348,6 @@ function BorderContent({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/**
- * The bar between two children of a row, or between a border's panel and the layout, with a grip
- * for the themes that show one.
- */
 function Splitter({
     node,
     index,

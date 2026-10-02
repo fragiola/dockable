@@ -99,7 +99,6 @@ function WorkbenchTab({
                         />
                     </button>
                 ) : null}
-                {/* the active tabset's marker */}
                 <span aria-hidden="true" className={styles.tabMarker} />
             </Dockable.Tab>
             <ContextMenu.Content>

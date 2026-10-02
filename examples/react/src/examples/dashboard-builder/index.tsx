@@ -72,7 +72,6 @@ const EMPTY: LayoutJson<Types> = {
  * `model.can` on every hover, so a refused target shows no drop indicator.
  */
 const dropRules: Middleware<Types> = (ctx, next) => {
-    // the command narrows the payload
     if (ctx.command === "tabset.move") {
         const { tabsetId, to, location = "center" } = ctx.payload;
         const moved = ctx.get("node-by", { id: tabsetId });
@@ -303,7 +302,6 @@ function PaletteItem({
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -341,7 +339,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 <span className={styles.tabName}>
                                     {tab.label}
                                 </span>
-                                {/* the active tabset's marker */}
                                 <span
                                     aria-hidden="true"
                                     className={styles.tabMarker}
@@ -371,7 +368,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

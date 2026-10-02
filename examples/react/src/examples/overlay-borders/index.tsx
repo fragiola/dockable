@@ -27,7 +27,6 @@ import * as styles from "./styles";
 // shows up while a tab is dragged near the layout's right edge, so it can take the drop. The edge
 // indicators (Dockable.EdgeIndicator) mark where a drop docks to an edge instead.
 
-// What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
         kpi: { seed: number };
@@ -113,12 +112,8 @@ export default function OverlayBorders() {
     return (
         <div className={styles.page}>
             <Toolbar model={model} />
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
                 <Dockable.Root model={model} className={styles.root}>
-                    {/* The model's borders around the main layout: each one's strip, and the
-                        area where its selected tab's panel opens (over the layout when the
-                        border is an overlay). */}
                     <Dockable.Borders<Types>
                         renderBar={(border) => <Border node={border} />}
                         renderContent={(border) => (
@@ -131,7 +126,6 @@ export default function OverlayBorders() {
                             {renderNode}
                         </Dockable.Row>
                     </Dockable.Borders>
-                    {/* Every tab's content, the borders' too, positioned by the engine. */}
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
@@ -223,7 +217,6 @@ function ModeSwitch({
             className={styles.modeButton}
             aria-pressed={overlay}
             onClick={() =>
-                // a command on the model: it goes through the model's middleware like any change
                 model.run("border.configure", {
                     borderId: border.id,
                     mode: overlay ? "docked" : "overlay",
@@ -235,7 +228,6 @@ function ModeSwitch({
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -250,7 +242,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -262,7 +253,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -294,7 +284,6 @@ function Border({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/** Where a border's panel opens, with a splitter on the layout's side of it to resize it. */
 function BorderContent({ node }: { node: BorderNode<Types> }) {
     return (
         <Dockable.BorderContent
@@ -305,8 +294,6 @@ function BorderContent({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, or beside a border's panel, with a grip for the themes
- * that show one. */
 function Splitter(props: SplitterProps<Types>) {
     return (
         <Dockable.Splitter

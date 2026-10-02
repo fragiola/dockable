@@ -23,7 +23,7 @@ import * as styles from "./styles";
 // renaming is one command, `tab.configure` with the new label, whatever the tab's component.
 // Whether a tab may be renamed is the app's choice (`renamable` in its data).
 
-// What the layout holds: a note, a chart and a KPI. A note's data may say it keeps its name.
+// A note's data may say it keeps its name.
 // The chart's title and the KPI's caption are the tab's label: a rename shows in the content too.
 type Types = {
     tabs: {
@@ -81,7 +81,6 @@ export default function RenameTabs() {
     // one tab at most is being renamed
     const [editing, setEditing] = useState<string | null>(null);
 
-    /** A row's child: a tabset, or a nested row rendered by this same function. */
     const renderNode = (node: TabsetNode<Types> | RowNode<Types>) =>
         node.type === "row" ? (
             <Dockable.Row
@@ -211,13 +210,11 @@ function RenamableTab({
             ) : (
                 <span className={styles.tabName}>{tab.label}</span>
             )}
-            {/* the active tabset's marker */}
             <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

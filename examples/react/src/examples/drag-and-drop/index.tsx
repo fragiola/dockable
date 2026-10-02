@@ -21,7 +21,6 @@ import * as styles from "./styles";
 // `tabDragSpeed`. During a drag the edge indicators (Dockable.EdgeIndicator) mark the four bands
 // where a drop docks to an edge.
 
-// What the layout holds: one component per kind of content, each named by its label.
 type Types = {
     tabs: {
         chart: { kind: ChartKind; seed: number };
@@ -88,7 +87,6 @@ const EDGES = [
 export default function DragAndDrop() {
     const [model] = useState(() => createModel<Types>(json));
     return (
-        // The root needs a size: the wrapper gives it one, and the gutter around it.
         <div className={styles.frame}>
             <Dockable.Root
                 model={model}
@@ -164,7 +162,6 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -194,7 +191,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -208,7 +204,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

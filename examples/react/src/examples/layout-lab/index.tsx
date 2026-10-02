@@ -230,7 +230,6 @@ function CommandMonitor({ model, veto }: { model: Model<Types>; veto: Veto }) {
     return <CommandLog log={log} onClear={() => setLog([])} />;
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -245,7 +244,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
     return (
@@ -275,7 +273,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                     className={styles.tabCloseIcon}
                                 />
                             </button>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -307,7 +304,6 @@ function Border({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/** Where a border's panel opens, with a splitter on the layout's side. */
 function BorderContent({ node }: { node: BorderNode<Types> }) {
     return (
         <Dockable.BorderContent
@@ -318,7 +314,6 @@ function BorderContent({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, or beside a border's panel. */
 function Splitter(props: SplitterProps<Types>) {
     return (
         <Dockable.Splitter

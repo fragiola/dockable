@@ -74,8 +74,6 @@ export default function ComponentFactory() {
                 >
                     {renderNode}
                 </Dockable.Row>
-                {/* `renderOnDemand` is on by default: a tab's content mounts the first time
-                        it is shown */}
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
@@ -89,7 +87,6 @@ export default function ComponentFactory() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -116,7 +113,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -164,7 +160,6 @@ function AddMenu({ tabset }: { tabset: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

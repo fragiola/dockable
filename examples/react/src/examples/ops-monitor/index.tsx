@@ -109,7 +109,6 @@ const inIncidentRegion = (node: Node<Types> | undefined) =>
 const lockIncidentRegion: Middleware<Types> = (ctx, next) => {
     const refuse = () =>
         veto("Only incident tabs belong in the incident region");
-    // the command narrows the payload
     if (ctx.command === "tab.move") {
         const { tabId, to, location = "center" } = ctx.payload;
         const intoRegion = to === INCIDENT_TABSET && location === "center";
@@ -221,7 +220,6 @@ export default function OpsMonitor() {
                     Resolve all
                 </button>
             </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
                 <Dockable.Root
                     model={model}
@@ -271,7 +269,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <MonitorTabSet node={node} />;
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

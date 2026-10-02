@@ -14,7 +14,6 @@ import { ChartPanel, KpiPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-// What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
         doc: { text: string };
@@ -108,7 +107,6 @@ export default function FocusedTab() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -123,7 +121,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tab's content: `tab.data` and the component narrow together. */
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "doc":
@@ -149,15 +146,6 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/**
- * A tabset: a card with the strip of tabs on top and the measured content area below.
- *
- * The focused tab is the selected tab of the active tabset. `data-active` is on the active
- * `Dockable.TabSet`, `data-selected` on each tabset's selected `Dockable.Tab`; a tab does not know
- * whether its tabset is active, so its classes read the tabset's attribute from an ancestor with
- * `in-data-active:` (`:where([data-active]) &`). That is the workaround for gap 1 (no
- * `data-tabset-active` on `Tab`), and it works in any CSS: `[data-active] [data-selected] { … }`.
- */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -169,7 +157,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -183,7 +170,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

@@ -104,7 +104,6 @@ export default function AnalyticsDashboard() {
                                     >
                                         {renderNode}
                                     </Dockable.Row>
-                                    {/* a window shows its own outline during a drag into it */}
                                     <Dockable.DropIndicator
                                         className={styles.dropIndicator}
                                     />
@@ -118,7 +117,6 @@ export default function AnalyticsDashboard() {
     );
 }
 
-/** `tab.data` narrows on `tab.component`: each widget gets its own data type. */
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "chart":
@@ -130,7 +128,6 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -163,7 +160,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                             className={styles.tab(isAlert(tab))}
                         >
                             <TabContent tab={tab} />
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -180,7 +176,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

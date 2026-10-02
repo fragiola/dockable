@@ -24,7 +24,6 @@ import * as styles from "./styles";
 // says whether a command would apply; the menu (and its text) is the consumer's. The tab IS the
 // menu's trigger: `render` puts the Dockable.Tab's props onto ContextMenu.Trigger's element.
 
-// What the layout holds: one component per kind of content, each named by its label.
 type Types = {
     tabs: {
         note: { text: string };
@@ -196,7 +195,6 @@ function MenuTab({ tab }: { tab: TabOf<Types> }) {
                 className={styles.tab}
             >
                 <span className={styles.tabName}>{tab.label}</span>
-                {/* the active tabset's marker */}
                 <span aria-hidden="true" className={styles.tabMarker} />
             </Dockable.Tab>
             <ContextMenu.Content>
@@ -254,7 +252,6 @@ function MenuTab({ tab }: { tab: TabOf<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

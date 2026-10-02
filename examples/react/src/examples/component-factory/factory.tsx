@@ -27,7 +27,6 @@ export interface ContactFormData {
     values: { name: string; email: string };
 }
 
-/** What the layout holds: each tab component and the type of its data. */
 export type Types = {
     tabs: {
         chart: ChartData;
