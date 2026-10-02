@@ -497,8 +497,8 @@ export class StyleMirror {
      */
     copyStyles(): Promise<boolean[]> {
         const promises: Promise<boolean>[] = [];
-        for (const element of this.source.querySelectorAll<HTMLElement>(
-            'style, link[rel="stylesheet"]',
+        for (const element of this.source.head.querySelectorAll<HTMLElement>(
+            'style, link[rel~="stylesheet"]',
         )) {
             this.copyStyle(element, promises);
         }

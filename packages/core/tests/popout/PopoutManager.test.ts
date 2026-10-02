@@ -473,6 +473,26 @@ describe("style mirroring", () => {
         ).not.toContain(".three {}");
     });
 
+    it("copies every stylesheet link of the head, and only the head's styles", () => {
+        const target = fakePopout().document;
+        const link = document.head.appendChild(document.createElement("link"));
+        link.rel = "alternate stylesheet";
+        link.href = "data:text/css,.alt{}";
+        document.body.appendChild(document.createElement("style")).textContent =
+            ".body {}";
+        const mirror = new StyleMirror(document, target);
+        void mirror.copyStyles();
+        expect(target.head.querySelector("link")?.getAttribute("href")).toBe(
+            "data:text/css,.alt{}",
+        );
+        expect(
+            Array.from(target.querySelectorAll("style")).map(
+                (style) => style.textContent,
+            ),
+        ).not.toContain(".body {}");
+        mirror.dispose();
+    });
+
     it("re-syncs CSSOM-inserted rules on the poll", async () => {
         const target = fakePopout().document;
         const style = document.head.appendChild(
