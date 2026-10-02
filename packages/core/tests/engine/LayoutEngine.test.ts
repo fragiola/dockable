@@ -6,7 +6,7 @@ import {
     MAIN_LAYOUT,
     MOVEABLE_ATTRIBUTE,
 } from "../../src";
-import { MOVEABLES_HOME_ATTRIBUTE } from "../../src/engine/LayoutEngine";
+import { MOVEABLES_HOME_ATTRIBUTE } from "../../src/engine/moveables";
 import {
     freshModel,
     mountTwoTabsets,

@@ -5,54 +5,20 @@
 //
 // The engine reads the model's immutable state, keeps every piece of view state (rects, moveable
 // elements, scroll, "rendered") keyed by node id, and changes the layout only through commands.
-import type {
-    BatchEntry,
-    CommandError,
-    CommandEvent,
-    CommandResult,
-} from "../commands/types";
+import type { CommandEvent, CommandResult } from "../commands/types";
 import { DragDropManager, type OnExternalDrag } from "../dnd/DragDropManager";
 import type { DragGroup } from "../dnd/DragGroup";
-import {
-    type EdgeBand,
-    edgeBands,
-    flip,
-    type Orientation,
-} from "../geometry/dock";
-import {
-    contains,
-    EMPTY_RECT,
-    equalsWhenRounded,
-    positionElement,
-    type Rect,
-    relativeTo,
-    toRect,
-} from "../geometry/rect";
-import { type KeyEventLike, matchesKey } from "../keyboard/keymap";
-import { computeTabOverflow } from "../overflow/tabOverflow";
-import {
-    computePaths,
-    getTabButtonId,
-    getTabPanelId,
-    windowPath,
-} from "../paths";
 import { PopoutManager, type PopoutOptions } from "../popout/PopoutManager";
-import {
-    type FlexSizing,
-    flexGrow,
-    type SizeRange,
-    sizeRanges,
-} from "../split/split";
-import { borderShown, resolveBorder, resolveLayout } from "../state/defaults";
+import { flexGrow } from "../split/split";
 import type { Model } from "../state/model";
 import type { QueryArgs } from "../state/queries";
-import type { AnyBorder, AnyRow, AnyState } from "../state/tree";
-import {
-    type AnyTypes,
-    type DockableTypes,
-    MAIN_LAYOUT,
-    type TabContainer,
-} from "../state/types";
+import { type AnyTypes, type DockableTypes, MAIN_LAYOUT } from "../state/types";
+import type { LayoutEngineAdapter } from "./adapter";
+import { Derived } from "./derived";
+import { defaultMeasure, Measure, type MeasureFunction } from "./measure";
+import { Moveables } from "./moveables";
+import { Overflow } from "./overflow";
+import { Overlay } from "./overlay";
 import type {
     EngineActionKey,
     EngineActionPayload,
@@ -62,21 +28,8 @@ import type {
     EngineGetResult,
     EngineIsKey,
     EngineIsPayload,
-    OverlayPlacement,
 } from "./verbs";
-
-/** The kinds of element whose geometry the engine measures. */
-export type MeasurableKind =
-    | "row"
-    | "tabset"
-    | "tabstrip"
-    | "tabsetcontent"
-    | "tabbutton"
-    | "borderheader"
-    | "bordercontent";
-
-/** Measures an element in viewport coordinates. Defaults to `getBoundingClientRect`. */
-export type MeasureFunction = (element: HTMLElement) => Rect;
+import { Windows } from "./windows";
 
 export interface LayoutEngineOptions<T extends DockableTypes = AnyTypes> {
     model: Model<T>;
@@ -110,244 +63,6 @@ export type LayoutEngineSettings<T extends DockableTypes = AnyTypes> = Pick<
     | "dragGroup"
 >;
 
-/** How a panel hosts its content (a view option, not layout state). */
-export interface MoveableOptions {
-    /** the content scrolls inside its panel (default true); false clips it */
-    scrollable?: boolean | undefined;
-    /** the content is remounted when it moves to another window, so it is not parked (default false) */
-    remountInWindow?: boolean | undefined;
-}
-
-/** Attribute that marks the element hosting a tab's content. */
-export const MOVEABLE_ATTRIBUTE = "data-dockable-moveable";
-/** Attribute that marks the hidden element parking moveables whose panel is gone. */
-export const MOVEABLES_HOME_ATTRIBUTE = "data-dockable-moveables-home";
-/**
- * Marks an element that belongs to an open overlay border (its wrapper, splitter, toolbar): a
- * press on it does not close the overlay.
- */
-export const OVERLAY_ATTRIBUTE = "data-dockable-overlay";
-
-const defaultMeasure: MeasureFunction = (element) =>
-    element.getBoundingClientRect();
-
-const NO_TABS: readonly string[] = Object.freeze([]);
-
-/**
- * What only an adapter (React today; Angular and Vue next) calls on an engine: the render cycle,
- * element registration, moveable elements, measured geometry, overlay borders, and the drag and
- * popout machinery. An app never needs it: it uses `run`, `can`, `check`, `get` and `is`.
- *
- * The adapter's side of the cycle:
- * 1. call `prepare()` before rendering a layout (paths and size ranges are computed as the render reads them);
- * 2. render the structure, registering elements with `registerMeasurable`, `registerTabPanel`
- *    and `registerSplitter`;
- * 3. run `engine.run("measure-and-position")` after every commit (a layout effect in React);
- * 4. re-render when the revision from `subscribe`/`getSnapshot` changes.
- */
-export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
-    /** the model this engine draws */
-    readonly model: Model<T>;
-    /**
-     * the main layout's engine (this one, for the main engine). It owns the popout windows, the
-     * drag and drop state and the view state every engine of the model shares
-     */
-    readonly main: LayoutEngine<T>;
-    /** the page-unique scope of this layout's DOM ids and window names */
-    readonly idScope: string;
-    /** the engine of the layout a node is in: a popout's, or the main one */
-    engineOf(id: string): LayoutEngine<T>;
-    /** the engine of a popout window's layout (it shares this main engine's view state) */
-    createPopoutEngine(layoutId: string): LayoutEngine<T>;
-    /** updates the options an adapter passes on every render */
-    setOptions(options: LayoutEngineSettings<T>): void;
-
-    /** calls `listener` when adapters should re-render; returns its remover */
-    subscribe(listener: () => void): () => void;
-    /** the render revision: a number that changes whenever adapters should re-render */
-    getSnapshot(): number;
-    /**
-     * prepares the layout for rendering; the `data-layout-path` of every node and the size ranges
-     * rows and tabsets are rendered with are computed as the render reads them. Call before rendering
-     */
-    prepare(): void;
-    /** the orientation of a row of this layout */
-    rowOrientation(rowId: string): Orientation;
-
-    /**
-     * attaches the layout's root element (the containing block panels are positioned in) and
-     * starts observing it and its window. Idempotent; another element detaches the previous one
-     */
-    attachRoot(element: HTMLElement): void;
-    /** detaches the root element and releases every observer and listener */
-    detachRoot(): void;
-    /** detaches and forgets everything; the engine must not be used afterwards */
-    dispose(): void;
-
-    /** registers (or, with `null`, unregisters) an element whose geometry the engine measures */
-    registerMeasurable(
-        id: string,
-        kind: MeasurableKind,
-        element: HTMLElement | null,
-    ): void;
-    /**
-     * registers (or unregisters) a tab container's tab list for tab overflow: when its tabs do
-     * not fit, the engine hides the ones that do not (keeping the selected one) and reports them
-     * through `getHiddenTabs`. `vertical` is the direction the tabs run
-     */
-    registerTabList(
-        containerId: string,
-        element: HTMLElement | null,
-        vertical?: boolean,
-    ): void;
-    /**
-     * registers (or unregisters) the overflow trigger of a tab container: the space it takes is
-     * reserved in the strip
-     */
-    registerOverflowTrigger(
-        containerId: string,
-        element: HTMLElement | null,
-    ): void;
-    /** the ids of a container's tabs hidden by tab overflow (the same array until it changes) */
-    getHiddenTabs(containerId: string): readonly string[];
-    /** calls `listener` when a container's hidden tabs change; returns its remover */
-    subscribeOverflow(listener: () => void): () => void;
-    /** registers (or unregisters) the element a tab's content panel is positioned with */
-    registerTabPanel(tabId: string, element: HTMLElement | null): void;
-    /**
-     * registers a splitter element; returns its remover. Its thickness (its width while
-     * `isHorizontal()`, its height otherwise) becomes the splitter size of every layout of the model
-     */
-    registerSplitter(
-        element: HTMLElement,
-        isHorizontal: () => boolean,
-    ): () => void;
-    /** the registered elements (tests and debugging) */
-    getRegistrations(): {
-        measurables: ReadonlyMap<
-            string,
-            { kind: MeasurableKind; id: string; element: HTMLElement }
-        >;
-        tabPanels: ReadonlyMap<string, HTMLElement>;
-        splitters: ReadonlyMap<HTMLElement, () => boolean>;
-    };
-
-    /** a measured rect of a node of this layout, relative to the layout root */
-    rect(kind: MeasurableKind, id: string): Rect | undefined;
-    /** an element's rect relative to the layout root */
-    rectInLayout(element: HTMLElement): Rect;
-    /** the layout root's rect in viewport coordinates (cached for a measure pass) */
-    getDomRect(): Rect;
-    /** the layout root's rect in viewport coordinates, measured now */
-    getFreshDomRect(): Rect;
-    /**
-     * the edge drop bands of this layout's root row, relative to the layout root: where a drop
-     * docks to an edge, and where an edge indicator goes. Empty when edge docking is off
-     */
-    edgeBands(): EdgeBand[];
-
-    /**
-     * the element that hosts a tab's content (`<div data-dockable-moveable>`), created on first
-     * use and kept for as long as the tab exists, so moving a tab never remounts its content
-     */
-    getMoveableElement(tabId: string): HTMLElement;
-    /**
-     * moves the tab's moveable element into `panel`. The same element is re-parented, never
-     * cloned, so content state survives moves between panels and documents
-     */
-    attachMoveable(
-        tabId: string,
-        panel: HTMLElement,
-        options?: MoveableOptions,
-    ): void;
-    /**
-     * parks the tab's moveable element in the hidden moveables home when its panel goes away, so
-     * its content is never destroyed by unmounting a panel
-     */
-    releaseMoveable(
-        tabId: string,
-        panel?: HTMLElement,
-        options?: MoveableOptions,
-    ): void;
-    /** hands a tab's moveable element over (a drag group transfer); undefined if none */
-    takeMoveable(tabId: string): HTMLElement | undefined;
-    /** adopts another model's moveable element for a tab (a drag group transfer) */
-    adoptMoveable(tabId: string, element: HTMLElement | undefined): void;
-    /**
-     * whether a tab's content should be rendered: once rendered it stays rendered; before that,
-     * when its content area has a size and it is selected (or `renderOnDemand` is off)
-     */
-    shouldRender(tabId: string, renderOnDemand?: boolean): boolean;
-
-    /**
-     * call on every `pointerdown` of the document (capture phase): a press in the main layout's
-     * area outside an open overlay panel closes that panel. Returns true when a panel closed
-     */
-    handleOverlayPointerDown(event: {
-        target: EventTarget | null;
-        clientX: number;
-        clientY: number;
-    }): boolean;
-    /**
-     * call on every `keydown` with the close key: with focus in an open overlay panel or on its
-     * tab button, the key closes the panel. Returns true (and prevents the default) when it did
-     */
-    handleOverlayKeyDown(
-        event: KeyEventLike & { preventDefault(): void },
-        key: string | undefined,
-    ): boolean;
-
-    /** whether splitters resize live (else they preview and commit on release) */
-    isRealtimeResize(): boolean;
-    /** marks a splitter drag of the model as started or ended */
-    setSplitterDragging(dragging: boolean): void;
-    /** the drag-and-drop state machine of this layout */
-    getDragDropManager(): DragDropManager;
-    /** the drag group this layout exchanges tabs in (the main engine's), if any */
-    getDragGroup(): DragGroup | undefined;
-    /** the handler that accepts foreign drags (set on the main engine) */
-    getOnExternalDrag(): OnExternalDrag<T> | undefined;
-    /** seconds a view may take to animate the drop outline */
-    getTabDragSpeed(): number;
-    /** the popout windows of the model (owned by the main engine) */
-    getPopoutManager(): PopoutManager<T>;
-}
-
-interface Axis {
-    readonly size: "width" | "height";
-    readonly start: "Left" | "Top";
-    readonly end: "Right" | "Bottom";
-    readonly gap: "columnGap" | "rowGap";
-}
-
-const HORIZONTAL: Axis = {
-    size: "width",
-    start: "Left",
-    end: "Right",
-    gap: "columnGap",
-};
-const VERTICAL: Axis = {
-    size: "height",
-    start: "Top",
-    end: "Bottom",
-    gap: "rowGap",
-};
-
-function px(value: string | undefined): number {
-    return Number.parseFloat(value ?? "") || 0;
-}
-
-/** a border only counts when drawn (some engines report a width for `none`) */
-function borderWidth(
-    style: CSSStyleDeclaration | undefined,
-    side: Axis["start"] | Axis["end"],
-): number {
-    const kind = style?.[`border${side}Style`];
-    return kind === "none" || kind === "hidden"
-        ? 0
-        : px(style?.[`border${side}Width`]);
-}
-
 /** The handler a verb's table holds for `key`, if it is one of its own keys. */
 function handlerOf<F>(table: object, key: string): F | undefined {
     return Object.hasOwn(table, key)
@@ -355,34 +70,8 @@ function handlerOf<F>(table: object, key: string): F | undefined {
         : undefined;
 }
 
-function hasSize(rect: Rect | undefined): boolean {
-    return !!rect && rect.width > 0 && rect.height > 0;
-}
-
-function rowOrientations(
-    row: AnyRow,
-    orientation: Orientation,
-    into = new Map<string, Orientation>(),
-): Map<string, Orientation> {
-    into.set(row.id, orientation);
-    for (const child of row.children) {
-        if (child.type === "row") {
-            rowOrientations(child, flip(orientation), into);
-        }
-    }
-    return into;
-}
-
-function refused(message: string): { ok: false; error: CommandError } {
-    return { ok: false, error: { code: "refused", message } };
-}
-
-function notFound(message: string): { ok: false; error: CommandError } {
-    return { ok: false, error: { code: "not_found", message } };
-}
-
 /** The view state every engine of a model shares (owned by the main engine). */
-class SharedView {
+export class SharedView {
     readonly moveables = new Map<string, HTMLElement>();
     readonly scroll = new Map<string, { top: number; left: number }>();
     readonly rendered = new Set<string>();
@@ -398,12 +87,6 @@ class SharedView {
 }
 
 let scopes = 0;
-
-/** the element that hosts each moveable's scroll tracking, and the tab it currently hosts */
-const scrollTracking = new WeakMap<
-    HTMLElement,
-    { tab: string; view: SharedView }
->();
 
 /**
  * One layout on screen: the main layout's, or a popout window's (one engine per window). It
@@ -427,7 +110,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private readonly model: Model<T>;
     private readonly main: LayoutEngine<T>;
     private readonly shared: SharedView;
-    private readonly measureElement: MeasureFunction;
     private realtimeResize = true;
     private tabDragSpeed = 0.3;
     private onExternalDragHandler: OnExternalDrag<T> | undefined;
@@ -435,41 +117,16 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private leaveDragGroup: (() => void) | undefined;
     private readonly dragDropManager: DragDropManager;
     private readonly popoutManager: PopoutManager<T> | undefined;
+    private readonly measure: Measure<T>;
+    private readonly overflow: Overflow<T>;
+    private readonly derived: Derived<T>;
+    private readonly moveables: Moveables<T>;
+    private readonly overlay: Overlay<T>;
+    private readonly windows: Windows<T>;
 
-    private layoutRef: HTMLElement | null = null;
     private currentDocument: Document | undefined;
     private currentWindow: Window | undefined;
-    private cachedLayoutDomRect: Rect | undefined;
-    private reLayout = false;
-    private lastRect: Rect = EMPTY_RECT;
-    /** measured elements and their last rects, by `kind:id` */
-    private readonly measurables = new Map<
-        string,
-        { kind: MeasurableKind; id: string; element: HTMLElement }
-    >();
-    private readonly rects = new Map<string, Rect>();
-    private readonly tabPanels = new Map<string, HTMLElement>();
-    private readonly splitters = new Map<HTMLElement, () => boolean>();
-    private geometryResizeObserver: ResizeObserver | undefined;
-    private readonly tabLists = new Map<
-        string,
-        { element: HTMLElement; vertical: boolean }
-    >();
-    private readonly overflowTriggers = new Map<string, HTMLElement>();
-    private readonly naturalTabSizes = new Map<string, number>();
-    private readonly reservedSpace = new Map<string, number>();
-    private readonly hiddenTabs = new Map<string, readonly string[]>();
-    private readonly overflowListeners = new Set<() => void>();
-    private healFrame: number | undefined;
     private readonly teardown: (() => void)[] = [];
-    private pathsFor: AnyState | undefined;
-    private paths = new Map<string, string>();
-    private orientationsFor: AnyState | undefined;
-    private orientations = new Map<string, Orientation>();
-    private rangesFor: AnyState | undefined;
-    private ranges = new Map<string, SizeRange>();
-    private rangesSplitterSize = 0;
-    private rangesDirty = true;
 
     constructor(
         options: LayoutEngineOptions<T>,
@@ -489,10 +146,50 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.check = this.check.bind(this);
         this.get = this.get.bind(this);
         this.is = this.is.bind(this);
-        this.measureElement = options.measure ?? defaultMeasure;
+        this.measure = new Measure(
+            this.model,
+            this.shared,
+            options.measure ?? defaultMeasure,
+            {
+                redraw: () => this.redraw(),
+                updateTabOverflow: () => this.overflow.updateTabOverflow(),
+                observeOverflow: (observer) => this.overflow.observe(observer),
+            },
+        );
+        this.overflow = new Overflow(this.model, this.measure);
+        this.derived = new Derived(
+            this.model,
+            layoutId,
+            this.shared,
+            this.measure,
+            () => this.isMainLayout(),
+        );
+        this.moveables = new Moveables(this.model, this.shared, {
+            ownerDocument: () =>
+                this.main.currentDocument ??
+                this.measure.layoutRef?.ownerDocument,
+            measureOf: (id) => this.engineOf(id).measure,
+        });
         this.dragDropManager = new DragDropManager(
             this as unknown as LayoutEngine<AnyTypes>,
         );
+        this.overlay = new Overlay(
+            this.model,
+            layoutId,
+            this.shared,
+            this.measure,
+            this.derived,
+            this.dragDropManager,
+            {
+                ownerDocument: () => this.currentDocument,
+                isMainLayout: () => this.isMainLayout(),
+            },
+        );
+        this.windows = new Windows(this.model, this.measure, {
+            isSupportsPopout: () => this.isSupportsPopout(),
+            ownerWindow: () => this.currentWindow,
+            windowsOf: (id) => this.engineOf(id).windows,
+        });
         this.popoutManager = main ? undefined : new PopoutManager<T>(this);
         this.setOptions(options);
     }
@@ -578,16 +275,20 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             dryRun: boolean,
         ) => CommandResult<EngineActionResult<K>>;
     } = {
-        popout: ({ nodeId }, dryRun) => this.popout(nodeId, dryRun),
-        "dock-back": ({ nodeId }, dryRun) => this.dockBack(nodeId, dryRun),
+        popout: ({ nodeId }, dryRun) => this.windows.popout(nodeId, dryRun),
+        "dock-back": ({ nodeId }, dryRun) =>
+            this.windows.dockBack(nodeId, dryRun),
         "focus-tabset": ({ direction }, dryRun) =>
-            this.focusAdjacentTabset(direction === "previous" ? -1 : 1, dryRun),
+            this.overlay.focusAdjacentTabset(
+                direction === "previous" ? -1 : 1,
+                dryRun,
+            ),
         // borders belong to the main layout: its engine knows their panels and focus
         "close-overlay-border": ({ borderId }, dryRun) =>
-            this.main.closeOverlayBorder(borderId, dryRun),
+            this.main.overlay.closeOverlayBorder(borderId, dryRun),
         "measure-and-position": (_payload, dryRun) => {
             if (!dryRun) {
-                this.sync();
+                this.measure.sync();
             }
             return { ok: true, value: {} };
         },
@@ -598,12 +299,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             payload: EngineGetPayload<K>,
         ) => EngineGetResult<K>;
     } = {
-        "layout-path-by": ({ nodeId }) => this.path(nodeId),
-        "tab-button-dom-id-by": ({ tabId }) => this.tabButtonId(tabId),
-        "tab-panel-dom-id-by": ({ tabId }) => this.tabPanelId(tabId),
-        "flex-by": ({ nodeId }) => this.flex(nodeId),
+        "layout-path-by": ({ nodeId }) => this.derived.path(nodeId),
+        "tab-button-dom-id-by": ({ tabId }) => this.derived.tabButtonId(tabId),
+        "tab-panel-dom-id-by": ({ tabId }) => this.derived.tabPanelId(tabId),
+        "flex-by": ({ nodeId }) => this.derived.flex(nodeId),
         "overlay-placement-by": ({ borderId }) =>
-            this.overlayPlacement(borderId),
+            this.overlay.overlayPlacement(borderId),
         "popout-mode-by": ({ nodeId }) => this.popoutMode(nodeId),
         "splitter-size": () => this.splitterSize(),
         "owner-document": () => this.getCurrentDocument(),
@@ -614,11 +315,11 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         [K in EngineIsKey]: (payload: EngineIsPayload<K>) => boolean;
     } = {
         "popout-supported": () => this.isSupportsPopout(),
-        "tab-panel-visible": ({ tabId }) => this.isPanelVisible(tabId),
+        "tab-panel-visible": ({ tabId }) => this.measure.isPanelVisible(tabId),
         "main-layout": () => this.isMainLayout(),
         "splitter-dragging": () => this.isSplitterDragging(),
-        "border-shown": ({ borderId }) => this.isBorderShown(borderId),
-        "tab-tabbable": ({ tabId }) => this.isTabbable(tabId),
+        "border-shown": ({ borderId }) => this.overlay.isBorderShown(borderId),
+        "tab-tabbable": ({ tabId }) => this.overlay.isTabbable(tabId),
     };
 
     private createAdapter(): LayoutEngineAdapter<T> {
@@ -639,42 +340,45 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             subscribe: (listener) => this.subscribe(listener),
             getSnapshot: () => this.getSnapshot(),
             prepare: () => this.prepare(),
-            rowOrientation: (rowId) => this.rowOrientation(rowId),
+            rowOrientation: (rowId) => this.derived.rowOrientation(rowId),
             attachRoot: (element) => this.attachRoot(element),
             detachRoot: () => this.detachRoot(),
             dispose: () => this.dispose(),
             registerMeasurable: (id, kind, element) =>
-                this.registerMeasurable(id, kind, element),
+                this.measure.registerMeasurable(id, kind, element),
             registerTabList: (containerId, element, vertical) =>
-                this.registerTabList(containerId, element, vertical),
+                this.overflow.registerTabList(containerId, element, vertical),
             registerOverflowTrigger: (containerId, element) =>
-                this.registerOverflowTrigger(containerId, element),
-            getHiddenTabs: (containerId) => this.getHiddenTabs(containerId),
-            subscribeOverflow: (listener) => this.subscribeOverflow(listener),
+                this.overflow.registerOverflowTrigger(containerId, element),
+            getHiddenTabs: (containerId) =>
+                this.overflow.getHiddenTabs(containerId),
+            subscribeOverflow: (listener) =>
+                this.overflow.subscribeOverflow(listener),
             registerTabPanel: (tabId, element) =>
-                this.registerTabPanel(tabId, element),
+                this.measure.registerTabPanel(tabId, element),
             registerSplitter: (element, isHorizontal) =>
-                this.registerSplitter(element, isHorizontal),
-            getRegistrations: () => this.getRegistrations(),
-            rect: (kind, id) => this.rect(kind, id),
-            rectInLayout: (element) => this.rectInLayout(element),
-            getDomRect: () => this.getDomRect(),
-            getFreshDomRect: () => this.getFreshDomRect(),
-            edgeBands: () => this.edgeBands(),
-            getMoveableElement: (tabId) => this.getMoveableElement(tabId),
+                this.measure.registerSplitter(element, isHorizontal),
+            getRegistrations: () => this.measure.getRegistrations(),
+            rect: (kind, id) => this.measure.rect(kind, id),
+            rectInLayout: (element) => this.measure.rectInLayout(element),
+            getDomRect: () => this.measure.getDomRect(),
+            getFreshDomRect: () => this.measure.getFreshDomRect(),
+            edgeBands: () => this.derived.edgeBands(),
+            getMoveableElement: (tabId) =>
+                this.moveables.getMoveableElement(tabId),
             attachMoveable: (tabId, panel, options) =>
-                this.attachMoveable(tabId, panel, options),
+                this.moveables.attachMoveable(tabId, panel, options),
             releaseMoveable: (tabId, panel, options) =>
-                this.releaseMoveable(tabId, panel, options),
-            takeMoveable: (tabId) => this.takeMoveable(tabId),
+                this.moveables.releaseMoveable(tabId, panel, options),
+            takeMoveable: (tabId) => this.moveables.takeMoveable(tabId),
             adoptMoveable: (tabId, element) =>
-                this.adoptMoveable(tabId, element),
+                this.moveables.adoptMoveable(tabId, element),
             shouldRender: (tabId, renderOnDemand) =>
-                this.shouldRender(tabId, renderOnDemand),
+                this.moveables.shouldRender(tabId, renderOnDemand),
             handleOverlayPointerDown: (event) =>
-                this.handleOverlayPointerDown(event),
+                this.overlay.handleOverlayPointerDown(event),
             handleOverlayKeyDown: (event, key) =>
-                this.handleOverlayKeyDown(event, key),
+                this.overlay.handleOverlayKeyDown(event, key),
             isRealtimeResize: () => this.isRealtimeResize(),
             setSplitterDragging: (dragging) =>
                 this.setSplitterDragging(dragging),
@@ -688,7 +392,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     private createPopoutEngine(layoutId: string): LayoutEngine<T> {
         return new LayoutEngine<T>(
-            { model: this.model, measure: this.measureElement },
+            { model: this.model, measure: this.measure.measureElement },
             this,
             layoutId,
         );
@@ -736,116 +440,11 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private readonly getSnapshot = (): number => this.shared.revision;
 
     private prepare() {
-        this.cachedLayoutDomRect = undefined;
-    }
-
-    /**
-     * A window layout's number in its paths: the lowest one free when it is first seen, then kept
-     * while it is open, so closing one window never renames another's elements.
-     */
-    private windowNumber(state: AnyState, layoutId: string): number {
-        const numbers = this.shared.windowNumbers;
-        for (const id of [...numbers.keys()]) {
-            if (!state.windows.some((w) => w.id === id)) {
-                numbers.delete(id);
-            }
-        }
-        let number = numbers.get(layoutId);
-        if (number === undefined) {
-            const used = new Set(numbers.values());
-            number = 1;
-            while (used.has(number)) {
-                number++;
-            }
-            numbers.set(layoutId, number);
-        }
-        return number;
-    }
-
-    /** The DOM id of a tab's button in this layout (unique on the page, see `idScope`). */
-    private tabButtonId(tabId: string): string {
-        return getTabButtonId(tabId, this.shared.idScope);
-    }
-
-    /** The DOM id of a tab's panel in this layout (unique on the page, see `idScope`). */
-    private tabPanelId(tabId: string): string {
-        return getTabPanelId(tabId, this.shared.idScope);
+        this.measure.cachedLayoutDomRect = undefined;
     }
 
     private get idScope(): string {
         return this.shared.idScope;
-    }
-
-    private rootRow(state: AnyState): AnyRow | undefined {
-        if (this.isMainLayout()) {
-            return state.root;
-        }
-        return state.windows.find((w) => w.id === this.layoutId)?.root;
-    }
-
-    /** The `data-layout-path` of a node of this layout (the root row's is the layout's prefix). */
-    private path(id: string): string {
-        const state = this.state();
-        const root = state === this.pathsFor ? undefined : this.rootRow(state);
-        if (root) {
-            this.pathsFor = state;
-            this.paths = this.isMainLayout()
-                ? computePaths(root, "", state.borders)
-                : computePaths(
-                      root,
-                      windowPath(this.windowNumber(state, this.layoutId)),
-                  );
-        }
-        return this.paths.get(id) ?? "";
-    }
-
-    /** The size range of a row or tabset of this layout (its flex min/max). */
-    private minMax(id: string): SizeRange {
-        const state = this.state();
-        const stale =
-            state !== this.rangesFor ||
-            this.rangesDirty ||
-            this.rangesSplitterSize !== this.shared.splitterSize;
-        const root = stale ? this.rootRow(state) : undefined;
-        if (root) {
-            this.rangesFor = state;
-            this.rangesDirty = false;
-            this.rangesSplitterSize = this.shared.splitterSize;
-            this.ranges = sizeRanges(
-                state.defaults,
-                root,
-                resolveLayout(state.defaults).rootOrientation,
-                this.shared.splitterSize,
-                (id) => this.rects.get(`tabstrip:${id}`)?.height ?? 0,
-            );
-        }
-        return (
-            this.ranges.get(id) ?? {
-                minWidth: 0,
-                minHeight: 0,
-                maxWidth: 99999,
-                maxHeight: 99999,
-            }
-        );
-    }
-
-    private flex(id: string): FlexSizing {
-        const node = this.model.get("node-by", { id });
-        const weight =
-            node?.type === "row" || node?.type === "tabset" ? node.weight : 0;
-        return { ...this.minMax(id), grow: flexGrow(weight) };
-    }
-
-    private rowOrientation(rowId: string): Orientation {
-        const state = this.state();
-        const rootOrientation = resolveLayout(state.defaults).rootOrientation;
-        const root =
-            state === this.orientationsFor ? undefined : this.rootRow(state);
-        if (root) {
-            this.orientationsFor = state;
-            this.orientations = rowOrientations(root, rootOrientation);
-        }
-        return this.orientations.get(rowId) ?? rootOrientation;
     }
 
     /** The measured splitter thickness (shared by every layout of the model). */
@@ -853,44 +452,26 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return this.shared.splitterSize;
     }
 
-    private state(): AnyState {
-        return this.model.state as unknown as AnyState;
+    private popoutMode(nodeId: string): "popout" | "dock" | undefined {
+        if (this.model.is("node-in-window", { nodeId })) {
+            return "dock";
+        }
+        return this.can("popout", { nodeId }) ? "popout" : undefined;
     }
 
     private attachRoot(element: HTMLElement) {
-        if (this.layoutRef === element && this.teardown.length > 0) {
+        if (this.measure.layoutRef === element && this.teardown.length > 0) {
             return;
         }
         this.detachRoot();
-        this.layoutRef = element;
+        this.measure.layoutRef = element;
         const doc = element.ownerDocument;
         const win = doc.defaultView ?? undefined;
         this.currentDocument = doc;
         this.currentWindow = win;
 
         if (this.isMainLayout()) {
-            // reuse a home left behind by a previous engine of the same root
-            let home = Array.from(element.children).find((child) =>
-                child.hasAttribute(MOVEABLES_HOME_ATTRIBUTE),
-            ) as HTMLElement | undefined;
-            if (!home) {
-                home = doc.createElement("div");
-                home.setAttribute(MOVEABLES_HOME_ATTRIBUTE, "");
-                home.setAttribute("aria-hidden", "true");
-                home.style.display = "none";
-                element.appendChild(home);
-            }
-            const parked = home;
-            this.shared.moveablesHome = parked;
-            this.teardown.push(() => {
-                // keep parked content alive: its portal still points at the moveable
-                if (parked.childNodes.length === 0) {
-                    parked.remove();
-                }
-                if (this.shared.moveablesHome === parked) {
-                    this.shared.moveablesHome = null;
-                }
-            });
+            this.teardown.push(this.moveables.attachHome(element));
             const unsubscribe = this.model.subscribe((event) =>
                 this.onModelEvent(event as unknown as CommandEvent),
             );
@@ -904,17 +485,17 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (win) {
             if (win.ResizeObserver) {
                 const observer = new win.ResizeObserver(() => {
-                    this.updateRect();
-                    this.applyMeasuredGeometry();
+                    this.measure.updateRect();
+                    this.measure.applyMeasuredGeometry();
                 });
                 observer.observe(element);
-                this.setGeometryResizeObserver(observer);
+                this.measure.setGeometryResizeObserver(observer);
                 this.teardown.push(() => {
-                    this.setGeometryResizeObserver(undefined);
+                    this.measure.setGeometryResizeObserver(undefined);
                     observer.disconnect();
                 });
             }
-            const resizeListener = () => this.updateRect();
+            const resizeListener = () => this.measure.updateRect();
             win.addEventListener("resize", resizeListener);
             this.teardown.push(() =>
                 win.removeEventListener("resize", resizeListener),
@@ -932,7 +513,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             }
         }
 
-        this.updateRect();
+        this.measure.updateRect();
         if (this.popoutManager) {
             this.popoutManager.attach();
             this.teardown.push(() => this.popoutManager?.detach());
@@ -940,12 +521,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     }
 
     private detachRoot() {
-        this.cancelHeal();
+        this.measure.cancelHeal();
         while (this.teardown.length > 0) {
             this.teardown.pop()?.();
         }
-        this.layoutRef = null;
-        this.cachedLayoutDomRect = undefined;
+        this.measure.layoutRef = null;
+        this.measure.cachedLayoutDomRect = undefined;
     }
 
     private dispose() {
@@ -953,30 +534,10 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.detachRoot();
         this.dragDropManager.dispose();
         this.popoutManager?.dispose();
-        this.measurables.clear();
-        this.rects.clear();
-        this.tabPanels.clear();
-        for (const element of this.splitters.keys()) {
-            this.shared.splitters.delete(element);
-        }
-        this.splitters.clear();
-        this.tabLists.clear();
-        this.overflowTriggers.clear();
-        this.overflowListeners.clear();
+        this.measure.dispose();
+        this.overflow.dispose();
         if (this.isMainLayout()) {
             this.shared.listeners.clear();
-        }
-    }
-
-    /**
-     * Runs the measure-and-position cycle: measures every registered element, positions the tab
-     * panels and discovers the splitter size. Call after every commit.
-     */
-    private sync() {
-        const changed = this.applyMeasuredGeometry();
-        if (changed) {
-            // post-paint heal: re-measure after css settles (fonts, transitions)
-            this.scheduleHeal();
         }
     }
 
@@ -1003,7 +564,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             );
         }
         if (event.command === "border.resize") {
-            return this.applyTransientBorderSize(
+            return this.measure.applyTransientBorderSize(
                 event.payload as { borderId: string },
             );
         }
@@ -1027,7 +588,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             }
         }
         this.forgetNodesOutside();
-        for (const { id } of this.state().windows) {
+        for (const { id } of this.derived.state().windows) {
             this.popoutManager?.getLayoutEngine(id)?.forgetNodesOutside();
         }
     }
@@ -1035,12 +596,15 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private forgetNodesOutside() {
         const gone = (id: string) =>
             this.model.get("layout-id-by", { nodeId: id }) !== this.layoutId;
-        for (const key of this.rects.keys()) {
+        for (const key of this.measure.rects.keys()) {
             if (gone(key.slice(key.indexOf(":") + 1))) {
-                this.rects.delete(key);
+                this.measure.rects.delete(key);
             }
         }
-        for (const map of [this.naturalTabSizes, this.reservedSpace]) {
+        for (const map of [
+            this.overflow.naturalTabSizes,
+            this.overflow.reservedSpace,
+        ]) {
             for (const id of map.keys()) {
                 if (gone(id)) {
                     map.delete(id);
@@ -1068,7 +632,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         const engine = this.engineOf(row.id);
         for (const [i, child] of row.children.entries()) {
             const weight = payload.weights[i];
-            const element = engine.measurables.get(
+            const element = engine.measure.measurables.get(
                 `${child.type}:${child.id}`,
             )?.element;
             if (weight === undefined || !element) {
@@ -1076,40 +640,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             }
             element.style.flexGrow = String(flexGrow(weight));
         }
-        engine.applyMeasuredGeometry();
-        return true;
-    }
-
-    private applyTransientBorderSize(payload: { borderId: string }): boolean {
-        const border = this.model.get("node-by", {
-            id: payload.borderId,
-        });
-        if (border?.type !== "border") {
-            return false;
-        }
-        const resolved = resolveBorder(
-            this.state().defaults,
-            border as unknown as AnyBorder,
-        );
-        if (resolved.mode === "overlay") {
-            return false; // an overlay's placement depends on the other open overlays
-        }
-        const element = this.measurables.get(
-            `bordercontent:${border.id}`,
-        )?.element;
-        if (!element) {
-            return false;
-        }
-        if (border.location === "left" || border.location === "right") {
-            element.style.width = `${resolved.size}px`;
-            element.style.minWidth = `${resolved.minSize}px`;
-            element.style.maxWidth = `${resolved.maxSize}px`;
-        } else {
-            element.style.height = `${resolved.size}px`;
-            element.style.minHeight = `${resolved.minSize}px`;
-            element.style.maxHeight = `${resolved.maxSize}px`;
-        }
-        this.applyMeasuredGeometry();
+        engine.measure.applyMeasuredGeometry();
         return true;
     }
 
@@ -1120,769 +651,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         for (const listener of [...shared.listeners]) {
             listener();
         }
-    }
-
-    // *********************************************************************************
-    // Registration
-    // *********************************************************************************
-
-    private watch(
-        prev: HTMLElement | undefined,
-        next: HTMLElement | null | undefined,
-    ) {
-        if (prev === next) {
-            return;
-        }
-        if (prev) {
-            this.geometryResizeObserver?.unobserve(prev);
-        }
-        if (next) {
-            this.geometryResizeObserver?.observe(next);
-        }
-    }
-
-    private registerMeasurable(
-        id: string,
-        kind: MeasurableKind,
-        element: HTMLElement | null,
-    ) {
-        const key = `${kind}:${id}`;
-        this.watch(this.measurables.get(key)?.element, element);
-        if (element) {
-            this.measurables.set(key, { kind, id, element });
-        } else {
-            this.measurables.delete(key);
-            // an unmounted border strip or panel area must not leave a ghost that takes drops
-            if (kind === "borderheader" || kind === "bordercontent") {
-                this.rects.delete(key);
-            }
-        }
-    }
-
-    private registerTabList(
-        containerId: string,
-        element: HTMLElement | null,
-        vertical = false,
-    ) {
-        this.watch(this.tabLists.get(containerId)?.element, element);
-        if (element) {
-            this.tabLists.set(containerId, { element, vertical });
-        } else {
-            this.tabLists.delete(containerId);
-            this.setHiddenTabs(containerId, []);
-        }
-    }
-
-    private registerOverflowTrigger(
-        containerId: string,
-        element: HTMLElement | null,
-    ) {
-        this.watch(this.overflowTriggers.get(containerId), element);
-        if (element) {
-            this.overflowTriggers.set(containerId, element);
-        } else {
-            this.overflowTriggers.delete(containerId);
-        }
-    }
-
-    private readonly getHiddenTabs = (containerId: string): readonly string[] =>
-        this.hiddenTabs.get(containerId) ?? NO_TABS;
-
-    private readonly subscribeOverflow = (
-        listener: () => void,
-    ): (() => void) => {
-        this.overflowListeners.add(listener);
-        return () => {
-            this.overflowListeners.delete(listener);
-        };
-    };
-
-    private setHiddenTabs(containerId: string, hidden: readonly string[]) {
-        const prev = this.getHiddenTabs(containerId);
-        if (
-            prev.length === hidden.length &&
-            prev.every((id, i) => id === hidden[i])
-        ) {
-            return false;
-        }
-        if (hidden.length === 0) {
-            this.hiddenTabs.delete(containerId);
-        } else {
-            this.hiddenTabs.set(containerId, hidden);
-        }
-        return true;
-    }
-
-    private updateTabOverflow() {
-        let changed = false;
-        for (const [id, { element, vertical }] of this.tabLists) {
-            const container = this.model.get("node-by", { id });
-            if (container?.type !== "tabset" && container?.type !== "border") {
-                continue; // the container left the model
-            }
-            const axis = vertical ? VERTICAL : HORIZONTAL;
-            const { inner, gap } = this.innerSize(element, axis);
-            if (inner <= 0) {
-                continue; // not laid out (hidden, or not measured yet)
-            }
-            const tabs = container.children;
-            const hidden = new Set(this.getHiddenTabs(id));
-            const sizes = tabs.map((tab) => {
-                const button = this.measurables.get(
-                    `tabbutton:${tab.id}`,
-                )?.element;
-                if (button && !hidden.has(tab.id)) {
-                    const size = this.measureElement(button)[axis.size];
-                    if (size > 0) {
-                        this.naturalTabSizes.set(tab.id, size);
-                    }
-                }
-                return this.naturalTabSizes.get(tab.id) ?? 0;
-            });
-            const trigger = this.overflowTriggers.get(id);
-            const taken = trigger ? this.triggerSpace(trigger, axis) : 0;
-            if (taken > 0) {
-                this.reservedSpace.set(id, taken);
-            }
-            const result = computeTabOverflow({
-                available: inner + taken,
-                sizes,
-                gap,
-                selectedIndex: container.selected,
-                reserve: this.reservedSpace.get(id) ?? 0,
-            });
-            const next = result.hidden.map((index) => tabs[index]?.id ?? "");
-            changed = this.setHiddenTabs(id, next) || changed;
-        }
-        if (changed) {
-            for (const listener of [...this.overflowListeners]) {
-                listener();
-            }
-        }
-    }
-
-    /** a tab list's size inside its padding and borders, and the gap between its tabs */
-    private innerSize(
-        list: HTMLElement,
-        axis: Axis,
-    ): { inner: number; gap: number } {
-        const style = list.ownerDocument.defaultView?.getComputedStyle(list);
-        const inset =
-            px(style?.[`padding${axis.start}`]) +
-            px(style?.[`padding${axis.end}`]) +
-            borderWidth(style, axis.start) +
-            borderWidth(style, axis.end);
-        return {
-            inner: this.measureElement(list)[axis.size] - inset,
-            gap: px(style?.[axis.gap]),
-        };
-    }
-
-    /** the space the trigger takes while it shows: its size, its margins and the gap before it */
-    private triggerSpace(trigger: HTMLElement, axis: Axis): number {
-        const view = trigger.ownerDocument.defaultView;
-        const style = view?.getComputedStyle(trigger);
-        const parent = trigger.parentElement;
-        const gap =
-            parent && parent.children.length > 1
-                ? px(view?.getComputedStyle(parent)[axis.gap])
-                : 0;
-        return (
-            this.measureElement(trigger)[axis.size] +
-            px(style?.[`margin${axis.start}`]) +
-            px(style?.[`margin${axis.end}`]) +
-            gap
-        );
-    }
-
-    private registerTabPanel(tabId: string, element: HTMLElement | null) {
-        if (element) {
-            this.tabPanels.set(tabId, element);
-        } else {
-            this.tabPanels.delete(tabId);
-        }
-    }
-
-    private registerSplitter(
-        element: HTMLElement,
-        isHorizontal: () => boolean,
-    ): () => void {
-        if (!this.splitters.has(element)) {
-            this.watch(undefined, element);
-        }
-        this.splitters.set(element, isHorizontal);
-        this.shared.splitters.set(element, isHorizontal);
-        return () => {
-            if (this.splitters.delete(element)) {
-                this.shared.splitters.delete(element);
-                this.watch(element, undefined);
-            }
-        };
-    }
-
-    private getRegistrations() {
-        return {
-            measurables: this.measurables,
-            tabPanels: this.tabPanels,
-            splitters: this.splitters,
-        };
-    }
-
-    // *********************************************************************************
-    // Measure and position
-    // *********************************************************************************
-
-    private rect(kind: MeasurableKind, id: string): Rect | undefined {
-        return this.rects.get(`${kind}:${id}`);
-    }
-
-    private contentRect(container: TabContainer<T>): Rect | undefined {
-        return this.rect(
-            container.type === "border" ? "bordercontent" : "tabsetcontent",
-            container.id,
-        );
-    }
-
-    private syncLayoutMetrics(): boolean {
-        this.cachedLayoutDomRect = undefined;
-        let changed = false;
-        for (const [key, { kind, element }] of this.measurables) {
-            if (!element.isConnected) {
-                continue;
-            }
-            const rect = this.rectInLayout(element);
-            const content =
-                kind === "tabsetcontent" || kind === "bordercontent";
-            if (
-                content &&
-                (Number.isNaN(rect.x) ||
-                    (kind === "bordercontent" && rect.width <= 0))
-            ) {
-                continue;
-            }
-            const previous = this.rects.get(key);
-            if (equalsWhenRounded(previous, rect)) {
-                continue;
-            }
-            this.rects.set(key, rect);
-            changed = true;
-            // the content render waits for a sized content area: re-render when one first gets a size
-            if (content && !hasSize(previous) && hasSize(rect)) {
-                this.reLayout = true;
-            }
-            if (
-                kind === "tabstrip" &&
-                (!previous ||
-                    Math.round(previous.height) !== Math.round(rect.height))
-            ) {
-                this.rangesDirty = true;
-            }
-        }
-        return changed;
-    }
-
-    private isPanelVisible(tabId: string): boolean {
-        const container = this.tabContainerOf(tabId);
-        return container !== undefined && this.panelShown(tabId, container);
-    }
-
-    private tabContainerOf(tabId: string): TabContainer<T> | undefined {
-        const container = this.model.get("node-parent-by", { nodeId: tabId });
-        return container?.type === "tabset" || container?.type === "border"
-            ? container
-            : undefined;
-    }
-
-    private panelShown(tabId: string, container: TabContainer<T>): boolean {
-        if (container.children[container.selected]?.id !== tabId) {
-            return false;
-        }
-        if (container.type === "border") {
-            return container.show !== false;
-        }
-        const layout = this.model.get("layout-id-by", {
-            nodeId: container.id,
-        });
-        const maximized =
-            layout === undefined
-                ? undefined
-                : this.model.get("maximized-tabset", { layoutId: layout });
-        return maximized === undefined || maximized.id === container.id;
-    }
-
-    private positionTabPanels() {
-        for (const [tabId, element] of this.tabPanels) {
-            const container = this.tabContainerOf(tabId);
-            if (!container) {
-                continue; // the tab left the tree (it is being closed)
-            }
-            positionElement(element, this.contentRect(container) ?? EMPTY_RECT);
-            element.style.display = this.panelShown(tabId, container)
-                ? ""
-                : "none";
-        }
-    }
-
-    /** measures the splitter thickness; returns true on change */
-    private syncSplitterSize(): boolean {
-        for (const [element, isHorizontal] of this.shared.splitters) {
-            if (!element.isConnected) {
-                continue;
-            }
-            const r = this.measureElement(element);
-            const size = isHorizontal() ? r.width : r.height;
-            if (size <= 0) {
-                continue; // hidden (e.g. while a tabset is maximized)
-            }
-            if (Math.abs(size - this.shared.splitterSize) > 0.5) {
-                this.shared.splitterSize = size;
-                return true;
-            }
-            return false;
-        }
-        return false;
-    }
-
-    private applyMeasuredGeometry(): boolean {
-        const changed = this.syncLayoutMetrics();
-        this.positionTabPanels();
-        this.updateTabOverflow();
-        const splitterSizeChanged = this.syncSplitterSize();
-        if (splitterSizeChanged || this.reLayout) {
-            this.reLayout = false;
-            this.redraw();
-        }
-        return changed;
-    }
-
-    private scheduleHeal() {
-        const win = this.layoutRef?.ownerDocument.defaultView;
-        if (!win) {
-            return;
-        }
-        this.cancelHeal();
-        this.healFrame = win.requestAnimationFrame(() => {
-            this.healFrame = undefined;
-            this.applyMeasuredGeometry();
-        });
-    }
-
-    private cancelHeal() {
-        if (this.healFrame !== undefined) {
-            this.layoutRef?.ownerDocument.defaultView?.cancelAnimationFrame(
-                this.healFrame,
-            );
-            this.healFrame = undefined;
-        }
-    }
-
-    private setGeometryResizeObserver(observer: ResizeObserver | undefined) {
-        this.geometryResizeObserver = observer;
-        if (observer) {
-            for (const { element } of this.measurables.values()) {
-                observer.observe(element);
-            }
-            for (const element of this.splitters.keys()) {
-                observer.observe(element);
-            }
-            for (const { element } of this.tabLists.values()) {
-                observer.observe(element);
-            }
-            for (const element of this.overflowTriggers.values()) {
-                observer.observe(element);
-            }
-        }
-    }
-
-    /** re-measures the layout root; a changed size relayouts */
-    private readonly updateRect = () => {
-        const element = this.layoutRef;
-        if (!element) {
-            return;
-        }
-        const rect = toRect(this.measureElement(element));
-        if (
-            !equalsWhenRounded(rect, this.lastRect) &&
-            rect.width !== 0 &&
-            rect.height !== 0
-        ) {
-            this.lastRect = rect;
-            this.redraw();
-        }
-    };
-
-    // *********************************************************************************
-    // Moveable elements and rendering
-    // *********************************************************************************
-
-    private getMoveableElement(tabId: string): HTMLElement {
-        const shared = this.shared;
-        let element = shared.moveables.get(tabId);
-        if (!element) {
-            const doc =
-                this.main.currentDocument ?? this.layoutRef?.ownerDocument;
-            if (!doc) {
-                throw new Error(
-                    "LayoutEngine.getMoveableElement: attach a root element first",
-                );
-            }
-            element = doc.createElement("div");
-            element.setAttribute(MOVEABLE_ATTRIBUTE, "");
-            element.style.width = "100%";
-            element.style.height = "100%";
-            shared.moveables.set(tabId, element);
-        }
-        return element;
-    }
-
-    private takeMoveable(tabId: string): HTMLElement | undefined {
-        const element = this.shared.moveables.get(tabId);
-        this.shared.moveables.delete(tabId);
-        this.shared.rendered.delete(tabId);
-        return element;
-    }
-
-    private adoptMoveable(tabId: string, element: HTMLElement | undefined) {
-        if (element) {
-            this.shared.moveables.set(tabId, element);
-            this.shared.rendered.add(tabId);
-        }
-    }
-
-    private attachMoveable(
-        tabId: string,
-        panel: HTMLElement,
-        options: MoveableOptions = {},
-    ) {
-        const element = this.getMoveableElement(tabId);
-        element.style.overflow =
-            options.scrollable === false ? "hidden" : "auto";
-        if (element.parentElement !== panel) {
-            // appendChild adopts the node into the panel's document; identity is what preserves
-            // the content's state, so the element is never imported or cloned
-            panel.appendChild(element);
-            this.restoreScroll(tabId, element);
-        }
-        // keep the scroll position, so it can be restored after a move. One listener per element
-        // for its whole life: the element outlives engines, so the listener reads its current tab
-        const tracking = scrollTracking.get(element);
-        if (tracking) {
-            tracking.tab = tabId;
-            tracking.view = this.shared;
-        } else {
-            const state = { tab: tabId, view: this.shared };
-            element.addEventListener("scroll", () => {
-                state.view.scroll.set(state.tab, {
-                    top: element.scrollTop,
-                    left: element.scrollLeft,
-                });
-            });
-            scrollTracking.set(element, state);
-        }
-    }
-
-    private restoreScroll(tabId: string, element: HTMLElement) {
-        const scroll = this.shared.scroll.get(tabId);
-        // the frame callback comes from the element's own window, so a tab restored inside a
-        // popout schedules on the popout's frame loop
-        const view = element.ownerDocument.defaultView;
-        if (view && scroll && (scroll.top || scroll.left)) {
-            view.requestAnimationFrame(() => {
-                element.scrollTop = scroll.top;
-                element.scrollLeft = scroll.left;
-            });
-        }
-    }
-
-    private releaseMoveable(
-        tabId: string,
-        panel?: HTMLElement,
-        options: MoveableOptions = {},
-    ) {
-        const element = this.shared.moveables.get(tabId);
-        if (!element) {
-            return; // the tab is gone: nothing to park
-        }
-        if (panel !== undefined && element.parentElement !== panel) {
-            return; // already attached elsewhere
-        }
-        const home = this.shared.moveablesHome;
-        if (
-            home &&
-            this.model.get("node-by", { id: tabId }) &&
-            options.remountInWindow !== true
-        ) {
-            home.appendChild(element); // keep it parented, so it stays in the document
-        }
-    }
-
-    private shouldRender(tabId: string, renderOnDemand = true): boolean {
-        const shared = this.shared;
-        if (shared.rendered.has(tabId)) {
-            return true;
-        }
-        const container = this.tabContainerOf(tabId);
-        if (!container) {
-            return false;
-        }
-        const selected = container.children[container.selected]?.id === tabId;
-        if (!selected && renderOnDemand) {
-            return false;
-        }
-        const rect = this.engineOf(tabId).contentRect(container);
-        if (!rect || rect.width <= 0 || rect.height <= 0) {
-            return false;
-        }
-        shared.rendered.add(tabId);
-        return true;
-    }
-
-    // *********************************************************************************
-    // Overlay borders and keyboard focus
-    // *********************************************************************************
-
-    private openOverlayBorders(): AnyBorder[] {
-        const state = this.state();
-        return state.borders.filter((border) => {
-            const resolved = resolveBorder(state.defaults, border);
-            return (
-                resolved.show &&
-                resolved.mode === "overlay" &&
-                border.selected !== -1
-            );
-        });
-    }
-
-    private popoutMode(nodeId: string): "popout" | "dock" | undefined {
-        if (this.model.is("node-in-window", { nodeId })) {
-            return "dock";
-        }
-        return this.can("popout", { nodeId }) ? "popout" : undefined;
-    }
-
-    private overlayPlacement(borderId: string): OverlayPlacement | undefined {
-        const border = this.model.get("node-by", { id: borderId });
-        if (
-            border?.type !== "border" ||
-            !this.model.is("border-overlay", { borderId })
-        ) {
-            return undefined;
-        }
-        if (border.location === "top") {
-            return { top: 0, left: 0, right: 0 };
-        }
-        if (border.location === "bottom") {
-            return { bottom: 0, left: 0, right: 0 };
-        }
-        let top = 0;
-        let bottom = 0;
-        for (const other of this.openOverlayBorders()) {
-            const inset =
-                resolveBorder(this.state().defaults, other).size +
-                this.shared.splitterSize;
-            if (other.location === "top") {
-                top = inset;
-            } else if (other.location === "bottom") {
-                bottom = inset;
-            }
-        }
-        return border.location === "left"
-            ? { left: 0, top, bottom }
-            : { right: 0, top, bottom };
-    }
-
-    private isBorderShown(borderId: string): boolean {
-        const border = this.model.get("node-by", { id: borderId });
-        return (
-            this.isMainLayout() &&
-            border?.type === "border" &&
-            borderShown(
-                this.state().defaults,
-                border,
-                this.dragDropManager.getIndicatorState().revealedBorder ===
-                    border.location,
-            )
-        );
-    }
-
-    private isTabbable(tabId: string): boolean {
-        if (this.model.is("tab-selected", { tabId })) {
-            return true;
-        }
-        const container = this.tabContainerOf(tabId);
-        return (
-            container?.selected === -1 && container.children[0]?.id === tabId
-        );
-    }
-
-    /**
-     * Closes an overlay border's panel (`border.configure` with `open: false`). When focus was in
-     * the panel, it goes back to the tab button.
-     */
-    private closeOverlayBorder(
-        borderId: string,
-        dryRun = false,
-    ): CommandResult<{ borderId: string }> {
-        const border = this.model.get("node-by", { id: borderId });
-        if (border?.type !== "border") {
-            return notFound(`"${borderId}" is not a border`);
-        }
-        const tab = border.children[border.selected];
-        if (!tab) {
-            return refused(`"${borderId}" is not open`);
-        }
-        if (dryRun) {
-            return this.model.check("border.configure", {
-                borderId,
-                open: false,
-            });
-        }
-        const doc = this.currentDocument;
-        const panel = doc?.getElementById(this.tabPanelId(tab.id));
-        const refocus =
-            doc?.activeElement != null && panel?.contains(doc.activeElement);
-        const result = this.model.run("border.configure", {
-            borderId,
-            open: false,
-        });
-        if (result.ok && refocus) {
-            doc?.getElementById(this.tabButtonId(tab.id))?.focus();
-        }
-        return result;
-    }
-
-    private handleOverlayPointerDown(event: {
-        target: EventTarget | null;
-        clientX: number;
-        clientY: number;
-    }): boolean {
-        const open = this.openOverlayBorders();
-        if (open.length === 0 || !this.layoutRef) {
-            return false;
-        }
-        const target = event.target as Element | null;
-        if (target?.closest?.(`[${OVERLAY_ATTRIBUTE}]`)) {
-            return false;
-        }
-        const root = this.getFreshDomRect();
-        const x = event.clientX - root.x;
-        const y = event.clientY - root.y;
-        const main = this.rect("row", this.state().root.id);
-        if (!main || !contains(main, x, y)) {
-            return false; // a border strip, or outside the layout
-        }
-        let closed = false;
-        for (const border of open) {
-            const content = this.rect("bordercontent", border.id);
-            if (!content || !contains(content, x, y)) {
-                closed = this.closeOverlayBorder(border.id).ok || closed;
-            }
-        }
-        return closed;
-    }
-
-    private handleOverlayKeyDown(
-        event: KeyEventLike & { preventDefault(): void },
-        key: string | undefined,
-    ): boolean {
-        const doc = this.currentDocument;
-        const active = doc?.activeElement;
-        if (!key || !doc || !active || !matchesKey(event, key)) {
-            return false;
-        }
-        for (const border of this.openOverlayBorders()) {
-            const tab = border.children[border.selected];
-            if (!tab) {
-                continue;
-            }
-            const button = doc.getElementById(this.tabButtonId(tab.id));
-            const panel = doc.getElementById(this.tabPanelId(tab.id));
-            if (active === button || panel?.contains(active)) {
-                if (!this.closeOverlayBorder(border.id).ok) {
-                    return false; // a middleware keeps it open: the key is not ours
-                }
-                event.preventDefault();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Moves focus to the selected tab button of the next/previous tabset in this layout
-     * (wrapping), starting from the tabset containing focus and falling back to the active one;
-     * the target becomes the active tabset. Refused when focus is not in this layout.
-     */
-    private focusAdjacentTabset(
-        delta: number,
-        dryRun: boolean,
-    ): CommandResult<{ tabsetId: string }> {
-        const doc = this.currentDocument;
-        const active = doc?.activeElement;
-        if (!doc || !active || !this.layoutRef?.contains(active)) {
-            return refused("focus is not in this layout");
-        }
-        // leave text editing contexts alone
-        const tag = active.tagName;
-        if (
-            tag === "INPUT" ||
-            tag === "TEXTAREA" ||
-            (active as HTMLElement).isContentEditable ||
-            active.closest('[role="menu"]')
-        ) {
-            return refused("focus is in a text field or a menu");
-        }
-        if (
-            this.model.get("maximized-tabset", {
-                layoutId: this.layoutId,
-            }) !== undefined
-        ) {
-            return refused("a tabset is maximized: it is the only one shown");
-        }
-        const tabsets = this.model
-            .get("tabsets", { layoutId: this.layoutId })
-            .filter((tabset) => tabset.children[tabset.selected] !== undefined);
-        if (tabsets.length < 2) {
-            return refused("no other tabset to move focus to");
-        }
-        const containsFocus = (tabset: (typeof tabsets)[number]) => {
-            if (
-                this.measurables
-                    .get(`tabset:${tabset.id}`)
-                    ?.element.contains(active)
-            ) {
-                return true; // focus in the tab strip
-            }
-            const selected = tabset.children[tabset.selected];
-            return (
-                !!selected &&
-                !!this.tabPanels.get(selected.id)?.contains(active)
-            );
-        };
-        let index = tabsets.findIndex(containsFocus);
-        if (index === -1) {
-            const activeTabset = this.model.get("active-tabset", {
-                layoutId: this.layoutId,
-            });
-            index = activeTabset
-                ? tabsets.findIndex((t) => t.id === activeTabset.id)
-                : 0;
-            if (index === -1) {
-                index = 0;
-            }
-        }
-        const target =
-            tabsets[(index + delta + tabsets.length) % tabsets.length];
-        const selected = target?.children[target.selected];
-        if (!target || !selected) {
-            return refused("no other tabset to move focus to");
-        }
-        if (!dryRun) {
-            this.measurables.get(`tabbutton:${selected.id}`)?.element.focus();
-            // focus moved whether or not a middleware lets the tabset become active
-            this.model.run("tabset.activate", { tabsetId: target.id });
-        }
-        return { ok: true, value: { tabsetId: target.id } };
     }
 
     // *********************************************************************************
@@ -1910,20 +678,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return this.main.tabDragSpeed;
     }
 
-    private edgeBands(): EdgeBand[] {
-        const settings = resolveLayout(this.state().defaults);
-        const root = this.rootRow(this.state());
-        const rect = root ? this.rect("row", root.id) : undefined;
-        if (!settings.edgeDock || !rect) {
-            return [];
-        }
-        return edgeBands(
-            rect,
-            settings.edgeDockMargin,
-            settings.edgeDockLength,
-        );
-    }
-
     // *********************************************************************************
     // Popouts
     // *********************************************************************************
@@ -1941,170 +695,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     /** whether window layouts open as native popouts */
     private isSupportsPopout(): boolean {
         return this.getPopoutManager().isSupportsPopout();
-    }
-
-    /** Pops a node (a tab, or a whole tabset) out into a window, at its place on screen. */
-    private popout(
-        id: string,
-        dryRun: boolean,
-    ): CommandResult<{ windowId: string }> {
-        if (!this.isSupportsPopout()) {
-            return refused("popout windows are not supported here");
-        }
-        const node = this.model.get("node-by", { id });
-        if (node?.type === "tabset") {
-            // a dry run asks the model only: where the window would open does not change the answer
-            return dryRun
-                ? this.model.check("tabset.popout", { tabsetId: id })
-                : this.model.run("tabset.popout", {
-                      tabsetId: id,
-                      ...this.screenRectOf("tabset", node),
-                  });
-        }
-        if (node?.type !== "tab") {
-            return notFound(`"${id}" is not a tab or a tabset`);
-        }
-        if (dryRun) {
-            return this.model.check("tab.popout", { tabId: id });
-        }
-        const container = this.tabContainerOf(id);
-        return this.model.run("tab.popout", {
-            tabId: id,
-            ...(container ? this.screenRectOf("content", container) : {}),
-        });
-    }
-
-    /** where a tabset, or a container's content area, is on screen (for a window to open there) */
-    private screenRectOf(
-        kind: "tabset" | "content",
-        node: TabContainer<T>,
-    ): { rect?: Rect } {
-        const engine = this.engineOf(node.id);
-        const rect =
-            kind === "tabset"
-                ? engine.rect("tabset", node.id)
-                : engine.contentRect(node);
-        return rect ? { rect: engine.getScreenRect(rect) } : {};
-    }
-
-    /**
-     * Docks a node (a tab, or a tabset) of a window back into the main layout's default tabset (its
-     * active one, else its first). When it is all its window holds, the window closes (`window.close`);
-     * otherwise its tabs move (`tab.move`).
-     */
-    private dockBack(
-        id: string,
-        dryRun: boolean,
-    ): CommandResult<{ tabIds: string[] }> {
-        const layout = this.model.get("layout-id-by", { nodeId: id });
-        if (layout === undefined || layout === MAIN_LAYOUT) {
-            return refused(`"${id}" is not in a window`);
-        }
-        const execute = dryRun ? this.model.check : this.model.run;
-        const node = this.model.get("node-by", { id });
-        const tabs =
-            node?.type === "tabset" ? node.children.map((t) => t.id) : [id];
-        const docked = (
-            result: CommandResult<unknown>,
-            moved: string[] = tabs,
-        ): CommandResult<{ tabIds: string[] }> =>
-            result.ok ? { ok: true, value: { tabIds: moved } } : result;
-        const all = this.model
-            .get("tabs", { layoutId: layout })
-            .map((t) => t.id);
-        if (all.length === tabs.length) {
-            return docked(execute("window.close", { windowId: layout }));
-        }
-        const target = this.model.get("default-tabset");
-        if (!target) {
-            // no tabset to dock into: closing the window docks all of it
-            return docked(execute("window.close", { windowId: layout }), all);
-        }
-        // a pinned tab may not leave its tabset: it is unpinned for the move and pinned again
-        const commands: BatchEntry<T>[] = [];
-        for (const tab of tabs) {
-            const node = this.model.get("node-by", { id: tab });
-            const pinned = node?.type === "tab" && node.pinned === true;
-            if (pinned) {
-                commands.push({
-                    command: "tab.pin",
-                    payload: { tabId: tab, value: false },
-                });
-            }
-            commands.push({
-                command: "tab.move",
-                payload: { tabId: tab, to: target.id, index: -1 },
-            });
-            if (pinned) {
-                commands.push({
-                    command: "tab.pin",
-                    payload: { tabId: tab, value: true },
-                });
-            }
-        }
-        return docked(execute("batch", { commands }));
-    }
-
-    // *********************************************************************************
-    // Geometry
-    // *********************************************************************************
-
-    private rectInLayout(element: HTMLElement): Rect {
-        return relativeTo(this.measureElement(element), this.getDomRect());
-    }
-
-    private getFreshDomRect(): Rect {
-        this.cachedLayoutDomRect = undefined;
-        return this.getDomRect();
-    }
-
-    private getDomRect(): Rect {
-        if (this.cachedLayoutDomRect !== undefined) {
-            return this.cachedLayoutDomRect;
-        }
-        if (this.layoutRef) {
-            this.cachedLayoutDomRect = toRect(
-                this.measureElement(this.layoutRef),
-            );
-            return this.cachedLayoutDomRect;
-        }
-        return EMPTY_RECT;
-    }
-
-    /** a layout-relative rect in screen coordinates (for opening popout windows) */
-    private getScreenRect(inRect: Rect): Rect {
-        const win = this.currentWindow;
-        if (!win) {
-            return inRect;
-        }
-        const layoutRect = this.getDomRect();
-        // measure window chrome; fall back to typical sizes under zoom
-        const measuredNavHeight = win.outerHeight - win.innerHeight;
-        const measuredNavWidth = win.outerWidth - win.innerWidth;
-        const navHeight =
-            measuredNavHeight >= 0 && measuredNavHeight <= 200
-                ? measuredNavHeight
-                : 60;
-        const navWidth =
-            measuredNavWidth >= 0 && measuredNavWidth <= 100
-                ? measuredNavWidth
-                : 2;
-        return {
-            x:
-                win.screenX +
-                win.scrollX +
-                navWidth / 2 +
-                layoutRect.x +
-                inRect.x,
-            y:
-                win.screenY +
-                win.scrollY +
-                (navHeight - navWidth / 2) +
-                layoutRect.y +
-                inRect.y,
-            width: inRect.width + navWidth,
-            height: inRect.height + navHeight,
-        };
     }
 
     // *********************************************************************************

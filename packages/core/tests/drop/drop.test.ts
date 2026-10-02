@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DragSubject } from "../../src/dnd/DragDropManager";
+import type { DragSubject } from "../../src/dnd/session";
 import {
     type DropGeometry,
     type DropQuery,
