@@ -1,15 +1,17 @@
 import type { ExampleMeta } from "../meta-types";
 
 export default {
-    title: "Overflow to a select",
+    title: "Tab overflow: select or scroll",
     description:
-        "When the tabs no longer fit, only the ones that do not fit leave the strip, one by one as it narrows, into a Fragiola Select; the selected tab always stays. Picking a tab from the select brings it into the strip. The engine measures; the example renders the select.",
+        "The editor's tabs that do not fit go to a Fragiola Select; the selected one stays. The tools' strip keeps every tab and scrolls the selected one into view.",
     category: "tabs",
     order: 5,
     features: [
         "TabOverflowTrigger",
         "useTabOverflow",
         "data-overflow-hidden",
+        "overflow={false}",
+        "useModelState",
         "tab.select",
         "Select",
     ],
