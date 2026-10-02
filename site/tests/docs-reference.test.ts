@@ -392,15 +392,7 @@ describe("the core reference", () => {
     it("mentions every export of the core on an API page", () => {
         const index = read(join(CORE_SRC, "index.ts"));
         const names = namedExports(index).map((entry) => entry.name);
-        // `export * from "./x"`: every declaration the module exports
-        for (const match of index.matchAll(/export \* from "\.\/([^"]+)"/g)) {
-            const module = read(join(CORE_SRC, `${match[1]}.ts`));
-            for (const declaration of module.matchAll(
-                /^export (?:declare )?(?:const|function|class|interface|type|enum) (\w+)/gm,
-            )) {
-                names.push(declaration[1] ?? "");
-            }
-        }
+        expect(index).not.toMatch(/export \* from/);
         expect(names.length).toBeGreaterThan(100);
         const pages = readdirSync(API)
             .filter((file) => file.endsWith(".mdx"))
