@@ -1,0 +1,150 @@
+# Release: Changesets versions both packages, and npm trusted publishing (OIDC) publishes them.
+# Based on Changesets' trusted-publishing template, with pnpm in place of npm. The maintainer's
+# steps (the first publish, `npm trust`, the repository setting) are in docs/releasing.md.
+#
+# Do not rename this file: npm trusts the packages' publisher by this filename.
+#
+# On every push to main, `select-mode` decides what to do:
+#
+#   version   pending changesets: `pnpm release:version` bumps both packages (one `fixed` group)
+#             and writes their changelogs, then the "Version Packages" PR is opened or updated.
+#   publish   no changeset, and a version npm does not have yet (the Version Packages PR was
+#             merged): `pack` builds the packages, runs `pnpm check:package` and packs them with
+#             pnpm (so `publishConfig` applies); `publish` publishes those tarballs with pnpm over
+#             OIDC, with provenance, then pushes the git tags and creates the GitHub releases.
+#   none      nothing to release.
+#
+# Least privilege: no permission by default, each job asks for its own, and only `publish` can
+# mint an OIDC token. No job persists git credentials or restores a dependency cache (a poisoned
+# cache must never reach a release).
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+# one release at a time, and never cancelled halfway
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  select-mode:
+    name: Select mode
+    # not in forks: only this repository is a trusted publisher
+    if: github.repository == 'fragiola/dockable'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # actions/checkout
+    outputs:
+      mode: ${{ steps.select-mode.outputs.mode }}
+      publish-plan-artifact-id: ${{ steps.select-mode.outputs.publish-plan-artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Reads the pnpm version from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Select the Changesets mode
+        id: select-mode
+        uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+
+  version:
+    name: Version Packages PR
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'version'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit the version changes to the changeset-release/main branch
+      pull-requests: write # open or update the Version Packages PR
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: pnpm install --frozen-lockfile
+
+      # commits through the GitHub API with the job's token, so no git credentials are needed
+      - name: Version the packages
+        uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          script: pnpm release:version
+
+  pack:
+    name: Pack
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # actions/checkout
+    outputs:
+      pack-dir-artifact-id: ${{ steps.pack.outputs.pack-dir-artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: pnpm install --frozen-lockfile
+
+      # Builds the packages, then packs them with pnpm and checks the tarballs: dist-only exports,
+      # publint, attw, the exact core pin, and the scratch Vite + React app (scripts/check-package.ts).
+      - run: pnpm check:package
+
+      # `changeset pack` runs `pnpm pack` on the packages just built and checked
+      - name: Pack the packages
+        id: pack
+        uses: changesets/action/pack@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          publish-plan-artifact-id: ${{ needs.select-mode.outputs.publish-plan-artifact-id }}
+
+  publish:
+    name: Publish
+    needs: pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the git tags and create the GitHub releases
+      id-token: write # npm trusted publishing (OIDC), with provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      # no `cache`: nothing restored from a cache runs next to the OIDC token
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # only @changesets/cli is needed here: no dependency runs an install script in this job
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # `changeset publish --from-pack-dir` runs `pnpm publish` on the packed tarballs: pnpm tries
+      # OIDC before any token, so no npm token exists anywhere
+      - name: Publish the packages
+        uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          pack-dir-artifact-id: ${{ needs.pack.outputs.pack-dir-artifact-id }}

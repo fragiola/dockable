@@ -18,10 +18,12 @@
 #                     WWW_DISPATCH_TOKEN secret: a fine-grained token with Contents: read &
 #                     write on fragiola/www. Without the secret the step is skipped, not failed.
 #
-# Tests run only on pull requests (and on a manual run). A push to main runs nothing but the www
-# trigger: with one coordinator merging one PR at a time, main is what its PR tested. Revisit
-# this when PRs merge concurrently (or from out-of-date branches): then main can differ from
-# every tested head, and the checks should run again before the trigger (`needs`).
+# Tests run only on pull requests (and on a manual run). In this workflow, a push to main runs
+# nothing but the www trigger: with one coordinator merging one PR at a time, main is what its PR
+# tested. Revisit this when PRs merge concurrently (or from out-of-date branches): then main can
+# differ from every tested head, and the checks should run again before the trigger (`needs`).
+# The same push also runs release.yml: the Version Packages PR, or the npm publish (which runs
+# `pnpm check:package` again on what it packs).
 
 name: CI
 
