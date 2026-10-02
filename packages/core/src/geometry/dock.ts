@@ -3,8 +3,11 @@
 // once here. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import { bottom, type Rect, rect, right } from "./rect";
 
-/** A side of a layout, a border, or of a tabset. */
-export type BorderLocation = "top" | "bottom" | "left" | "right";
+/**
+ * A side of a layout, a border, or of a tabset. `start` is the side a line of text begins on, `end`
+ * the other; the geometry here reads x from the start side (its callers mirror it in RTL).
+ */
+export type BorderLocation = "top" | "bottom" | "start" | "end";
 /** Where a drop goes relative to its target: into it (`center`) or beside it. */
 export type DockLocation = "center" | BorderLocation;
 /** The direction a row lays its children out in. */
@@ -12,14 +15,14 @@ export type Orientation = "horizontal" | "vertical";
 
 /** The orientation of the row a drop at `location` lines up with (center counts as vertical). */
 export function dockOrientation(location: DockLocation): Orientation {
-    return location === "left" || location === "right"
+    return location === "start" || location === "end"
         ? "horizontal"
         : "vertical";
 }
 
-/** 1 for a drop after its target (bottom, right), 0 before it. */
+/** 1 for a drop after its target (bottom, end), 0 before it. */
 export function dockIndexPlus(location: DockLocation): number {
-    return location === "bottom" || location === "right" ? 1 : 0;
+    return location === "bottom" || location === "end" ? 1 : 0;
 }
 
 export function flip(orientation: Orientation): Orientation {
@@ -47,9 +50,9 @@ export function dockLocationAt(
     const bottomLeft = fy >= fx; // below the top-left to bottom-right diagonal
     const bottomRight = fy >= 1 - fx; // below the bottom-left to top-right diagonal
     if (bottomLeft) {
-        return bottomRight ? "bottom" : "left";
+        return bottomRight ? "bottom" : "start";
     }
-    return bottomRight ? "right" : "top";
+    return bottomRight ? "end" : "top";
 }
 
 /** The half of `r` a drop at `location` would take (all of it for the center). */
@@ -59,9 +62,9 @@ export function dockRect(r: Rect, location: DockLocation): Rect {
             return rect(r.x, r.y, r.width, r.height / 2);
         case "bottom":
             return rect(r.x, bottom(r) - r.height / 2, r.width, r.height / 2);
-        case "left":
+        case "start":
             return rect(r.x, r.y, r.width / 2, r.height);
-        case "right":
+        case "end":
             return rect(right(r) - r.width / 2, r.y, r.width / 2, r.height);
         default:
             return r;
@@ -100,11 +103,11 @@ export function edgeBands(
             ),
         },
         {
-            location: "left",
+            location: "start",
             rect: rect(root.x, root.y + (root.height - h) / 2, margin, h),
         },
         {
-            location: "right",
+            location: "end",
             rect: rect(
                 right(root) - margin,
                 root.y + (root.height - h) / 2,
@@ -129,7 +132,7 @@ export function edgeAt(
     const xx = x - root.x;
     const yy = y - root.y;
     const halfAcross = Math.min(length, root.width) / 2; // top and bottom bands
-    const halfAlong = Math.min(length, root.height) / 2; // left and right bands
+    const halfAlong = Math.min(length, root.height) / 2; // start and end bands
     const h = root.height;
     const w = root.width;
     let location: BorderLocation | undefined;
@@ -138,13 +141,13 @@ export function edgeAt(
         yy > h / 2 - halfAlong &&
         yy < h / 2 + halfAlong
     ) {
-        location = "left";
+        location = "start";
     } else if (
         x > right(root) - margin &&
         yy > h / 2 - halfAlong &&
         yy < h / 2 + halfAlong
     ) {
-        location = "right";
+        location = "end";
     } else if (
         y < root.y + margin &&
         xx > w / 2 - halfAcross &&

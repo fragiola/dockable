@@ -8,8 +8,8 @@ test("a side border's labels read vertically by default, and upright with other 
     page,
 }) => {
     const stage = await openExample(page, "border-tab-orientation");
-    const outline = path(page, "/border/left/tb0");
-    const notes = path(page, "/border/right/tb0");
+    const outline = path(page, "/border/start/tb0");
+    const notes = path(page, "/border/end/tb0");
     await expect.poll(() => writingMode(outline)).toBe("vertical-rl");
     await expect.poll(() => writingMode(notes)).toBe("vertical-rl");
 
@@ -17,16 +17,16 @@ test("a side border's labels read vertically by default, and upright with other 
     await expect.poll(() => writingMode(outline)).toBe("horizontal-tb");
     await expect.poll(() => writingMode(notes)).toBe("horizontal-tb");
     // the strip grew to fit the upright labels
-    const strip = await path(page, "/border/left").boundingBox();
+    const strip = await path(page, "/border/start").boundingBox();
     expect(strip?.width ?? 0).toBeGreaterThan(60);
 
     // the tabs still open their panels
-    await path(page, "/border/left/tb1").click();
-    await expect(path(page, "/border/left/tb1")).toHaveAttribute(
+    await path(page, "/border/start/tb1").click();
+    await expect(path(page, "/border/start/tb1")).toHaveAttribute(
         "aria-selected",
         "true",
     );
-    await expect(path(page, "/border/left/t1")).toBeVisible();
+    await expect(path(page, "/border/start/t1")).toBeVisible();
 
     await stage.getByTestId("labels-vertical").click();
     await expect.poll(() => writingMode(outline)).toBe("vertical-rl");

@@ -32,7 +32,7 @@ import {
     type Types,
 } from "./workspace";
 
-// A code-editor workbench. The explorer (a left border) and the terminal and problems (a bottom
+// A code-editor workbench. The explorer (a start border) and the terminal and problems (a bottom
 // border) are borders around the editors; the explorer and the status bar change the layout with
 // commands on the model (`model.run`); the tabs follow their content (a dot while modified);
 // closing a modified tab is stopped by a middleware (`model.use`), whatever closed it (button,
@@ -285,12 +285,12 @@ const BORDER_ICONS: Partial<
 };
 
 /**
- * A border's strip. The left border is an activity bar, as in VS Code: an upright icon per tab,
+ * A border's strip. The start border is an activity bar, as in VS Code: an upright icon per tab,
  * named by `aria-label` and a tooltip, in a bar as wide as its icon buttons. The bottom border's
  * tabs keep their icon and name.
  */
 function Border({ node }: { node: BorderNode<Types> }) {
-    const side = node.location === "left" || node.location === "right";
+    const side = node.location === "start" || node.location === "end";
     return (
         <Dockable.Border node={node} className={styles.border}>
             <Dockable.TabList<Types>

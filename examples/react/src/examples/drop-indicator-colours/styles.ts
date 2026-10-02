@@ -43,8 +43,8 @@ const PALETTES: Record<Region, string> = {
 /** A drop beside a tabset thickens the side it docks to. */
 const SIDES: Record<DropIndicatorState["location"], string> = {
     center: "",
-    left: "border-l-8",
-    right: "border-r-8",
+    start: "border-s-8",
+    end: "border-e-8",
     top: "border-t-8",
     bottom: "border-b-8",
 };

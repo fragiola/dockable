@@ -28,8 +28,8 @@ add is the **look**: the drop indicator, and the dragged tab's state.
 | --- | --- | --- |
 | a tab strip | `center` | the tab joins the tabset at the pointer's index |
 | the middle of a tabset's content | `center` | the tab joins the tabset (appended) |
-| a tabset's edge | `top`, `bottom`, `left`, `right` | the tabset splits; the tab gets a new tabset on that side |
-| the layout's outer edge | `top`, `bottom`, `left`, `right` (`kind: "edge"`) | a new tabset along the whole edge |
+| a tabset's edge | `top`, `bottom`, `start`, `end` | the tabset splits; the tab gets a new tabset on that side |
+| the layout's outer edge | `top`, `bottom`, `start`, `end` (`kind: "edge"`) | a new tabset along the whole edge |
 
 Tabsets can be dropped too (`tabset.move`), but the React primitives start drags only from tabs
 today. `useDragNode(node)` takes a tab or a tabset node and returns the `props` that wire an
@@ -56,7 +56,7 @@ Its state (also as attributes):
 | state | attribute | meaning |
 | --- | --- | --- |
 | `visible` | `data-visible` | a drop target is under the pointer |
-| `location` | `data-drop-location` (while visible) | `center`, `top`, `bottom`, `left` or `right` |
+| `location` | `data-drop-location` (while visible) | `center`, `top`, `bottom`, `start` or `end` |
 | `kind` | `data-drop-kind` (while visible) | `edge` for a layout-edge drop, `rect` otherwise |
 | `dragging` | `data-dragging` | a drag is over this layout |
 | `showEdges` | none | edge docking is available for this drag |

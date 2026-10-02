@@ -10,7 +10,7 @@ import {
 } from "../../src/state/queries";
 import { must } from "./harness";
 
-// root: ts0 (a, b; b selected) | r1 (ts1 (c, pinned) above ts2 (empty)); a left border (d, open);
+// root: ts0 (a, b; b selected) | r1 (ts1 (c, pinned) above ts2 (empty)); a start border (d, open);
 // a window w0 holding ts3 (e)
 const json: LayoutJson = {
     version: 1,
@@ -56,8 +56,8 @@ const json: LayoutJson = {
     },
     borders: [
         {
-            id: "left",
-            location: "left",
+            id: "start",
+            location: "start",
             selected: 0,
             size: 220,
             children: [{ id: "d", component: "x", label: "x" }],
@@ -102,7 +102,7 @@ describe("model.get", () => {
     it("node-parent-by { nodeId }: a tab's tabset or border, a tabset's row; none for a root", () => {
         const m = model();
         expect(m.get("node-parent-by", { nodeId: "a" })?.id).toBe("ts0");
-        expect(m.get("node-parent-by", { nodeId: "d" })?.id).toBe("left");
+        expect(m.get("node-parent-by", { nodeId: "d" })?.id).toBe("start");
         expect(m.get("node-parent-by", { nodeId: "ts1" })?.id).toBe("r1");
         expect(m.get("node-parent-by", { nodeId: "root" })).toBeUndefined();
         expect(m.get("node-parent-by", { nodeId: "nope" })).toBeUndefined();
@@ -133,7 +133,7 @@ describe("model.get", () => {
         const m = model();
         expect(ids(m.get("windows"))).toEqual(["w0"]);
         expect(m.get("windows")).toBe(m.state.windows);
-        expect(ids(m.get("borders"))).toEqual(["left"]);
+        expect(ids(m.get("borders"))).toEqual(["start"]);
         expect(m.get("borders")).toBe(m.state.borders);
     });
 
@@ -166,15 +166,15 @@ describe("model.get", () => {
         expect(m.get("selected-tab-by", { tabsetId: "ts2" })).toBeUndefined();
         expect(m.get("selected-tab-by", { tabsetId: "a" })).toBeUndefined();
         // a border is not a tabset
-        expect(m.get("selected-tab-by", { tabsetId: "left" })).toBeUndefined();
+        expect(m.get("selected-tab-by", { tabsetId: "start" })).toBeUndefined();
     });
 
     it("selected-tab-by { borderId }: a border's, undefined when closed or not a border", () => {
         const m = model();
-        expect(m.get("selected-tab-by", { borderId: "left" })?.id).toBe("d");
+        expect(m.get("selected-tab-by", { borderId: "start" })?.id).toBe("d");
         expect(m.get("selected-tab-by", { borderId: "ts0" })).toBeUndefined();
-        must(m.run("border.configure", { borderId: "left", open: false }));
-        expect(m.get("selected-tab-by", { borderId: "left" })).toBeUndefined();
+        must(m.run("border.configure", { borderId: "start", open: false }));
+        expect(m.get("selected-tab-by", { borderId: "start" })).toBeUndefined();
     });
 
     it("selected-tab-by { layoutId }: the selected tab of a layout's active tabset", () => {
@@ -198,12 +198,12 @@ describe("model.get", () => {
         const read = (payload: object) =>
             m.get("selected-tab-by", payload as never);
         expect(read({})).toBeUndefined();
-        expect(read({ tabsetId: "ts0", borderId: "left" })).toBeUndefined();
+        expect(read({ tabsetId: "ts0", borderId: "start" })).toBeUndefined();
         expect(
             read({ tabsetId: "ts0", layoutId: MAIN_LAYOUT }),
         ).toBeUndefined();
         expect(
-            read({ borderId: "left", layoutId: MAIN_LAYOUT }),
+            read({ borderId: "start", layoutId: MAIN_LAYOUT }),
         ).toBeUndefined();
         // an untyped call with no payload reads nothing either
         expect(
@@ -298,12 +298,12 @@ describe("model.get", () => {
         expect(
             m.get("tabset-settings-by", { tabsetId: "ts2" })?.enableClose,
         ).toBe(false);
-        expect(m.get("border-settings-by", { borderId: "left" })).toMatchObject(
-            {
-                mode: "overlay",
-                size: 220,
-            },
-        );
+        expect(
+            m.get("border-settings-by", { borderId: "start" }),
+        ).toMatchObject({
+            mode: "overlay",
+            size: 220,
+        });
         // a node of another kind has no such settings
         expect(m.get("tab-settings-by", { tabId: "ts0" })).toBeUndefined();
         expect(m.get("tabset-settings-by", { tabsetId: "a" })).toBeUndefined();
@@ -382,27 +382,27 @@ describe("model.is", () => {
         expect(m.is("tabset-empty", { tabsetId: "ts2" })).toBe(true);
         expect(m.is("tabset-empty", { tabsetId: "ts0" })).toBe(false);
         expect(m.is("tabset-empty", { tabsetId: "a" })).toBe(false);
-        expect(m.is("border-empty", { borderId: "left" })).toBe(false);
+        expect(m.is("border-empty", { borderId: "start" })).toBe(false);
         must(m.run("tab.move", { tabId: "d", to: "ts2" }));
-        expect(m.is("border-empty", { borderId: "left" })).toBe(true);
+        expect(m.is("border-empty", { borderId: "start" })).toBe(true);
         // an empty node of the other kind answers false
-        expect(m.is("tabset-empty", { tabsetId: "left" })).toBe(false);
+        expect(m.is("tabset-empty", { tabsetId: "start" })).toBe(false);
         expect(m.is("border-empty", { borderId: "ts0" })).toBe(false);
     });
 
     it("border-open and border-overlay: a border's", () => {
         const m = model();
-        expect(m.is("border-open", { borderId: "left" })).toBe(true);
-        expect(m.is("border-overlay", { borderId: "left" })).toBe(true);
+        expect(m.is("border-open", { borderId: "start" })).toBe(true);
+        expect(m.is("border-overlay", { borderId: "start" })).toBe(true);
         must(
             m.run("border.configure", {
-                borderId: "left",
+                borderId: "start",
                 open: false,
                 mode: "docked",
             }),
         );
-        expect(m.is("border-open", { borderId: "left" })).toBe(false);
-        expect(m.is("border-overlay", { borderId: "left" })).toBe(false);
+        expect(m.is("border-open", { borderId: "start" })).toBe(false);
+        expect(m.is("border-overlay", { borderId: "start" })).toBe(false);
     });
 
     it("row-root: a layout's root row", () => {

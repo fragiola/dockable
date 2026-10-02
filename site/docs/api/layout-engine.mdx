@@ -48,7 +48,7 @@ them; `can` and `check` dry-run them.
 | `"dock-back"` | `{ nodeId }` | `{ tabIds }` | docks a tab, or every tab of a tabset, of a window back into the main layout's `"default-tabset"` (its active tabset, else its first): `window.close` when that is all the window holds, otherwise `tab.move`s in a `batch` (a pinned tab is unpinned for the move and pinned again). Refused for a node of the main layout |
 | `"focus-tabset"` | `{ direction }` | `{ tabsetId }` | moves focus to the selected tab button of the `"next"` or `"previous"` tabset of this layout (wrapping), from the tabset containing focus or else the active one, and activates it (`tabset.activate`). Refused when focus is not in the layout, is in a text field or a menu, or a tabset is maximized |
 | `"close-overlay-border"` | `{ borderId }` | `{ borderId }` | closes a border's open panel (`border.configure` with `open: false`); focus in the panel goes back to its tab button |
-| `"measure-and-position"` | none | `{}` | runs the measure-and-position cycle: measures every registered element, positions the tab panels and discovers the splitter size. The primitives run it after every commit; run it yourself when something moved the tabsets without resizing any element (flipping `dir` at runtime) |
+| `"measure-and-position"` | none | `{}` | runs the measure-and-position cycle: measures every registered element, positions the tab panels and discovers the splitter size. The primitives run it after every commit, and the engine runs it when a `dir` attribute changes on its root or an ancestor. It also reads the root's `direction` again: run it yourself when something else moved the tabsets without resizing any element (a `direction` changed by CSS alone) |
 
 Closing a window from the browser runs `window.close`, which docks its tabs back the same way.
 See [Popouts](/docs/guides/popouts) and [Dockable.PopoutTrigger](/docs/api/popout-trigger).
@@ -65,8 +65,9 @@ key names what it returns, and one that takes an id ends in `-by`, completed by 
 | `"tab-button-dom-id-by"` | `{ tabId }` | `string` | the DOM id of a tab's button, unique on the page (see `idScope`): its panel's `aria-labelledby` |
 | `"tab-panel-dom-id-by"` | `{ tabId }` | `string` | the DOM id of a tab's panel, unique on the page: its button's `aria-controls` |
 | `"flex-by"` | `{ nodeId }` | `FlexSizing` | how a row or a tabset sizes in its row: `grow`, its `flex-grow` (its weight × 1000, at least 1, so a small weight still fills), and its flex min/max (`minWidth`, `minHeight`, `maxWidth`, `maxHeight`), from its own limits, its tabs' and its tab strip's height |
-| `"overlay-placement-by"` | `{ borderId }` | `OverlayPlacement \| undefined` | where an overlay border's panel sits over the layout (`position: absolute`): its insets in px, `top`, `right`, `bottom`, `left`, an edge it leaves free absent. A top or bottom overlay spans its edge; a left or right one stops at the open top and bottom overlays (their size plus a splitter). `undefined` for a border that is not an overlay |
+| `"overlay-placement-by"` | `{ borderId }` | `OverlayPlacement \| undefined` | where an overlay border's panel sits over the layout (`position: absolute`): its insets in px, `top`, `right`, `bottom`, `left`, an edge it leaves free absent. A top or bottom overlay spans its edge; a start or end one stops at the open top and bottom overlays (their size plus a splitter). `undefined` for a border that is not an overlay |
 | `"popout-mode-by"` | `{ nodeId }` | `"popout" \| "dock" \| undefined` | what a popout button does for a tab or a tabset: `"dock"` when it is in a window (`engine.run("dock-back")`), `"popout"` when it can pop out now (`engine.can("popout")`), `undefined` when neither. `Dockable.PopoutTrigger` reads it |
+| `"direction"` | none | `"ltr" \| "rtl"` | the computed `direction` of this layout's root, read when the root attaches, when a `dir` attribute on it or above it changes, and on `"measure-and-position"`: `start` is on the left in `"ltr"`, on the right in `"rtl"`. Splitters, arrow keys, drops and overlay borders follow it ([Right-to-left layouts](/docs/guides/rtl)) |
 | `"splitter-size"` | none | `number` | the measured splitter thickness, shared by every layout of the model |
 | `"owner-document"` | none | `Document \| undefined` | the document this layout renders in (a popout's own, for a window's layout): attach listeners for a part of this layout here. Tab content renders under the main layout's root, so it reads its own element's `ownerDocument` to follow the tab into a popout |
 | `"owner-window"` | none | `Window \| undefined` | the window this layout renders in |
@@ -204,6 +205,7 @@ state that changes it, its id is not.
 | `subscribeOverflow(listener)` | calls `listener` when a container's hidden tabs change; returns the unsubscribe function (bound) |
 | `shouldRender(tabId, renderOnDemand?)` | whether a tab's content should be rendered: once rendered it stays rendered (its state is kept); before that, when its container's content area has a size and it is selected (or `renderOnDemand` is false). Marks it rendered |
 | `rect(kind, id)` | a measured rect of a node of this layout, relative to the layout root |
+| `inlineRect(kind, id)` | the same rect with its x read from the start side: as is in LTR, mirrored (x negated) in RTL, for math that runs from start to end |
 
 ### Moveables
 
@@ -298,7 +300,7 @@ selectors work across frameworks. See [Layout paths](/docs/concepts/layout-paths
 | `SizeRange` | the size range of a row or tabset, in px: `minWidth`, `minHeight`, `maxWidth`, `maxHeight` (read-only) |
 | `FlexSizing` | a `SizeRange` plus `grow`: what `"flex-by"` returns |
 | `OverlayPlacement` | an overlay border's insets in px (`top`, `right`, `bottom`, `left`, each optional and read-only): what `"overlay-placement-by"` returns |
-| `EdgeBand` | an edge drop band: `location` (a `BorderLocation`: `"top"`, `"bottom"`, `"left"` or `"right"`) and `rect`, relative to the layout root |
+| `EdgeBand` | an edge drop band: `location` (a `BorderLocation`: `"top"`, `"bottom"`, `"start"` or `"end"`) and `rect`, relative to the layout root |
 
 ## Drag and drop
 
@@ -366,7 +368,7 @@ The drag in progress; there is one for the page, shared by every window of a mod
 | `DragSourceKind` | how a drag started: `"internal"` (a node of a layout), `"add"` (a consumer element that adds a tab) or `"external"` (a foreign drag) |
 | `DragEventLike` | the subset of a native `DragEvent` the manager uses: `clientX`, `clientY`, `dataTransfer`, `target`, `preventDefault` |
 | `DropKind` | what a drop outline represents: `"rect"` (into or beside a node) or `"edge"` (at a layout edge) |
-| `DropLocation` | where a drop goes relative to its target: `"center"`, `"top"`, `"bottom"`, `"left"` or `"right"` |
+| `DropLocation` | where a drop goes relative to its target: `"center"`, `"top"`, `"bottom"`, `"start"` or `"end"` |
 | `DropZoneOptions<T>` | `accepts?(drag: DragSubject<T>)`, `onDrop(drag, event: DragEventLike)` (nothing is moved: run the command you want) and `onOverChange?(over: boolean)` |
 | `ExternalDrag<T>` | what `onExternalDrag` returns to accept a foreign drag: `tab` (a `TabInitOf<T>`, the tab the drop creates) and `onDrop?` (a `NewTabDropped`) |
 | `NewTabDropped` | `(tabId: string \| undefined, event: DragEventLike) => void`: called after an add or external drag was dropped, with the new tab's id, or undefined when refused |
@@ -390,7 +392,7 @@ The drag in progress; there is one for the page, shared by every window of a mod
 | `index` | `number` | the insertion index in the target's tab strip, or -1 for a drop on the content area |
 | `refused` | `boolean` | the pointer is over a target that refuses the drop (a rule of the layout, a middleware) |
 | `refusedTabsetId` | `string \| undefined` | the id of the tabset (or border) that refused the drop, when it was one |
-| `revealedBorder` | `"top" \| "bottom" \| "left" \| "right" \| undefined` | an auto-hide border with no tabs that the drag reveals (main layout only); `engine.is("border-shown", { borderId })` answers with it |
+| `revealedBorder` | `"top" \| "bottom" \| "start" \| "end" \| undefined` | an auto-hide border with no tabs that the drag reveals (main layout only); `engine.is("border-shown", { borderId })` answers with it |
 
 ## Splitters
 
@@ -429,7 +431,7 @@ realtime resize, it exposes the bounded preview offset instead, and commits on r
 | field | type | description |
 | --- | --- | --- |
 | `dragging` | `boolean` | true while the splitter is being dragged with the pointer |
-| `previewOffset` | `number \| undefined` | while an outline (non-realtime) drag is in progress: how far, in px along the splitter's axis, the splitter would move if released now (bounded). `undefined` otherwise |
+| `previewOffset` | `number \| undefined` | while an outline (non-realtime) drag is in progress: how far, in px along the splitter's axis on screen (negative is left or up, in RTL too), the splitter would move if released now (bounded). `undefined` otherwise |
 
 ## Keyboard
 

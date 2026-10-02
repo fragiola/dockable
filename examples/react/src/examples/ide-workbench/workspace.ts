@@ -95,11 +95,11 @@ export function editorTab(path: string, dirty = false): TabInitOf<Types> {
 export const defaultLayout: LayoutJson<Types> = {
     version: 1,
     defaults: { border: { size: 208 } },
-    // the explorer on the left and the terminal and problems below are borders: side bars whose
+    // the explorer at the start and the terminal and problems below are borders: side bars whose
     // selected tab opens a panel beside the editors (click the selected tab to close it)
     borders: [
         {
-            location: "left",
+            location: "start",
             selected: 0,
             children: [
                 {

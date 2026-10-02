@@ -32,7 +32,7 @@ describe("loading JSON v1", () => {
                     { type: "tabset", children: [], deleteWhenEmpty: false },
                 ],
             },
-            borders: [{ location: "left", children: [tab("Files")] }],
+            borders: [{ location: "start", children: [tab("Files")] }],
         });
         const [first, second] = model.state.root.children;
         expect(model.state.root.weight).toBe(100);
@@ -48,7 +48,7 @@ describe("loading JSON v1", () => {
         });
         expect(model.state.borders[0]).toMatchObject({
             type: "border",
-            id: "border_left",
+            id: "border_start",
             selected: -1,
         });
         expect(model.state.windows).toEqual([]);
@@ -290,7 +290,7 @@ describe("validating JSON v1", () => {
                 },
                 {
                     path: "/borders/0/location",
-                    message: 'must be one of "top", "bottom", "left", "right"',
+                    message: 'must be one of "top", "bottom", "start", "end"',
                 },
                 { path: "/extra", message: "is not allowed" },
             ]),
@@ -357,7 +357,10 @@ describe("validating JSON v1", () => {
                     },
                 ],
             },
-            borders: [{ location: "left" }, { location: "left", id: "other" }],
+            borders: [
+                { location: "start" },
+                { location: "start", id: "other" },
+            ],
         });
         expect(issues.map((issue) => issue.path)).toEqual([
             "/root/id",
@@ -444,6 +447,27 @@ describe("validating JSON v1", () => {
         if (!result.ok) {
             expect(result.issues).toEqual([
                 { path: "/root", message: "is required" },
+            ]);
+        }
+    });
+});
+
+describe("legacy locations", () => {
+    it("refuses a border at left or right: the sides are start and end", () => {
+        for (const location of ["left", "right"]) {
+            const json = {
+                ...tabsets(["One"]),
+                borders: [{ location, children: [] }],
+            };
+            const result = validateLayout(json);
+            expect(result.ok).toBe(false);
+            if (!result.ok) {
+                expect(result.issues).toEqual([
+                    expect.objectContaining({ path: "/borders/0/location" }),
+                ]);
+            }
+            expect(issuesOf(json)).toEqual([
+                expect.objectContaining({ path: "/borders/0/location" }),
             ]);
         }
     });

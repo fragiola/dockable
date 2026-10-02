@@ -26,6 +26,7 @@ import {
 import type { LayoutEngine } from "../engine/LayoutEngine";
 import type { MeasurableKind } from "../engine/measure";
 import { MOVEABLE_ATTRIBUTE } from "../engine/moveables";
+import { inlineRect, inlineX } from "../geometry/direction";
 import type { DockLocation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect, rect, rectEquals } from "../geometry/rect";
 import { enablePointerOnIFrames } from "../splitter/SplitterController";
@@ -157,8 +158,9 @@ export class DragDropManager {
         this.engine = engine;
         this.commands = new DropCommands(engine);
         this.indicator = this.idleIndicator();
+        // the drop math runs from start to end: in RTL, it reads every rect mirrored
         const rect = (kind: MeasurableKind) => (id: string) =>
-            engine.adapter.rect(kind, id);
+            engine.adapter.inlineRect(kind, id);
         this.geometry = {
             node: (id) => rect("row")(id) ?? rect("tabset")(id),
             tabStrip: rect("tabstrip"),
@@ -322,7 +324,7 @@ export class DragDropManager {
         const parent = model.get("node-parent-by", { nodeId: id });
         const inSideBorder =
             parent?.type === "border" &&
-            (parent.location === "left" || parent.location === "right");
+            (parent.location === "start" || parent.location === "end");
         if (node.type === "tab" && !inSideBorder) {
             // keep the grab point: the image is offset by the pointer position within the element
             const r = this.engine.adapter.rectInLayout(
@@ -623,7 +625,8 @@ export class DragDropManager {
             return;
         }
         const root = this.engine.adapter.getFreshDomRect();
-        const x = event.clientX - root.x;
+        const direction = this.engine.get("direction");
+        const x = inlineX(event.clientX - root.x, direction);
         const y = event.clientY - root.y;
 
         const revealedBorder = this.borderToReveal(x, y);
@@ -672,7 +675,7 @@ export class DragDropManager {
         this.setIndicator({
             ...this.indicator,
             visible: true,
-            rect: accepted.rect,
+            rect: inlineRect(accepted.rect, direction),
             location: accepted.location,
             kind: accepted.kind,
             targetNodeId: accepted.target,
@@ -687,7 +690,8 @@ export class DragDropManager {
     /**
      * Ported from FlexLayout's LayoutController.checkForBorderToShow: the auto-hide border (with no
      * tabs) whose edge of the main area the pointer is within the edge margin of, except over the
-     * edge docking bands; undefined for none. Unlike FlexLayout, it resets when the drag ends.
+     * edge docking bands; undefined for none. Unlike FlexLayout, it resets when the drag ends. `x`
+     * runs from the start side, as the drop geometry does.
      */
     private borderToReveal(
         x: number,
@@ -697,7 +701,7 @@ export class DragDropManager {
             return undefined;
         }
         const state = this.engine.adapter.model.state;
-        const r = this.engine.adapter.rect("row", state.root.id);
+        const r = this.geometry.node(state.root.id);
         if (!r || r.width === 0 || r.height === 0) {
             return undefined;
         }
@@ -715,9 +719,9 @@ export class DragDropManager {
         }
         const location =
             x <= r.x + margin
-                ? "left"
+                ? "start"
                 : x >= r.x + r.width - margin
-                  ? "right"
+                  ? "end"
                   : y <= r.y + margin
                     ? "top"
                     : y >= r.y + r.height - margin

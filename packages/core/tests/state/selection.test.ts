@@ -24,7 +24,7 @@ describe("selection", () => {
             ...tabsets(["Main"]),
             borders: [
                 {
-                    location: "left",
+                    location: "start",
                     selected: 2,
                     children: [tab("A"), tab("B"), tab("C")],
                 },
@@ -32,7 +32,7 @@ describe("selection", () => {
         });
         must(model.run("tab.close", { tabId: "A" }));
         // the index stays 2 and is clamped to the last tab (FlexLayout's BorderNode.remove)
-        expect(text()).toBe("/b/left/t0[B],/b/left/t1[C]*,/ts0/t0[Main]*");
+        expect(text()).toBe("/b/start/t0[B],/b/start/t1[C]*,/ts0/t0[Main]*");
     });
 
     it("insert selects", () => {
@@ -79,34 +79,34 @@ describe("selection", () => {
             ...tabsets(["Main"]),
             borders: [
                 {
-                    location: "left",
+                    location: "start",
                     selected: 0,
                     children: [tab("A"), tab("B")],
                 },
             ],
         });
         must(model.run("tab.move", { tabId: "A", to: "ts0" }));
-        expect(text()).toBe("/b/left/t0[B],/ts0/t0[Main],/ts0/t1[A]*");
+        expect(text()).toBe("/b/start/t0[B],/ts0/t0[Main],/ts0/t1[A]*");
     });
 
     it("a border selects what it receives while open, not while closed", () => {
         const { model, text } = setup({
             ...tabsets(["One", "Two"]),
             borders: [
-                { location: "left", selected: -1, children: [tab("A")] },
-                { location: "right", selected: 0, children: [tab("B")] },
+                { location: "start", selected: -1, children: [tab("A")] },
+                { location: "end", selected: 0, children: [tab("B")] },
             ],
         });
-        must(model.run("tab.move", { tabId: "One", to: "border_left" }));
-        must(model.run("tab.move", { tabId: "Two", to: "border_right" }));
+        must(model.run("tab.move", { tabId: "One", to: "border_start" }));
+        must(model.run("tab.move", { tabId: "Two", to: "border_end" }));
         // the emptied tabset stays, empty: it is the main layout's last one
         expect(text()).toBe(
-            "/b/left/t0[A],/b/left/t1[One],/b/right/t0[B],/b/right/t1[Two]*",
+            "/b/start/t0[A],/b/start/t1[One],/b/end/t0[B],/b/end/t1[Two]*",
         );
-        expect(model.get("node-by", { id: "border_left" })).toMatchObject({
+        expect(model.get("node-by", { id: "border_start" })).toMatchObject({
             selected: -1,
         });
-        expect(model.get("node-by", { id: "border_right" })).toMatchObject({
+        expect(model.get("node-by", { id: "border_end" })).toMatchObject({
             selected: 1,
         });
     });
@@ -120,7 +120,7 @@ describe("selection", () => {
             model.run("tab.move", {
                 tabId: "Two",
                 to: "root",
-                location: "right",
+                location: "end",
             }),
         );
         // the source tabset selects its first tab, as FlexLayout's RowNode.drop does

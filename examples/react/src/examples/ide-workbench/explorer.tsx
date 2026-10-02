@@ -14,7 +14,7 @@ import { FILE_PATHS, fileName, folderOf } from "./files";
 import * as styles from "./styles";
 import { activePath, dirtyPaths, type Types } from "./workspace";
 
-// The file tree. It is the content of the left border's "Explorer" tab, and opens files through
+// The file tree. It is the content of the start border's "Explorer" tab, and opens files through
 // the callback it is given (the example turns that into the `tab.add` / `tab.select` commands).
 
 /** A file type: its icon, and the tone that colours it. */

@@ -167,7 +167,7 @@ function borderCandidate(
             buttons,
             x,
             y,
-            border.location === "left" || border.location === "right"
+            border.location === "start" || border.location === "end"
                 ? "vertical"
                 : "horizontal",
         );

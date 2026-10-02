@@ -98,7 +98,7 @@ describe("drop target attributes", () => {
         );
         expect(targets).toHaveLength(1);
         expect(targets[0]?.getAttribute("data-drop-location")).toMatch(
-            /^(center|top|bottom|left|right)$/,
+            /^(center|top|bottom|start|end)$/,
         );
         act(() => {
             path("/layout").dispatchEvent(dragEvent("drop"));

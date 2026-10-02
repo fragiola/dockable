@@ -1038,14 +1038,14 @@ describe("review regressions", () => {
     it("keeps pinned tabs out of borders", () => {
         const model = createModel({
             ...tabsets(["One"]),
-            borders: [{ location: "left", children: [tab("B")] }],
+            borders: [{ location: "start", children: [tab("B")] }],
         });
         expect(
             model.run("tab.add", {
                 component: "x",
                 label: "x",
                 pinned: true,
-                to: "border_left",
+                to: "border_start",
             }),
         ).toMatchObject({
             ok: false,
@@ -1059,7 +1059,7 @@ describe("review regressions", () => {
                 ...tabsets(["One"]),
                 borders: [
                     {
-                        location: "left",
+                        location: "start",
                         children: [tab("B", { pinned: true })],
                     },
                 ],

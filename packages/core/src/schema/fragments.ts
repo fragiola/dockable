@@ -21,12 +21,17 @@ export const sizeSchema = {
     minimum: 0,
 } as const satisfies JsonSchema;
 
+/** `start` is the side a line of text begins on (left in LTR, right in RTL), `end` the other. */
 export const dockLocationSchema = {
-    enum: ["center", "top", "bottom", "left", "right"],
+    enum: ["center", "top", "bottom", "start", "end"],
+    description:
+        "into the target (center) or beside it: top, bottom, start (where a line of text begins: left in LTR, right in RTL) or end",
 } as const satisfies JsonSchema;
 
 export const borderLocationSchema = {
-    enum: ["top", "bottom", "left", "right"],
+    enum: ["top", "bottom", "start", "end"],
+    description:
+        "a side of the layout: top, bottom, start (where a line of text begins: left in LTR, right in RTL) or end",
 } as const satisfies JsonSchema;
 
 export const borderModeSchema = {
@@ -191,7 +196,7 @@ export const tabDefaultProperties = {
 export const tabBorderSizeProperties = {
     borderWidth: {
         ...sizeSchema,
-        description: "its panel's width in a left or right border, in px",
+        description: "its panel's width in a start or end border, in px",
     },
     borderHeight: {
         ...sizeSchema,

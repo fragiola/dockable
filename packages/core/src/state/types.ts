@@ -72,7 +72,7 @@ export type BorderMode = "docked" | "overlay";
 export interface TabOwnFields {
     /** pinned tabs sit at the start of their strip, cannot close and cannot leave their tabset */
     pinned?: boolean;
-    /** the tab's own panel width in a left or right border (the border's `size` otherwise) */
+    /** the tab's own panel width in a start or end border (the border's `size` otherwise) */
     borderWidth?: number;
     /** the tab's own panel height in a top or bottom border */
     borderHeight?: number;

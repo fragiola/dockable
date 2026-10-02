@@ -16,11 +16,23 @@ describe("docking", () => {
             model.run("tab.move", {
                 tabId: "Two",
                 to: "ts0",
-                location: "right",
+                location: "end",
             }),
         );
         expect(text()).toBe("/ts0/t0[One]*,/ts1/t0[Two]*,/ts2/t0[Three]*");
         expect(weights(model)).toEqual([50, 50, 100]);
+    });
+
+    it("split along the row before the target: start comes first in the row", () => {
+        const { model, text } = setup(tabsets(["One"], ["Two", "Three"]));
+        must(
+            model.run("tab.move", {
+                tabId: "Three",
+                to: "ts1",
+                location: "start",
+            }),
+        );
+        expect(text()).toBe("/ts0/t0[One]*,/ts1/t0[Three]*,/ts2/t0[Two]*");
     });
 
     it("split across the row", () => {
@@ -57,12 +69,24 @@ describe("docking", () => {
             model.run("tab.move", {
                 tabId: "Two",
                 to: "root",
-                location: "left",
+                location: "start",
             }),
         );
         expect(text()).toBe("/ts0/t0[Two]*,/ts1/t0[One]*,/ts2/t0[Three]*");
         // a third of the row's total weight
         expect(weights(model)[0]).toBeCloseTo(200 / 3);
+    });
+
+    it("edge dock along at the end: the new tabset is last", () => {
+        const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
+        must(
+            model.run("tab.move", {
+                tabId: "Two",
+                to: "root",
+                location: "end",
+            }),
+        );
+        expect(text()).toBe("/ts0/t0[One]*,/ts1/t0[Three]*,/ts2/t0[Two]*");
     });
 
     it("edge dock across", () => {
@@ -91,7 +115,7 @@ describe("docking", () => {
                 label: "New",
                 data: { name: "New" },
                 to: "main",
-                location: "right",
+                location: "end",
             }),
         );
         expect(text()).toBe("/ts0/t0[One]*,/ts0/t1[Two],/ts1/t0[New]*");
@@ -119,7 +143,7 @@ describe("docking", () => {
             model.run("tab.move", {
                 tabId: "Two",
                 to: "ts1",
-                location: "left",
+                location: "start",
             }),
         );
         expect(model.get("active-tabset")?.id).toBe(at(model, "/ts0"));
@@ -181,8 +205,11 @@ describe("drop rules", () => {
             },
         });
         expect(
-            model.run("tab.move", { tabId: "One", to: "ts1", location: "left" })
-                .ok,
+            model.run("tab.move", {
+                tabId: "One",
+                to: "ts1",
+                location: "start",
+            }).ok,
         ).toBe(true);
     });
 
@@ -219,7 +246,7 @@ describe("drop rules", () => {
             model.run("tab.move", {
                 tabId: "One",
                 to: "ts0",
-                location: "right",
+                location: "end",
             }).ok,
         ).toBe(false);
         expect(
@@ -236,7 +263,7 @@ describe("drop rules", () => {
             model.run("tabset.move", {
                 tabsetId: "ts1",
                 to: "ts0",
-                location: "left",
+                location: "start",
             }).ok,
         ).toBe(true);
         must(model.run("tab.pin", { tabId: "One", value: true }));
@@ -250,7 +277,7 @@ describe("drop rules", () => {
         const result = model.run("tabset.move", {
             tabsetId: "ts0",
             to: "ts0",
-            location: "left",
+            location: "start",
         });
         expect(!result.ok && result.error.message).toBe(
             "a tabset cannot be moved into itself",
@@ -261,25 +288,26 @@ describe("drop rules", () => {
         const model = createModel({
             ...tabsets(["One"], ["Two"]),
             borders: [
-                { location: "left", children: [] },
-                { location: "right", enableDrop: false, children: [] },
+                { location: "start", children: [] },
+                { location: "end", enableDrop: false, children: [] },
             ],
         });
         expect(
-            model.run("tab.move", { tabId: "One", to: "border_right" }).ok,
+            model.run("tab.move", { tabId: "One", to: "border_end" }).ok,
         ).toBe(false);
         expect(
             model.run("tab.move", {
                 tabId: "One",
-                to: "border_left",
+                to: "border_start",
                 location: "top",
             }).ok,
         ).toBe(false);
         expect(
-            model.run("tabset.move", { tabsetId: "ts0", to: "border_left" }).ok,
+            model.run("tabset.move", { tabsetId: "ts0", to: "border_start" })
+                .ok,
         ).toBe(false);
         expect(
-            model.run("tab.move", { tabId: "One", to: "border_left" }).ok,
+            model.run("tab.move", { tabId: "One", to: "border_start" }).ok,
         ).toBe(true);
     });
 

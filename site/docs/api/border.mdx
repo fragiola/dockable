@@ -4,7 +4,7 @@ description: A border's strip is the bar on one side of the layout that holds it
 ---
 
 "A border's strip: the bar on one side of the layout that holds its tabs. Place a
-`Dockable.TabList` inside (it runs vertically in a left or right border). Clicking a tab opens the
+`Dockable.TabList` inside (it runs vertically in a start or end border). Clicking a tab opens the
 border's panel; clicking the selected tab closes it. Render it from `Dockable.Borders`'s
 `renderBar`."
 
@@ -21,7 +21,7 @@ border's panel; clicking the selected tab closes it. Render it from `Dockable.Bo
 ```
 
 The strip is only structural flex. Turning the labels of a side border (`writing-mode`, a
-`rotate` transform) is styling, and yours: `data-tab-direction` on a left border says which way
+`rotate` transform) is styling, and yours: `data-tab-direction` on the start border says which way
 you want them to read (the `tabDirection` prop, a view option the model does not store). Drops into the strip are hit-tested
 against the tab buttons' measured boxes, so any styling works.
 
@@ -32,7 +32,7 @@ against the tab buttons' measured boxes, so any styling works.
 | prop | type | default | description |
 | --- | --- | --- | --- |
 | `node` | `BorderNode<T>` | required | the border |
-| `tabDirection` | `"up" \| "down"` | `"up"` | a left border's tab direction, exposed as `data-tab-direction` for your styles (rotating the labels is yours); ignored on the other sides |
+| `tabDirection` | `"up" \| "down"` | `"up"` | the start border's tab direction, exposed as `data-tab-direction` for your styles (rotating the labels is yours); ignored on the other sides. The page's direction does not change it: pass `"down"` in RTL, where the start border is on the right |
 | `children` | `ReactNode` | none | the strip's content: a `Dockable.TabList`, and any buttons |
 
 ## State
@@ -42,26 +42,26 @@ returned by [`useBorder`](/docs/api/hooks#useborder)), plus its tab direction:
 
 | field | type | description |
 | --- | --- | --- |
-| `location` | `"top" \| "bottom" \| "left" \| "right"` | the side of the layout the border is on |
-| `orientation` | `"horizontal" \| "vertical"` | the direction its tabs run: `"vertical"` for a left or right border |
+| `location` | `"top" \| "bottom" \| "start" \| "end"` | the side of the layout the border is on |
+| `orientation` | `"horizontal" \| "vertical"` | the direction its tabs run: `"vertical"` for a start or end border |
 | `open` | `boolean` | a tab is selected, so the border's panel is open (`model.is("border-open", { borderId })`) |
 | `overlay` | `boolean` | the panel opens over the layout (`model.is("border-overlay", { borderId })`) instead of beside it |
 | `empty` | `boolean` | the border has no tabs |
 | `dropTarget` | `boolean` | the current drag would drop into this border (its strip or its open panel) |
 | `dropRefused` | `boolean` | the current drag is over this border, but a drop rule refuses it |
-| `tabDirection` | `"up" \| "down" \| undefined` | a left border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"`; `undefined` on the other sides. Only the strip has it |
+| `tabDirection` | `"up" \| "down" \| undefined` | the start border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"`; `undefined` on the other sides. Only the strip has it |
 
 ## Data attributes and ARIA
 
 | attribute | value |
 | --- | --- |
-| `data-layout-path` | `/border/<location>`, e.g. `/border/left`; its tabs are `/border/left/tb0`, its tab strip `/border/left/tabstrip` |
-| `data-location` | `"top"`, `"bottom"`, `"left"` or `"right"` |
-| `data-orientation` | `"vertical"` for a left or right border, else `"horizontal"` |
+| `data-layout-path` | `/border/<location>`, e.g. `/border/start`; its tabs are `/border/start/tb0`, its tab strip `/border/start/tabstrip` |
+| `data-location` | `"top"`, `"bottom"`, `"start"` or `"end"` |
+| `data-orientation` | `"vertical"` for a start or end border, else `"horizontal"` |
 | `data-open` | a tab is selected (the panel is open) |
 | `data-overlay` / `data-docked` | the border's resolved `mode` is `"overlay"` / `"docked"` |
 | `data-empty` | the border has no tabs |
-| `data-tab-direction` | on a left border: `"up"` or `"down"` (the `tabDirection` prop) |
+| `data-tab-direction` | on the start border: `"up"` or `"down"` (the `tabDirection` prop) |
 | `data-drop-target` | the current drag would drop into the border |
 | `data-drop-refused` | a drop rule refuses the current drag here |
 
@@ -69,7 +69,7 @@ The tabs are `role="tab"` in a `role="tablist"` (from `Dockable.TabList`), as in
 
 ## Structural style
 
-`display: flex`, `flex-direction: column` for a left or right border, `row` otherwise. The
+`display: flex`, `flex-direction: column` for a start or end border, `row` otherwise. The
 strip's size is yours.
 
 ## Notes

@@ -32,8 +32,8 @@ const withBorder: LayoutJson = {
     defaults: { tab: { enablePopout: true } },
     borders: [
         {
-            id: "left",
-            location: "left",
+            id: "start",
+            location: "start",
             mode: "overlay",
             selected: 0,
             children: [{ id: "b0", component: "test", label: "test" }],
@@ -134,20 +134,20 @@ describe("engine.run / can / check", () => {
 
     it("close-overlay-border: closes an open border with border.configure", () => {
         const { model, engine, commands } = setup();
-        expect(engine.can("close-overlay-border", { borderId: "left" })).toBe(
+        expect(engine.can("close-overlay-border", { borderId: "start" })).toBe(
             true,
         );
         expect(commands).toEqual([]);
         expect(
-            engine.run("close-overlay-border", { borderId: "left" }),
+            engine.run("close-overlay-border", { borderId: "start" }),
         ).toEqual({
             ok: true,
-            value: { borderId: "left" },
+            value: { borderId: "start" },
         });
         expect(commands.map((c) => c.command)).toEqual(["border.configure"]);
-        expect(model.is("border-open", { borderId: "left" })).toBe(false);
+        expect(model.is("border-open", { borderId: "start" })).toBe(false);
         expect(
-            engine.check("close-overlay-border", { borderId: "left" }),
+            engine.check("close-overlay-border", { borderId: "start" }),
         ).toMatchObject({ ok: false, error: { code: "refused" } });
         expect(
             engine.check("close-overlay-border", { borderId: "ts0" }),
@@ -157,10 +157,10 @@ describe("engine.run / can / check", () => {
     it("close-overlay-border: works from a popout window's engine (borders are the main layout's)", () => {
         const { model, engine } = setup();
         const sub = popoutEngine(engine, "t2");
-        expect(sub.run("close-overlay-border", { borderId: "left" }).ok).toBe(
+        expect(sub.run("close-overlay-border", { borderId: "start" }).ok).toBe(
             true,
         );
-        expect(model.is("border-open", { borderId: "left" })).toBe(false);
+        expect(model.is("border-open", { borderId: "start" })).toBe(false);
     });
 
     it("close-overlay-border: a vetoed close is reported, and the close key is not taken", () => {
@@ -169,7 +169,7 @@ describe("engine.run / can / check", () => {
             ctx.command === "border.configure" ? veto("pinned open") : next(),
         );
         expect(
-            engine.run("close-overlay-border", { borderId: "left" }),
+            engine.run("close-overlay-border", { borderId: "start" }),
         ).toMatchObject({ ok: false, error: { code: "vetoed" } });
         const root = document.body.appendChild(document.createElement("div"));
         engine.adapter.attachRoot(root);
@@ -192,7 +192,7 @@ describe("engine.run / can / check", () => {
         );
         expect(handled).toBe(false);
         expect(prevented).toBe(false);
-        expect(model.is("border-open", { borderId: "left" })).toBe(true);
+        expect(model.is("border-open", { borderId: "start" })).toBe(true);
     });
 
     it("measure-and-position: always applies, takes no payload", () => {
@@ -305,13 +305,13 @@ describe("the layout rules", () => {
         const added = model.run("tab.add", {
             component: "test",
             label: "b1",
-            to: "left",
+            to: "start",
         });
         const b1 = added.ok ? added.value.tabId : "";
         model.run("tab.select", { tabId: "b0" });
         expect(tabbable("b0")).toBe(true);
         expect(tabbable(b1)).toBe(false);
-        model.run("border.configure", { borderId: "left", open: false });
+        model.run("border.configure", { borderId: "start", open: false });
         expect(tabbable("b0")).toBe(true);
         expect(tabbable(b1)).toBe(false);
         expect(tabbable("nope")).toBe(false);
@@ -338,6 +338,7 @@ const GET_INPUTS: {
     "flex-by": { required: true, fields: ["nodeId"] },
     "overlay-placement-by": { required: true, fields: ["borderId"] },
     "popout-mode-by": { required: true, fields: ["nodeId"] },
+    direction: { required: false, fields: [] },
     "splitter-size": { required: false, fields: [] },
     "owner-document": { required: false, fields: [] },
     "owner-window": { required: false, fields: [] },

@@ -90,7 +90,7 @@ export const border = (upright: boolean) =>
             ? "data-[orientation=vertical]:w-auto"
             : "data-[orientation=vertical]:w-(--dk-tab-height)",
         "data-[orientation=horizontal]:h-(--dk-tab-height)",
-        "data-[location=left]:border-e data-[location=right]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
+        "data-[location=start]:border-e data-[location=end]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
         "data-drop-target:bg-palette-soft",
     );
 
@@ -99,7 +99,7 @@ export const borderTabList =
     "flex min-h-0 min-w-0 flex-1 gap-(--dk-tab-gap) p-1 data-[orientation=vertical]:flex-col";
 
 /** Upright labels are as wide as the strip; vertical labels are turned with `writing-mode`, and a
- * left border that reads "up" (`data-tab-direction`) turns them half a turn more, so the tabs stay
+ * start border that reads "up" (`data-tab-direction`) turns them half a turn more, so the tabs stay
  * in order from the top. */
 export const borderTab = (upright: boolean) =>
     cn(

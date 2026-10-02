@@ -278,12 +278,15 @@ function syncStyleElement(source: HTMLStyleElement, clone: HTMLStyleElement) {
     }
 }
 
-/** Attributes never mirrored with `mirrorRoot: true`: they belong to each document. */
-const UNMIRRORED = new Set(["style", "id"]);
+/**
+ * Attributes never mirrored with `mirrorRoot: true`: they belong to each document, and `dir` is the
+ * popout layout's direction (the popout manager sets it).
+ */
+const UNMIRRORED = new Set(["style", "id", "dir"]);
 
 /**
  * Copies `<html>` and `<body>` attributes from `source` to `target` and keeps them in sync until the
- * returned function is called. `lang` and `dir` of `<html>` are always copied.
+ * returned function is called. `lang` of `<html>` is always copied.
  */
 export function mirrorRootAttributes(
     source: Document,
@@ -296,16 +299,13 @@ export function mirrorRootAttributes(
     ];
     const listed = Array.isArray(mirror) ? new Set(mirror) : undefined;
     const mirrored = (element: Element, name: string) => {
-        if (
-            element === source.documentElement &&
-            (name === "lang" || name === "dir")
-        ) {
+        if (UNMIRRORED.has(name)) {
+            return false;
+        }
+        if (element === source.documentElement && name === "lang") {
             return true;
         }
-        if (mirror === true) {
-            return !UNMIRRORED.has(name);
-        }
-        return listed?.has(name) ?? false;
+        return mirror === true || (listed?.has(name) ?? false);
     };
     const copy = (from: Element, to: Element, name: string) => {
         const value = from.getAttribute(name);

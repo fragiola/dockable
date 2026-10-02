@@ -7,8 +7,8 @@ test("a border opens beside the layout, resizes, closes, and takes a dragged tab
     await openExample(page, "borders");
     const main = path(page, "/main");
     // the explorer starts open (selected: 0): the main area is narrower than the stage
-    await expect(path(page, "/border/left")).toHaveAttribute("data-open", "");
-    await expect(path(page, "/border/left/t0")).toContainText("src/app.ts");
+    await expect(path(page, "/border/start")).toHaveAttribute("data-open", "");
+    await expect(path(page, "/border/start/t0")).toContainText("src/app.ts");
 
     // the bottom border opens on a click, beside the layout
     const before = await main.boundingBox();
@@ -28,15 +28,15 @@ test("a border opens beside the layout, resizes, closes, and takes a dragged tab
     await path(page, "/border/bottom/tb0").click();
     await expect(path(page, "/border/bottom")).not.toHaveAttribute("data-open");
 
-    // an editor tab dragged onto the right border's strip joins it
+    // an editor tab dragged onto the end border's strip joins it
     await startDrag(page, path(page, "/ts0/tb1"));
-    await moveDragTo(page, await centre(path(page, "/border/right")));
-    await expect(path(page, "/border/right")).toHaveAttribute(
+    await moveDragTo(page, await centre(path(page, "/border/end")));
+    await expect(path(page, "/border/end")).toHaveAttribute(
         "data-drop-target",
         "",
     );
     await page.mouse.up();
     await expect(
-        path(page, "/border/right/tabstrip").getByRole("tab"),
+        path(page, "/border/end/tabstrip").getByRole("tab"),
     ).toHaveText(["Outline", "store.ts"]);
 });

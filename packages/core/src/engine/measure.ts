@@ -2,6 +2,7 @@
 // and src/view/layout/LayoutInternal.tsx (the measure-and-position cycle and the observers that
 // drive it), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+import { type Direction, inlineRect } from "../geometry/direction";
 import {
     EMPTY_RECT,
     equalsWhenRounded,
@@ -86,6 +87,11 @@ export class Measure<T extends DockableTypes> {
 
     layoutRef: HTMLElement | null = null;
     cachedLayoutDomRect: Rect | undefined;
+    /**
+     * the computed `direction` of the layout root, read when the root attaches, when a `dir`
+     * attribute above it changes and on `measure-and-position` (never on every measure pass)
+     */
+    direction: Direction = "ltr";
     private reLayout = false;
     rangesDirty = true;
     private lastRect: Rect = EMPTY_RECT;
@@ -262,6 +268,32 @@ export class Measure<T extends DockableTypes> {
         return changed;
     }
 
+    /**
+     * Reads the root's direction; returns true when it changed. A change re-renders (overlay borders
+     * sit on a physical side).
+     */
+    readDirection(): boolean {
+        const root = this.layoutRef;
+        if (!root) {
+            return false;
+        }
+        const view = root.ownerDocument.defaultView;
+        const direction: Direction =
+            view?.getComputedStyle(root).direction === "rtl" ? "rtl" : "ltr";
+        if (direction === this.direction) {
+            return false;
+        }
+        this.direction = direction;
+        this.reLayout = true;
+        return true;
+    }
+
+    /** a measured rect of this layout with its x read from the start side (mirrored in RTL) */
+    inlineRect(kind: MeasurableKind, id: string): Rect | undefined {
+        const r = this.rect(kind, id);
+        return r && inlineRect(r, this.direction);
+    }
+
     isPanelVisible(tabId: string): boolean {
         const container = tabContainerOf(this.model, tabId);
         return (
@@ -339,7 +371,7 @@ export class Measure<T extends DockableTypes> {
         if (!element) {
             return false;
         }
-        if (border.location === "left" || border.location === "right") {
+        if (border.location === "start" || border.location === "end") {
             element.style.width = `${resolved.size}px`;
             element.style.minWidth = `${resolved.minSize}px`;
             element.style.maxWidth = `${resolved.maxSize}px`;

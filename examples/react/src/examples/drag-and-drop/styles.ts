@@ -30,15 +30,15 @@ export const dropIndicator = (state: DropIndicatorState) =>
             : "palette-blue rounded-(--dk-radius) border-2 border-palette-base bg-palette-base/15",
     );
 
-/** The arrow for the side the drop docks to. */
-export const dropArrow = "size-5 text-palette-base";
+/** The arrow for the side the drop docks to; start points right in RTL. */
+export const dropArrow = "size-5 text-palette-base rtl:-scale-x-100";
 
 /** An edge docking target, solid under the pointer (`data-drop-target`); `z-20` paints it above
  * the panels. */
 export const edgeIndicator =
     "palette-orange z-20 flex items-center justify-center rounded-sm bg-palette-base/40 text-palette-contrast transition-colors duration-(--dk-motion) data-drop-target:bg-palette-base";
 
-export const edgeArrow = "size-3";
+export const edgeArrow = "size-3 rtl:-scale-x-100";
 
 /** `relative` anchors the drop target's outline; `group/tabset` lets it read the tabset's data-*. */
 export const tabset =

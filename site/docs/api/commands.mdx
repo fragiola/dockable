@@ -33,10 +33,10 @@ Add a new tab. `component` names what the tab shows, `label` is its name (the ap
 | `minHeight` | `number` | no | the smallest height, in px |
 | `maxWidth` | `number` | no | the largest width, in px |
 | `maxHeight` | `number` | no | the largest height, in px |
-| `borderWidth` | `number` | no | its panel's width in a left or right border, in px |
+| `borderWidth` | `number` | no | its panel's width in a start or end border, in px |
 | `borderHeight` | `number` | no | its panel's height in a top or bottom border, in px |
 | `to` | `string` | yes | a tabset, a row, a border, or a layout id (its root row) |
-| `location` | `"center" \| "top" \| "bottom" \| "left" \| "right"` | no | center (default) goes into the target; an edge of a tabset splits it; an edge of a row docks beside its children |
+| `location` | `"center" \| "top" \| "bottom" \| "start" \| "end"` | no | center (default) goes into the target; an edge of a tabset splits it; an edge of a row docks beside its children |
 | `index` | `integer` | no | for a center drop: the insertion index; -1 appends |
 | `select` | `boolean` | no | whether the tab is selected in its new place |
 
@@ -129,7 +129,7 @@ Move a tab to another place: into a tabset or border at an index (location cente
 | --- | --- | --- | --- |
 | `tabId` | `string` | yes | the tab's id |
 | `to` | `string` | yes | a tabset, a row, a border, or a layout id (its root row) |
-| `location` | `"center" \| "top" \| "bottom" \| "left" \| "right"` | no | center (default) goes into the target; an edge of a tabset splits it; an edge of a row docks beside its children |
+| `location` | `"center" \| "top" \| "bottom" \| "start" \| "end"` | no | center (default) goes into the target; an edge of a tabset splits it; an edge of a row docks beside its children |
 | `index` | `integer` | no | for a center drop: the insertion index; -1 appends |
 | `select` | `boolean` | no | whether the tab is selected in its new place |
 
@@ -145,12 +145,12 @@ Move a tab to another place: into a tabset or border at an index (location cente
 model.run("tab.move", {
     tabId: "tab-1",
     to: "tabset-2",
-    location: "right"
+    location: "end"
 });
 ```
 
 ```json
-{ "command": "tab.move", "payload": {"tabId":"tab-1","to":"tabset-2","location":"right"} }
+{ "command": "tab.move", "payload": {"tabId":"tab-1","to":"tabset-2","location":"end"} }
 ```
 
 ### `tab.set-data`
@@ -295,7 +295,7 @@ Change a tab's label, behaviour flags and size limits. Absent keys are left as t
 | `minHeight` | `number \| null` | no | the smallest height, in px (null removes it: the layout default applies) |
 | `maxWidth` | `number \| null` | no | the largest width, in px (null removes it: the layout default applies) |
 | `maxHeight` | `number \| null` | no | the largest height, in px (null removes it: the layout default applies) |
-| `borderWidth` | `number \| null` | no | its panel's width in a left or right border, in px (null removes it: the layout default applies) |
+| `borderWidth` | `number \| null` | no | its panel's width in a start or end border, in px (null removes it: the layout default applies) |
 | `borderHeight` | `number \| null` | no | its panel's height in a top or bottom border, in px (null removes it: the layout default applies) |
 
 **Result** (`{ tabId: string }`)
@@ -416,7 +416,7 @@ Move a whole tabset: merge its tabs into another tabset (location center), place
 | --- | --- | --- | --- |
 | `tabsetId` | `string` | yes | the tabset's id |
 | `to` | `string` | yes | a tabset, a row, or a layout id (its root row) |
-| `location` | `"center" \| "top" \| "bottom" \| "left" \| "right"` | no | center (default) merges its tabs into the target; an edge of a tabset places it beside; an edge of a row docks it there |
+| `location` | `"center" \| "top" \| "bottom" \| "start" \| "end"` | no | center (default) merges its tabs into the target; an edge of a tabset places it beside; an edge of a row docks it there |
 | `index` | `integer` | no | for a merge: where its tabs go; -1 appends |
 
 **Result** (`{ tabsetId: string }`)
@@ -604,13 +604,13 @@ It may run as a step of a continuous gesture: `model.run(…, { transient: true 
 
 ```ts
 model.run("border.resize", {
-    borderId: "border_left",
+    borderId: "border_start",
     size: 240
 });
 ```
 
 ```json
-{ "command": "border.resize", "payload": {"borderId":"border_left","size":240} }
+{ "command": "border.resize", "payload": {"borderId":"border_start","size":240} }
 ```
 
 ### `border.configure`
@@ -644,13 +644,13 @@ Open or close a border's panel (open), switch it between docked and overlay (mod
 
 ```ts
 model.run("border.configure", {
-    borderId: "border_left",
+    borderId: "border_start",
     open: true
 });
 ```
 
 ```json
-{ "command": "border.configure", "payload": {"borderId":"border_left","open":true} }
+{ "command": "border.configure", "payload": {"borderId":"border_start","open":true} }
 ```
 
 ## Windows

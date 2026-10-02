@@ -92,6 +92,32 @@ describe("tab commands", () => {
         });
     });
 
+    it("tab.move and tabset.move refuse a left or right location: the sides are start and end", () => {
+        const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
+        const before = text();
+        for (const location of ["left", "right"]) {
+            expect(
+                model.dispatch({
+                    command: "tab.move",
+                    payload: { tabId: "Two", to: "ts1", location },
+                }),
+            ).toMatchObject({
+                ok: false,
+                error: { code: "invalid_payload", path: "/payload/location" },
+            });
+            expect(
+                model.dispatch({
+                    command: "tabset.move",
+                    payload: { tabsetId: "ts0", to: "ts1", location },
+                }),
+            ).toMatchObject({
+                ok: false,
+                error: { code: "invalid_payload", path: "/payload/location" },
+            });
+        }
+        expect(text()).toBe(before);
+    });
+
     it("tab.add, tab.set-data and tab.set-component validate data with the registered schema", () => {
         const model = createModel(tabsets(["One"]), {
             dataSchemas: {
@@ -574,7 +600,7 @@ describe("border commands", () => {
             ...tabsets(["Main"]),
             borders: [
                 {
-                    location: "left",
+                    location: "start",
                     size: 150,
                     minSize: 100,
                     maxSize: 300,
@@ -586,7 +612,7 @@ describe("border commands", () => {
     it("moving every tab into a border empties the main layout, as designed; a middleware can veto it (caplin/FlexLayout#93)", () => {
         // by design: the main layout keeps its tabset, empty, and the app decides
         const { model } = withBorder();
-        must(model.run("tab.move", { tabId: "Main", to: "border_left" }));
+        must(model.run("tab.move", { tabId: "Main", to: "border_start" }));
         expect(model.get("tabsets").map((ts) => ts.children.length)).toEqual([
             0,
         ]);
@@ -617,19 +643,19 @@ describe("border commands", () => {
         const guarded = withBorder().model;
         guarded.use(keepMainFilled);
         expect(
-            guarded.can("tab.move", { tabId: "Main", to: "border_left" }),
+            guarded.can("tab.move", { tabId: "Main", to: "border_start" }),
         ).toBe(false);
         const refused = guarded.run("tab.move", {
             tabId: "Main",
-            to: "border_left",
+            to: "border_start",
         });
         expect(refused.ok ? undefined : refused.error.code).toBe("vetoed");
         expect(guarded.get("layout-id-by", { nodeId: "Main" })).toBe("main");
         // a tab from the border into the main layout, and back out, still moves
         must(guarded.run("tab.move", { tabId: "A", to: "ts0" }));
-        must(guarded.run("tab.move", { tabId: "Main", to: "border_left" }));
+        must(guarded.run("tab.move", { tabId: "Main", to: "border_start" }));
         expect(
-            guarded.run("tab.move", { tabId: "A", to: "border_left" }).ok,
+            guarded.run("tab.move", { tabId: "A", to: "border_start" }).ok,
         ).toBe(false);
     });
 
@@ -638,15 +664,15 @@ describe("border commands", () => {
         expect(
             must(
                 model.run("border.resize", {
-                    borderId: "border_left",
+                    borderId: "border_start",
                     size: 500,
                 }),
             ),
         ).toEqual({
-            borderId: "border_left",
+            borderId: "border_start",
             size: 300,
         });
-        expect(model.get("node-by", { id: "border_left" })).toMatchObject({
+        expect(model.get("node-by", { id: "border_start" })).toMatchObject({
             size: 300,
         });
         expect(
@@ -665,12 +691,12 @@ describe("border commands", () => {
             })?.size,
         ).toBe(250);
         must(
-            model.run("border.resize", { borderId: "border_left", size: 120 }),
+            model.run("border.resize", { borderId: "border_start", size: 120 }),
         );
         expect(model.get("node-by", { id: "B" })).toMatchObject({
             borderWidth: 120,
         });
-        expect(model.get("node-by", { id: "border_left" })).toMatchObject({
+        expect(model.get("node-by", { id: "border_start" })).toMatchObject({
             size: 150,
         });
     });
@@ -679,26 +705,26 @@ describe("border commands", () => {
         const { model } = withBorder();
         must(
             model.run("border.configure", {
-                borderId: "border_left",
+                borderId: "border_start",
                 open: true,
                 mode: "overlay",
             }),
         );
-        expect(model.get("node-by", { id: "border_left" })).toMatchObject({
+        expect(model.get("node-by", { id: "border_start" })).toMatchObject({
             selected: 0,
             mode: "overlay",
         });
         must(
             model.run("border.configure", {
-                borderId: "border_left",
+                borderId: "border_start",
                 open: false,
                 mode: null,
             }),
         );
-        expect(model.get("node-by", { id: "border_left" })).toMatchObject({
+        expect(model.get("node-by", { id: "border_start" })).toMatchObject({
             selected: -1,
         });
-        expect(model.get("node-by", { id: "border_left" })).not.toHaveProperty(
+        expect(model.get("node-by", { id: "border_start" })).not.toHaveProperty(
             "mode",
         );
         expect(
@@ -711,11 +737,11 @@ describe("border commands", () => {
     it("border.configure refuses to open an empty border", () => {
         const { model } = setup({
             ...tabsets(["Main"]),
-            borders: [{ location: "right", children: [] }],
+            borders: [{ location: "end", children: [] }],
         });
         expect(
             model.run("border.configure", {
-                borderId: "border_right",
+                borderId: "border_end",
                 open: true,
             }),
         ).toMatchObject({

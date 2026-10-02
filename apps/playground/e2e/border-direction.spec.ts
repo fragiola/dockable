@@ -9,57 +9,54 @@ import { findPath, waitForBox } from "./helpers";
 
 const open = async (page: Page) => {
     await page.goto("/fixtures/borders/?layout=test_border_direction");
-    await expect(findPath(page, "/border/left/tb0")).toBeVisible();
-    await expect(findPath(page, "/border/left/tb2")).toBeVisible();
+    await expect(findPath(page, "/border/start/tb0")).toBeVisible();
+    await expect(findPath(page, "/border/start/tb2")).toBeVisible();
 };
 
 const setDirection = (page: Page, direction: "up" | "down") =>
     page.evaluate((value) => {
         window.__dockable?.model.run("border.configure", {
-            borderId: "border_left",
+            borderId: "border_start",
             data: { tabDirection: value },
         });
     }, direction);
 
 const firstTabOnTop = async (page: Page) => {
     const strip = await waitForBox(
-        findPath(page, "/border/left"),
-        "left strip",
+        findPath(page, "/border/start"),
+        "start strip",
     );
-    const tb0 = await waitForBox(findPath(page, "/border/left/tb0"), "tb0");
-    const tb2 = await waitForBox(findPath(page, "/border/left/tb2"), "tb2");
+    const tb0 = await waitForBox(findPath(page, "/border/start/tb0"), "tb0");
+    const tb2 = await waitForBox(findPath(page, "/border/start/tb2"), "tb2");
     expect(tb0.y).toBeLessThan(tb2.y);
     expect(tb0.y).toBeLessThan(strip.y + 40);
     expect(tb0.x).toBeGreaterThanOrEqual(strip.x - 5);
     expect(tb0.x + tb0.width).toBeLessThanOrEqual(strip.x + strip.width + 5);
-    // the left and right borders' first tabs line up
-    const right0 = await waitForBox(
-        findPath(page, "/border/right/tb0"),
-        "right tb0",
-    );
-    expect(Math.abs(tb0.y - right0.y)).toBeLessThan(5);
+    // the start and end borders' first tabs line up
+    const end0 = await waitForBox(findPath(page, "/border/end/tb0"), "end tb0");
+    expect(Math.abs(tb0.y - end0.y)).toBeLessThan(5);
 };
 
-test("the left border's tabs read up by default, first tab at the top", async ({
+test("the start border's tabs read up by default, first tab at the top", async ({
     page,
 }) => {
     await open(page);
-    await expect(findPath(page, "/border/left")).toHaveAttribute(
+    await expect(findPath(page, "/border/start")).toHaveAttribute(
         "data-tab-direction",
         "up",
     );
-    await expect(findPath(page, "/border/right")).not.toHaveAttribute(
+    await expect(findPath(page, "/border/end")).not.toHaveAttribute(
         "data-tab-direction",
     );
     await firstTabOnTop(page);
 });
 
-test("borderLeftTabDirection 'down' flips the reading direction, keeping the order", async ({
+test("the start border's tabDirection 'down' flips the reading direction, keeping the order", async ({
     page,
 }) => {
     await open(page);
     await setDirection(page, "down");
-    await expect(findPath(page, "/border/left")).toHaveAttribute(
+    await expect(findPath(page, "/border/start")).toHaveAttribute(
         "data-tab-direction",
         "down",
     );
@@ -69,12 +66,12 @@ test("borderLeftTabDirection 'down' flips the reading direction, keeping the ord
 test("toggling back to 'up' restores it", async ({ page }) => {
     await open(page);
     await setDirection(page, "down");
-    await expect(findPath(page, "/border/left")).toHaveAttribute(
+    await expect(findPath(page, "/border/start")).toHaveAttribute(
         "data-tab-direction",
         "down",
     );
     await setDirection(page, "up");
-    await expect(findPath(page, "/border/left")).toHaveAttribute(
+    await expect(findPath(page, "/border/start")).toHaveAttribute(
         "data-tab-direction",
         "up",
     );

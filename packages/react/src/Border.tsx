@@ -15,7 +15,7 @@ import {
 } from "./utils/useRender";
 
 export interface BorderState extends BorderContentState {
-    /** a left border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"` */
+    /** the start border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"` */
     tabDirection: "up" | "down" | undefined;
 }
 
@@ -35,7 +35,7 @@ export interface BorderProps<T extends DockableTypes = AnyTypes>
     extends DivPrimitiveProps<BorderState> {
     node: BorderNode<T>;
     /**
-     * a left border's tab direction, exposed as `data-tab-direction` for your styles (rotating the
+     * the start border's tab direction, exposed as `data-tab-direction` for your styles (rotating the
      * labels is yours): `"up"` (default) or `"down"`
      */
     tabDirection?: "up" | "down" | undefined;
@@ -45,7 +45,7 @@ export interface BorderProps<T extends DockableTypes = AnyTypes>
 
 /**
  * A border's strip: the bar on one side of the layout that holds its tabs. Place a
- * `Dockable.TabList` inside (it runs vertically in a left or right border). Clicking a tab opens
+ * `Dockable.TabList` inside (it runs vertically in a start or end border). Clicking a tab opens
  * the border's panel; clicking the selected tab closes it. Render it from `Dockable.Borders`'s `renderBar`.
  *
  * The strip is only structural flex: rotating the tab labels of a side border (`writing-mode`, a
@@ -60,7 +60,7 @@ export function Border<T extends DockableTypes = AnyTypes>(
     const state: BorderState = {
         ...border.state,
         tabDirection:
-            node.location === "left" ? (tabDirection ?? "up") : undefined,
+            node.location === "start" ? (tabDirection ?? "up") : undefined,
     };
     const element = useRenderElement("div", rest, {
         state,

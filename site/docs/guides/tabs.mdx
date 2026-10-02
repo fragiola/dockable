@@ -26,7 +26,7 @@ registry) and places it with `to`, `location`, `index` and `select`:
 
 - `to` is a tabset, a border, a row, or a layout id (`MAIN_LAYOUT`, meaning its root row);
 - `location` `"center"` (the default) adds the tab to that tabset or border at `index` (`-1`, the
-  default, appends it); an edge (`"top"`, `"bottom"`, `"left"`, `"right"`) of a tabset splits it
+  default, appends it); an edge (`"top"`, `"bottom"`, `"start"`, `"end"`) of a tabset splits it
   and puts the tab in a new tabset beside it, and an edge of a layout docks a new tabset along that
   edge;
 - `select` forces the selection; without it the target's `autoSelectTab` rule decides.

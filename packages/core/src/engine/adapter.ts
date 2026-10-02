@@ -113,6 +113,11 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
 
     /** a measured rect of a node of this layout, relative to the layout root */
     rect(kind: MeasurableKind, id: string): Rect | undefined;
+    /**
+     * the same rect with its x read from the start side: as is in LTR, mirrored in RTL (the
+     * direction is `engine.get("direction")`)
+     */
+    inlineRect(kind: MeasurableKind, id: string): Rect | undefined;
     /** an element's rect relative to the layout root */
     rectInLayout(element: HTMLElement): Rect;
     /** the layout root's rect in viewport coordinates (cached for a measure pass) */

@@ -324,7 +324,7 @@ export function borderSplitterBounds(
             bottom(layoutRect) - layoutRange.minHeight - splitterSize,
         );
         bounds[1] = Math.min(bounds[1], bottom(strip) + maxSize);
-    } else if (location === "left") {
+    } else if (location === "start") {
         bounds[0] = right(strip) + minSize;
         bounds[1] = Math.max(
             bounds[0],
@@ -349,7 +349,7 @@ export function borderSplitSize(
     bounds: [number, number],
     splitterPos: number,
 ): number {
-    return location === "bottom" || location === "right"
+    return location === "bottom" || location === "end"
         ? Math.max(0, bounds[1] - splitterPos)
         : Math.max(0, splitterPos - bounds[0]);
 }

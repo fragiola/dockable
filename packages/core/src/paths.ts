@@ -9,7 +9,7 @@
 //   /ts0/t1      tab panel
 //   /ts0/tabstrip
 //   /s0          splitter after the first child of the root row (/r0/s1 inside a nested row)
-//   /border/left, /border/left/t0, /border/left/tb0
+//   /border/start, /border/start/t0, /border/start/tb0
 import type { AnyBorder, AnyRow } from "./state/tree";
 
 /**

@@ -48,8 +48,8 @@ export interface PopoutOptions<T extends DockableTypes = AnyTypes> {
     onPopoutClose?: PopoutCallback<T> | undefined;
     /**
      * copies the main document's `<html>` and `<body>` attributes into each popout and keeps them
-     * in sync: `true` copies them all (except `style` and `id`), a list copies those names only.
-     * Default: only `lang` and `dir` of `<html>`.
+     * in sync: `true` copies them all (except `style`, `id` and `dir`), a list copies those names
+     * only. Default: only `lang` of `<html>`. A popout's `dir` is always the layout's direction.
      */
     mirrorRoot?: boolean | readonly string[] | undefined;
     /** opens the native window (default: the main window's `open`) */
@@ -238,6 +238,16 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         }
     }
 
+    /** The main layout's direction changed: every window takes it (their engines re-measure). */
+    followDirection() {
+        const direction = this.engine.get("direction");
+        for (const entry of this.entries.values()) {
+            if (entry.cleanup) {
+                entry.window.document.documentElement.dir = direction;
+            }
+        }
+    }
+
     /** Closes a layout's window now (the layout stays in the state). */
     close(layoutId: string) {
         const entry = this.entries.get(layoutId);
@@ -323,12 +333,14 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         if (title !== undefined) {
             popoutDocument.title = title;
         }
-        // carry over the language/direction, and the root attributes the consumer asked to mirror
+        // carry over the language and the root attributes the consumer asked to mirror; the
+        // direction is the layout's, wherever the page sets it
         const stopMirroringRoot = mirrorRootAttributes(
             mainDocument,
             popoutDocument,
             this.options.mirrorRoot,
         );
+        popoutDocument.documentElement.dir = this.engine.get("direction");
         const contentRoot = popoutDocument.createElement("div");
         contentRoot.setAttribute(POPOUT_ATTRIBUTE, entry.layoutId);
         popoutDocument.body.appendChild(contentRoot);

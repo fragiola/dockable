@@ -82,7 +82,7 @@ const EXAMPLES: Record<string, unknown> = {
     },
     "tab.select": { tabId: "tab-1" },
     "tab.close": { tabId: "tab-1" },
-    "tab.move": { tabId: "tab-1", to: "tabset-2", location: "right" },
+    "tab.move": { tabId: "tab-1", to: "tabset-2", location: "end" },
     "tab.set-data": { tabId: "tab-1", data: { dirty: true } },
     "tab.set-component": {
         tabId: "tab-1",
@@ -100,8 +100,8 @@ const EXAMPLES: Record<string, unknown> = {
     "tabset.configure": { tabsetId: "tabset-1", enableMaximize: false },
     "row.resize": { rowId: "row-1", weights: [30, 70] },
     "row.configure": { rowId: "row-1", data: { name: "Editors" } },
-    "border.resize": { borderId: "border_left", size: 240 },
-    "border.configure": { borderId: "border_left", open: true },
+    "border.resize": { borderId: "border_start", size: 240 },
+    "border.configure": { borderId: "border_start", open: true },
     "window.close": { windowId: "window-1" },
     "window.configure": {
         windowId: "window-1",

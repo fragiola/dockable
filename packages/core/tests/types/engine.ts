@@ -28,7 +28,7 @@ export function actions(engine: LayoutEngine): void {
     }
     const allowed: boolean = engine.can("focus-tabset", { direction: "next" });
     use(allowed, engine.run("measure-and-position"));
-    engine.run("close-overlay-border", { borderId: "left" });
+    engine.run("close-overlay-border", { borderId: "border_start" });
 
     // @ts-expect-error: a command changes the layout through model.run, never engine.run
     engine.run("tab.close", { tabId: "t0" });
@@ -59,14 +59,17 @@ export function reads(engine: LayoutEngine): void {
     use(path, panel, min, size, doc, supported, visible);
     const grow: number = engine.get("flex-by", { nodeId: "ts0" }).grow;
     const top: number | undefined = engine.get("overlay-placement-by", {
-        borderId: "left",
+        borderId: "border_start",
     })?.top;
-    const shown: boolean = engine.is("border-shown", { borderId: "left" });
+    const shown: boolean = engine.is("border-shown", {
+        borderId: "border_start",
+    });
     const tabbable: boolean = engine.is("tab-tabbable", { tabId: "t0" });
     const mode: "popout" | "dock" | undefined = engine.get("popout-mode-by", {
         nodeId: "t0",
     });
-    use(grow, top, shown, tabbable, mode);
+    const direction: "ltr" | "rtl" = engine.get("direction");
+    use(grow, top, shown, tabbable, mode, direction);
 
     // @ts-expect-error: not a view fact
     engine.get("node-parent-by", { nodeId: "t0" });
@@ -83,7 +86,7 @@ export function reads(engine: LayoutEngine): void {
     // @ts-expect-error: flex-by replaced size-limits-by
     engine.get("size-limits-by", { nodeId: "ts0" });
     // @ts-expect-error: border-shown takes `borderId`
-    engine.is("border-shown", { nodeId: "left" });
+    engine.is("border-shown", { nodeId: "border_start" });
 }
 
 export function adapter(engine: LayoutEngine): void {

@@ -21,8 +21,8 @@ import * as styles from "./styles";
 
 // Overlay borders (`mode: "overlay"`) open over the layout instead of beside it, and close on a
 // press elsewhere in the layout or on Escape (keyMap.closeOverlayBorder). The toolbar switches a
-// border's mode with the `border.configure` command. The right border is empty and `autoHide`: it
-// shows up while a tab is dragged near the layout's right edge, so it can take the drop. The edge
+// border's mode with the `border.configure` command. The end border is empty and `autoHide`: it
+// shows up while a tab is dragged near the layout's end edge, so it can take the drop. The edge
 // indicators (Dockable.EdgeIndicator) mark where a drop docks to an edge instead.
 
 type Types = {
@@ -40,7 +40,7 @@ const json: LayoutJson<Types> = {
     defaults: { border: { size: 240 } },
     borders: [
         {
-            location: "left",
+            location: "start",
             mode: "overlay",
             children: [
                 { component: "kpi", label: "Inbox", data: { seed: 17 } },
@@ -60,7 +60,7 @@ const json: LayoutJson<Types> = {
             children: [{ component: "log", label: "Console" }],
         },
         {
-            location: "right",
+            location: "end",
             autoHide: true,
             children: [],
         },
@@ -95,14 +95,14 @@ const json: LayoutJson<Types> = {
     },
 };
 
-const SWITCHABLE = ["left", "bottom"] as const;
+const SWITCHABLE = ["start", "bottom"] as const;
 
 // the four edge docking targets, each with an arrow pointing at its edge
 const EDGES = [
     ["top", ArrowUp],
     ["bottom", ArrowDown],
-    ["left", ArrowLeft],
-    ["right", ArrowRight],
+    ["start", ArrowLeft],
+    ["end", ArrowRight],
 ] as const;
 
 export default function OverlayBorders() {

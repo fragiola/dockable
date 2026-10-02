@@ -136,6 +136,10 @@
                     "path": "guides/keyboard"
                 },
                 {
+                    "label": "Right-to-left layouts",
+                    "path": "guides/rtl"
+                },
+                {
                     "label": "Tab overflow",
                     "path": "guides/tab-overflow"
                 },

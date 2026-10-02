@@ -27,7 +27,7 @@ test("the indicator takes the target region's colour and the drop's side", async
     const review = await background(indicator);
     expect(review).not.toBe(inbox);
 
-    // beside Archive, on its left: the archive colour, another fill
+    // beside Archive, on its start side: the archive colour, another fill
     const box = await path(page, "/r1/ts0/content").boundingBox();
     if (!box) throw new Error("no box");
     await moveDragTo(page, {
@@ -35,7 +35,7 @@ test("the indicator takes the target region's colour and the drop's side", async
         y: box.y + box.height / 2,
     });
     await expect(path(page, "/r1/ts0")).toHaveAttribute("data-drop-target", "");
-    await expect(indicator).toHaveAttribute("data-drop-location", "left");
+    await expect(indicator).toHaveAttribute("data-drop-location", "start");
     const archive = await background(indicator);
     expect(archive).not.toBe(inbox);
     expect(archive).not.toBe(review);

@@ -59,8 +59,8 @@ describe("edge docking bands", () => {
             width: 100,
             height: 10,
         });
-        expect(bands.left).toEqual({ x: 0, y: 100, width: 10, height: 100 });
-        expect(bands.right).toEqual({ x: 390, y: 100, width: 10, height: 100 });
+        expect(bands.start).toEqual({ x: 0, y: 100, width: 10, height: 100 });
+        expect(bands.end).toEqual({ x: 390, y: 100, width: 10, height: 100 });
 
         model.run("layout.configure", {
             defaults: { layout: { edgeDockMargin: 4, edgeDockLength: 60 } },
@@ -99,18 +99,18 @@ describe("edge docking bands", () => {
 describe("edge bands in a short layout", () => {
     it("are drawn where a drop docks: at most the edge's length", () => {
         const s = setup(withBorders([]));
-        // a 400x40 root row: the left and right bands are 40 long, the top and bottom 100
+        // a 400x40 root row: the start and end bands are 40 long, the top and bottom 100
         s.rects.set(s.row, 10, 20, 400, 40);
         s.engine.run("measure-and-position");
         const bands = s.engine.adapter.edgeBands();
-        expect(bands.find(({ location }) => location === "left")?.rect).toEqual(
-            {
-                x: 0,
-                y: 0,
-                width: 10,
-                height: 40,
-            },
-        );
+        expect(
+            bands.find(({ location }) => location === "start")?.rect,
+        ).toEqual({
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 40,
+        });
         expect(
             bands.find(({ location }) => location === "top")?.rect,
         ).toMatchObject({ x: 150, width: 100 });
@@ -134,7 +134,7 @@ describe("unmounted border parts", () => {
         const s = setup(
             withBorders([
                 {
-                    location: "left",
+                    location: "start",
                     children: [{ id: "b0", component: "test", label: "test" }],
                 },
             ]),
@@ -147,21 +147,21 @@ describe("unmounted border parts", () => {
             300,
         );
         s.engine.adapter.registerMeasurable(
-            "border_left",
+            "border_start",
             "borderheader",
             strip,
         );
         s.engine.run("measure-and-position");
         expect(
-            s.engine.adapter.rect("borderheader", "border_left")?.width,
+            s.engine.adapter.rect("borderheader", "border_start")?.width,
         ).toBe(30);
         s.engine.adapter.registerMeasurable(
-            "border_left",
+            "border_start",
             "borderheader",
             null,
         );
         expect(
-            s.engine.adapter.rect("borderheader", "border_left"),
+            s.engine.adapter.rect("borderheader", "border_start"),
         ).toBeUndefined();
     });
 });
@@ -235,16 +235,16 @@ describe("border-shown", () => {
             withBorders([
                 { location: "bottom", autoHide: true, children: [] },
                 { location: "top", children: [] },
-                { location: "right", show: false, children: [tab("r0")] },
-                { location: "left", autoHide: true, children: [tab("l0")] },
+                { location: "end", show: false, children: [tab("r0")] },
+                { location: "start", autoHide: true, children: [tab("l0")] },
             ]),
         );
         const shown = (borderId: string) =>
             engine.is("border-shown", { borderId });
         expect(shown("border_bottom")).toBe(false);
         expect(shown("border_top")).toBe(true);
-        expect(shown("border_right")).toBe(false);
-        expect(shown("border_left")).toBe(true);
+        expect(shown("border_end")).toBe(false);
+        expect(shown("border_start")).toBe(true);
         expect(shown("ts0")).toBe(false);
         model.run("tab.move", { tabId: "t0", to: "border_bottom" });
         expect(shown("border_bottom")).toBe(true);
@@ -301,7 +301,7 @@ describe("border-shown", () => {
 
 describe("overlay-placement-by", () => {
     const open = (
-        location: "top" | "bottom" | "left" | "right",
+        location: "top" | "bottom" | "start" | "end",
         size: number,
         mode: "overlay" | "docked" = "overlay",
     ) => ({
@@ -324,31 +324,31 @@ describe("overlay-placement-by", () => {
         ).toEqual({ bottom: 0, left: 0, right: 0 });
     });
 
-    it("stops a left or right overlay at the open top and bottom overlays (their size and a splitter)", () => {
+    it("stops a start or end overlay at the open top and bottom overlays (their size and a splitter)", () => {
         const { engine, model } = setup(
             withBorders([
                 open("top", 50),
                 open("bottom", 70),
-                open("left", 150),
-                open("right", 150),
+                open("start", 150),
+                open("end", 150),
             ]),
         );
         const placement = (borderId: string) =>
             engine.get("overlay-placement-by", { borderId });
         const splitter = engine.get("splitter-size");
         expect(splitter).toBe(8);
-        expect(placement("border_left")).toEqual({
+        expect(placement("border_start")).toEqual({
             left: 0,
             top: 50 + splitter,
             bottom: 70 + splitter,
         });
-        expect(placement("border_right")).toEqual({
+        expect(placement("border_end")).toEqual({
             right: 0,
             top: 50 + splitter,
             bottom: 70 + splitter,
         });
         model.run("border.configure", { borderId: "border_top", open: false });
-        expect(placement("border_left")).toEqual({
+        expect(placement("border_start")).toEqual({
             left: 0,
             top: 0,
             bottom: 70 + splitter,
@@ -357,7 +357,7 @@ describe("overlay-placement-by", () => {
             borderId: "border_bottom",
             show: false,
         });
-        expect(placement("border_left")).toEqual({
+        expect(placement("border_start")).toEqual({
             left: 0,
             top: 0,
             bottom: 0,
@@ -366,10 +366,10 @@ describe("overlay-placement-by", () => {
 
     it("ignores docked borders, and places none for a docked border", () => {
         const { engine } = setup(
-            withBorders([open("top", 50, "docked"), open("left", 150)]),
+            withBorders([open("top", 50, "docked"), open("start", 150)]),
         );
         expect(
-            engine.get("overlay-placement-by", { borderId: "border_left" }),
+            engine.get("overlay-placement-by", { borderId: "border_start" }),
         ).toEqual({ left: 0, top: 0, bottom: 0 });
         expect(
             engine.get("overlay-placement-by", { borderId: "border_top" }),
@@ -381,9 +381,9 @@ describe("overlay-placement-by", () => {
 });
 
 describe("overlay borders", () => {
-    const leftOverlay = withBorders([
+    const startOverlay = withBorders([
         {
-            location: "left",
+            location: "start",
             mode: "overlay",
             selected: 0,
             children: [{ id: "b0", component: "test", label: "test" }],
@@ -391,7 +391,7 @@ describe("overlay borders", () => {
     ]);
 
     function setupOverlay() {
-        const s = setup(leftOverlay);
+        const s = setup(startOverlay);
         const area = s.rects.set(
             s.root.appendChild(document.createElement("div")),
             10,
@@ -400,7 +400,7 @@ describe("overlay borders", () => {
             300,
         );
         s.engine.adapter.registerMeasurable(
-            "border_left",
+            "border_start",
             "bordercontent",
             area,
         );
@@ -412,7 +412,7 @@ describe("overlay borders", () => {
                 clientY: y,
             });
         const selected = () => {
-            const border = s.model.get("node-by", { id: "border_left" });
+            const border = s.model.get("node-by", { id: "border_start" });
             return border?.type === "border" ? border.selected : undefined;
         };
         return { ...s, area, press, selected };
@@ -424,7 +424,7 @@ describe("overlay borders", () => {
         expect(s.selected()).toBe(-1);
         expect(s.commands.at(-1)).toEqual({
             command: "border.configure",
-            payload: { borderId: "border_left", open: false },
+            payload: { borderId: "border_start", open: false },
         });
     });
 

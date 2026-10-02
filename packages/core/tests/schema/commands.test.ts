@@ -29,7 +29,7 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
             label: "chart",
             data: { series: [] },
             to: "ts0",
-            location: "left",
+            location: "start",
             index: -1,
             select: true,
             pinned: false,
@@ -146,21 +146,21 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
         result: { rowId: "r" },
     },
     "border.resize": {
-        valid: { borderId: "border_left", size: 120 },
-        invalid: { borderId: "border_left", size: "big" },
+        valid: { borderId: "border_start", size: 120 },
+        invalid: { borderId: "border_start", size: "big" },
         path: "/size",
-        result: { borderId: "border_left", size: 120 },
+        result: { borderId: "border_start", size: 120 },
     },
     "border.configure": {
         valid: {
-            borderId: "border_left",
+            borderId: "border_start",
             open: false,
             mode: "overlay",
             size: null,
         },
-        invalid: { borderId: "border_left", mode: "floating" },
+        invalid: { borderId: "border_start", mode: "floating" },
         path: "/mode",
-        result: { borderId: "border_left" },
+        result: { borderId: "border_start" },
     },
     "window.close": {
         valid: { windowId: "w" },
@@ -298,7 +298,7 @@ describe("command schemas", () => {
                 borders: [
                     {
                         type: "border",
-                        location: "left",
+                        location: "start",
                         selected: -1,
                         show: false,
                         autoHide: true,

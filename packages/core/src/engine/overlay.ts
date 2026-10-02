@@ -93,9 +93,11 @@ export class Overlay<T extends DockableTypes> {
                 bottom = inset;
             }
         }
-        return border.location === "left"
-            ? { left: 0, top, bottom }
-            : { right: 0, top, bottom };
+        // start is on the left in LTR, on the right in RTL
+        const left =
+            (border.location === "start") ===
+            (this.measure.direction === "ltr");
+        return left ? { left: 0, top, bottom } : { right: 0, top, bottom };
     }
 
     isBorderShown(borderId: string): boolean {

@@ -31,7 +31,7 @@ test("the targeted tabset and side are marked, one at a time", async ({
     await expect(targets).toHaveCount(1);
     await expect(path(page, "/r1/ts1")).toHaveAttribute(
         "data-drop-location",
-        "left",
+        "start",
     );
     // only the half it would dock to
     await expect(highlight(page, "/r1/ts0")).toBeHidden();

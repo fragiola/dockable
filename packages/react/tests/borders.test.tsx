@@ -30,7 +30,7 @@ const withBorders = (
 
 const ideBorders = withBorders([
     {
-        location: "left",
+        location: "start",
         size: 180,
         children: [
             {
@@ -60,7 +60,7 @@ const ideBorders = withBorders([
             },
         ],
     },
-    { location: "right", autoHide: true, children: [] },
+    { location: "end", autoHide: true, children: [] },
     { location: "top", show: false, children: [] },
 ]);
 
@@ -122,13 +122,13 @@ describe("Dockable.Borders", () => {
         render(<BorderLayout model={load(ideBorders)} />);
         expect(path("/borders")).toBeInTheDocument();
         expect(path("/main")).toContainElement(path("/row"));
-        expect(path("/border/left")).toBeInTheDocument();
+        expect(path("/border/start")).toBeInTheDocument();
         expect(path("/border/bottom")).toBeInTheDocument();
         // an empty auto-hide border, and a border with show: false, are not rendered
-        expect(path("/border/right")).toBeNull();
+        expect(path("/border/end")).toBeNull();
         expect(path("/border/top")).toBeNull();
-        expect(path("/border/left/tb0")).toHaveTextContent("Files");
-        expect(path("/border/left/tabstrip")).toHaveAttribute(
+        expect(path("/border/start/tb0")).toHaveTextContent("Files");
+        expect(path("/border/start/tabstrip")).toHaveAttribute(
             "aria-orientation",
             "vertical",
         );
@@ -136,37 +136,37 @@ describe("Dockable.Borders", () => {
             "aria-orientation",
             "horizontal",
         );
-        // the strip comes before the main area for the left border, after it for the bottom one
-        const left = element("/border/left");
+        // the strip comes before the main area for the start border, after it for the bottom one
+        const start = element("/border/start");
         const main = element("/main");
         expect(
-            left.compareDocumentPosition(main) &
+            start.compareDocumentPosition(main) &
                 Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
     });
 
     it("exposes the border's state as data attributes", () => {
         render(<BorderLayout model={load(ideBorders)} />);
-        const left = path("/border/left");
-        expect(left).toHaveAttribute("data-location", "left");
-        expect(left).toHaveAttribute("data-orientation", "vertical");
-        expect(left).toHaveAttribute("data-docked", "");
-        expect(left).toHaveAttribute("data-tab-direction", "up");
-        expect(left).not.toHaveAttribute("data-open");
-        expect(left).not.toHaveAttribute("data-overlay");
+        const start = path("/border/start");
+        expect(start).toHaveAttribute("data-location", "start");
+        expect(start).toHaveAttribute("data-orientation", "vertical");
+        expect(start).toHaveAttribute("data-docked", "");
+        expect(start).toHaveAttribute("data-tab-direction", "up");
+        expect(start).not.toHaveAttribute("data-open");
+        expect(start).not.toHaveAttribute("data-overlay");
         const bottom = path("/border/bottom");
         expect(bottom).toHaveAttribute("data-open", "");
         expect(bottom).toHaveAttribute("data-orientation", "horizontal");
         expect(bottom).not.toHaveAttribute("data-tab-direction");
     });
 
-    it("takes a left border's tab direction from its tabDirection prop", () => {
+    it("takes the start border's tab direction from its tabDirection prop", () => {
         render(<BorderLayout model={load(ideBorders)} tabDirection="down" />);
-        expect(path("/border/left")).toHaveAttribute(
+        expect(path("/border/start")).toHaveAttribute(
             "data-tab-direction",
             "down",
         );
-        // only a left border has a tab direction
+        // only the start border has a tab direction
         expect(path("/border/bottom")).not.toHaveAttribute(
             "data-tab-direction",
         );
@@ -189,8 +189,8 @@ describe("Dockable.Borders", () => {
                 )}
             />,
         );
-        expect(states.get("left")).toMatchObject({ location: "left" });
-        expect(states.get("left")).not.toHaveProperty("tabDirection");
+        expect(states.get("start")).toMatchObject({ location: "start" });
+        expect(states.get("start")).not.toHaveProperty("tabDirection");
     });
 
     it("sizes the open panel's area by the border size, and hides a closed one", () => {
@@ -199,34 +199,34 @@ describe("Dockable.Borders", () => {
         expect(bottom.style.display).toBe("flex");
         expect(path("/border/bottom/area")?.style.height).toBe("120px");
         expect(bottom).toContainElement(path("/border/bottom/s-1"));
-        const left = element("/border/left/content");
-        expect(left.style.display).toBe("none");
-        expect(path("/border/left/area")?.style.width).toBe("180px");
-        expect(path("/border/left/s-1")).toBeNull(); // no splitter while closed
+        const start = element("/border/start/content");
+        expect(start.style.display).toBe("none");
+        expect(path("/border/start/area")?.style.width).toBe("180px");
+        expect(path("/border/start/s-1")).toBeNull(); // no splitter while closed
     });
 
     it("opens a border's panel on a tab click and closes it on a second click, through commands", () => {
         const model = load(ideBorders);
         const commands = recordCommands(model);
         render(<BorderLayout model={model} />);
-        fireEvent.click(element("/border/left/tb1"));
+        fireEvent.click(element("/border/start/tb1"));
         expect(commands.at(-1)).toEqual({
             command: "tab.select",
             payload: { tabId: "search" },
             transient: false,
         });
-        expect(path("/border/left")).toHaveAttribute("data-open", "");
-        expect(path("/border/left/content")?.style.display).toBe("flex");
+        expect(path("/border/start")).toHaveAttribute("data-open", "");
+        expect(path("/border/start/content")?.style.display).toBe("flex");
         expect(screen.getByTestId("content-search")).toBeInTheDocument();
 
-        fireEvent.click(element("/border/left/tb1"));
+        fireEvent.click(element("/border/start/tb1"));
         expect(commands.at(-1)).toEqual({
             command: "border.configure",
-            payload: { borderId: "border_left", open: false },
+            payload: { borderId: "border_start", open: false },
             transient: false,
         });
-        expect(path("/border/left")).not.toHaveAttribute("data-open");
-        expect(path("/border/left/content")?.style.display).toBe("none");
+        expect(path("/border/start")).not.toHaveAttribute("data-open");
+        expect(path("/border/start/content")?.style.display).toBe("none");
         // a tab of a tabset does not toggle
         fireEvent.click(element("/ts0/tb0"));
         expect(path("/ts0/tb0")).toHaveAttribute("aria-selected", "true");
@@ -262,19 +262,19 @@ describe("Dockable.Borders", () => {
         render(<BorderLayout model={model} />);
         act(() => {
             model.run("border.configure", {
-                borderId: "border_left",
+                borderId: "border_start",
                 mode: "overlay",
             });
             model.run("tab.select", { tabId: "files" });
         });
-        const content = element("/border/left/content");
-        expect(path("/border/left")).toHaveAttribute("data-overlay", "");
+        const content = element("/border/start/content");
+        expect(path("/border/start")).toHaveAttribute("data-overlay", "");
         expect(content.style.position).toBe("absolute");
         expect(content.style.left).toBe("0px");
         expect(content).toHaveAttribute("data-dockable-overlay", "");
         // presses go through its empty area to the tab panel, but not through its splitter
         expect(content.style.pointerEvents).toBe("none");
-        expect(path("/border/left/s-1")?.style.pointerEvents).toBe("auto");
+        expect(path("/border/start/s-1")?.style.pointerEvents).toBe("auto");
         // a split border is in the flow
         expect(path("/border/bottom/content")?.style.position).toBe("");
     });
@@ -336,7 +336,7 @@ describe("Dockable.Borders", () => {
         const model = load(
             withBorders([
                 {
-                    location: "left",
+                    location: "start",
                     selected: 0,
                     children: [
                         {

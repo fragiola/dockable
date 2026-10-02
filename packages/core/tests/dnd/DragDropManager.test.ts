@@ -192,8 +192,8 @@ describe("drops", () => {
         for (const [x, y, location] of [
             [312, 60, "top"],
             [312, 310, "bottom"],
-            [220, 185, "left"],
-            [395, 185, "right"], // 15px from the root's right edge: the tabset, not the layout edge
+            [220, 185, "start"],
+            [395, 185, "end"], // 15px from the root's right edge: the tabset, not the layout edge
         ] as const) {
             const s = setup();
             dragAndDrop(s, "t0", x, y);
@@ -224,7 +224,7 @@ describe("drops", () => {
         expect(s.commands[0]?.payload).toMatchObject({
             tabId: "t2",
             to: "row",
-            location: "left",
+            location: "start",
         });
         expect(s.manager.getIndicatorState().visible).toBe(false); // cleared after the drop
         const first = s.model.state.root.children[0];
@@ -241,7 +241,7 @@ describe("drops", () => {
             payload: {
                 tabsetId: "ts0",
                 to: "ts1",
-                location: "right",
+                location: "end",
                 index: -1,
             },
         });
@@ -369,7 +369,7 @@ describe("enter/leave counting and indicator state", () => {
         s.root.dispatchEvent(dragEvent("dragover", 12, 170));
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: true,
-            location: "left",
+            location: "start",
             kind: "edge",
         });
         s.root.dispatchEvent(dragEvent("drop", 12, 170));
@@ -843,13 +843,13 @@ describe("add drags (a consumer element dragged in)", () => {
         addDragAndDrop(s, 220, 185); // left edge of ts1
         expect(s.commands[0]?.payload).toMatchObject({
             to: "ts1",
-            location: "left",
+            location: "start",
         });
         const layoutEdge = setup();
         addDragAndDrop(layoutEdge, 12, 170); // within 10px of the root's left edge
         expect(layoutEdge.commands[0]).toMatchObject({
             command: "tab.add",
-            payload: { to: "row", location: "left" },
+            payload: { to: "row", location: "start" },
         });
     });
 
@@ -1254,11 +1254,11 @@ describe("refused drops", () => {
                     ? veto()
                     : next(),
         });
-        dragOverAt(s, "t2", 12, 170); // the left edge band, over ts0's left edge
+        dragOverAt(s, "t2", 12, 170); // the start edge band, over ts0's start edge
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: true,
             targetNodeId: "ts0",
-            location: "left",
+            location: "start",
         });
     });
 });

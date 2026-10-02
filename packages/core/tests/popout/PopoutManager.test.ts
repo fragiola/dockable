@@ -203,6 +203,30 @@ describe("opening", () => {
         document.documentElement.removeAttribute("dir");
     });
 
+    it("gives the window its layout's direction, set on any ancestor, and follows a flip, without mirrorRoot", async () => {
+        document.body.dir = "rtl";
+        const { opened } = setup();
+        const win = opened[0] as Window;
+        await load(win);
+        expect(win.document.documentElement.dir).toBe("rtl");
+        document.body.dir = "ltr";
+        await Promise.resolve();
+        expect(win.document.documentElement.dir).toBe("ltr");
+        document.body.removeAttribute("dir");
+    });
+
+    it("keeps the layout's direction over a mirrored dir", async () => {
+        document.body.dir = "rtl";
+        const { opened } = setup({ mirrorRoot: true });
+        const win = opened[0] as Window;
+        await load(win);
+        document.documentElement.dir = "ltr";
+        await Promise.resolve();
+        expect(win.document.documentElement.dir).toBe("rtl");
+        document.body.removeAttribute("dir");
+        document.documentElement.removeAttribute("dir");
+    });
+
     it("never titles the window unless the consumer does", async () => {
         const { opened } = setup();
         const win = opened[0] as Window;

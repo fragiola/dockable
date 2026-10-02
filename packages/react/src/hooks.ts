@@ -210,8 +210,8 @@ const DROP_LOCATIONS: readonly DropLocation[] = [
     "center",
     "top",
     "bottom",
-    "left",
-    "right",
+    "start",
+    "end",
 ];
 
 /**
@@ -329,7 +329,7 @@ export function useBorder<T extends DockableTypes>(
     const id = node.id;
     const drop = useTabSetDropState(engine, id);
     const location = node.location;
-    const vertical = location === "left" || location === "right";
+    const vertical = location === "start" || location === "end";
     const state: BorderContentState = {
         location,
         orientation: vertical ? "vertical" : "horizontal",

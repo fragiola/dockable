@@ -125,9 +125,9 @@ export function resolveTabset(
     );
 }
 
-/** Whether a border's strip runs vertically (a left or right border): its panel has a width. */
+/** Whether a border's strip runs vertically (a start or end border): its panel has a width. */
 export function isVerticalBorder(location: string): boolean {
-    return location === "left" || location === "right";
+    return location === "start" || location === "end";
 }
 
 /** The fields of a border that take part in the defaults rule (and its selected tab's size). */
