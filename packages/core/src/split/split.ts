@@ -78,26 +78,24 @@ export function sizeRanges(
             if (child.type === "tabset") {
                 ranges.set(child.id, range);
             }
-            const childMaxHeight = Math.max(range.minHeight, range.maxHeight);
-            const childMaxWidth = Math.max(range.minWidth, range.maxWidth);
             if (orientation === "vertical") {
                 minHeight += range.minHeight;
-                maxHeight += childMaxHeight;
+                maxHeight += range.maxHeight;
                 if (!first) {
                     minHeight += splitterSize;
                     maxHeight += splitterSize;
                 }
                 minWidth = Math.max(minWidth, range.minWidth);
-                maxWidth = Math.min(maxWidth, childMaxWidth);
+                maxWidth = Math.min(maxWidth, range.maxWidth);
             } else {
                 minWidth += range.minWidth;
-                maxWidth += childMaxWidth;
+                maxWidth += range.maxWidth;
                 if (!first) {
                     minWidth += splitterSize;
                     maxWidth += splitterSize;
                 }
                 minHeight = Math.max(minHeight, range.minHeight);
-                maxHeight = Math.min(maxHeight, childMaxHeight);
+                maxHeight = Math.min(maxHeight, range.maxHeight);
             }
             first = false;
         }
@@ -143,9 +141,7 @@ export function splitterBounds(
     const min = (child: SplitChild) =>
         horizontal ? child.range.minWidth : child.range.minHeight;
     const max = (child: SplitChild) =>
-        horizontal
-            ? Math.max(child.range.minWidth, child.range.maxWidth)
-            : Math.max(child.range.minHeight, child.range.maxHeight);
+        horizontal ? child.range.maxWidth : child.range.maxHeight;
     for (let i = 0; i < index; i++) {
         const child = children[i];
         if (!child) {
