@@ -45,6 +45,8 @@ const PORTED = [
     "src/engine/overlay.ts",
     "src/engine/windows.ts",
     "src/dnd/DragDropManager.ts",
+    "src/dnd/session.ts",
+    "src/dnd/dropCommand.ts",
     "src/popout/PopoutManager.ts",
     "src/splitter/SplitterController.ts",
     "src/keyboard/keymap.ts",

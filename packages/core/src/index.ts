@@ -36,16 +36,10 @@ export { veto } from "./commands/types";
 export {
     DRAG_TYPE,
     DragDropManager,
-    type DragEventLike,
-    type DragSourceKind,
-    DragState,
-    type DragSubject,
     type DropIndicatorState,
     type DropKind,
     type DropLocation,
-    type DropZoneOptions,
     type ExternalDrag,
-    type NewTabDropped,
     type OnExternalDrag,
 } from "./dnd/DragDropManager";
 export {
@@ -56,6 +50,14 @@ export {
     type TransferMeta,
     type TransferRequest,
 } from "./dnd/DragGroup";
+export type { DropZoneOptions } from "./dnd/dropZones";
+export {
+    type DragEventLike,
+    type DragSourceKind,
+    DragState,
+    type DragSubject,
+    type NewTabDropped,
+} from "./dnd/session";
 export type { LayoutEngineAdapter } from "./engine/adapter";
 export {
     createLayoutEngine,

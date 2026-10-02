@@ -5,7 +5,7 @@
 // the measured rects. Whether a target accepts the drop is the model's (`model.can`), not decided
 // here. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 
-import type { DragSubject } from "../dnd/DragDropManager";
+import type { DragSubject } from "../dnd/session";
 import {
     type DockLocation,
     dockLocationAt,
