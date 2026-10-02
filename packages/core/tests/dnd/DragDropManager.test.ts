@@ -24,8 +24,7 @@ import {
 const engines: LayoutEngine[] = [];
 
 afterEach(() => {
-    DragDropManager.getDragState() &&
-        engines[0]?.adapter.getDragDropManager().onDragEnded();
+    DragDropManager.endDrag();
     for (const engine of engines.splice(0)) {
         engine.adapter.dispose();
     }
@@ -147,7 +146,7 @@ describe("drag start", () => {
             image,
         );
         expect(dataTransfer.setDragImage).toHaveBeenCalledWith(image, 10, 10);
-        s.manager.onDragEnded();
+        DragDropManager.endDrag();
 
         const tabsetTransfer = fakeDataTransfer();
         s.manager.startDrag(
@@ -164,7 +163,7 @@ describe("drag start", () => {
         const listener = vi.fn();
         const unsubscribe = DragDropManager.subscribeDrag(listener);
         s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
-        s.manager.onDragEnded();
+        DragDropManager.endDrag();
         expect(listener).toHaveBeenCalledTimes(2);
         expect(DragDropManager.getDragState()).toBeUndefined();
         unsubscribe();
@@ -311,10 +310,10 @@ describe("excluded centre", () => {
         const s = setup({ json });
         dragOverAt(s, "ts0", 312, 185); // the centre of ts1's content
         expect(s.manager.getIndicatorState().location).not.toBe("center");
-        s.manager.onDragEnded();
+        DragDropManager.endDrag();
         dragOverAt(s, "ts1", 100, 185);
         expect(s.manager.getIndicatorState().location).not.toBe("center");
-        s.manager.onDragEnded();
+        DragDropManager.endDrag();
         dragOverAt(s, "t2", 100, 185);
         expect(s.manager.getIndicatorState().location).toBe("center");
     });
@@ -327,10 +326,8 @@ describe("enter/leave counting and indicator state", () => {
         s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
         s.ts1.dispatchEvent(dragEvent("dragenter", 312, 185)); // bubbles: entering a child
         s.root.dispatchEvent(dragEvent("dragleave", 312, 185)); // leaving the root for the child
-        expect(s.manager.getDragEnterCount()).toBe(1);
         expect(s.manager.getIndicatorState().dragging).toBe(true);
         s.ts1.dispatchEvent(dragEvent("dragleave", 312, 185));
-        expect(s.manager.getDragEnterCount()).toBe(0);
         expect(s.manager.getIndicatorState().dragging).toBe(false);
     });
 
@@ -490,11 +487,15 @@ describe("foreign drags and resets", () => {
     });
 
     it("resets after a drop that was not a tab (text dropped into an input of a tab)", () => {
-        const s = setup();
+        const onExternalDrag = vi.fn(() => undefined);
+        const s = setup({ onExternalDrag });
         const input = s.panels.t0.appendChild(document.createElement("input"));
         s.root.dispatchEvent(dragEvent("dragenter", 100, 100, foreign()));
         input.dispatchEvent(dragEvent("drop", 100, 100, foreign()));
-        expect(s.manager.getDragEnterCount()).toBe(0);
+        // the layout was left: the next foreign drag entering it is asked about again
+        s.root.dispatchEvent(dragEvent("dragenter", 100, 100, foreign()));
+        expect(onExternalDrag).toHaveBeenCalledTimes(2);
+        s.root.dispatchEvent(dragEvent("drop", 100, 100, foreign()));
         // the next tab drag works as usual
         dragAndDrop(s, "t0", 312, 185);
         expect(children(s, "ts1")).toEqual(["t2", "t0"]);
@@ -557,6 +558,45 @@ describe("lost drag", () => {
         s.panels.t1.dispatchEvent(dragEvent("dragend", 0, 0));
         expect(DragDropManager.getDragState()).toBeUndefined();
     });
+
+    it("removes the guard of a popout drag that drops into the main layout", () => {
+        const s = setup();
+        const { sub, subRoot } = openPopout(s, "t2");
+        const removed = vi.spyOn(subRoot.ownerDocument, "removeEventListener");
+        sub.adapter
+            .getDragDropManager()
+            .startDrag(dragEvent("dragstart", 10, 10), "t2");
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        s.root.dispatchEvent(dragEvent("drop", 312, 185));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(removed).toHaveBeenCalledWith(
+            "pointermove",
+            expect.any(Function),
+            true,
+        );
+    });
+
+    it("removes the guard of a drag dropped on a drop zone", () => {
+        const s = setup();
+        const element = document.body.appendChild(
+            document.createElement("div"),
+        );
+        const unregister = DragDropManager.registerDropZone(s.model, element, {
+            onDrop: vi.fn(),
+        });
+        const removed = vi.spyOn(document, "removeEventListener");
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        element.dispatchEvent(dragEvent("dragenter", 0, 0));
+        element.dispatchEvent(dragEvent("drop", 0, 0));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(removed).toHaveBeenCalledWith(
+            "pointermove",
+            expect.any(Function),
+            true,
+        );
+        unregister();
+    });
 });
 
 describe("add drags (a consumer element dragged in)", () => {
@@ -573,7 +613,7 @@ describe("add drags (a consumer element dragged in)", () => {
         onDrop?: NewTabDropped,
     ) {
         const start = dragEvent("dragstart", 0, 0, fakeDataTransfer([]));
-        s.manager.startAddDrag(start, { ...tab }, onDrop);
+        DragDropManager.startAddDrag(s.model, start, { ...tab }, onDrop);
         s.root.dispatchEvent(dragEvent("dragenter", x, y));
         const over = dragEvent("dragover", x, y);
         s.root.dispatchEvent(over);
@@ -586,7 +626,7 @@ describe("add drags (a consumer element dragged in)", () => {
         const s = setup();
         const start = dragEvent("dragstart", 0, 0, fakeDataTransfer([]));
         const before = s.model.state;
-        s.manager.startAddDrag(start, { ...tab });
+        DragDropManager.startAddDrag(s.model, start, { ...tab });
         const state = DragDropManager.getDragState();
         expect(state?.source).toBe("add");
         expect(state?.isNewTab()).toBe(true);
@@ -687,11 +727,13 @@ describe("add drags (a consumer element dragged in)", () => {
 
     it("leaves the model untouched when the drag is cancelled", () => {
         const s = setup();
-        s.manager.startAddDrag(dragEvent("dragstart", 0, 0), { ...tab });
+        DragDropManager.startAddDrag(s.model, dragEvent("dragstart", 0, 0), {
+            ...tab,
+        });
         s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
         s.root.dispatchEvent(dragEvent("dragover", 312, 185));
         s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
-        s.manager.onDragEnded(); // the source's dragend
+        DragDropManager.endDrag(); // the source's dragend
         expect(s.commands).toHaveLength(0);
         expect(DragDropManager.getDragState()).toBeUndefined();
         expect(s.manager.getIndicatorState().dragging).toBe(false);
@@ -807,7 +849,7 @@ describe("drop target state", () => {
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: true,
             targetNodeId: "ts1",
-            targetTabSetId: "ts1",
+            targetTabsetId: "ts1",
             index: -1,
             refused: false,
         });
@@ -817,7 +859,7 @@ describe("drop target state", () => {
         const s = setup();
         dragOverAt(s, "t2", 72, 35);
         expect(s.manager.getIndicatorState()).toMatchObject({
-            targetTabSetId: "ts0",
+            targetTabsetId: "ts0",
             location: "center",
             index: 1,
         });
@@ -829,19 +871,19 @@ describe("drop target state", () => {
         expect(s.manager.getIndicatorState()).toMatchObject({
             kind: "edge",
             targetNodeId: "row",
-            targetTabSetId: undefined,
+            targetTabsetId: undefined,
         });
     });
 
     it("moves with the pointer and clears when the drag ends", () => {
         const s = setup();
         dragOverAt(s, "t0", 312, 185);
-        expect(s.manager.getIndicatorState().targetTabSetId).toBe("ts1");
+        expect(s.manager.getIndicatorState().targetTabsetId).toBe("ts1");
         s.root.dispatchEvent(dragEvent("dragover", 100, 185));
-        expect(s.manager.getIndicatorState().targetTabSetId).toBe("ts0");
-        s.manager.onDragEnded();
+        expect(s.manager.getIndicatorState().targetTabsetId).toBe("ts0");
+        DragDropManager.endDrag();
         expect(s.manager.getIndicatorState()).toMatchObject({
-            targetTabSetId: undefined,
+            targetTabsetId: undefined,
             targetNodeId: undefined,
             refused: false,
         });
@@ -866,14 +908,14 @@ describe("refused drops", () => {
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: false,
             refused: true,
-            refusedTabSetId: "ts1",
-            targetTabSetId: undefined,
+            refusedTabsetId: "ts1",
+            targetTabsetId: undefined,
         });
         s.root.dispatchEvent(dragEvent("dragover", 100, 185));
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: true,
             refused: false,
-            refusedTabSetId: undefined,
+            refusedTabsetId: undefined,
         });
     });
 
@@ -930,7 +972,7 @@ describe("refused drops", () => {
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: false,
             refused: true,
-            refusedTabSetId: "ts1",
+            refusedTabsetId: "ts1",
         });
     });
 
@@ -1025,7 +1067,7 @@ describe("drop zones", () => {
         z.element.dispatchEvent(dragEvent("drop", 0, 0));
         expect(refused.defaultPrevented).toBe(false);
         expect(z.onDrop).not.toHaveBeenCalled();
-        s.manager.onDragEnded();
+        DragDropManager.endDrag();
 
         const other = setup();
         const foreignZone = zone(other);

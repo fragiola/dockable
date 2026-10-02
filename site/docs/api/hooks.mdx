@@ -288,7 +288,7 @@ run inside `Dockable.Root`: the drag goes to the layout of `model` that is mount
 | --- | --- | --- |
 | `model` | `Model<T>` | the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) |
 | `tab` | `TabInitOf<T> \| (() => TabInitOf<T>)` | the tab a drop creates: a `tab.add` init, checked against the registry. A function is called at each drag start, so every drop can get fresh data |
-| `onDrop` | `NewTabDropped \| undefined` | `(tab: string \| undefined, event) => void`: called after the drop with the new tab's id, or `undefined` when the add was refused |
+| `onDrop` | `NewTabDropped \| undefined` | `(tabId: string \| undefined, event) => void`: called after the drop with the new tab's id, or `undefined` when the add was refused |
 | `disabled` | `boolean \| undefined` | no drag starts while true |
 
 `UseDragSourceResult`:
@@ -342,7 +342,7 @@ While a drag the zone takes is over it, the layouts hide their outline.
 ## useDragGroup
 
 `useDragGroup(): DragGroup`: the drag group of the enclosing `Dockable.DragGroup`, for code that
-moves tabs between its layouts (`group.transfer({ tab, from, to, target, location, index })`, an
+moves tabs between its layouts (`group.transfer({ tabId, from, to, target, location, index })`, an
 undo) or listens to transfers. It must be called inside `Dockable.DragGroup`. See
 [Dockable.DragGroup](/docs/api/drag-group).
 

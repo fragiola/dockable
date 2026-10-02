@@ -5,7 +5,6 @@ import {
     type Model,
     POPOUT_ATTRIBUTE,
     type TabOf,
-    windowPath,
 } from "@fragiola/dockable";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as React from "react";
@@ -135,7 +134,7 @@ describe("Dockable.Popout", () => {
         );
         expect(popout).toBeTruthy();
         expect(popout?.style.position).toBe("absolute");
-        expect(popout?.getAttribute("data-layout-path")).toBe(windowPath(1));
+        expect(popout?.getAttribute("data-layout-path")).toBe("/sublayout1");
         // the popout renders its own tab list, and the tab's panel lives in the popout document
         expect(win.document.querySelector('[role="tablist"]')).toBeTruthy();
         const tabs = [...win.document.querySelectorAll('[role="tab"]')];

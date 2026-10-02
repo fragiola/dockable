@@ -296,7 +296,7 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     /** marks a splitter drag of the model as started or ended */
     setSplitterDragging(dragging: boolean): void;
     /** the drag-and-drop state machine of this layout */
-    getDragDropManager(): DragDropManager<T>;
+    getDragDropManager(): DragDropManager;
     /** the drag group this layout exchanges tabs in (the main engine's), if any */
     getDragGroup(): DragGroup | undefined;
     /** the handler that accepts foreign drags (set on the main engine) */
@@ -427,7 +427,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private onExternalDragHandler: OnExternalDrag<T> | undefined;
     private dragGroup: DragGroup | undefined;
     private leaveDragGroup: (() => void) | undefined;
-    private readonly dragDropManager: DragDropManager<T>;
+    private readonly dragDropManager: DragDropManager;
     private readonly popoutManager: PopoutManager<T> | undefined;
 
     private layoutRef: HTMLElement | null = null;
@@ -483,7 +483,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.get = this.get.bind(this);
         this.is = this.is.bind(this);
         this.measureElement = options.measure ?? defaultMeasure;
-        this.dragDropManager = new DragDropManager<T>(this);
+        this.dragDropManager = new DragDropManager(
+            this as unknown as LayoutEngine<AnyTypes>,
+        );
         this.popoutManager = main ? undefined : new PopoutManager<T>(this);
         this.setOptions(options);
     }
@@ -1831,7 +1833,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.shared.splitterDragging = dragging;
     }
 
-    private getDragDropManager(): DragDropManager<T> {
+    private getDragDropManager(): DragDropManager {
         return this.dragDropManager;
     }
 

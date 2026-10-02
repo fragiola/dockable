@@ -60,7 +60,7 @@ const jsonWith = (prefix: string): LayoutJson => ({
 const engines: LayoutEngine[] = [];
 afterEach(() => {
     if (DragDropManager.getDragState()) {
-        engines[0]?.adapter.getDragDropManager().onDragEnded();
+        DragDropManager.endDrag();
     }
     for (const engine of engines.splice(0)) engine.adapter.dispose();
     document.body.innerHTML = "";
@@ -187,7 +187,7 @@ describe("dragging between two models", () => {
 
         expect(transfers).toHaveLength(1);
         expect(transfers[0]).toMatchObject({
-            tab: "a0",
+            tabId: "a0",
             previousId: "a0",
             from: { model: a.model, tabsetId: "ts0", index: 0 },
             to: { model: b.model, tabsetId: "ts1", index: 1 },
@@ -251,6 +251,27 @@ describe("dragging between two models", () => {
         expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);
     });
 
+    it("asks the source again once its layout changes during the hover", () => {
+        let locked = true;
+        const group = new DragGroup();
+        const a = layout("a", {
+            dragGroup: group,
+            middleware: (ctx, next) =>
+                locked && ctx.command === "tab.close" ? veto() : next(),
+        });
+        const b = layout("b", { dragGroup: group });
+        a.manager.startDrag(dragEvent("dragstart", 40, 35), "a0");
+        b.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        const refused = dragEvent("dragover", 312, 185);
+        b.root.dispatchEvent(refused);
+        expect(refused.defaultPrevented).toBe(false);
+        locked = false;
+        a.model.run("tab.select", { tabId: "a1" });
+        const over = dragEvent("dragover", 312, 185);
+        b.root.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(true);
+    });
+
     it("undoes the add, content included, when the source refuses the close only when it runs", () => {
         const group = new DragGroup();
         const a = layout("a", {
@@ -288,7 +309,7 @@ describe("dragging between two models", () => {
         group.onTransfer((transfer) => transfers.push(transfer));
         dragBetween(a, "x0", b);
         expect(ids(a.model, "ts0")).toEqual(["x1"]);
-        const added = transfers[0]?.tab;
+        const added = transfers[0]?.tabId;
         expect(added).toBeDefined();
         expect(added).not.toBe("x0");
         expect(ids(b.model, "ts1")).toEqual(["x2", added]);
@@ -316,7 +337,7 @@ describe("DragGroup.transfer (from code)", () => {
 
         expect(
             group.transfer({
-                tab: "a1",
+                tabId: "a1",
                 from: a.model,
                 to: b.model,
                 target: "ts0",
@@ -328,7 +349,7 @@ describe("DragGroup.transfer (from code)", () => {
         const from = transfers[0]?.from;
         if (!from?.tabsetId) throw new Error("no from");
         group.transfer({
-            tab: "a1",
+            tabId: "a1",
             from: b.model,
             to: a.model,
             target: from.tabsetId,
@@ -344,7 +365,7 @@ describe("DragGroup.transfer (from code)", () => {
         const outside = layout("c");
         expect(
             group.transfer({
-                tab: "a0",
+                tabId: "a0",
                 from: a.model,
                 to: outside.model,
                 target: "ts0",
@@ -352,7 +373,7 @@ describe("DragGroup.transfer (from code)", () => {
         ).toBeUndefined();
         expect(
             group.transfer({
-                tab: "nope",
+                tabId: "nope",
                 from: a.model,
                 to: a.model,
                 target: "ts0",

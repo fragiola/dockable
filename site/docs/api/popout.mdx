@@ -115,7 +115,7 @@ another framework uses the same way (an app never needs it):
 | option | type | description |
 | --- | --- | --- |
 | `popoutURL` | `string` | the popout host page; default `"popout.html"`. The window layout's id is passed as `?id=` |
-| `supportsPopout` | `boolean` | whether window layouts open as popouts at all; default: `isDesktop(window)` |
+| `supportsPopout` | `boolean` | whether window layouts open as popouts at all; default: the main window has a fine hover pointer (a desktop) |
 | `title` | `(layout: WindowLayout<T>) => string \| undefined` | the popout document's title; with none, the host page's title is kept |
 | `onPopoutOpen` | `PopoutCallback<T>` | the popout document is ready, before its content renders (e.g. to set up a css-in-js cache) |
 | `onPopoutClose` | `PopoutCallback<T>` | the popout window is closing |
@@ -132,18 +132,15 @@ refuse, which docks the window layout back.
 
 ## Style mirroring
 
-A popout document gets the main document's styles, and keeps them in sync while it is open. The
-helpers are exported for adapters and tests:
+A popout document gets the main document's styles, and keeps them in sync while it is open: the
+`<link rel="stylesheet">` and `<style>` elements of the main document's `<head>` (added, removed,
+or with text edited in place), CSSOM rules inserted by css-in-js libraries (polled), and adopted
+(constructable) stylesheets, copied into one `<style>` element. A window renders once its linked
+stylesheets loaded, failed or timed out, so a blocked stylesheet never keeps it blank.
+`<html>` `lang` and `dir` are always copied; `mirrorRoot` copies more of `<html>` and `<body>`.
 
 | export | description |
 | --- | --- |
-| `StyleMirror` | copies the main document's stylesheets into a popout document and keeps them in sync: `<link>` and `<style>` elements (added, removed, or with text edited in place), CSSOM rules inserted by css-in-js libraries (polled), and adopted (constructable) stylesheets. `new StyleMirror(source, target)`, then `copyStyles()` (resolves once the linked stylesheets loaded, failed or timed out) and `dispose()` |
-| `mirrorRootAttributes(source, target, mirror)` | copies `<html>` and `<body>` attributes from one document to another and keeps them in sync until the returned function is called. `lang` and `dir` of `<html>` are always copied; `mirror: true` copies every attribute but `style` and `id`, a list copies those names. Classes are added on top of the popout's own |
-| `isDesktop(window)` | true when the window has a fine hover pointer: the default of `supportsPopout` |
-| `STYLE_LOAD_TIMEOUT_MS` | `2000`: how long a linked stylesheet may take before the window renders anyway (a blocked stylesheet must not keep the popout blank) |
-| `STYLE_POLL_INTERVAL_MS` | `750`: the interval at which CSSOM rules are polled (a `MutationObserver` misses `insertRule`) |
-| `WINDOW_RECT_POLL_INTERVAL_MS` | `1000`: the interval at which a popout's screen position is polled (a window that only moves fires no event) |
 | `POPOUT_ATTRIBUTE` | `"data-dockable-popout"`: the attribute of the element an adapter renders a window layout into |
-| `ADOPTED_STYLES_ATTRIBUTE` | `"data-dockable-adopted-styles"`: the attribute of the `<style>` element that mirrors the main document's adopted stylesheets (they cannot be shared across documents, so their rules are copied into one element) |
 
 See the [Popouts guide](/docs/guides/popouts).

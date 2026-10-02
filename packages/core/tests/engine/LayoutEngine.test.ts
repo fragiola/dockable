@@ -4,8 +4,8 @@ import {
     createLayoutEngine,
     type LayoutEngine,
     MOVEABLE_ATTRIBUTE,
-    MOVEABLES_HOME_ATTRIBUTE,
 } from "../../src";
+import { MOVEABLES_HOME_ATTRIBUTE } from "../../src/engine/LayoutEngine";
 import {
     freshModel,
     mountTwoTabsets,

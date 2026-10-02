@@ -90,7 +90,7 @@ export class TransferHistory<T extends DockableTypes> {
                 },
                 to: {
                     model: to,
-                    tabId: transfer.tab,
+                    tabId: transfer.tabId,
                     tabsetId: transfer.to.tabsetId,
                     index: transfer.to.index,
                 },
@@ -144,7 +144,7 @@ export class TransferHistory<T extends DockableTypes> {
         this.replaying = true;
         try {
             return this.group.transfer({
-                tab: from.tabId,
+                tabId: from.tabId,
                 from: from.model,
                 to: to.model,
                 target,

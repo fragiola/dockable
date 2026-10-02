@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-    ADOPTED_STYLES_ATTRIBUTE,
     createLayoutEngine,
     createModel,
     type LayoutEngine,
@@ -9,9 +8,12 @@ import {
     MAIN_LAYOUT,
     POPOUT_ATTRIBUTE,
     type PopoutOptions,
+} from "../../src";
+import {
+    ADOPTED_STYLES_ATTRIBUTE,
     StyleMirror,
     WINDOW_RECT_POLL_INTERVAL_MS,
-} from "../../src";
+} from "../../src/popout/PopoutManager";
 
 const json: LayoutJson = {
     version: 1,
@@ -140,6 +142,23 @@ describe("opening", () => {
         expect(openSpy).toHaveBeenCalledTimes(1);
         expect(opened[0]?.close).not.toHaveBeenCalled();
         expect(manager.getWindow(layoutId)).toBe(opened[0]);
+    });
+
+    it("closes the window once after a detach, reattach and detach", async () => {
+        const { engine, root, manager, layoutId, opened } = setup();
+        engine.adapter.detachRoot();
+        engine.adapter.attachRoot(root);
+        engine.adapter.detachRoot();
+        expect(opened[0]?.close).not.toHaveBeenCalled();
+        await tick();
+        expect(opened[0]?.close).toHaveBeenCalledTimes(1);
+        expect(manager.getWindow(layoutId)).toBeUndefined();
+        engine.adapter.attachRoot(root);
+        engine.adapter.detachRoot();
+        engine.adapter.attachRoot(root);
+        await tick();
+        expect(manager.getOpenLayoutIds()).toEqual([layoutId]);
+        expect(opened[1]?.close).not.toHaveBeenCalled();
     });
 
     it("closes the windows after the current task once the engine detaches", async () => {
@@ -471,6 +490,26 @@ describe("style mirroring", () => {
                 (s) => s.textContent,
             ),
         ).not.toContain(".three {}");
+    });
+
+    it("copies every stylesheet link of the head, and only the head's styles", () => {
+        const target = fakePopout().document;
+        const link = document.head.appendChild(document.createElement("link"));
+        link.rel = "alternate stylesheet";
+        link.href = "data:text/css,.alt{}";
+        document.body.appendChild(document.createElement("style")).textContent =
+            ".body {}";
+        const mirror = new StyleMirror(document, target);
+        void mirror.copyStyles();
+        expect(target.head.querySelector("link")?.getAttribute("href")).toBe(
+            "data:text/css,.alt{}",
+        );
+        expect(
+            Array.from(target.querySelectorAll("style")).map(
+                (style) => style.textContent,
+            ),
+        ).not.toContain(".body {}");
+        mirror.dispose();
     });
 
     it("re-syncs CSSOM-inserted rules on the poll", async () => {
