@@ -492,12 +492,15 @@ export class StyleMirror {
      * loaded (or failed, or timed out: a blocked stylesheet must not keep the popout blank).
      */
     copyStyles(): Promise<boolean[]> {
-        const loaded = Array.from(
-            this.source.head.querySelectorAll<HTMLElement>(
-                'style, link[rel~="stylesheet"]',
-            ),
-            (element) => this.copyStyle(element),
-        );
+        const loaded: Promise<boolean>[] = [];
+        for (const element of this.source.head.querySelectorAll<HTMLElement>(
+            'style, link[rel~="stylesheet"]',
+        )) {
+            const copy = this.copyStyle(element);
+            if (copy && isLink(copy)) {
+                loaded.push(this.linkLoaded(copy));
+            }
+        }
         this.syncAdopted();
 
         // listen for style mutations. subtree + characterData so we also catch css-in-js libraries
@@ -577,23 +580,29 @@ export class StyleMirror {
         }
     }
 
-    /** copies one `<link>` or `<style>`; resolves once a link loaded (true), failed or timed out */
-    private copyStyle(element: HTMLElement): Promise<boolean> {
+    /**
+     * resolves once a copied link loaded (true), failed or timed out: a stylesheet that is blocked
+     * (CSP/adblock), 404s, or never fires load must not keep the popout blank
+     */
+    private linkLoaded(link: HTMLLinkElement): Promise<boolean> {
+        return new Promise((resolve) => {
+            link.addEventListener("load", () => resolve(true));
+            link.addEventListener("error", () => resolve(false));
+            this.target.defaultView?.setTimeout(
+                () => resolve(false),
+                STYLE_LOAD_TIMEOUT_MS,
+            );
+        });
+    }
+
+    /** copies one `<link>` or `<style>` into the popout; returns the copy */
+    private copyStyle(element: HTMLElement): HTMLElement | undefined {
         if (isLink(element)) {
             // prefer links since they will keep paths to images etc
             const linkElement = this.target.importNode(element, true);
             this.target.head.appendChild(linkElement);
             this.styleMap.set(element, linkElement);
-            // resolve on error and after a timeout as well as on load: if a stylesheet is blocked
-            // (CSP/adblock), 404s, or never fires load, the popout must still render
-            return new Promise((resolve) => {
-                linkElement.addEventListener("load", () => resolve(true));
-                linkElement.addEventListener("error", () => resolve(false));
-                this.target.defaultView?.setTimeout(
-                    () => resolve(false),
-                    STYLE_LOAD_TIMEOUT_MS,
-                );
-            });
+            return linkElement;
         }
         if (isStyle(element)) {
             try {
@@ -601,11 +610,12 @@ export class StyleMirror {
                 this.target.head.appendChild(styleElement);
                 syncStyleElement(element, styleElement);
                 this.styleMap.set(element, styleElement);
+                return styleElement;
             } catch {
                 // can throw an exception
             }
         }
-        return Promise.resolve(true);
+        return undefined;
     }
 
     /** re-sync every copied style tag */
