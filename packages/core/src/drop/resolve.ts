@@ -4,6 +4,8 @@
 // (findDropTargetNode): the drop targets under a point, in FlexLayout's order, over the state and
 // the measured rects. Whether a target accepts the drop is the model's (`model.can`), not decided
 // here. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+
+import type { DragSubject } from "../dnd/DragDropManager";
 import {
     type DockLocation,
     dockLocationAt,
@@ -11,7 +13,7 @@ import {
     edgeAt,
 } from "../geometry/dock";
 import { contains, type Rect } from "../geometry/rect";
-import { resolveBorder, resolveTabset } from "../state/defaults";
+import { resolveBorder, resolveLayout, resolveTabset } from "../state/defaults";
 import type { AnyBorder, AnyRow, AnyState, AnyTabset } from "../state/tree";
 import { MAIN_LAYOUT } from "../state/types";
 import { clampToPinnedRun, findStripDrop } from "./strip";
@@ -32,15 +34,6 @@ export interface DropGeometry {
     borderContent(id: string): Rect | undefined;
 }
 
-/** What is being dragged. */
-export type DropSubjectKind =
-    /** a tab of the layout (`id`), pinned or not */
-    | { kind: "tab"; id: string; pinned: boolean }
-    /** a whole tabset */
-    | { kind: "tabset"; id: string }
-    /** a new tab (a drag source, a foreign drag) */
-    | { kind: "new"; pinned: boolean };
-
 /** A place a drop could go. */
 export interface DropCandidate {
     /** the target node: a tabset, a row (edge docking) or a border */
@@ -58,27 +51,46 @@ export interface DropCandidate {
     readonly self: boolean;
 }
 
-export interface DropOptions {
+/** Where the drop targets are looked for. */
+export interface DropQuery {
+    readonly state: AnyState;
+    /** the layout under the pointer */
+    readonly layoutId: string;
+    /** its maximized tabset, if any */
+    readonly maximized: AnyTabset | undefined;
+    readonly geometry: DropGeometry;
+    readonly subject: DragSubject;
+    /** the pointer, relative to the layout's root element */
+    readonly x: number;
+    readonly y: number;
+}
+
+interface DropContext extends DropQuery {
     /** no center drops (a tabset that cannot merge) */
     readonly excludeCenter: boolean;
 }
 
+/** a dragged tabset can never merge when it cannot close or holds pinned tabs */
+function excludesCenter(state: AnyState, subject: DragSubject): boolean {
+    return (
+        subject.kind === "tabset" &&
+        (!resolveTabset(state.defaults, subject.tabset).enableClose ||
+            subject.tabset.children.some((tab) => tab.pinned === true))
+    );
+}
+
 function tabsetCandidate(
-    state: AnyState,
+    ctx: DropContext,
     tabset: AnyTabset,
-    geometry: DropGeometry,
-    subject: DropSubjectKind,
-    x: number,
-    y: number,
     maximized: boolean,
-    options: DropOptions,
 ): DropCandidate | undefined {
+    const { state, geometry, subject, x, y } = ctx;
     const rect = geometry.node(tabset.id);
     if (!rect) {
         return undefined;
     }
     const strip = geometry.tabStrip(tabset.id);
-    if (subject.kind === "tabset" && subject.id === tabset.id) {
+    if (subject.kind === "tabset" && subject.tabset.id === tabset.id) {
         return {
             target: tabset.id,
             location: "center",
@@ -91,20 +103,13 @@ function tabsetCandidate(
     }
     const content = geometry.content(tabset.id);
     if (content && contains(content, x, y)) {
-        let location: DockLocation = "center";
-        if (!maximized) {
-            const flags = resolveTabset(state.defaults, tabset);
-            const center = !options.excludeCenter && flags.enableDrop;
-            const edges = flags.enableDivide;
-            if (center && !edges) {
-                location = "center";
-            } else if (!center && edges) {
-                location = dockLocationAt(content, x, y, true); // the edges reach the center
-            } else {
-                // both (or neither: the model then refuses whichever location this is)
-                location = dockLocationAt(content, x, y);
-            }
-        }
+        const flags = resolveTabset(state.defaults, tabset);
+        const center = !ctx.excludeCenter && flags.enableDrop;
+        // with neither center nor edges, the model refuses whichever location this is
+        const location: DockLocation =
+            maximized || (center && !flags.enableDivide)
+                ? "center"
+                : dockLocationAt(content, x, y, !center && flags.enableDivide);
         return {
             target: tabset.id,
             location,
@@ -119,28 +124,22 @@ function tabsetCandidate(
         const buttons = tabset.children.map((tab) =>
             geometry.tabButton(tab.id),
         );
-        let drop = findStripDrop(rect, strip, buttons, x, y, "tabset");
+        const drop = findStripDrop(rect, strip, buttons, x, y, "tabset");
         if (!drop) {
             return undefined;
         }
-        if (drop.index !== -1 && tabset.children.length > 0) {
-            let run = 0;
-            for (const tab of tabset.children) {
-                if (tab.pinned !== true) {
-                    break;
-                }
-                run++;
-            }
-            const pinned =
-                (subject.kind === "tab" || subject.kind === "new") &&
-                subject.pinned;
-            drop = clampToPinnedRun(drop, run, pinned, buttons);
-        }
+        const run = tabset.children.findIndex((tab) => tab.pinned !== true);
+        const clamped = clampToPinnedRun(
+            drop,
+            run === -1 ? tabset.children.length : run,
+            subject.kind !== "tabset" && subject.tab.pinned === true,
+            buttons,
+        );
         return {
             target: tabset.id,
             location: "center",
-            index: drop.index,
-            rect: drop.outline,
+            index: clamped.index,
+            rect: clamped.outline,
             kind: "rect",
             container: tabset.id,
             self: false,
@@ -150,12 +149,10 @@ function tabsetCandidate(
 }
 
 function borderCandidate(
+    ctx: DropContext,
     border: AnyBorder,
-    geometry: DropGeometry,
-    subject: DropSubjectKind,
-    x: number,
-    y: number,
 ): DropCandidate | undefined {
+    const { geometry, subject, x, y } = ctx;
     if (subject.kind === "tabset") {
         return undefined; // borders hold tabs only
     }
@@ -202,27 +199,22 @@ function borderCandidate(
 }
 
 /**
- * The drop targets under a point of layout `layout`, in FlexLayout's order: an open overlay border's
+ * The drop targets under a point of a layout, in FlexLayout's order: an open overlay border's
  * panel (it covers the layout), the root row's edge bands, the tabsets under the point (only the
  * maximized one while a tabset is maximized), then the borders. The first one the model accepts is
  * the drop target.
  */
-export function dropCandidates(
-    state: AnyState,
-    layout: string,
-    geometry: DropGeometry,
-    subject: DropSubjectKind,
-    x: number,
-    y: number,
-    options: DropOptions,
-): DropCandidate[] {
+export function dropCandidates(query: DropQuery): DropCandidate[] {
+    const { state, layoutId, geometry, x, y } = query;
+    const ctx: DropContext = {
+        ...query,
+        excludeCenter: excludesCenter(state, query.subject),
+    };
     const candidates: DropCandidate[] = [];
-    const main = layout === MAIN_LAYOUT;
-    const windowLayout = main
-        ? undefined
-        : state.windows.find((candidate) => candidate.id === layout);
-    const root = main ? state.root : windowLayout?.root;
-    const maximizedId = main ? state.maximized : windowLayout?.maximized;
+    const main = layoutId === MAIN_LAYOUT;
+    const root = main
+        ? state.root
+        : state.windows.find((candidate) => candidate.id === layoutId)?.root;
     if (!root) {
         return candidates;
     }
@@ -243,51 +235,36 @@ export function dropCandidates(
                 content &&
                 contains(content, x, y)
             ) {
-                push(borderCandidate(border, geometry, subject, x, y));
+                push(borderCandidate(ctx, border));
             }
         }
     }
 
     const rootRect = geometry.node(root.id);
     if (rootRect && contains(rootRect, x, y)) {
-        const maximized =
-            maximizedId === undefined
-                ? undefined
-                : findTabset(root, maximizedId);
-        if (maximized) {
-            push(
-                tabsetCandidate(
-                    state,
-                    maximized,
-                    geometry,
-                    subject,
-                    x,
-                    y,
-                    true,
-                    options,
-                ),
-            );
+        if (query.maximized) {
+            push(tabsetCandidate(ctx, query.maximized, true));
         } else {
-            const settings = state.defaults.layout;
-            if (settings?.edgeDock ?? true) {
-                const edge = edgeAt(
-                    rootRect,
-                    settings?.edgeDockMargin ?? 10,
-                    settings?.edgeDockLength ?? 100,
-                    x,
-                    y,
-                );
-                if (edge) {
-                    candidates.push({
-                        target: root.id,
-                        location: edge.location,
-                        index: -1,
-                        rect: edge.outline,
-                        kind: "edge",
-                        container: undefined,
-                        self: false,
-                    });
-                }
+            const settings = resolveLayout(state.defaults);
+            const edge = settings.edgeDock
+                ? edgeAt(
+                      rootRect,
+                      settings.edgeDockMargin,
+                      settings.edgeDockLength,
+                      x,
+                      y,
+                  )
+                : undefined;
+            if (edge) {
+                candidates.push({
+                    target: root.id,
+                    location: edge.location,
+                    index: -1,
+                    rect: edge.outline,
+                    kind: "edge",
+                    container: undefined,
+                    self: false,
+                });
             }
             const visit = (row: AnyRow) => {
                 for (const child of row.children) {
@@ -298,18 +275,7 @@ export function dropCandidates(
                     if (child.type === "row") {
                         visit(child);
                     } else {
-                        push(
-                            tabsetCandidate(
-                                state,
-                                child,
-                                geometry,
-                                subject,
-                                x,
-                                y,
-                                false,
-                                options,
-                            ),
-                        );
+                        push(tabsetCandidate(ctx, child, false));
                     }
                 }
             };
@@ -320,24 +286,9 @@ export function dropCandidates(
     if (main) {
         for (const border of state.borders) {
             if (resolveBorder(state.defaults, border).show) {
-                push(borderCandidate(border, geometry, subject, x, y));
+                push(borderCandidate(ctx, border));
             }
         }
     }
     return candidates;
-}
-
-function findTabset(row: AnyRow, id: string): AnyTabset | undefined {
-    for (const child of row.children) {
-        if (child.type === "tabset" && child.id === id) {
-            return child;
-        }
-        if (child.type === "row") {
-            const found = findTabset(child, id);
-            if (found) {
-                return found;
-            }
-        }
-    }
-    return undefined;
 }

@@ -17,14 +17,13 @@ import type { PayloadOf } from "../commands/types";
 import {
     type DropCandidate,
     type DropGeometry,
-    type DropSubjectKind,
     dropCandidates,
 } from "../drop/resolve";
-import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { LayoutEngine, MeasurableKind } from "../engine/LayoutEngine";
 import type { DockLocation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect, rect, rectEquals } from "../geometry/rect";
 import { enablePointerOnIFrames } from "../splitter/SplitterController";
-import { resolveBorder, resolveLayout, resolveTabset } from "../state/defaults";
+import { resolveBorder, resolveLayout } from "../state/defaults";
 import type { TabInit, TabInitOf } from "../state/json";
 import type { Model } from "../state/model";
 import type { AnyState } from "../state/tree";
@@ -251,9 +250,22 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private verdictsState: unknown;
     private verdictsSourceState: unknown;
 
+    /** the rects the drop resolution reads, from this layout's engine */
+    private readonly geometry: DropGeometry;
+
     constructor(engine: LayoutEngine<T>) {
         this.engine = engine;
         this.indicator = this.idleIndicator();
+        const rect = (kind: MeasurableKind) => (id: string) =>
+            engine.adapter.rect(kind, id);
+        this.geometry = {
+            node: (id) => rect("row")(id) ?? rect("tabset")(id),
+            tabStrip: rect("tabstrip"),
+            content: rect("tabsetcontent"),
+            tabButton: rect("tabbutton"),
+            borderStrip: rect("borderheader"),
+            borderContent: rect("bordercontent"),
+        };
     }
 
     // *********************************************************************************
@@ -377,19 +389,6 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     // *********************************************************************************
     // Starting and ending a drag
     // *********************************************************************************
-
-    /** center drops are not offered for a tabset that can never merge (cannot close, or holds pinned tabs) */
-    private isExcludeCenter(subject: DragSubject<AnyTypes>): boolean {
-        if (subject.kind !== "tabset") {
-            return false;
-        }
-        const tabset = subject.tabset;
-        const flags = resolveTabset(this.state().defaults, tabset);
-        return (
-            !flags.enableClose ||
-            tabset.children.some((tab) => tab.pinned === true)
-        );
-    }
 
     private state(): AnyState {
         return this.engine.adapter.model.state as unknown as AnyState;
@@ -738,21 +737,6 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         });
     };
 
-    /** the rects the drop resolution reads, from this layout's engine */
-    private geometry(): DropGeometry {
-        const engine = this.engine;
-        return {
-            node: (id) =>
-                engine.adapter.rect("row", id) ??
-                engine.adapter.rect("tabset", id),
-            tabStrip: (id) => engine.adapter.rect("tabstrip", id),
-            content: (id) => engine.adapter.rect("tabsetcontent", id),
-            tabButton: (id) => engine.adapter.rect("tabbutton", id),
-            borderStrip: (id) => engine.adapter.rect("borderheader", id),
-            borderContent: (id) => engine.adapter.rect("bordercontent", id),
-        };
-    }
-
     /** the command a drop at `candidate` runs for the page's drag */
     private commandFor(
         state: DragState,
@@ -845,26 +829,18 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const y = event.clientY - root.y;
 
         const revealedBorder = this.borderToReveal(x, y);
-        const subject = state.subject;
-        const kind: DropSubjectKind =
-            subject.kind === "tab"
-                ? {
-                      kind: "tab",
-                      id: subject.tab.id,
-                      pinned: subject.tab.pinned === true,
-                  }
-                : subject.kind === "tabset"
-                  ? { kind: "tabset", id: subject.tabset.id }
-                  : { kind: "new", pinned: subject.tab.pinned === true };
-        const candidates = dropCandidates(
-            this.state(),
-            this.engine.layoutId,
-            this.geometry(),
-            kind,
+        const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
+        const candidates = dropCandidates({
+            state: model.state,
+            layoutId: this.engine.layoutId,
+            maximized: model.get("maximized-tabset", {
+                layoutId: this.engine.layoutId,
+            }),
+            geometry: this.geometry,
+            subject: state.subject,
             x,
             y,
-            { excludeCenter: this.isExcludeCenter(subject) },
-        );
+        });
         let accepted: DropCandidate | undefined;
         let refused: DropCandidate | undefined;
         let command: DropCommand | "self" | undefined;

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { DragSubject } from "../../src/dnd/DragDropManager";
 import {
     type DropGeometry,
-    type DropSubjectKind,
+    type DropQuery,
     dropCandidates,
 } from "../../src/drop/resolve";
 import { clampToPinnedRun, findStripDrop } from "../../src/drop/strip";
@@ -12,8 +13,15 @@ import {
     edgeBands,
 } from "../../src/geometry/dock";
 import { type Rect, rect } from "../../src/geometry/rect";
+import type { Model } from "../../src/state/model";
 import { createModel } from "../../src/state/model";
 import { tab } from "../state/harness";
+
+function tabOf(model: Model, id: string) {
+    const node = model.get("node-by", { id });
+    if (node?.type !== "tab") throw new Error(`no tab ${id}`);
+    return node;
+}
 
 describe("dock locations", () => {
     const r = rect(0, 0, 100, 100);
@@ -161,18 +169,25 @@ describe("drop candidates", () => {
         borderStrip: () => rect(0, 300, 400, 20),
         borderContent: () => undefined,
     };
-    const tabSubject: DropSubjectKind = {
+    const tabSubject: DragSubject = {
         kind: "tab",
-        id: "A1",
-        pinned: false,
+        tab: tabOf(model, "A1"),
     };
     const candidates = (
         x: number,
         y: number,
-        subject: DropSubjectKind = tabSubject,
+        subject: DragSubject = tabSubject,
+        query: Partial<DropQuery> = {},
     ) =>
-        dropCandidates(model.state, "main", geometry, subject, x, y, {
-            excludeCenter: false,
+        dropCandidates({
+            state: model.state,
+            layoutId: "main",
+            maximized: undefined,
+            geometry,
+            subject,
+            x,
+            y,
+            ...query,
         });
 
     it("offers the edge band first, then the tabset under the point", () => {
@@ -201,9 +216,11 @@ describe("drop candidates", () => {
     });
 
     it("marks a tabset dropped on itself", () => {
-        expect(candidates(100, 150, { kind: "tabset", id: "a" })).toMatchObject(
-            [{ target: "a", self: true }],
-        );
+        const tabset = model.get("node-by", { id: "a" });
+        if (tabset?.type !== "tabset") throw new Error("no tabset");
+        expect(candidates(100, 150, { kind: "tabset", tabset })).toMatchObject([
+            { target: "a", self: true },
+        ]);
     });
 
     it("offers only the maximized tabset", () => {
@@ -212,15 +229,10 @@ describe("drop candidates", () => {
             maximized: "a",
         });
         expect(
-            dropCandidates(
-                maximized.state,
-                "main",
-                geometry,
-                tabSubject,
-                5,
-                150,
-                { excludeCenter: false },
-            ),
+            candidates(5, 150, tabSubject, {
+                state: maximized.state,
+                maximized: maximized.get("maximized-tabset", {}),
+            }),
         ).toMatchObject([{ target: "a", location: "center" }]);
     });
 });
