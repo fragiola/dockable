@@ -94,6 +94,14 @@ export interface EngineGetMap {
         payload: { borderId: string };
         result: OverlayPlacement | undefined;
     };
+    /**
+     * what a popout button does for a tab or a tabset: `"dock"` it back when it is in a window,
+     * `"popout"` when it can pop out now (`can("popout")`), else undefined
+     */
+    "popout-mode-by": {
+        payload: { nodeId: string };
+        result: "popout" | "dock" | undefined;
+    };
     /** the measured splitter thickness, in pixels */
     "splitter-size": { payload: NoPayload; result: number };
     /** the document this layout renders in (a popout's own, for a window's layout) */

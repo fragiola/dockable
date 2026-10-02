@@ -604,6 +604,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         "flex-by": ({ nodeId }) => this.flex(nodeId),
         "overlay-placement-by": ({ borderId }) =>
             this.overlayPlacement(borderId),
+        "popout-mode-by": ({ nodeId }) => this.popoutMode(nodeId),
         "splitter-size": () => this.splitterSize(),
         "owner-document": () => this.getCurrentDocument(),
         "owner-window": () => this.getCurrentWindow(),
@@ -1650,6 +1651,13 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 border.selected !== -1
             );
         });
+    }
+
+    private popoutMode(nodeId: string): "popout" | "dock" | undefined {
+        if (this.model.is("node-in-window", { nodeId })) {
+            return "dock";
+        }
+        return this.can("popout", { nodeId }) ? "popout" : undefined;
     }
 
     private overlayPlacement(borderId: string): OverlayPlacement | undefined {

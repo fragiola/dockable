@@ -63,7 +63,10 @@ export function reads(engine: LayoutEngine): void {
     })?.top;
     const shown: boolean = engine.is("border-shown", { borderId: "left" });
     const tabbable: boolean = engine.is("tab-tabbable", { tabId: "t0" });
-    use(grow, top, shown, tabbable);
+    const mode: "popout" | "dock" | undefined = engine.get("popout-mode-by", {
+        nodeId: "t0",
+    });
+    use(grow, top, shown, tabbable, mode);
 
     // @ts-expect-error: not a view fact
     engine.get("node-parent-by", { nodeId: "t0" });

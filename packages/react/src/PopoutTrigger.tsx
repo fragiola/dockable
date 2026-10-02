@@ -46,14 +46,10 @@ export function PopoutTrigger<T extends DockableTypes = AnyTypes>(
             ? tabset.id
             : (node?.id ??
               model.get("selected-tab-by", { tabsetId: tabset.id })?.id);
-    const mode: PopoutTriggerState["mode"] | undefined =
+    const mode =
         subject === undefined
             ? undefined
-            : model.is("node-in-window", { nodeId: subject })
-              ? "dock"
-              : engine.can("popout", { nodeId: subject })
-                ? "popout"
-                : undefined;
+            : engine.get("popout-mode-by", { nodeId: subject });
 
     const onClick = () => {
         if (!subject || !mode) {

@@ -337,6 +337,7 @@ const GET_INPUTS: {
     "tab-panel-dom-id-by": { required: true, fields: ["tabId"] },
     "flex-by": { required: true, fields: ["nodeId"] },
     "overlay-placement-by": { required: true, fields: ["borderId"] },
+    "popout-mode-by": { required: true, fields: ["nodeId"] },
     "splitter-size": { required: false, fields: [] },
     "owner-document": { required: false, fields: [] },
     "owner-window": { required: false, fields: [] },
