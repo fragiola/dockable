@@ -94,14 +94,10 @@ const layout: LayoutJson<Types> = {
     },
 };
 
-/** An incident tab: its data says it belongs to the incident region. */
-const isIncidentTab = (tab: TabOf<Types>) =>
-    tab.data !== undefined &&
-    "region" in tab.data &&
-    tab.data.region === "incident";
-
+/** An incident tab: a runbook or a timeline, the components of the incident region. */
 const inIncidentRegion = (node: Node<Types> | undefined) =>
-    node?.type === "tab" && isIncidentTab(node);
+    node?.type === "tab" &&
+    (node.component === "runbook" || node.component === "timeline");
 
 /**
  * The locked region, as middleware: incident tabs stay in the incident tabset (they move only

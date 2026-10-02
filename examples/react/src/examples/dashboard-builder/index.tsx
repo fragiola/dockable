@@ -86,25 +86,20 @@ const dropRules: Middleware<Types> = (ctx, next) => {
         }
         return to === "kpis" ? veto("The KPI strip takes KPIs only") : next();
     }
-    let placed: {
-        component: string | undefined;
-        to: string;
-        location?: string;
-    };
+    // the placed tab's component: a new tab's (tab.add) or an existing one's (tab.move)
+    let component: string | undefined;
     if (ctx.command === "tab.add") {
-        placed = ctx.payload;
+        component = ctx.payload.component;
     } else if (ctx.command === "tab.move") {
         const moved = ctx.get("node-by", { id: ctx.payload.tabId });
-        placed = {
-            ...ctx.payload,
-            component: moved?.type === "tab" ? moved.component : undefined,
-        };
+        component = moved?.type === "tab" ? moved.component : undefined;
     } else {
         return next();
     }
-    const intoKpis = placed.to === "kpis";
-    if (placed.component !== undefined && isKpi(placed.component)) {
-        return intoKpis && (placed.location ?? "center") === "center"
+    const { to, location = "center" } = ctx.payload;
+    const intoKpis = to === "kpis";
+    if (component !== undefined && isKpi(component)) {
+        return intoKpis && location === "center"
             ? next()
             : veto("KPIs go in the KPI strip");
     }
