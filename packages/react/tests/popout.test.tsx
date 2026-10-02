@@ -217,44 +217,7 @@ describe("Dockable.Popout", () => {
         expect(opened[0]?.close).not.toHaveBeenCalled();
     });
 
-    it("passes onOpen, onClose and title through to the window", async () => {
-        const onOpen = vi.fn();
-        const onClose = vi.fn();
-        const model = popoutModel();
-        render(
-            <Dockable.Root model={model} supportsPopout>
-                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
-                <Dockable.Panels<Types>>{renderPanel}</Dockable.Panels>
-                <Dockable.Popout<Types>
-                    title={() => "Popped"}
-                    onOpen={onOpen}
-                    onClose={onClose}
-                >
-                    {() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}
-                </Dockable.Popout>
-            </Dockable.Root>,
-        );
-        const { win, layoutId } = await popOut(model, "t2");
-        expect(onOpen).toHaveBeenCalledWith(
-            expect.objectContaining({ id: layoutId }),
-            win,
-            win.document,
-        );
-        expect(win.document.title).toBe("Popped");
-        act(() => {
-            win.dispatchEvent(new Event("beforeunload"));
-        });
-        expect(onClose).toHaveBeenCalledWith(
-            expect.objectContaining({ id: layoutId }),
-            win,
-            win.document,
-        );
-        // closing the window docks the tab back
-        expect(model.get("layout-id-by", { nodeId: "t2" })).toBe(MAIN_LAYOUT);
-        expect(model.state.windows).toHaveLength(0);
-    });
-
-    it("calls the root's onPopoutOpen and onPopoutClose with the window layout", async () => {
+    it("passes the root's popoutTitle, onPopoutOpen and onPopoutClose to the window", async () => {
         const onPopoutOpen = vi.fn();
         const onPopoutClose = vi.fn();
         const model = popoutModel();
@@ -262,6 +225,7 @@ describe("Dockable.Popout", () => {
             <Dockable.Root
                 model={model}
                 supportsPopout
+                popoutTitle={(layout) => `Popped ${layout.id}`}
                 onPopoutOpen={onPopoutOpen}
                 onPopoutClose={onPopoutClose}
             >
@@ -278,6 +242,7 @@ describe("Dockable.Popout", () => {
             win,
             win.document,
         );
+        expect(win.document.title).toBe(`Popped ${layoutId}`);
         act(() => {
             win.dispatchEvent(new Event("beforeunload"));
         });
@@ -286,6 +251,9 @@ describe("Dockable.Popout", () => {
             win,
             win.document,
         );
+        // closing the window docks the tab back
+        expect(model.get("layout-id-by", { nodeId: "t2" })).toBe(MAIN_LAYOUT);
+        expect(model.get("windows")).toHaveLength(0);
     });
 
     it("opens the window through the root's openWindow", () => {

@@ -10,19 +10,22 @@ portalled into it. A node-less `Dockable.Row` inside renders that layout's root 
 of tabs in that layout are positioned in the window. Pop a tab out with `tab.popout`."
 
 ```tsx
-<Dockable.Popout<Types>
-    className="palette-surface bg-palette-base"
-    title={(layout) => `My app (${layout.id})`}
-    onOpen={(_layout, _window, doc) => {
+<Dockable.Root
+    model={model}
+    popoutTitle={(layout) => `My app (${layout.id})`}
+    onPopoutOpen={(_layout, _window, doc) => {
         doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
     }}
 >
-    {() => (
-        <Dockable.Row<Types> renderSplitter={renderSplitter}>
-            {renderNode}
-        </Dockable.Row>
-    )}
-</Dockable.Popout>
+    {/* … */}
+    <Dockable.Popout<Types> className="palette-surface bg-palette-base">
+        {() => (
+            <Dockable.Row<Types> renderSplitter={renderSplitter}>
+                {renderNode}
+            </Dockable.Row>
+        )}
+    </Dockable.Popout>
+</Dockable.Root>
 ```
 
 A window is state: `model.get("windows")` lists one `WindowLayout<T>` per popout (its `id`,
@@ -37,19 +40,16 @@ model.run("window.close", { windowId: "window-1" }); // its tabs dock back, the 
 
 ## Props
 
-`PopoutProps<T>` extends the [common primitive props](/docs/api/root#common-props) (without the
-`title` attribute, which is redefined). The common props apply to **each window's root
-element**.
+`PopoutProps<T>` extends the [common primitive props](/docs/api/root#common-props). The common
+props apply to **each window's root element**.
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
 | `children` | `(layout: WindowLayout<T>) => ReactNode` | required | renders a window layout, usually `<Dockable.Row>{renderNode}</Dockable.Row>` |
-| `title` | `(layout: WindowLayout<T>) => string \| undefined` | none | the popout document's title; with none, the host page's title is kept |
-| `onOpen` | `PopoutCallback<T>`: `(layout: WindowLayout<T>, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
-| `onClose` | `PopoutCallback<T>` | none | a popout window is closing (its tabs dock back into the main layout) |
 
-The window itself is set up on `Dockable.Root`: `popoutURL`, `supportsPopout`, `openWindow`,
-`popoutMirrorRoot`, `onPopoutOpen`, `onPopoutClose`.
+The window itself is set up on [`Dockable.Root`](/docs/api/root#props): `popoutURL`,
+`supportsPopout`, `openWindow`, `popoutMirrorRoot`, `popoutTitle`, `onPopoutOpen`,
+`onPopoutClose`.
 
 ## State
 
@@ -83,8 +83,8 @@ panels are positioned in.
   those whose layout left the state. Opening is idempotent per layout, and a release is deferred,
   so a React StrictMode remount keeps one window.
 - Closing a window from the browser runs `window.close`: its tabs dock back into the main layout's
-  active tabset (its first tabset when none is active), and `onClose` / `onPopoutClose` are
-  called first. The content of those tabs moves back to the main document before the window goes,
+  active tabset (its first tabset when none is active), and `onPopoutClose` is called
+  first. The content of those tabs moves back to the main document before the window goes,
   so it keeps its state.
 - Without popout support (`supportsPopout` false), or when the window cannot open (`openWindow`
   returns `null`, a blocked `window.open`), the window layout docks back (`window.close`).

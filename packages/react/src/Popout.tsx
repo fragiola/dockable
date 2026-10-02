@@ -5,7 +5,6 @@ import type {
     AnyTypes,
     DockableTypes,
     LayoutEngine,
-    PopoutCallback,
     WindowLayout,
 } from "@fragiola/dockable";
 import * as React from "react";
@@ -23,15 +22,9 @@ export interface PopoutState {
 }
 
 export interface PopoutProps<T extends DockableTypes = AnyTypes>
-    extends Omit<DivPrimitiveProps<PopoutState>, "title"> {
+    extends DivPrimitiveProps<PopoutState> {
     /** renders a window layout, usually `<Dockable.Row>{renderNode}</Dockable.Row>` */
     children: (layout: WindowLayout<T>) => React.ReactNode;
-    /** the popout document's title; with none, the host page's title is kept */
-    title?: ((layout: WindowLayout<T>) => string | undefined) | undefined;
-    /** a popout document is ready, before its content renders */
-    onOpen?: PopoutCallback<T> | undefined;
-    /** a popout window is closing (its tabs dock back into the main layout) */
-    onClose?: PopoutCallback<T> | undefined;
 }
 
 /**
@@ -44,8 +37,8 @@ export interface PopoutProps<T extends DockableTypes = AnyTypes>
 export function Popout<T extends DockableTypes = AnyTypes>(
     props: PopoutProps<T>,
 ) {
-    const { children, title, onOpen, onClose, ...rest } = props;
-    const { engine, model: erased, popoutHooks } = useDockableContext("Popout");
+    const { children, ...rest } = props;
+    const { engine, model: erased } = useDockableContext("Popout");
     const model = typedModel<T>(erased);
     const manager = engine.adapter.getPopoutManager();
     React.useSyncExternalStore(
@@ -54,25 +47,9 @@ export function Popout<T extends DockableTypes = AnyTypes>(
         manager.getSnapshot,
     );
 
-    // the root calls these by window layout id: hand the typed layout over
-    popoutHooks.current = {
-        title: (id) => {
-            const layout = model.get("window-by", { id });
-            return layout && title ? title(layout) : undefined;
-        },
-        onOpen: (id, win, doc) => {
-            const layout = model.get("window-by", { id });
-            if (layout) onOpen?.(layout, win, doc);
-        },
-        onClose: (id, win, doc) => {
-            const layout = model.get("window-by", { id });
-            if (layout) onClose?.(layout, win, doc);
-        },
-    };
-
     return (
         <>
-            {model.state.windows.map((layout) => (
+            {model.get("windows").map((layout) => (
                 <PopoutWindow key={layout.id} layout={layout} rest={rest}>
                     {children}
                 </PopoutWindow>
@@ -83,7 +60,7 @@ export function Popout<T extends DockableTypes = AnyTypes>(
 
 interface PopoutWindowProps<T extends DockableTypes> {
     layout: WindowLayout<T>;
-    rest: Omit<DivPrimitiveProps<PopoutState>, "title">;
+    rest: DivPrimitiveProps<PopoutState>;
     children: (layout: WindowLayout<T>) => React.ReactNode;
 }
 

@@ -23,19 +23,6 @@ export interface DockableContextValue {
     layers: ReadonlyMap<string, HTMLElement>;
     /** sets (or, with `null`, removes) the element a layout's panels are rendered in */
     setLayer: (layoutId: string, element: HTMLElement | null) => void;
-    /** the window callbacks `Dockable.Popout` registers with the root */
-    popoutHooks: { current: PopoutHooks };
-}
-
-/** Window callbacks a `Dockable.Popout` contributes, by window layout id. */
-export interface PopoutHooks {
-    title?: ((layoutId: string) => string | undefined) | undefined;
-    onOpen?:
-        | ((layoutId: string, window: Window, document: Document) => void)
-        | undefined;
-    onClose?:
-        | ((layoutId: string, window: Window, document: Document) => void)
-        | undefined;
 }
 
 export const DockableContext = React.createContext<DockableContextValue | null>(

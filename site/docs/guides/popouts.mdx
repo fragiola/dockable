@@ -60,7 +60,7 @@ root row:
     <Dockable.Row<Types>>{renderNode}</Dockable.Row>
     <Dockable.Panels<Types>>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
     <Dockable.DropIndicator className="drop-indicator" />
-    <Dockable.Popout<Types> className="popout-root" title={(layout) => "My app"}>
+    <Dockable.Popout<Types> className="popout-root">
         {() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}
     </Dockable.Popout>
 </Dockable.Root>
@@ -128,12 +128,12 @@ them in sync, so a theme switch follows into open windows:
 
 The examples put their theme on `<body>` (`data-example-theme`) for this reason: `popoutMirrorRoot`
 carries it into every window, and the menus they portal into `<body>` take it too. A theme that
-lives on another element (a wrapper `div`) is not on the document root: set it in
-`Dockable.Popout`'s `onOpen`, which runs when the popout document is ready and before its content
-renders.
-`onPopoutOpen`/`onPopoutClose` on `Root` receive the same `(layout, window, document)` arguments
-(`layout` is the `WindowLayout`), for set-up that is not about rendering (a CSS-in-JS cache for
-the new document, analytics).
+lives on another element (a wrapper `div`) is not on the document root: set it in `Root`'s
+`onPopoutOpen`, which runs when the popout document is ready and before its content renders.
+`onPopoutOpen` and `onPopoutClose` receive `(layout, window, document)` (`layout` is the
+`WindowLayout`), also for set-up that is not about rendering (a CSS-in-JS cache for the new
+document, analytics). `popoutTitle` on `Root` names the window's document
+(`popoutTitle={(layout) => "My app"}`); with none, the host page's title is kept.
 
 ## Closing a popout
 

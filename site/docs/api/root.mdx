@@ -23,7 +23,7 @@ const model = createModel<Types>(json);
 The root has **no intrinsic size**; give it one ([Sizing the root](/docs/getting-started/sizing)).
 
 `Root` is generic over the model's registry: `model: Model<Types>` types the callbacks
-(`onExternalDrag`, `onPopoutOpen`, `onPopoutClose`). The parts that hand nodes to a children
+(`onExternalDrag`, `popoutTitle`, `onPopoutOpen`, `onPopoutClose`). The parts that hand nodes to a children
 function (`Row`, `TabList`, `Panels`, `Borders`, `Popout`, `TabOverflowTrigger`) cannot infer it
 through context: pass it as their type argument (`<Dockable.Panels<Types>>`).
 
@@ -44,6 +44,7 @@ release), and a listener (`model.subscribe`) sees every change. See
 | `tabDragSpeed` | `number` | `0.3` | seconds a view may take to animate the drop indicator (exposed as data; default 0.3) |
 | `popoutURL` | `string` | `"popout.html"` | the popout host page (default `"popout.html"`); the window layout's id is passed as `?id=` |
 | `supportsPopout` | `boolean` | a desktop pointer is present | whether window layouts open as popouts; without support, a window layout's tabs dock back into the main layout |
+| `popoutTitle` | `(layout: WindowLayout<T>) => string \| undefined` | none | a popout document's title; with none, the host page's title is kept |
 | `onPopoutOpen` | `PopoutCallback<T>`: `(layout: WindowLayout<T>, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
 | `onPopoutClose` | `PopoutCallback<T>` | none | a popout window is closing (its tabs dock back into the main layout) |
 | `openWindow` | `OpenWindow`: `(url: string, name: string, features: string) => Window \| null` | the main window's `open` | opens a popout's native window. Return `null` to refuse: the window layout docks back |

@@ -13,6 +13,7 @@ import {
     type OpenWindow,
     type PopoutCallback,
     resolveKeyMap,
+    type WindowLayout,
 } from "@fragiola/dockable";
 import * as React from "react";
 import {
@@ -22,7 +23,6 @@ import {
     eraseModel,
     LayoutContext,
     ModelContext,
-    type PopoutHooks,
 } from "./context";
 import { DragGroupContext } from "./DragGroup";
 import { useDragState, useIndicator } from "./hooks";
@@ -59,6 +59,8 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
     popoutURL?: string | undefined;
     /** whether window layouts open as popouts; default: a desktop pointer is present */
     supportsPopout?: boolean | undefined;
+    /** a popout document's title; with none, the host page's title is kept */
+    popoutTitle?: ((layout: WindowLayout<T>) => string | undefined) | undefined;
     /** a popout document is ready, before its content renders */
     onPopoutOpen?: PopoutCallback<T> | undefined;
     /** a popout window is closing (its tabs dock back into the main layout) */
@@ -94,6 +96,7 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         tabDragSpeed,
         popoutURL,
         supportsPopout,
+        popoutTitle,
         onPopoutOpen,
         onPopoutClose,
         openWindow,
@@ -102,7 +105,6 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         children,
         ...rest
     } = props;
-    const popoutHooks = React.useRef<PopoutHooks>({});
     const dragGroup = React.useContext(DragGroupContext);
     // DOM ids and window names unique on the page, and the same on the server and the client
     const idScope = `${React.useId().replace(/[^\w-]/g, "")}-`;
@@ -120,15 +122,9 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             supportsPopout,
             mirrorRoot: popoutMirrorRoot,
             openWindow,
-            title: (layout) => popoutHooks.current.title?.(layout.id),
-            onPopoutOpen: (layout, win, doc) => {
-                onPopoutOpen?.(layout, win, doc);
-                popoutHooks.current.onOpen?.(layout.id, win, doc);
-            },
-            onPopoutClose: (layout, win, doc) => {
-                onPopoutClose?.(layout, win, doc);
-                popoutHooks.current.onClose?.(layout.id, win, doc);
-            },
+            title: popoutTitle,
+            onPopoutOpen,
+            onPopoutClose,
         },
     });
     // the parts below work on the erased registry; the typed surface is their props
@@ -253,7 +249,6 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             keyMap: resolvedKeyMap,
             layers,
             setLayer,
-            popoutHooks,
         }),
         [engine, model, revision, resolvedKeyMap, layers, setLayer],
     );
