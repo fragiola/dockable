@@ -21,7 +21,7 @@ import type { TabOf } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import { ContextMenu } from "#/components/ui/context-menu";
 
-type Types = { tabs: { card: { name: string } } };
+type Types = { tabs: { card: undefined } };
 
 function TabWithMenu({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
@@ -29,7 +29,7 @@ function TabWithMenu({ tab }: { tab: TabOf<Types> }) {
     return (
         <ContextMenu.Root>
             <Dockable.Tab node={tab} render={<ContextMenu.Trigger />}>
-                {tab.data.name}
+                {tab.label}
             </Dockable.Tab>
             <ContextMenu.Content>
                 <ContextMenu.Item
@@ -65,7 +65,7 @@ in the trigger instead.
 | Close others | `batch` of `tab.close`, one per other closable tab | at least one |
 | Close to the right | `batch` of `tab.close` for the closable tabs after it | at least one |
 | Close all | `tabset.close` `{ tabsetId }`, or a `batch` of `tab.close` | `model.can("tabset.close", …)` |
-| Rename | start your rename UI, then `tab.update` with the new data | your own rule (in `data`), and `model.can("tab.update", …)` |
+| Rename | start your rename UI, then `tab.configure` `{ tabId, label }` | your own rule (in `data`), and `model.can("tab.configure", …)` |
 | Pin / Unpin | `tab.pin` `{ tabId, value }` | `model.can("tab.pin", …)` (refused in a border) |
 | Pop out | `tab.popout` `{ tabId }` | `engine.is("popout-supported")` and `model.can("tab.popout", …)` |
 | Pop out the tabset | `tabset.popout` `{ tabsetId }` | as Pop out, with `tabset.popout` |

@@ -17,7 +17,7 @@ windows, focus) is an engine's. Which one to go to for what is on
 ```ts
 import { createModel, type LayoutJson } from "@fragiola/dockable";
 
-type Types = { tabs: { editor: { name: string; path: string }; log: { name: string } } };
+type Types = { tabs: { editor: { path: string }; log: undefined } };
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -27,7 +27,7 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 id: "editors",
-                children: [{ id: "readme", component: "editor", data: { name: "README.md", path: "/README.md" } }],
+                children: [{ id: "readme", component: "editor", label: "README.md", data: { path: "/README.md" } }],
             },
         ],
     },
@@ -83,9 +83,10 @@ checked against the command, and `data` against the component.
 ```ts
 model.run("tab.select", { tabId: "readme" });
 model.run("tab.close", { tabId: "readme" });
-model.run("tab.add", { component: "log", data: { name: "Log" }, to: "editors", select: true });
+model.run("tab.add", { component: "log", label: "Log", to: "editors", select: true });
 model.run("tab.move", { tabId: "log", to: "editors", location: "right" }); // split beside it
-model.run("tab.update", { tabId: "log", component: "log", data: { name: "Build log" } });
+model.run("tab.configure", { tabId: "log", label: "Build log" }); // rename
+model.run("tab.set-data", { tabId: "readme", data: { path: "/docs/README.md" } }); // a data patch
 model.run("tabset.maximize", { tabsetId: "editors", value: true });
 ```
 

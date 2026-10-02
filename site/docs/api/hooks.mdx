@@ -19,7 +19,7 @@ as the type argument (`useDockable<Types>()`); a child cannot infer it through c
 import type { TabOf } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 
-type Types = { tabs: { card: { name: string } } };
+type Types = { tabs: { card: undefined } };
 
 function CloseButton({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
@@ -27,7 +27,7 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
     if (!model.can("tab.close", { tabId: tab.id })) return null;
     return (
         <button type="button" onClick={() => model.run("tab.close", { tabId: tab.id })}>
-            Close {tab.data.name}
+            Close {tab.label}
         </button>
     );
 }
@@ -268,7 +268,7 @@ sidebar item, a palette entry), into a source of new tabs. Dropping it on the la
 function PaletteEntry({ model }: { model: Model<Types> }) {
     const { state, props } = useDragSource({
         model,
-        tab: { component: "card", data: { name: "Orders" } },
+        tab: { component: "card", label: "Orders" },
         onDrop: (id) => console.log(id ? `added ${id}` : "refused"),
     });
     return (

@@ -17,7 +17,7 @@ function Header({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <div className="flex">
             <Dockable.TabList<Types> className="flex min-w-0 flex-1">
-                {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
+                {(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}
             </Dockable.TabList>
             <Menu.Root>
                 <Dockable.TabOverflowTrigger aria-label="More tabs" render={<Menu.Trigger />}>
@@ -26,7 +26,7 @@ function Header({ tabset }: { tabset: TabsetNode<Types> }) {
                 <Menu.Content>
                     {hiddenTabs.map((tab) => (
                         <Menu.Item key={tab.id} onClick={() => model.run("tab.select", { tabId: tab.id })}>
-                            {tab.data.name}
+                            {tab.label}
                         </Menu.Item>
                     ))}
                 </Menu.Content>

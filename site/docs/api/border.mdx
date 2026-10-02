@@ -15,7 +15,7 @@ border's panel; clicking the selected tab closes it. Render it from `Dockable.Bo
     className="flex bg-palette-surface data-[orientation=vertical]:w-8 data-[orientation=horizontal]:h-8"
 >
     <Dockable.TabList<Types> className="data-[orientation=vertical]:[writing-mode:vertical-rl]">
-        {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
+        {(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}
     </Dockable.TabList>
 </Dockable.Border>
 ```

@@ -54,7 +54,7 @@ const toolName = (command: string) => command.replaceAll(".", "_"); // tab.move 
 
 /** What the assistant may call: a choice of your app. */
 const EXPOSED = new Set<CommandName>([
-    "tab.select", "tab.move", "tab.add", "tab.update", "tab.close",
+    "tab.select", "tab.move", "tab.add", "tab.set-data", "tab.close",
     "tabset.maximize", "row.resize", "batch",
 ]);
 
@@ -104,14 +104,14 @@ function describeLayout(model: Model<Types>) {
         tabsets: model.get("tabsets").map((tabset) => ({
             id: tabset.id,
             selected: model.get("selected-tab-by", { tabsetId: tabset.id })?.id,
-            tabs: tabset.children.map((tab) => ({ id: tab.id, component: tab.component, name: tab.data.name })),
+            tabs: tabset.children.map((tab) => ({ id: tab.id, component: tab.component, label: tab.label })),
         })),
     };
 }
 ```
 
 A tab's `data` is your app's (see [Typed data](/docs/concepts/typed-data)): the `tab.add` and
-`tab.update` schemas accept any `data`. Tell the assistant what each component's data looks like
+`tab.set-data` schemas accept any `data`. Tell the assistant what each component's data looks like
 (in its instructions or the tool description), and register the same shapes with `dataSchemas`
 so a wrong one is refused:
 
@@ -215,7 +215,7 @@ const assistantPolicy: Middleware<Types> = (ctx, next) => {
         case "tab.select":
         case "tab.move":
         case "tab.add":
-        case "tab.update":
+        case "tab.set-data":
         case "tabset.maximize":
         case "row.resize":
         case "batch": // each command inside it passes this middleware too, with the same meta
@@ -223,7 +223,7 @@ const assistantPolicy: Middleware<Types> = (ctx, next) => {
         case "tab.close": {
             const tab = ctx.get("node-by", { id: ctx.payload.tabId });
             if (tab?.type === "tab" && tab.component === "editor" && tab.data.dirty) {
-                return veto(`"${tab.data.name}" has unsaved changes: ask the user to close it.`);
+                return veto(`"${tab.label}" has unsaved changes: ask the user to close it.`);
             }
             return next();
         }

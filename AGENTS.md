@@ -47,6 +47,9 @@ Do not "fix" these.
    ship no label keys and no label resolver: every accessible name comes from the
    consumer, as a prop on the element it names (`aria-label`, children, or
    `render` with the part's state). With none, no text and no name is rendered.
+   A tab's `label` is model data like any other: the model stores the raw string
+   (required, `tab.configure` changes it), and no primitive reads or renders it;
+   the consumer writes `{tab.label}`.
 9. **No CSS class names in core (D6).** Drop kinds are semantic
    (`kind: "rect" | "edge"`); the moveable element carries
    `data-dockable-moveable`.
@@ -201,7 +204,7 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 - **No `any` in public types.** A guard test checks the core's exported declarations, and
   `pnpm build` checks every package's emitted `.d.ts` (`scripts/check-dts.ts`).
 - **Data is typed by the registry.** An app declares `Types` (`{ tabs: { editor: {…} } }`) and
-  `createModel<Types>`; `tab.data` narrows on `tab.component`, and `tab.add`/`tab.update`
+  `createModel<Types>`; `tab.data` narrows on `tab.component`, and `tab.add`/`tab.set-data`
   payloads are checked against it. Parts that hand nodes to a children function take the
   registry as a type argument (`<Dockable.Panels<Types>>`). No casts on node data or kinds, in
   the packages or the examples.

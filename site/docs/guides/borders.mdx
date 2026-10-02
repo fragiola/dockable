@@ -18,9 +18,9 @@ import type { LayoutJson } from "@fragiola/dockable";
 
 type Types = {
     tabs: {
-        explorer: { name: string };
-        search: { name: string };
-        terminal: { name: string };
+        explorer: undefined;
+        search: undefined;
+        terminal: undefined;
     };
 };
 
@@ -32,14 +32,14 @@ const json: LayoutJson<Types> = {
             location: "left",
             selected: 0, // open on its first tab; -1 (the default) is closed
             children: [
-                { id: "explorer", component: "explorer", data: { name: "Explorer" } },
-                { id: "search", component: "search", data: { name: "Search" } },
+                { id: "explorer", component: "explorer", label: "Explorer" },
+                { id: "search", component: "search", label: "Search" },
             ],
         },
         {
             location: "bottom",
             size: 160,
-            children: [{ id: "terminal", component: "terminal", data: { name: "Terminal" } }],
+            children: [{ id: "terminal", component: "terminal", label: "Terminal" }],
         },
     ],
     root: { type: "row", children: [/* … */] },
@@ -68,7 +68,7 @@ between its strip and the layout.
                 <Dockable.TabList<Types> aria-label={`${border.location} panels`}>
                     {(tab) => (
                         <Dockable.Tab node={tab} className="border-tab">
-                            {tab.data.name}
+                            {tab.label}
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>
@@ -143,7 +143,7 @@ from your data:
 
 ```tsx
 // an activity bar: an upright icon per tab, named for assistive technology
-<Dockable.Tab node={tab} aria-label={tab.data.name} className="grid place-items-center p-2">
+<Dockable.Tab node={tab} aria-label={tab.label} className="grid place-items-center p-2">
     <Icon name={tab.component} aria-hidden />
 </Dockable.Tab>
 ```

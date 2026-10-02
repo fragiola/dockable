@@ -19,9 +19,9 @@ type of each component once, in a registry. Everything below is typed by it:
 ```tsx title="types.ts"
 export type Types = {
     tabs: {
-        welcome: { name: string };
-        notes: { name: string; text: string };
-        inspector: { name: string };
+        welcome: undefined;
+        notes: { text: string };
+        inspector: undefined;
     };
 };
 ```
@@ -52,14 +52,14 @@ export const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { component: "welcome", data: { name: "Welcome" } },
-                    { component: "notes", data: { name: "Notes", text: "" } },
+                    { component: "welcome", label: "Welcome" },
+                    { component: "notes", label: "Notes", data: { text: "" } },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
-                children: [{ component: "inspector", data: { name: "Inspector" } }],
+                children: [{ component: "inspector", label: "Inspector" }],
             },
         ],
     },
@@ -109,7 +109,7 @@ export function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode
                 <Dockable.TabList<Types> aria-label="Tabs" className="tabs">
                     {(tab) => (
                         <Dockable.Tab node={tab} className="tab">
-                            {tab.data.name}
+                            {tab.label}
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>
@@ -157,10 +157,10 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "notes":
             // tab.data is { name: string; text: string }
-            return <textarea aria-label={tab.data.name} defaultValue={tab.data.text} />;
+            return <textarea aria-label={tab.label} defaultValue={tab.data.text} />;
         case "welcome":
         case "inspector":
-            return <p>{tab.data.name}</p>;
+            return <p>{tab.label}</p>;
     }
 }
 ```

@@ -13,7 +13,7 @@ from the state when the two actions need different names
 ```tsx
 <Dockable.TabSet node={tabset}>
     <div className="flex">
-        <Dockable.TabList<Types>>{(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}</Dockable.TabList>
+        <Dockable.TabList<Types>>{(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}</Dockable.TabList>
         <Dockable.PopoutTrigger aria-label="Pop out" className="data-[mode=dock]:rotate-180">
             <ExternalLinkIcon aria-hidden />
         </Dockable.PopoutTrigger>

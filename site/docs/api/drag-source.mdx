@@ -12,7 +12,7 @@ command (a click, a menu): native drag and drop has none."
 ```tsx
 <Dockable.DragSource
     model={model}
-    tab={() => ({ component: "chart", data: { name: "Revenue", series: [] } })}
+    tab={() => ({ component: "chart", label: "Revenue", data: { series: [] } })}
     onDrop={(tabId) => tabId && console.log("added", tabId)}
     render={<li />}
     className="cursor-grab data-dragging:opacity-50"

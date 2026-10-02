@@ -10,7 +10,7 @@ the orientation, Home and End move focus between tabs; Enter or Space selects."
 <Dockable.TabList<Types> aria-label={tabset.data?.name ?? "Tabs"} className="flex min-h-8 ps-1">
     {(tab) => (
         <Dockable.Tab node={tab} className="tab">
-            {tab.component === "editor" && tab.data.dirty ? `${tab.data.name} •` : tab.data.name}
+            {tab.component === "editor" && tab.data.dirty ? `${tab.label} •` : tab.label}
         </Dockable.Tab>
     )}
 </Dockable.TabList>

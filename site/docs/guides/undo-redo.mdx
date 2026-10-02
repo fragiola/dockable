@@ -33,7 +33,7 @@ import { Dockable } from "@fragiola/dockable-react";
 import { useState, useSyncExternalStore } from "react";
 import { UndoManager } from "./undo"; // the examples' _kit/undo.ts, copied into your app
 
-type Types = { tabs: { card: { name: string } } };
+type Types = { tabs: { card: undefined } };
 
 // selecting is navigation, not an edit
 const IGNORED: readonly CommandName[] = ["tabset.activate", "tab.select", "window.configure"];

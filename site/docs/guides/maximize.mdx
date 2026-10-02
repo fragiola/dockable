@@ -25,7 +25,7 @@ without running anything, so a button can hide itself:
 import type { TabsetNode } from "@fragiola/dockable";
 import { useDockable } from "@fragiola/dockable-react";
 
-type Types = { tabs: { card: { name: string } } };
+type Types = { tabs: { card: undefined } };
 
 function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();

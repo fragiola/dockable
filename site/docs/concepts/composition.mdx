@@ -75,7 +75,7 @@ function MyTabSet({ node }: { node: TabsetNode<Types> }) {
                 <Dockable.TabList<Types> aria-label={node.data?.name ?? "Tabs"} className="tabs">
                     {(tab) => (
                         <Dockable.Tab node={tab} className="tab">
-                            {tab.data.name}
+                            {tab.label}
                             {model.can("tab.close", { tabId: tab.id }) ? <CloseButton tab={tab} /> : null}
                         </Dockable.Tab>
                     )}

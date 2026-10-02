@@ -7,21 +7,22 @@ Every tab operation is a command run on the model (`model.run`), through its mid
 package gives you the commands and the node state; the buttons, icons and text are yours.
 
 The snippets on this page share one registry: each tab component and the type of its `data`
-(see [Typed data](/docs/concepts/typed-data)).
+(see [Typed data](/docs/concepts/typed-data)). A tab's name is not data: every tab has a `label`,
+a string the model keeps and your markup renders (`{tab.label}`); the packages never render it.
 
 ```ts
 type Types = {
     tabs: {
-        editor: { name: string; path: string; dirty?: boolean; renamable?: boolean };
-        chart: { name: string };
+        editor: { path: string; dirty?: boolean; renamable?: boolean };
+        chart: undefined;
     };
 };
 ```
 
 ## Adding a tab
 
-`tab.add` creates a tab from its `component` and `data` (checked against the registry) and places
-it with `to`, `location`, `index` and `select`:
+`tab.add` creates a tab from its `component`, its `label` and its `data` (checked against the
+registry) and places it with `to`, `location`, `index` and `select`:
 
 - `to` is a tabset, a border, a row, or a layout id (`MAIN_LAYOUT`, meaning its root row);
 - `location` `"center"` (the default) adds the tab to that tabset or border at `index` (`-1`, the
@@ -44,7 +45,7 @@ function AddTabButton() {
         const target = model.get("active-tabset") ?? model.get("tabsets")[0];
         model.run("tab.add", {
             component: "chart",
-            data: { name: "Untitled" }, // must be a chart's data
+            label: "Untitled", // a chart has no data
             to: target?.id ?? MAIN_LAYOUT,
             select: true,
         });
@@ -80,7 +81,7 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
     return (
         <button
             type="button"
-            aria-label={`Close ${tab.data.name}`}
+            aria-label={`Close ${tab.label}`}
             // a press on the button must not start a drag or select the tab first
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -94,7 +95,7 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
 }
 
 <Dockable.Tab node={tab}>
-    {tab.data.name}
+    {tab.label}
     <CloseButton tab={tab} />
 </Dockable.Tab>
 ```
@@ -128,7 +129,7 @@ model.use((ctx, next) => {
         return next();
     }
     const id = tab.id;
-    void askToDiscard(tab.data.name).then((ok) => {
+    void askToDiscard(tab.label).then((ok) => {
         if (ok) model.run("tab.close", { tabId: id }, { meta: { confirmed: true } });
     });
     return veto("the file has unsaved changes");
@@ -141,13 +142,13 @@ middleware in [the command bus](/docs/api/command-bus).
 
 ## Renaming a tab
 
-A tab's name is your data, so renaming is `tab.update` with the new data. `data` is the **whole**
-new value, not a patch: spread the old one. Whether a tab may be renamed is yours too (here
-`renamable` in its data).
+A tab's name is its `label`, so renaming is one command, whatever the tab's component:
+`tab.configure` with the new label. Nothing else of the tab changes. Whether a tab may be renamed,
+and what a valid name is, are yours (here `renamable` in its data, and no empty name).
 
 ```tsx
-if (tab.component === "editor" && tab.data.renamable !== false) {
-    model.run("tab.update", { tabId: tab.id, component: "editor", data: { ...tab.data, name: value.trim() } });
+if (tab.data?.renamable !== false && value.trim() !== "") {
+    model.run("tab.configure", { tabId: tab.id, label: value.trim() });
 }
 ```
 
@@ -192,21 +193,29 @@ function Controls({ model }: { model: Model<Types> }) {
 }
 ```
 
-Keep what outside controls change in the tab's `data` (a counter here), and `tab.update` it: the
+Keep what outside controls change in the tab's `data` (a counter here), and `tab.set-data` it: the
 tab and the controls both read it, so a click inside the tab and one outside stay in sync.
 
 <Example id="external-tab-switcher" />
 
 ## Tab data and behaviour
 
-Two commands change an existing tab:
+Two commands change an existing tab, each taking only what changes:
 
-- `tab.update` replaces its `data` (and may switch its `component`), which re-renders the tab
-  strip and panels with the new value. With `dataSchemas` registered on `createModel`, the data is
-  validated first.
-- `tab.configure` changes its behaviour flags and size limits (`enableClose`, `enableDrag`,
-  `enablePopout`, `minWidth`, …). A `null` value removes the tab's own value, so the layout default
-  applies again.
+- `tab.configure` changes the tab's own fields: its `label`, its behaviour flags and its size
+  limits (`enableClose`, `enableDrag`, `enablePopout`, `minWidth`, …). A key you leave out stays as
+  it is. A `null` flag or limit removes the tab's own value, so the layout default applies again;
+  the label cannot be removed.
+- `tab.set-data` changes its `data`. Without `component`, `data` is a shallow patch: the keys you
+  pass replace the tab's, the others stay (`{ tabId, data: { dirty: true } }`). With `component`,
+  the tab switches to that component and `data` is its whole new value. With `dataSchemas`
+  registered on `createModel`, the resulting data is validated first.
+
+```tsx
+model.run("tab.configure", { tabId: tab.id, label: "notes.md", enableClose: false });
+model.run("tab.set-data", { tabId: tab.id, data: { dirty: true } });
+model.run("tab.set-data", { tabId: tab.id, component: "chart" }); // a chart has no data
+```
 
 The [command reference](/docs/api/commands) lists every payload field.
 

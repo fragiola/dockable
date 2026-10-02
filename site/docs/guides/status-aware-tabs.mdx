@@ -21,16 +21,16 @@ type Status = "healthy" | "degraded" | "down";
 
 type Types = {
     tabs: {
-        monitor: { name: string; status: Status; incidents: number };
-        document: { name: string; dirty: boolean };
+        monitor: { status: Status; incidents: number };
+        document: { dirty: boolean };
     };
 };
 
 const model = createModel<Types>(json); // json: LayoutJson<Types>
 ```
 
-The content writes it with `tab.update`. The payload names the component, and `data` is the
-**whole** new value (not a patch), checked against that component's type:
+The content writes it with `tab.set-data`. `data` is a patch: the keys it passes replace the tab's,
+the others stay, and the result is checked against the tab's component:
 
 ```tsx
 import type { TabNode } from "@fragiola/dockable";
@@ -41,7 +41,7 @@ function Editor({ tab }: { tab: TabNode<"document", Types["tabs"]["document"]> }
     const setDirty = (dirty: boolean) => {
         // only when the flag changes, not on every keystroke
         if (tab.data.dirty !== dirty) {
-            model.run("tab.update", { tabId: tab.id, component: "document", data: { ...tab.data, dirty } });
+            model.run("tab.set-data", { tabId: tab.id, data: { dirty } });
         }
     };
     // … call setDirty(true) on edit, setDirty(false) on save
@@ -57,7 +57,7 @@ function StatusTab({ tab }: { tab: TabOf<Types> }) {
     const dirty = tab.component === "document" && tab.data.dirty;
     return (
         <Dockable.Tab node={tab} data-status={status} data-modified={dirty ? "" : undefined}>
-            {tab.data.name}
+            {tab.label}
             {tab.component === "monitor" && tab.data.incidents > 0 ? (
                 <span className="badge">{tab.data.incidents}</span>
             ) : null}
@@ -115,7 +115,7 @@ function LiveTab({ tab }: { tab: TabOf<Types> }) {
     const live = useLive(tab.id);
     return (
         <Dockable.Tab node={tab}>
-            {tab.data.name}
+            {tab.label}
             {live?.unread ? <span className="badge">{live.unread}</span> : null}
         </Dockable.Tab>
     );

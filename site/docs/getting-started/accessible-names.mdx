@@ -12,12 +12,13 @@ A primitive renders its children, and for most parts the children are the name. 
 `Dockable.Tab`'s accessible name is its content:
 
 ```tsx
-<Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
+<Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>
 ```
 
-The model holds no text: a tab's name is a field of **your** data (`tab.data.name` here), typed by
-your registry ([Typed data](/docs/concepts/typed-data)). An icon-only tab needs a name another
-way: `aria-label={tab.data.name}` on the tab, or visually hidden text inside it.
+The model keeps each tab's name as its `label`, the raw string your app gave it, and never renders
+it: the tab's children are still the name, so `{tab.label}` (or its translation) is what you put
+there. An icon-only tab needs a name another way: `aria-label={tab.label}` on the tab, or visually
+hidden text inside it.
 
 The panel is labelled by its tab automatically: `Dockable.Panel` sets
 `aria-labelledby` to the tab button's id, and the tab sets `aria-controls` to the panel's id.
@@ -38,7 +39,7 @@ pass it as above.
 Buttons you add (close, maximize, pop out) are your own elements: give each one a name.
 
 ```tsx
-<button type="button" aria-label={`Close ${tab.data.name}`} onClick={close}>
+<button type="button" aria-label={`Close ${tab.label}`} onClick={close}>
     <XIcon aria-hidden="true" />
 </button>
 ```
