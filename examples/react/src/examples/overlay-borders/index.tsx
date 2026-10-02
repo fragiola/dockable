@@ -8,9 +8,13 @@ import {
     type RowNode,
     type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable, type SplitterProps } from "@fragiola/dockable-react";
+import {
+    Dockable,
+    type SplitterProps,
+    useModelState,
+} from "@fragiola/dockable-react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { PanelBody } from "../_kit/card";
 import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
@@ -105,33 +109,9 @@ const EDGES = [
 
 export default function OverlayBorders() {
     const [model] = useState(() => createModel<Types>(json));
-    // the toolbar is outside the layout: it reads the borders from the model's state, and
-    // re-renders on every change
-    const state = useSyncExternalStore(
-        model.subscribe,
-        () => model.state,
-        () => model.state,
-    );
     return (
         <div className={styles.page}>
-            <div className={styles.toolbar}>
-                {SWITCHABLE.map((location) => {
-                    const border = state.borders.find(
-                        (candidate) => candidate.location === location,
-                    );
-                    return border ? (
-                        <ModeSwitch
-                            key={location}
-                            model={model}
-                            border={border}
-                        />
-                    ) : null;
-                })}
-                <p className={styles.hint}>
-                    Drag a tab towards the right edge (above or below its
-                    middle) to reveal the hidden border.
-                </p>
-            </div>
+            <Toolbar model={model} />
             {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
                 <Dockable.Root model={model} className={styles.root}>
@@ -194,6 +174,27 @@ export default function OverlayBorders() {
                     ))}
                 </Dockable.Root>
             </div>
+        </div>
+    );
+}
+
+/** The toolbar outside the layout: it follows the borders, and a commit re-renders it, not the layout. */
+function Toolbar({ model }: { model: Model<Types> }) {
+    const borders = useModelState(() => model.get("borders"), { model });
+    return (
+        <div className={styles.toolbar}>
+            {SWITCHABLE.map((location) => {
+                const border = borders.find(
+                    (candidate) => candidate.location === location,
+                );
+                return border ? (
+                    <ModeSwitch key={location} model={model} border={border} />
+                ) : null;
+            })}
+            <p className={styles.hint}>
+                Drag a tab towards the right edge (above or below its middle) to
+                reveal the hidden border.
+            </p>
         </div>
     );
 }

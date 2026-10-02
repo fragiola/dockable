@@ -2,13 +2,13 @@
 
 import {
     type BorderNode,
-    MAIN_LAYOUT,
+    type Model,
     type RowNode,
     type TabOf,
     type TabsetNode,
     veto,
 } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { Dockable, useModelState } from "@fragiola/dockable-react";
 import { Bug, FolderTree, GitBranch, SquareTerminal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Clickable } from "#/components/atoms/clickable";
@@ -19,8 +19,10 @@ import { EditorPanel, ProblemsPanel, TerminalPanel } from "./panels";
 import * as styles from "./styles";
 import { WorkbenchTabSet } from "./tabs";
 import {
+    activePath,
     createWorkspace,
     defaultLayout,
+    dirtyPaths,
     editorData,
     forgetLayout,
     openFile,
@@ -42,7 +44,6 @@ export default function IdeWorkbench() {
     const [restored] = useState(restoreModel);
     const { model } = restored;
     const [problem, setProblem] = useState(restored.problem);
-    const [, setRevision] = useState(0);
     // tabs waiting for an answer to "save changes?", and the ones already answered
     const [pending, setPending] = useState<string[]>([]);
     const confirmed = useRef(new Set<string>());
@@ -70,16 +71,11 @@ export default function IdeWorkbench() {
         [model],
     );
 
-    // every change is saved (a drag's transient steps once, at its end), and re-renders what
-    // reads the model outside the layout
+    // every change is saved (a drag's transient steps once, at its end)
     useEffect(
         () =>
             model.subscribe((event) => {
-                if (event.transient) {
-                    return;
-                }
-                saveLayout(model);
-                setRevision((n) => n + 1); // the explorer and status bar read the model
+                if (!event.transient) saveLayout(model);
             }),
         [model],
     );
@@ -108,16 +104,6 @@ export default function IdeWorkbench() {
         model.run("tab.close", { tabId: id });
     };
 
-    // what the explorer and the status bar show, read from the model
-    const dirtyPaths = new Set<string>();
-    for (const tab of model.get("all-tabs")) {
-        const data = editorData(tab);
-        if (data?.dirty) dirtyPaths.add(data.path);
-    }
-    const activePath = editorData(
-        model.get("selected-tab-by", { layoutId: MAIN_LAYOUT }),
-    )?.path;
-
     const renderContent = (tab: TabOf<Types>) => {
         switch (tab.component) {
             case "editor":
@@ -129,8 +115,7 @@ export default function IdeWorkbench() {
             case "explorer":
                 return (
                     <Explorer
-                        activePath={activePath}
-                        dirtyPaths={dirtyPaths}
+                        model={model}
                         onOpen={open}
                         onResetLayout={resetLayout}
                     />
@@ -208,21 +193,7 @@ export default function IdeWorkbench() {
                 </div>
             </div>
 
-            <footer className={styles.statusBar}>
-                <span className={styles.statusBranch}>
-                    <GitBranch
-                        aria-hidden="true"
-                        className={styles.statusBranchIcon}
-                    />
-                    main
-                </span>
-                <span data-testid="unsaved-count">
-                    {dirtyPaths.size === 1
-                        ? "1 unsaved file"
-                        : `${dirtyPaths.size} unsaved files`}
-                </span>
-                <span className={styles.statusPath}>{activePath ?? ""}</span>
-            </footer>
+            <StatusBar model={model} />
 
             <AlertDialog.Root
                 open={pendingData !== undefined}
@@ -269,6 +240,27 @@ export default function IdeWorkbench() {
                 </AlertDialog.Portal>
             </AlertDialog.Root>
         </div>
+    );
+}
+
+/** The status bar follows the model: a commit re-renders it, not the layout. */
+function StatusBar({ model }: { model: Model<Types> }) {
+    const unsaved = useModelState(() => dirtyPaths(model).size, { model });
+    const path = useModelState(() => activePath(model), { model });
+    return (
+        <footer className={styles.statusBar}>
+            <span className={styles.statusBranch}>
+                <GitBranch
+                    aria-hidden="true"
+                    className={styles.statusBranchIcon}
+                />
+                main
+            </span>
+            <span data-testid="unsaved-count">
+                {unsaved === 1 ? "1 unsaved file" : `${unsaved} unsaved files`}
+            </span>
+            <span className={styles.statusPath}>{path ?? ""}</span>
+        </footer>
     );
 }
 

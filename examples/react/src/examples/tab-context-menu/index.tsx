@@ -212,7 +212,7 @@ function MenuTab({
     editing: boolean;
     setEditing: (id: string | null) => void;
 }) {
-    const { model, engine, layoutId } = useDockable<Types>();
+    const { model, engine } = useDockable<Types>();
     // Rename opens the inline field once the menu has closed and handed focus back to the tab
     const renameOnClose = useRef(false);
 
@@ -231,7 +231,7 @@ function MenuTab({
     const pinned = tab.pinned === true;
     const maximized =
         tabset !== undefined &&
-        model.get("maximized-tabset", { layoutId })?.id === tabset.id;
+        model.is("tabset-maximized", { tabsetId: tabset.id });
     const rename = (label: string) =>
         model.run("tab.configure", { tabId: tab.id, label });
     // several closes are one command (one change event, one undo step): all apply or none

@@ -68,14 +68,11 @@ export default function AddTabs() {
             label: `${kind.name} ${count.current}`,
         };
         if (target === "active") {
-            // the active tabset, or the first one when none is active yet
-            const tabset =
-                model.get("active-tabset") ?? model.get("tabsets")[0];
-            // dropped into the tabset's centre, at the end (-1), and selected (with no tabset
-            // left, into the layout itself: a new tabset)
+            // into the active tabset (else the first), at the end (-1), and selected; with no
+            // tabset left, into the layout itself: a new tabset
             model.run("tab.add", {
                 ...tab,
-                to: tabset?.id ?? MAIN_LAYOUT,
+                to: model.get("default-tabset")?.id ?? MAIN_LAYOUT,
                 location: "center",
                 index: -1,
                 select: true,

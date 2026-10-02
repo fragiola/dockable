@@ -8,7 +8,11 @@ import {
     type TabNode,
     type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+import {
+    Dockable,
+    type RowSplitterProps,
+    useModelState,
+} from "@fragiola/dockable-react";
 import {
     ChartArea,
     ChartColumn,
@@ -17,7 +21,7 @@ import {
     Donut,
     Shuffle,
 } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { type ChartKind, ChartPanel } from "../_kit/charts";
 import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
@@ -83,7 +87,7 @@ const KINDS: { kind: ChartKind; label: string; Icon: typeof ChartLine }[] = [
 
 /** The tab the user is looking at: the selected tab of the active tabset (else the first). */
 function currentTab(model: Model<Types>) {
-    const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const tabset = model.get("default-tabset");
     return tabset
         ? model.get("selected-tab-by", { tabsetId: tabset.id })
         : undefined;
@@ -134,13 +138,9 @@ export default function ActiveTabControls() {
     );
 }
 
-/**
- * The toolbar outside the layout. It re-renders on every commit (`subscribe`) and reads the
- * current tab; a component of its own, so a commit re-renders it, not the layout.
- */
+/** The toolbar outside the layout: it follows the current tab, and a commit re-renders it, not the layout. */
 function Toolbar({ model }: { model: Model<Types> }) {
-    useSyncExternalStore(model.subscribe, () => model.state);
-    const tab = currentTab(model);
+    const tab = useModelState(() => currentTab(model), { model });
     const chart = tab?.component === "chart" ? tab : undefined;
     return (
         <div className={styles.toolbar}>

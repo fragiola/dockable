@@ -25,7 +25,7 @@ const RANGE_ITEMS = [
 /** Adds a widget to the active tabset (or the first one) and selects it. */
 function addWidget(model: Model<Types>, index: number) {
     const widget = WIDGETS[index];
-    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const target = model.get("default-tabset");
     if (!widget || !target) return;
     // no id: the model assigns a unique one
     model.run("tab.add", { ...widget.tab, to: target.id, select: true });

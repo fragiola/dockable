@@ -197,7 +197,7 @@ export default function DropFiles() {
     };
 
     const openSamples = () => {
-        const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const tabset = model.get("default-tabset");
         if (tabset) openInto(tabset.id, sampleFiles());
     };
 

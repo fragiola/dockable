@@ -3,7 +3,6 @@
 import {
     createModel,
     type LayoutJson,
-    MAIN_LAYOUT,
     type RowNode,
     type TabsetNode,
 } from "@fragiola/dockable";
@@ -175,8 +174,7 @@ function PopoutButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
-    const inWindow =
-        model.get("layout-id-by", { nodeId: tabset.id }) !== MAIN_LAYOUT;
+    const inWindow = model.is("node-in-window", { nodeId: tabset.id });
     const name = selected?.label ?? "";
     return (
         <Dockable.PopoutTrigger

@@ -109,7 +109,7 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
  * a tab or a button) toggles.
  */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
-    const { model, layoutId } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: a mouse shortcut; the button is the accessible way */}
@@ -117,17 +117,8 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 className={styles.strip}
                 onDoubleClick={(event) => {
                     const target = event.target as Element;
-                    if (
-                        !target.closest('[role="tab"], button') &&
-                        canMaximize(model, node)
-                    ) {
-                        model.run("tabset.maximize", {
-                            tabsetId: node.id,
-                            value:
-                                model.get("maximized-tabset", {
-                                    layoutId,
-                                })?.id !== node.id,
-                        });
+                    if (!target.closest('[role="tab"], button')) {
+                        toggleMaximize(model, node.id);
                     }
                 }}
             >
@@ -167,16 +158,19 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/** Whether the tabset may be maximized: the model answers without running the command. */
-function canMaximize(model: Model<Types>, tabset: TabsetNode<Types>) {
-    return model.can("tabset.maximize", { tabsetId: tabset.id, value: true });
+/** Maximizes the tabset, or restores the layout when it is the maximized one. */
+function toggleMaximize(model: Model<Types>, tabsetId: string) {
+    model.run("tabset.maximize", {
+        tabsetId,
+        value: !model.is("tabset-maximized", { tabsetId }),
+    });
 }
 
 function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
-    const { model, layoutId } = useDockable<Types>();
-    const maximized =
-        model.get("maximized-tabset", { layoutId })?.id === tabset.id;
-    if (!canMaximize(model, tabset)) {
+    const { model } = useDockable<Types>();
+    const maximized = model.is("tabset-maximized", { tabsetId: tabset.id });
+    // the model answers without running the command (a tabset alone in its layout cannot maximize)
+    if (!model.can("tabset.maximize", { tabsetId: tabset.id, value: true })) {
         return null;
     }
     return (
@@ -185,12 +179,7 @@ function MaximizeButton({ tabset }: { tabset: TabsetNode<Types> }) {
             aria-label={maximized ? "Restore" : "Maximize"}
             aria-pressed={maximized}
             className={styles.button}
-            onClick={() =>
-                model.run("tabset.maximize", {
-                    tabsetId: tabset.id,
-                    value: !maximized,
-                })
-            }
+            onClick={() => toggleMaximize(model, tabset.id)}
         >
             {maximized ? (
                 <Minimize2 aria-hidden className={styles.buttonIcon} />

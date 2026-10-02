@@ -155,7 +155,7 @@ function WidgetSource({
     // Native drag and drop has no keyboard path, so a click adds the widget to the active
     // tabset. `tab.add` runs on the model, through its middleware, like the drop does.
     const addToActiveTabset = () => {
-        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const target = model.get("default-tabset");
         if (!target) return;
         const added = model.run("tab.add", {
             ...widgetTab(widget),

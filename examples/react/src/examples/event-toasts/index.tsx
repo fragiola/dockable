@@ -146,7 +146,7 @@ function reopen(
     const to =
         home && home.type === "tabset"
             ? home.id
-            : (model.get("active-tabset") ?? model.get("tabsets")[0])?.id;
+            : model.get("default-tabset")?.id;
     if (!to) return;
     // a tab in JSON may say `type: "tab"`, which `tab.add` does not take: the rest is its init
     const { type: _type, ...tab } = found.tab;
@@ -251,7 +251,7 @@ export default function EventToasts() {
     }, [model, muted, show]);
 
     const addChart = () => {
-        const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const tabset = model.get("default-tabset");
         if (!tabset) return;
         setAdded((count) => count + 1);
         model.run("tab.add", {
@@ -345,9 +345,8 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 
 /** A tabset: closable tabs, and a button that maximizes or restores it. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
-    const { model, layoutId } = useDockable<Types>();
-    const maximized =
-        model.get("maximized-tabset", { layoutId })?.id === node.id;
+    const { model } = useDockable<Types>();
+    const maximized = model.is("tabset-maximized", { tabsetId: node.id });
     const value = !maximized;
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>

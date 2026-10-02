@@ -81,7 +81,7 @@ export default function MultiMonitor() {
 
     // every window closes, and its tabs dock back into the main layout: one batch, one step
     const bringBack = () => {
-        const windows = model.state.windows;
+        const windows = model.get("windows");
         const panels = windows.flatMap((layout) =>
             model.get("tabs", { layoutId: layout.id }),
         );

@@ -9,8 +9,12 @@ import {
     type RowNode,
     type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
-import { type ReactNode, useState, useSyncExternalStore } from "react";
+import {
+    Dockable,
+    type RowSplitterProps,
+    useModelState,
+} from "@fragiola/dockable-react";
+import { type ReactNode, useState } from "react";
 import { ChartPanel } from "../_kit/charts";
 import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
@@ -117,18 +121,27 @@ export default function RemoteControl() {
 }
 
 /**
- * The panel beside the layout. It re-renders on every commit (`subscribe`) and reads what it
- * shows with `model.get`; a component of its own, so a commit re-renders it, not the layout.
+ * The panel beside the layout: it reads a new snapshot on every commit, and the dry runs below
+ * with it. A component of its own, so a commit re-renders it, not the layout.
  */
 function RemotePanel({ model }: { model: Model<Types> }) {
     const [last, setLast] = useState("No command yet");
-    useSyncExternalStore(model.subscribe, () => model.state);
-    const tabsets = model.get("tabsets");
-    const tabset = model.get("active-tabset") ?? tabsets[0];
-    const tab = tabset
-        ? model.get("selected-tab-by", { tabsetId: tabset.id })
-        : undefined;
-    const maximized = model.get("maximized-tabset")?.id === tabset?.id;
+    const { tabsets, tabset, tab, maximized } = useModelState(
+        () => {
+            const tabset = model.get("default-tabset");
+            return {
+                tabsets: model.get("tabsets"),
+                tabset,
+                tab: tabset
+                    ? model.get("selected-tab-by", { tabsetId: tabset.id })
+                    : undefined,
+                maximized:
+                    tabset !== undefined &&
+                    model.is("tabset-maximized", { tabsetId: tabset.id }),
+            };
+        },
+        { model },
+    );
     /** Runs a command and reports its result in the status line. */
     const report = (command: string, result: CommandResult<unknown>) =>
         setLast(

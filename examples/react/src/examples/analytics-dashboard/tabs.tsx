@@ -1,11 +1,6 @@
 "use client";
 
-import {
-    type ComponentOf,
-    MAIN_LAYOUT,
-    type TabOf,
-    type TabsetNode,
-} from "@fragiola/dockable";
+import type { ComponentOf, TabOf, TabsetNode } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import {
     ChartLine,
@@ -77,9 +72,8 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
-    const inPopout =
-        model.get("layout-id-by", { nodeId: tabset.id }) !== MAIN_LAYOUT;
-    const maximized = model.get("maximized-tabset")?.id === tabset.id;
+    const inPopout = model.is("node-in-window", { nodeId: tabset.id });
+    const maximized = model.is("tabset-maximized", { tabsetId: tabset.id });
 
     // one trigger both ways: it pops the selected tab out, and in the window docks it back
     const popoutTrigger = selected ? (

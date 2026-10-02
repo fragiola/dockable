@@ -168,10 +168,9 @@ function WorkbenchTab({
 }
 
 export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
-    const { model, layoutId } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const { hiddenTabs } = useTabOverflow(node);
-    const maximized =
-        model.get("maximized-tabset", { layoutId })?.id === node.id;
+    const maximized = model.is("tabset-maximized", { tabsetId: node.id });
 
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
