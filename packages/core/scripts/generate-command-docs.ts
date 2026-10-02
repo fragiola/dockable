@@ -382,30 +382,28 @@ async function render(): Promise<string> {
         }
     }
 
-    const grouped = GROUPS.map(([prefix, title]) => {
-        const members = commands.filter(
+    const groups = GROUPS.map(([prefix, title]) => ({
+        title,
+        members: commands.filter(
             (info) =>
                 info.name === prefix || info.name.startsWith(`${prefix}.`),
-        );
-        return [
-            `## ${title}`,
-            ...members.map((info) =>
-                section(info, types.get(info.name), codes.get(info.name)),
-            ),
-        ].join("\n\n");
-    });
-    const listed = GROUPS.reduce(
-        (count, [prefix]) =>
-            count +
-            commands.filter(
-                (info) =>
-                    info.name === prefix || info.name.startsWith(`${prefix}.`),
-            ).length,
+        ),
+    }));
+    const listed = groups.reduce(
+        (count, { members }) => count + members.length,
         0,
     );
     if (listed !== commands.length) {
         throw new Error("a command belongs to no section of the page");
     }
+    const grouped = groups.map(({ title, members }) =>
+        [
+            `## ${title}`,
+            ...members.map((info) =>
+                section(info, types.get(info.name), codes.get(info.name)),
+            ),
+        ].join("\n\n"),
+    );
 
     return `${[
         "---",
