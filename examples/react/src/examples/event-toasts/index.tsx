@@ -6,12 +6,9 @@ import {
     createModel,
     type LayoutJson,
     type Model,
-    type RowJson,
     type RowNode,
-    type TabJson,
     type TabOf,
     type TabsetNode,
-    toLayoutJson,
 } from "@fragiola/dockable";
 import {
     Dockable,
@@ -113,93 +110,74 @@ function field(value: unknown, key: string): unknown {
         : undefined;
 }
 
-/** A tab in a layout document, with its tabset's id and its place in the strip. */
-function findTab(
-    row: RowJson<Types>,
-    tabId: string,
-):
-    | { tab: TabJson<Types>; tabsetId: string | undefined; index: number }
-    | undefined {
-    for (const child of row.children ?? []) {
+/** Where a tab is in a layout's state: its tabset and its place in the strip. */
+interface Place {
+    tab: TabOf<Types>;
+    tabsetId: string;
+    index: number;
+}
+
+/** Finds a tab in a row of a state: the event's `before` or `after`. */
+function placeOf(row: RowNode<Types>, tabId: string): Place | undefined {
+    for (const child of row.children) {
         if (child.type === "row") {
-            const found = findTab(child, tabId);
+            const found = placeOf(child, tabId);
             if (found) return found;
             continue;
         }
-        const tabs = child.children ?? [];
-        const index = tabs.findIndex((tab) => tab.id === tabId);
-        const tab = tabs[index];
+        const index = child.children.findIndex((tab) => tab.id === tabId);
+        const tab = child.children[index];
         if (tab) return { tab, tabsetId: child.id, index };
     }
     return undefined;
 }
 
 /** Adds a closed tab back where it was (its tabset, its place), or to the active tabset. */
-function reopen(
-    model: Model<Types>,
-    before: CommandEvent<Types>["before"],
-    tabId: string,
-) {
-    const found = findTab(toLayoutJson(before).root, tabId);
-    if (!found) return;
-    const home = found.tabsetId && model.get("node-by", { id: found.tabsetId });
+function reopen(model: Model<Types>, { tab, tabsetId, index }: Place) {
+    const home = model.get("node-by", { id: tabsetId });
     const to =
-        home && home.type === "tabset"
-            ? home.id
-            : (model.get("active-tabset") ?? model.get("tabsets")[0])?.id;
+        home?.type === "tabset" ? home.id : model.get("default-tabset")?.id;
     if (!to) return;
-    // a tab in JSON may say `type: "tab"`, which `tab.add` does not take: the rest is its init
-    const { type: _type, ...tab } = found.tab;
-    model.run("tab.add", {
-        ...tab,
-        to,
-        index: found.index,
-        select: true,
-    });
-}
-
-/** What the listener remembers of each tab, read after every event. */
-interface Seen {
-    name: string;
-    tabsetId: string | undefined;
+    // a tab node says `type: "tab"`, which `tab.add` does not take: the rest is its init
+    const { type: _type, ...init } = tab;
+    model.run("tab.add", { ...init, to, index, select: true });
 }
 
 /** The words of a toast for one event, or nothing for a command the example does not announce. */
 function describe(
     model: Model<Types>,
     event: CommandEvent<Types>,
-    seen: ReadonlyMap<string, Seen>,
 ): Omit<Toast, "id"> | undefined {
-    const tabId = field(event.result, "tabId");
     if (event.command === "tabset.maximize") {
         return field(event.payload, "value") === true
             ? { tone: "info", title: "Maximized a tabset" }
             : { tone: "info", title: "Restored the layout" };
     }
+    const tabId = field(event.result, "tabId");
     if (typeof tabId !== "string") return undefined;
-    // a closed tab is gone from the model: its name comes from what the listener remembered
-    const name = tabName(model, tabId) ?? seen.get(tabId)?.name ?? "a tab";
+    // a closed tab is only in the state before the event, an added one only in the state after it
+    const before = placeOf(event.before.root, tabId);
+    const after = placeOf(event.after.root, tabId);
+    const name = (before ?? after)?.tab.label ?? "a tab";
     switch (event.command) {
         case "tab.close":
             return {
                 tone: "danger",
                 title: `Closed ${name}`,
-                action: {
+                action: before && {
                     label: "Undo",
-                    run: () => reopen(model, event.before, tabId),
+                    run: () => reopen(model, before),
                 },
             };
         case "tab.move": {
             const location = field(event.payload, "location");
-            const from = seen.get(tabId)?.tabsetId;
-            const to = model.get("node-parent-by", { nodeId: tabId })?.id;
             return {
                 tone: "info",
                 title: `Moved ${name}`,
                 detail:
                     typeof location === "string" && location !== "center"
                         ? `Docked ${location}`
-                        : from === to
+                        : before?.tabsetId === after?.tabsetId
                           ? "Reordered in its tabset"
                           : "Into another tabset",
             };
@@ -213,11 +191,6 @@ function describe(
     }
 }
 
-function tabName(model: Model<Types>, tabId: string) {
-    const node = model.get("node-by", { id: tabId });
-    return node?.type === "tab" ? node.label : undefined;
-}
-
 export default function EventToasts() {
     const [model] = useState(() => createModel<Types>(json));
     const { toasts, show, dismiss } = useToasts();
@@ -226,32 +199,19 @@ export default function EventToasts() {
     );
     const [added, setAdded] = useState(0);
 
-    useEffect(() => {
-        // every tab's name and tabset, kept after each event: a closed tab can still be named,
-        // and a move can tell a reorder from a move to another tabset
-        const seen = new Map<string, Seen>();
-        const remember = () => {
-            for (const tab of model.get("all-tabs")) {
-                seen.set(tab.id, {
-                    name: tab.label,
-                    tabsetId: model.get("node-parent-by", { nodeId: tab.id })
-                        ?.id,
-                });
-            }
-        };
-        remember();
-        return model.subscribe((event) => {
-            // a splitter drag commits many transient steps: none of them is news
-            if (!event.transient && !muted.has(event.command)) {
-                const toast = describe(model, event, seen);
+    useEffect(
+        () =>
+            model.subscribe((event) => {
+                // a splitter drag commits many transient steps: none of them is news
+                if (event.transient || muted.has(event.command)) return;
+                const toast = describe(model, event);
                 if (toast) show(toast);
-            }
-            remember();
-        });
-    }, [model, muted, show]);
+            }),
+        [model, muted, show],
+    );
 
     const addChart = () => {
-        const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const tabset = model.get("default-tabset");
         if (!tabset) return;
         setAdded((count) => count + 1);
         model.run("tab.add", {
@@ -305,27 +265,11 @@ export default function EventToasts() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "chart" ? (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.label.length}
-                                        title={tab.label}
-                                    />
-                                ) : (
-                                    <KpiPanel
-                                        label={tab.label}
-                                        seed={tab.data.seed}
-                                    />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
                 <Toaster toasts={toasts} dismiss={dismiss} />
             </div>
@@ -333,7 +277,21 @@ export default function EventToasts() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.label.length}
+                    title={tab.label}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+    }
+}
+
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -350,9 +308,8 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 
 /** A tabset: closable tabs, and a button that maximizes or restores it. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
-    const { model, layoutId } = useDockable<Types>();
-    const maximized =
-        model.get("maximized-tabset", { layoutId })?.id === node.id;
+    const { model } = useDockable<Types>();
+    const maximized = model.is("tabset-maximized", { tabsetId: node.id });
     const value = !maximized;
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -394,7 +351,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** A tab with a close button. */
 function ClosableTab({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
     return (
@@ -402,15 +358,12 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
             <span className={styles.tabName}>{tab.label}</span>
             <button
                 type="button"
-                // the keyboard closes with Ctrl+Delete on the tab itself
+                // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                 tabIndex={-1}
                 aria-label={`Close ${tab.label}`}
                 className={styles.closeButton}
-                // keep the press from selecting the tab or starting a drag
-                onPointerDown={(event) => event.stopPropagation()}
-                onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
-                    event.stopPropagation();
+                    event.stopPropagation(); // a click on the tab would select it
                     model.run("tab.close", { tabId: tab.id });
                 }}
             >
@@ -421,7 +374,6 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
     );
 }
 
-/** The bar between two children of a row. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

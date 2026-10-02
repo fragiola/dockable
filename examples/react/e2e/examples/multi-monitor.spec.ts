@@ -28,6 +28,10 @@ test("tabsets go to their own windows, panels move between the windows, and ever
         "Requests",
         "Latency",
     ]);
+    // in a window, the screen button brings the tabset back
+    await expect(
+        trafficWindow.getByRole("button", { name: "Back to the main screen" }),
+    ).toBeVisible();
 
     // a panel from one window into the other
     await dragAcrossWindows(

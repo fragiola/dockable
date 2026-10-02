@@ -169,13 +169,12 @@ impossible (an unknown tab or target, or a model not in the group).
 ### Undo is yours
 
 Dockable ships no undo/redo: what counts as a step, and what undoing a move between layouts means,
-is your app's decision. The transfer event carries what an undo needs. The
-[`two-layouts`](/examples/two-layouts) example keeps one history for the group, in which undoing a
-transfer moves the tab **back into its old tabset in the first layout, so it disappears from the
-second**, with its content kept:
+is your app's decision. The transfer event carries what an undo needs. One design keeps one
+history for the group, in which undoing a transfer moves the tab **back into its old tabset in the
+first layout, so it disappears from the second**, with its content kept:
 
 ```ts
-// examples/two-layouts/history.ts, abridged
+// a history of the group's transfers, abridged
 connect() {
     return this.group.onTransfer((transfer) => {
         if (this.replaying) return; // our own undo or redo

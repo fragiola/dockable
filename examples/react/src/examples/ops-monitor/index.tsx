@@ -94,14 +94,10 @@ const layout: LayoutJson<Types> = {
     },
 };
 
-/** An incident tab: its data says it belongs to the incident region. */
-const isIncidentTab = (tab: TabOf<Types>) =>
-    tab.data !== undefined &&
-    "region" in tab.data &&
-    tab.data.region === "incident";
-
+/** An incident tab: a runbook or a timeline, the components of the incident region. */
 const inIncidentRegion = (node: Node<Types> | undefined) =>
-    node?.type === "tab" && isIncidentTab(node);
+    node?.type === "tab" &&
+    (node.component === "runbook" || node.component === "timeline");
 
 /**
  * The locked region, as middleware: incident tabs stay in the incident tabset (they move only
@@ -113,7 +109,6 @@ const inIncidentRegion = (node: Node<Types> | undefined) =>
 const lockIncidentRegion: Middleware<Types> = (ctx, next) => {
     const refuse = () =>
         veto("Only incident tabs belong in the incident region");
-    // the command narrows the payload
     if (ctx.command === "tab.move") {
         const { tabId, to, location = "center" } = ctx.payload;
         const intoRegion = to === INCIDENT_TABSET && location === "center";
@@ -225,7 +220,6 @@ export default function OpsMonitor() {
                     Resolve all
                 </button>
             </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
                 <Dockable.Root
                     model={model}
@@ -250,12 +244,7 @@ export default function OpsMonitor() {
                         )}
                     </Dockable.Panels>
                     {/* Where a dragged tab would land (a refused target shows none). */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </div>
@@ -280,7 +269,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <MonitorTabSet node={node} />;
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

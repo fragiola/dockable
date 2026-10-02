@@ -58,13 +58,8 @@ export default function HelloLayout() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                {/* Where a dragged tab would land. */}
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );

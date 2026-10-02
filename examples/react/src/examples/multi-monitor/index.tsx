@@ -21,7 +21,6 @@ import * as styles from "./styles";
 // `window.close` commands the bringing back. `popoutMirrorRoot` mirrors the page's theme into
 // each window.
 
-// What the layout holds: five panel components (named by their labels) and named tabsets.
 type Types = {
     tabs: {
         requests: undefined;
@@ -81,7 +80,7 @@ export default function MultiMonitor() {
 
     // every window closes, and its tabs dock back into the main layout: one batch, one step
     const bringBack = () => {
-        const windows = model.state.windows;
+        const windows = model.get("windows");
         const panels = windows.flatMap((layout) =>
             model.get("tabs", { layoutId: layout.id }),
         );
@@ -124,7 +123,6 @@ export default function MultiMonitor() {
                     {status}
                 </span>
             </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
                 <Dockable.Root
                     model={model}
@@ -148,7 +146,7 @@ export default function MultiMonitor() {
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <DropIndicator />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                     {/* Each window's layout: its own root element in the window's document, with
                         the same recursion as the main layout. */}
                     <Dockable.Popout<Types> className={styles.popout}>
@@ -161,8 +159,9 @@ export default function MultiMonitor() {
                                 >
                                     {renderNode}
                                 </Dockable.Row>
-                                {/* a window shows its own outline during a drag into it */}
-                                <DropIndicator />
+                                <Dockable.DropIndicator
+                                    className={styles.dropIndicator}
+                                />
                             </>
                         )}
                     </Dockable.Popout>
@@ -186,7 +185,6 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -213,7 +211,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -223,7 +220,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 </Dockable.TabList>
                 <div className={styles.tabsetActions}>
                     <ScreenButton tabset={node} />
-                    <BackButton />
                 </div>
             </div>
             <Dockable.TabSetContent />
@@ -237,42 +233,33 @@ function ScreenButton({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <Dockable.PopoutTrigger
             target="tabset"
-            aria-label={`Move ${name} to another screen`}
-            data-testid="move-tabset"
-            // in a window, the trigger docks back (`data-mode="dock"`): BackButton does that
             className={styles.screenButton}
-        >
-            <MonitorUp aria-hidden className={styles.actionIcon} />
-        </Dockable.PopoutTrigger>
-    );
-}
-
-/** In a window: the selected tab back to the main screen. */
-function BackButton() {
-    return (
-        <Dockable.PopoutTrigger
-            aria-label="Back to the main screen"
-            data-testid="back"
-            className={styles.backButton}
-        >
-            <MonitorDown aria-hidden className={styles.actionIcon} />
-        </Dockable.PopoutTrigger>
-    );
-}
-
-/** Where a dragged tab would land, in the main layout or in a window. */
-function DropIndicator() {
-    return (
-        <Dockable.DropIndicator
-            className={styles.dropIndicator}
-            style={(state) => ({
-                transitionDuration: `${state.tabDragSpeed}s`,
-            })}
+            render={(props, state) =>
+                state.mode === "dock" ? (
+                    <button
+                        {...props}
+                        aria-label="Back to the main screen"
+                        data-testid="back"
+                    >
+                        <MonitorDown
+                            aria-hidden
+                            className={styles.actionIcon}
+                        />
+                    </button>
+                ) : (
+                    <button
+                        {...props}
+                        aria-label={`Move ${name} to another screen`}
+                        data-testid="move-tabset"
+                    >
+                        <MonitorUp aria-hidden className={styles.actionIcon} />
+                    </button>
+                )
+            }
         />
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

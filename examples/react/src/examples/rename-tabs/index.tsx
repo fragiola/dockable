@@ -23,17 +23,13 @@ import * as styles from "./styles";
 // renaming is one command, `tab.configure` with the new label, whatever the tab's component.
 // Whether a tab may be renamed is the app's choice (`renamable` in its data).
 
-// What the layout holds: a note, a chart and a KPI. Their data says whether they may be renamed.
+// A note's data may say it keeps its name.
 // The chart's title and the KPI's caption are the tab's label: a rename shows in the content too.
 type Types = {
     tabs: {
         note: { text: string; renamable?: boolean };
-        chart: {
-            kind: ChartKind;
-            seed: number;
-            renamable?: boolean;
-        };
-        kpi: { seed: number; renamable?: boolean };
+        chart: { kind: ChartKind; seed: number };
+        kpi: { seed: number };
     };
 };
 
@@ -85,7 +81,6 @@ export default function RenameTabs() {
     // one tab at most is being renamed
     const [editing, setEditing] = useState<string | null>(null);
 
-    /** A row's child: a tabset, or a nested row rendered by this same function. */
     const renderNode = (node: TabsetNode<Types> | RowNode<Types>) =>
         node.type === "row" ? (
             <Dockable.Row
@@ -109,37 +104,35 @@ export default function RenameTabs() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {tab.component === "note" ? (
-                                <PanelBody title={tab.label}>
-                                    <p className={styles.hint}>
-                                        {tab.data.text}
-                                    </p>
-                                </PanelBody>
-                            ) : tab.component === "chart" ? (
-                                <ChartPanel
-                                    kind={tab.data.kind}
-                                    seed={tab.data.seed}
-                                    title={tab.label}
-                                />
-                            ) : (
-                                <KpiPanel
-                                    label={tab.label}
-                                    seed={tab.data.seed}
-                                />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "note":
+            return (
+                <PanelBody title={tab.label}>
+                    <p className={styles.hint}>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+    }
 }
 
 /** A tabset: a card with the strip of renamable tabs on top and the measured content area below. */
@@ -185,7 +178,7 @@ function RenamableTab({
 }) {
     const { model } = useDockable<Types>();
     const start = () => {
-        if (tab.data.renamable !== false) {
+        if (tab.component !== "note" || tab.data.renamable !== false) {
             setEditing(tab.id);
         }
     };
@@ -217,13 +210,11 @@ function RenamableTab({
             ) : (
                 <span className={styles.tabName}>{tab.label}</span>
             )}
-            {/* the active tabset's marker */}
             <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

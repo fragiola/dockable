@@ -7,8 +7,8 @@ import {
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
-import { type KeyboardEvent, useState, useSyncExternalStore } from "react";
-import { UndoManager } from "../_kit/undo";
+import { useState, useSyncExternalStore } from "react";
+import { handleUndoKeys, UndoManager } from "../_kit/undo";
 import { DEFAULT_FILTERS, type Filters, layout, type Types } from "./data";
 import { Header } from "./header";
 import * as styles from "./styles";
@@ -49,28 +49,14 @@ export default function AnalyticsDashboard() {
     );
     const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
 
-    // Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z while focus is in the example, except in a text field
-    // (where the browser's own undo belongs)
-    const onKeyDown = (event: KeyboardEvent) => {
-        const inField = (event.target as HTMLElement).closest(
-            "input, textarea",
-        );
-        if (
-            inField ||
-            !(event.ctrlKey || event.metaKey) ||
-            event.key.toLowerCase() !== "z"
-        ) {
-            return;
-        }
-        event.preventDefault();
-        if (event.shiftKey) undo.redo();
-        else undo.undo();
-    };
-
     return (
         <FiltersContext.Provider value={filters}>
+            {/* the undo shortcuts while focus is in the example */}
             {/* biome-ignore lint/a11y/noStaticElementInteractions: shortcuts for the whole example */}
-            <div onKeyDown={onKeyDown} className={styles.frame}>
+            <div
+                onKeyDown={(event) => handleUndoKeys(undo, event)}
+                className={styles.frame}
+            >
                 <Header
                     filters={filters}
                     onFilters={setFilters}
@@ -100,11 +86,13 @@ export default function AnalyticsDashboard() {
                                     node={tab}
                                     className={styles.panel}
                                 >
-                                    {renderContent(tab)}
+                                    <Content tab={tab} />
                                 </Dockable.Panel>
                             )}
                         </Dockable.Panels>
-                        <DropIndicator />
+                        <Dockable.DropIndicator
+                            className={styles.dropIndicator}
+                        />
                         {/* A popped-out widget's window: its own row, with the same tabsets. */}
                         <Dockable.Popout<Types> className={styles.popout}>
                             {() => (
@@ -116,8 +104,9 @@ export default function AnalyticsDashboard() {
                                     >
                                         {renderNode}
                                     </Dockable.Row>
-                                    {/* a window shows its own outline during a drag into it */}
-                                    <DropIndicator />
+                                    <Dockable.DropIndicator
+                                        className={styles.dropIndicator}
+                                    />
                                 </>
                             )}
                         </Dockable.Popout>
@@ -128,8 +117,7 @@ export default function AnalyticsDashboard() {
     );
 }
 
-function renderContent(tab: TabOf<Types>) {
-    // `tab.data` narrows on `tab.component`: each widget gets its own data type
+function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "chart":
             return <ChartWidget tab={tab} />;
@@ -140,7 +128,6 @@ function renderContent(tab: TabOf<Types>) {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -173,7 +160,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                             className={styles.tab(isAlert(tab))}
                         >
                             <TabContent tab={tab} />
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -190,7 +176,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter
@@ -200,17 +185,5 @@ function Splitter(props: RowSplitterProps<Types>) {
         >
             <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
-    );
-}
-
-/** Where a dragged tab would land, animated at the layout's drag speed. */
-function DropIndicator() {
-    return (
-        <Dockable.DropIndicator
-            className={styles.dropIndicator}
-            style={(state) => ({
-                transitionDuration: `${state.tabDragSpeed}s`,
-            })}
-        />
     );
 }

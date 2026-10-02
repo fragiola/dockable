@@ -72,7 +72,6 @@ const EMPTY: LayoutJson<Types> = {
  * `model.can` on every hover, so a refused target shows no drop indicator.
  */
 const dropRules: Middleware<Types> = (ctx, next) => {
-    // the command narrows the payload
     if (ctx.command === "tabset.move") {
         const { tabsetId, to, location = "center" } = ctx.payload;
         const moved = ctx.get("node-by", { id: tabsetId });
@@ -86,25 +85,20 @@ const dropRules: Middleware<Types> = (ctx, next) => {
         }
         return to === "kpis" ? veto("The KPI strip takes KPIs only") : next();
     }
-    let placed: {
-        component: string | undefined;
-        to: string;
-        location?: string;
-    };
+    // the placed tab's component: a new tab's (tab.add) or an existing one's (tab.move)
+    let component: string | undefined;
     if (ctx.command === "tab.add") {
-        placed = ctx.payload;
+        component = ctx.payload.component;
     } else if (ctx.command === "tab.move") {
         const moved = ctx.get("node-by", { id: ctx.payload.tabId });
-        placed = {
-            ...ctx.payload,
-            component: moved?.type === "tab" ? moved.component : undefined,
-        };
+        component = moved?.type === "tab" ? moved.component : undefined;
     } else {
         return next();
     }
-    const intoKpis = placed.to === "kpis";
-    if (placed.component !== undefined && isKpi(placed.component)) {
-        return intoKpis && (placed.location ?? "center") === "center"
+    const { to, location = "center" } = ctx.payload;
+    const intoKpis = to === "kpis";
+    if (component !== undefined && isKpi(component)) {
+        return intoKpis && location === "center"
             ? next()
             : veto("KPIs go in the KPI strip");
     }
@@ -279,9 +273,6 @@ export default function DashboardBuilder() {
                         {/* Where a dragged widget would land (hidden where the rules refuse it). */}
                         <Dockable.DropIndicator
                             className={styles.dropIndicator}
-                            style={(state) => ({
-                                transitionDuration: `${state.tabDragSpeed}s`,
-                            })}
                         />
                     </Dockable.Root>
                 </div>
@@ -311,7 +302,6 @@ function PaletteItem({
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -349,7 +339,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 <span className={styles.tabName}>
                                     {tab.label}
                                 </span>
-                                {/* the active tabset's marker */}
                                 <span
                                     aria-hidden="true"
                                     className={styles.tabMarker}
@@ -379,7 +368,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

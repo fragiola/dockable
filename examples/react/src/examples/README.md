@@ -84,7 +84,9 @@ export const dropIndicator = (state: DropIndicatorState) =>
 ```
 
 `hello-layout` is the reference: the recursion (`renderNode`), the `TabSet` and the `Splitter` are
-functions in the same file, below the default export.
+functions in the same file, below the default export. Its comments explain the parts every example
+shares (the sized wrapper, the recursion, the splitter, the active marker, the drop indicator);
+the other examples comment only what they do differently.
 
 - **`index.tsx` renders `<Dockable.Root>`** and the tree under it. Parts may be components in the
   same file or in sibling files of the same folder (`tabs.tsx`, `panels.tsx`), never in a shared
@@ -110,7 +112,8 @@ functions in the same file, below the default export.
   (panels sit above the tabsets, which cannot clip them), the drop indicator's `z-20` (panels are
   portalled after it), the splitter's `::after` grab area, `in-data-active:` on the active marker.
   What is not a class stays in the `.tsx`: `aria-*`, `data-*`, structural `style` props (the
-  indicator's `transitionDuration`), what renders when.
+  indicator's `transitionDuration` in `drag-and-drop`, which reads the layout's drag speed), what
+  renders when. Elsewhere the indicator moves at the theme's pace (`duration-(--dk-motion)`).
 - **Content that fits the story.** Tabs show the kit's charts (`ChartPanel`: line, bar, area,
   pie, donut), KPIs (`KpiPanel`), tables and logs, typed in the registry (`chart: { name, kind }`).
   The counter card (`Card`) is for the few examples whose point is content that survives a move

@@ -6,11 +6,16 @@ import {
     type LayoutJson,
     type Model,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable, type SplitterProps } from "@fragiola/dockable-react";
+import {
+    Dockable,
+    type SplitterProps,
+    useModelState,
+} from "@fragiola/dockable-react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { PanelBody } from "../_kit/card";
 import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
@@ -22,7 +27,6 @@ import * as styles from "./styles";
 // shows up while a tab is dragged near the layout's right edge, so it can take the drop. The edge
 // indicators (Dockable.EdgeIndicator) mark where a drop docks to an edge instead.
 
-// What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
         kpi: { seed: number };
@@ -105,39 +109,11 @@ const EDGES = [
 
 export default function OverlayBorders() {
     const [model] = useState(() => createModel<Types>(json));
-    // the toolbar is outside the layout: it reads the borders from the model's state, and
-    // re-renders on every change
-    const state = useSyncExternalStore(
-        model.subscribe,
-        () => model.state,
-        () => model.state,
-    );
     return (
         <div className={styles.page}>
-            <div className={styles.toolbar}>
-                {SWITCHABLE.map((location) => {
-                    const border = state.borders.find(
-                        (candidate) => candidate.location === location,
-                    );
-                    return border ? (
-                        <ModeSwitch
-                            key={location}
-                            model={model}
-                            border={border}
-                        />
-                    ) : null;
-                })}
-                <p className={styles.hint}>
-                    Drag a tab towards the right edge (above or below its
-                    middle) to reveal the hidden border.
-                </p>
-            </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
+            <Toolbar model={model} />
             <div className={styles.frame}>
                 <Dockable.Root model={model} className={styles.root}>
-                    {/* The model's borders around the main layout: each one's strip, and the
-                        area where its selected tab's panel opens (over the layout when the
-                        border is an overlay). */}
                     <Dockable.Borders<Types>
                         renderBar={(border) => <Border node={border} />}
                         renderContent={(border) => (
@@ -150,40 +126,14 @@ export default function OverlayBorders() {
                             {renderNode}
                         </Dockable.Row>
                     </Dockable.Borders>
-                    {/* Every tab's content, the borders' too, positioned by the engine. */}
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "kpi" ? (
-                                    <KpiPanel
-                                        label={tab.label}
-                                        seed={tab.data.seed}
-                                    />
-                                ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.label}>
-                                        <p>{tab.data.text}</p>
-                                    </PanelBody>
-                                ) : tab.component === "chart" ? (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.label.length}
-                                        title={tab.label}
-                                    />
-                                ) : tab.component === "table" ? (
-                                    <TablePanel />
-                                ) : (
-                                    <LogPanel />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                     {/* The band along each layout edge where a drop docks to that edge, shown
                         during a drag. */}
                     {EDGES.map(([edge, Arrow]) => (
@@ -200,6 +150,52 @@ export default function OverlayBorders() {
                     ))}
                 </Dockable.Root>
             </div>
+        </div>
+    );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+        case "doc":
+            return (
+                <PanelBody title={tab.label}>
+                    <p>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.label.length}
+                    title={tab.label}
+                />
+            );
+        case "table":
+            return <TablePanel />;
+        case "log":
+            return <LogPanel />;
+    }
+}
+
+/** The toolbar outside the layout: it follows the borders, and a commit re-renders it, not the layout. */
+function Toolbar({ model }: { model: Model<Types> }) {
+    const borders = useModelState(() => model.get("borders"), { model });
+    return (
+        <div className={styles.toolbar}>
+            {SWITCHABLE.map((location) => {
+                const border = borders.find(
+                    (candidate) => candidate.location === location,
+                );
+                return border ? (
+                    <ModeSwitch key={location} model={model} border={border} />
+                ) : null;
+            })}
+            <p className={styles.hint}>
+                Drag a tab towards the right edge (above or below its middle) to
+                reveal the hidden border.
+            </p>
         </div>
     );
 }
@@ -221,7 +217,6 @@ function ModeSwitch({
             className={styles.modeButton}
             aria-pressed={overlay}
             onClick={() =>
-                // a command on the model: it goes through the model's middleware like any change
                 model.run("border.configure", {
                     borderId: border.id,
                     mode: overlay ? "docked" : "overlay",
@@ -233,7 +228,6 @@ function ModeSwitch({
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -248,7 +242,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -260,7 +253,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -292,7 +284,6 @@ function Border({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/** Where a border's panel opens, with a splitter on the layout's side of it to resize it. */
 function BorderContent({ node }: { node: BorderNode<Types> }) {
     return (
         <Dockable.BorderContent
@@ -303,8 +294,6 @@ function BorderContent({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, or beside a border's panel, with a grip for the themes
- * that show one. */
 function Splitter(props: SplitterProps<Types>) {
     return (
         <Dockable.Splitter

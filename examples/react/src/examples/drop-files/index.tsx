@@ -6,6 +6,7 @@ import {
     type Model,
     type OnExternalDrag,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
@@ -197,7 +198,7 @@ export default function DropFiles() {
     };
 
     const openSamples = () => {
-        const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const tabset = model.get("default-tabset");
         if (tabset) openInto(tabset.id, sampleFiles());
     };
 
@@ -230,38 +231,42 @@ export default function DropFiles() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "table" ? (
-                                    <CsvTable csv={tab.data.csv} />
-                                ) : tab.component === "chart" ? (
-                                    <CsvChart csv={tab.data.csv} />
-                                ) : tab.component === "image" ? (
-                                    <ImageOf file={images.get(tab.id)} />
-                                ) : tab.component === "info" ? (
-                                    <FileInfo
-                                        type={tab.data.type}
-                                        size={tab.data.size}
-                                    />
-                                ) : tab.component === "error" ? (
-                                    <ErrorNote message={tab.data.message} />
-                                ) : tab.component === "pending" ? (
-                                    <Pending />
-                                ) : (
-                                    <Welcome />
-                                )}
+                                <Content tab={tab} images={images} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
                     {/* Where a file would land (a tabset, a tabset edge, the layout edge). */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </>
     );
+}
+
+function Content({
+    tab,
+    images,
+}: {
+    tab: TabOf<Types>;
+    /** a dropped image's File, by its tab id */
+    images: ReadonlyMap<string, File>;
+}) {
+    switch (tab.component) {
+        case "table":
+            return <CsvTable csv={tab.data.csv} />;
+        case "chart":
+            return <CsvChart csv={tab.data.csv} />;
+        case "image":
+            return <ImageOf file={images.get(tab.id)} />;
+        case "info":
+            return <FileInfo type={tab.data.type} size={tab.data.size} />;
+        case "error":
+            return <ErrorNote message={tab.data.message} />;
+        case "pending":
+            return <Pending />;
+        case "welcome":
+            return <Welcome />;
+    }
 }
 
 /** An image tab whose File is gone (the page reloaded a saved layout) says so. */
@@ -273,7 +278,6 @@ function ImageOf({ file }: { file: File | undefined }) {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -288,7 +292,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -300,7 +303,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -314,7 +316,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

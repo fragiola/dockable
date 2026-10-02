@@ -3,7 +3,9 @@
 import {
     type BorderNode,
     createModel,
+    type Model,
     type RowNode,
+    type TabOf,
     type TabsetNode,
     veto as vetoResult,
 } from "@fragiola/dockable";
@@ -11,6 +13,7 @@ import {
     Dockable,
     type SplitterProps,
     useDockable,
+    useModelState,
 } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -39,56 +42,13 @@ export default function LayoutLab() {
     // one model for the lab's lifetime: Apply, undo and redo load a layout into it
     const [model] = useState(() => createModel<Types>(initialLayout));
     const [undo] = useState(() => new UndoManager(model));
-    const history = useSyncExternalStore(
-        undo.subscribe,
-        undo.getSnapshot,
-        undo.getSnapshot,
-    );
-    // the state is immutable: a new object after every commit, so it is the snapshot to follow
-    useSyncExternalStore(
-        model.subscribe,
-        () => model.state,
-        () => model.state,
-    );
-    const [log, setLog] = useState<LogEntry[]>([]);
     const [veto, setVeto] = useState<Veto>({
         enabled: false,
         command: "tab.select",
     });
 
-    // every command passes here first: log it, and apply it unless it is the vetoed one. The
-    // middleware is installed once and reads the current choice from a ref.
-    const vetoRef = useRef(veto);
-    vetoRef.current = veto;
-    useEffect(
-        () =>
-            model.use((ctx, next) => {
-                const current = vetoRef.current;
-                const vetoed =
-                    current.enabled && ctx.command === current.command;
-                const result = vetoed
-                    ? vetoResult(`${ctx.command} is vetoed in the lab`)
-                    : next();
-                // a dry run (`model.can`: a drag hovering a target, a button's enabled state)
-                // commits nothing, and a batch is logged once, as the batch
-                if (!ctx.dryRun && !ctx.inBatch) {
-                    setLog((log) =>
-                        appendToLog(
-                            log,
-                            ctx.command,
-                            ctx.payload,
-                            result.ok ? "applied" : result.error.code,
-                            ctx.transient,
-                        ),
-                    );
-                }
-                return result;
-            }),
-        [model],
-    );
-
     const addTab = () => {
-        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const target = model.get("default-tabset");
         if (!target) return;
         added += 1;
         // a chart, of the next kind each time
@@ -102,45 +62,10 @@ export default function LayoutLab() {
 
     return (
         <div className={styles.lab}>
-            <JsonEditor
-                json={model.get("layout-json")}
-                // untrusted JSON: `dispatch` validates it (JSON v1, ids) before the layout
-                // changes; a command like any other, so it is logged, vetoable and undoable
-                onApply={(layout) =>
-                    model.dispatch({
-                        command: "layout.load",
-                        payload: { layout },
-                    })
-                }
-            />
+            <ModelEditor model={model} />
             <div className={styles.main}>
                 <div className={styles.toolbar}>
-                    <div className={styles.history}>
-                        <button
-                            type="button"
-                            aria-label="Undo"
-                            disabled={!history.canUndo}
-                            onClick={() => undo.undo()}
-                            className={styles.undoButton}
-                        >
-                            <Undo2
-                                aria-hidden="true"
-                                className={styles.buttonIcon}
-                            />
-                        </button>
-                        <button
-                            type="button"
-                            aria-label="Redo"
-                            disabled={!history.canRedo}
-                            onClick={() => undo.redo()}
-                            className={styles.redoButton}
-                        >
-                            <Redo2
-                                aria-hidden="true"
-                                className={styles.buttonIcon}
-                            />
-                        </button>
-                    </div>
+                    <History undo={undo} />
                     <button
                         type="button"
                         onClick={addTab}
@@ -183,41 +108,128 @@ export default function LayoutLab() {
                                     node={tab}
                                     className={styles.panel}
                                 >
-                                    {tab.component === "chart" ? (
-                                        <ChartPanel
-                                            kind={tab.data.kind}
-                                            seed={tab.label.length}
-                                            title={tab.label}
-                                        />
-                                    ) : tab.component === "log" ? (
-                                        <LogPanel />
-                                    ) : (
-                                        <PanelBody title={tab.label}>
-                                            <p className={styles.cardText}>
-                                                {tab.data?.text ??
-                                                    "A card: its label names it, its data holds its text."}
-                                            </p>
-                                        </PanelBody>
-                                    )}
+                                    <Content tab={tab} />
                                 </Dockable.Panel>
                             )}
                         </Dockable.Panels>
-                        {/* Where a dragged tab would land, animated at the layout's drag speed. */}
                         <Dockable.DropIndicator
                             className={styles.dropIndicator}
-                            style={(state) => ({
-                                transitionDuration: `${state.tabDragSpeed}s`,
-                            })}
                         />
                     </Dockable.Root>
                 </div>
-                <CommandLog log={log} onClear={() => setLog([])} />
+                <CommandMonitor model={model} veto={veto} />
             </div>
         </div>
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.label.length}
+                    title={tab.label}
+                />
+            );
+        case "log":
+            return <LogPanel />;
+        case "card":
+            return (
+                <PanelBody title={tab.label}>
+                    <p className={styles.cardText}>
+                        {tab.data?.text ??
+                            "A card: its label names it, its data holds its text."}
+                    </p>
+                </PanelBody>
+            );
+    }
+}
+
+/** The editor follows the model: a commit re-renders it, not the layout. */
+function ModelEditor({ model }: { model: Model<Types> }) {
+    const json = useModelState(() => model.get("layout-json"), { model });
+    return (
+        <JsonEditor
+            json={json}
+            // untrusted JSON: `dispatch` validates it (JSON v1, ids) before the layout changes; a
+            // command like any other, so it is logged, vetoable and undoable
+            onApply={(layout) =>
+                model.dispatch({ command: "layout.load", payload: { layout } })
+            }
+        />
+    );
+}
+
+function History({ undo }: { undo: UndoManager<Types> }) {
+    const history = useSyncExternalStore(
+        undo.subscribe,
+        undo.getSnapshot,
+        undo.getSnapshot,
+    );
+    return (
+        <div className={styles.history}>
+            <button
+                type="button"
+                aria-label="Undo"
+                disabled={!history.canUndo}
+                onClick={() => undo.undo()}
+                className={styles.undoButton}
+            >
+                <Undo2 aria-hidden="true" className={styles.buttonIcon} />
+            </button>
+            <button
+                type="button"
+                aria-label="Redo"
+                disabled={!history.canRedo}
+                onClick={() => undo.redo()}
+                className={styles.redoButton}
+            >
+                <Redo2 aria-hidden="true" className={styles.buttonIcon} />
+            </button>
+        </div>
+    );
+}
+
+/**
+ * Every command passes here first: it is logged, and applied unless it is the vetoed one. The
+ * middleware is installed once and reads the current veto from a ref; the log is this
+ * component's state, so a command re-renders the log, not the layout.
+ */
+function CommandMonitor({ model, veto }: { model: Model<Types>; veto: Veto }) {
+    const [log, setLog] = useState<LogEntry[]>([]);
+    const vetoRef = useRef(veto);
+    vetoRef.current = veto;
+    useEffect(
+        () =>
+            model.use((ctx, next) => {
+                const current = vetoRef.current;
+                const vetoed =
+                    current.enabled && ctx.command === current.command;
+                const result = vetoed
+                    ? vetoResult(`${ctx.command} is vetoed in the lab`)
+                    : next();
+                // a dry run (`model.can`: a drag hovering a target, a button's enabled state)
+                // commits nothing, and a batch is logged once, as the batch
+                if (!ctx.dryRun && !ctx.inBatch) {
+                    setLog((log) =>
+                        appendToLog(
+                            log,
+                            ctx.command,
+                            ctx.payload,
+                            result.ok ? "applied" : result.error.code,
+                            ctx.transient,
+                        ),
+                    );
+                }
+                return result;
+            }),
+        [model],
+    );
+    return <CommandLog log={log} onClear={() => setLog([])} />;
+}
+
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -232,7 +244,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
     return (
@@ -248,24 +259,20 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                             {/* a close button: one more command to watch in the log */}
                             <button
                                 type="button"
+                                // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                                 tabIndex={-1}
-                                draggable={false}
                                 aria-label={`Close ${tab.label}`}
-                                onPointerDown={(event) =>
-                                    event.stopPropagation()
-                                }
+                                className={styles.tabClose}
                                 onClick={(event) => {
-                                    event.stopPropagation();
+                                    event.stopPropagation(); // a click on the tab would select it
                                     model.run("tab.close", { tabId: tab.id });
                                 }}
-                                className={styles.tabClose}
                             >
                                 <X
                                     aria-hidden="true"
                                     className={styles.tabCloseIcon}
                                 />
                             </button>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -297,7 +304,6 @@ function Border({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/** Where a border's panel opens, with a splitter on the layout's side. */
 function BorderContent({ node }: { node: BorderNode<Types> }) {
     return (
         <Dockable.BorderContent
@@ -308,7 +314,6 @@ function BorderContent({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, or beside a border's panel. */
 function Splitter(props: SplitterProps<Types>) {
     return (
         <Dockable.Splitter

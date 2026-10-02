@@ -16,7 +16,7 @@ test("the indicator takes the target region's colour and the drop's side", async
     // into Inbox: the inbox colour, filled
     await moveDragTo(page, await centre(path(page, "/r0/ts0/content")));
     await expect(indicator).toBeVisible();
-    await expect(indicator).toHaveAttribute("data-region", "inbox");
+    await expect(path(page, "/r0/ts0")).toHaveAttribute("data-drop-target", "");
     await expect(indicator).toHaveAttribute("data-drop-location", "center");
     const inbox = await background(indicator);
 
@@ -27,7 +27,7 @@ test("the indicator takes the target region's colour and the drop's side", async
         x: archive.x + 12,
         y: archive.y + archive.height / 2,
     });
-    await expect(indicator).toHaveAttribute("data-region", "archive");
+    await expect(path(page, "/r1/ts0")).toHaveAttribute("data-drop-target", "");
     await expect(indicator).toHaveAttribute("data-drop-location", "left");
     expect(await background(indicator)).not.toBe(inbox);
 

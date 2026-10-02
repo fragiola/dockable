@@ -115,7 +115,6 @@ const icons: Partial<Record<TabOf<Types>["component"], typeof ListTree>> = {
 export default function Borders() {
     const [model] = useState(() => createModel<Types>(json));
     return (
-        // The root needs a size: the wrapper gives it one, and the gutter around it.
         <div className={styles.frame}>
             <Dockable.Root model={model} className={styles.root}>
                 {/* The model's borders around the main layout: each one's strip, and the area
@@ -138,19 +137,12 @@ export default function Borders() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -165,7 +157,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -177,7 +168,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}

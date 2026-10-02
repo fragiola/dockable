@@ -40,7 +40,6 @@ export interface IncidentData {
     region: "incident";
 }
 
-/** What the console holds: each tab component and the type of its data. */
 export type Types = {
     tabs: {
         overview: undefined;

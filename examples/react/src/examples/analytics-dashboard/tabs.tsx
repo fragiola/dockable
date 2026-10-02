@@ -1,11 +1,6 @@
 "use client";
 
-import {
-    type ComponentOf,
-    MAIN_LAYOUT,
-    type TabOf,
-    type TabsetNode,
-} from "@fragiola/dockable";
+import type { ComponentOf, TabOf, TabsetNode } from "@fragiola/dockable";
 import { Dockable, useDockable } from "@fragiola/dockable-react";
 import {
     ChartLine,
@@ -55,15 +50,14 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
             <span className={styles.tabName}>{tab.label}</span>
             <button
                 type="button"
+                // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                 tabIndex={-1}
-                draggable={false}
                 aria-label={`Close ${tab.label}`}
-                onPointerDown={(event) => event.stopPropagation()}
+                className={styles.tabClose}
                 onClick={(event) => {
-                    event.stopPropagation();
+                    event.stopPropagation(); // a click on the tab would select it
                     model.run("tab.close", { tabId: tab.id });
                 }}
-                className={styles.tabClose}
             >
                 <X aria-hidden="true" className={styles.tabCloseIcon} />
             </button>
@@ -77,33 +71,39 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
-    const inPopout =
-        model.get("layout-id-by", { nodeId: tabset.id }) !== MAIN_LAYOUT;
-    const maximized = model.get("maximized-tabset")?.id === tabset.id;
+    const inPopout = model.is("node-in-window", { nodeId: tabset.id });
+    const maximized = model.is("tabset-maximized", { tabsetId: tabset.id });
 
     // one trigger both ways: it pops the selected tab out, and in the window docks it back
     const popoutTrigger = selected ? (
         <Dockable.PopoutTrigger
-            aria-label={
-                inPopout
-                    ? `Dock ${selected.label} back`
-                    : `Pop out ${selected.label}`
-            }
-            data-testid={inPopout ? "dock-back" : "popout"}
             className={styles.button}
-        >
-            {inPopout ? (
-                <PanelTopClose
-                    aria-hidden="true"
-                    className={styles.dockBackIcon}
-                />
-            ) : (
-                <ExternalLink
-                    aria-hidden="true"
-                    className={styles.buttonIcon}
-                />
-            )}
-        </Dockable.PopoutTrigger>
+            render={(props, state) =>
+                state.mode === "dock" ? (
+                    <button
+                        {...props}
+                        aria-label={`Dock ${selected.label} back`}
+                        data-testid="dock-back"
+                    >
+                        <PanelTopClose
+                            aria-hidden="true"
+                            className={styles.dockBackIcon}
+                        />
+                    </button>
+                ) : (
+                    <button
+                        {...props}
+                        aria-label={`Pop out ${selected.label}`}
+                        data-testid="popout"
+                    >
+                        <ExternalLink
+                            aria-hidden="true"
+                            className={styles.buttonIcon}
+                        />
+                    </button>
+                )
+            }
+        />
     ) : null;
 
     if (inPopout) {

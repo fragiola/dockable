@@ -4,6 +4,7 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
@@ -13,7 +14,6 @@ import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-// What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
         table: undefined;
@@ -64,7 +64,6 @@ export default function TabsAtBottom() {
     const [position, setPosition] = useState<Position>("bottom");
     const bottom = position === "bottom";
 
-    /** A row's child: a tabset, or a nested row rendered by this same function. */
     const renderNode = (node: TabsetNode<Types> | RowNode<Types>) =>
         node.type === "row" ? (
             <Dockable.Row
@@ -104,7 +103,6 @@ export default function TabsAtBottom() {
                     </button>
                 ))}
             </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
                 <Dockable.Root model={model} className={styles.root}>
                     <Dockable.Row<Types>
@@ -118,36 +116,34 @@ export default function TabsAtBottom() {
                                 node={tab}
                                 className={styles.panel(bottom)}
                             >
-                                {tab.component === "table" ? (
-                                    <TablePanel />
-                                ) : tab.component === "chart" ? (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.data.seed}
-                                        title={tab.label}
-                                    />
-                                ) : tab.component === "log" ? (
-                                    <LogPanel />
-                                ) : (
-                                    <KpiPanel
-                                        label={tab.label}
-                                        seed={tab.data.seed}
-                                    />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "table":
+            return <TablePanel />;
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "log":
+            return <LogPanel />;
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+    }
 }
 
 /**
@@ -192,7 +188,6 @@ function TabSet({
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

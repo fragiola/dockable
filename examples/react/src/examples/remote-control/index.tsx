@@ -7,10 +7,15 @@ import {
     MAIN_LAYOUT,
     type Model,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
-import { type ReactNode, useState, useSyncExternalStore } from "react";
+import {
+    Dockable,
+    type RowSplitterProps,
+    useModelState,
+} from "@fragiola/dockable-react";
+import { type ReactNode, useState } from "react";
 import { ChartPanel } from "../_kit/charts";
 import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
@@ -97,43 +102,54 @@ export default function RemoteControl() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "chart" ? (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.label.length}
-                                        title={tab.label}
-                                    />
-                                ) : (
-                                    <TablePanel />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </div>
     );
 }
 
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.label.length}
+                    title={tab.label}
+                />
+            );
+        case "table":
+            return <TablePanel />;
+    }
+}
+
 /**
- * The panel beside the layout. It re-renders on every commit (`subscribe`) and reads what it
- * shows with `model.get`; a component of its own, so a commit re-renders it, not the layout.
+ * The panel beside the layout: it reads a new snapshot on every commit, and the dry runs below
+ * with it. A component of its own, so a commit re-renders it, not the layout.
  */
 function RemotePanel({ model }: { model: Model<Types> }) {
     const [last, setLast] = useState("No command yet");
-    useSyncExternalStore(model.subscribe, () => model.state);
-    const tabsets = model.get("tabsets");
-    const tabset = model.get("active-tabset") ?? tabsets[0];
-    const tab = tabset
-        ? model.get("selected-tab-by", { tabsetId: tabset.id })
-        : undefined;
-    const maximized = model.get("maximized-tabset")?.id === tabset?.id;
+    const { tabsets, tabset, tab, maximized } = useModelState(
+        () => {
+            const tabset = model.get("default-tabset");
+            return {
+                tabsets: model.get("tabsets"),
+                tabset,
+                tab: tabset
+                    ? model.get("selected-tab-by", { tabsetId: tabset.id })
+                    : undefined,
+                maximized:
+                    tabset !== undefined &&
+                    model.is("tabset-maximized", { tabsetId: tabset.id }),
+            };
+        },
+        { model },
+    );
     /** Runs a command and reports its result in the status line. */
     const report = (command: string, result: CommandResult<unknown>) =>
         setLast(
@@ -350,7 +366,6 @@ function Action({
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -365,7 +380,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -390,7 +404,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

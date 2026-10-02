@@ -11,10 +11,6 @@ export const frame = "flex min-h-0 flex-1 flex-col p-(--dk-gap)";
 export const root =
     "palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast";
 
-/** A popped-out tab's window, dressed like the root. */
-export const popout =
-    "palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast";
-
 /** Panels sit in a layer above the tabsets, whose overflow cannot clip them: the panel repeats
  * the tabset's inner radius on its corners. */
 export const panel =
@@ -27,7 +23,7 @@ export const hint = "text-sm text-palette-accent/85";
  * portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(
-        "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
+        "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height] duration-(--dk-motion)",
         state.kind === "edge"
             ? "palette-orange bg-palette-base/25"
             : "palette-blue bg-palette-base/20",

@@ -41,7 +41,6 @@ const PALETTES = [
 
 const DEFAULT_PALETTE = "palette-raised";
 
-// What the layout holds: each tab component's data, and the tabsets' data (their palette).
 type Types = {
     tabs: {
         chart: { kind: ChartKind };
@@ -118,13 +117,7 @@ export default function ScopedPalettes() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
@@ -135,7 +128,6 @@ function paletteOf(node: ParentNode<Types> | undefined): string {
     return (node?.type === "tabset" && node.data?.palette) || DEFAULT_PALETTE;
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -162,7 +154,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -237,33 +228,43 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     const fill = tab.component === "chart" || tab.component === "kpi";
     return (
         <div data-palette={palette} className={styles.content(palette, fill)}>
-            {/* a chart derives its series from the palette: redraw it when that changes */}
-            {tab.component === "chart" ? (
+            <Body tab={tab} palette={palette} />
+        </div>
+    );
+}
+
+/** A chart derives its series from the palette: it redraws when that changes (its `key`). */
+function Body({ tab, palette }: { tab: TabOf<Types>; palette: string }) {
+    switch (tab.component) {
+        case "chart":
+            return (
                 <ChartPanel
                     key={palette}
                     kind={tab.data.kind}
                     seed={5}
                     className={styles.chart}
                 />
-            ) : tab.component === "kpi" ? (
+            );
+        case "kpi":
+            return (
                 <KpiPanel
                     key={palette}
                     label={tab.label}
                     seed={tab.data.seed}
                     className={styles.chart}
                 />
-            ) : tab.component === "note" ? (
+            );
+        case "note":
+            return (
                 <PanelBody title={tab.label}>
                     <p>{tab.data.text}</p>
                 </PanelBody>
-            ) : (
-                <LogPanel />
-            )}
-        </div>
-    );
+            );
+        case "log":
+            return <LogPanel />;
+    }
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

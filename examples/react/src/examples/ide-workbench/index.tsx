@@ -2,13 +2,13 @@
 
 import {
     type BorderNode,
-    MAIN_LAYOUT,
+    type Model,
     type RowNode,
     type TabOf,
     type TabsetNode,
     veto,
 } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { Dockable, useModelState } from "@fragiola/dockable-react";
 import { Bug, FolderTree, GitBranch, SquareTerminal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Clickable } from "#/components/atoms/clickable";
@@ -19,8 +19,10 @@ import { EditorPanel, ProblemsPanel, TerminalPanel } from "./panels";
 import * as styles from "./styles";
 import { WorkbenchTabSet } from "./tabs";
 import {
+    activePath,
     createWorkspace,
     defaultLayout,
+    dirtyPaths,
     editorData,
     forgetLayout,
     openFile,
@@ -42,7 +44,6 @@ export default function IdeWorkbench() {
     const [restored] = useState(restoreModel);
     const { model } = restored;
     const [problem, setProblem] = useState(restored.problem);
-    const [, setRevision] = useState(0);
     // tabs waiting for an answer to "save changes?", and the ones already answered
     const [pending, setPending] = useState<string[]>([]);
     const confirmed = useRef(new Set<string>());
@@ -70,16 +71,11 @@ export default function IdeWorkbench() {
         [model],
     );
 
-    // every change is saved (a drag's transient steps once, at its end), and re-renders what
-    // reads the model outside the layout
+    // every change is saved (a drag's transient steps once, at its end)
     useEffect(
         () =>
             model.subscribe((event) => {
-                if (event.transient) {
-                    return;
-                }
-                saveLayout(model);
-                setRevision((n) => n + 1); // the explorer and status bar read the model
+                if (!event.transient) saveLayout(model);
             }),
         [model],
     );
@@ -108,16 +104,6 @@ export default function IdeWorkbench() {
         model.run("tab.close", { tabId: id });
     };
 
-    // what the explorer and the status bar show, read from the model
-    const dirtyPaths = new Set<string>();
-    for (const tab of model.get("all-tabs")) {
-        const data = editorData(tab);
-        if (data?.dirty) dirtyPaths.add(data.path);
-    }
-    const activePath = editorData(
-        model.get("selected-tab-by", { layoutId: MAIN_LAYOUT }),
-    )?.path;
-
     const renderContent = (tab: TabOf<Types>) => {
         switch (tab.component) {
             case "editor":
@@ -129,8 +115,7 @@ export default function IdeWorkbench() {
             case "explorer":
                 return (
                     <Explorer
-                        activePath={activePath}
-                        dirtyPaths={dirtyPaths}
+                        model={model}
                         onOpen={open}
                         onResetLayout={resetLayout}
                     />
@@ -174,8 +159,6 @@ export default function IdeWorkbench() {
             <div className={styles.stage}>
                 <div className={styles.frame}>
                     <Dockable.Root model={model} className={styles.root}>
-                        {/* the borders around the editors: a strip of tabs on each side that has
-                            some, and the area where the selected tab's panel opens */}
                         <Dockable.Borders<Types>
                             renderBar={(border) => <Border node={border} />}
                             renderContent={(border) => (
@@ -190,7 +173,6 @@ export default function IdeWorkbench() {
                                 {renderNode}
                             </Dockable.Row>
                         </Dockable.Borders>
-                        {/* every tab's content, editors and border panels alike */}
                         <Dockable.Panels<Types>>
                             {(tab) => (
                                 <Dockable.Panel
@@ -203,29 +185,12 @@ export default function IdeWorkbench() {
                         </Dockable.Panels>
                         <Dockable.DropIndicator
                             className={styles.dropIndicator}
-                            style={(state) => ({
-                                transitionDuration: `${state.tabDragSpeed}s`,
-                            })}
                         />
                     </Dockable.Root>
                 </div>
             </div>
 
-            <footer className={styles.statusBar}>
-                <span className={styles.statusBranch}>
-                    <GitBranch
-                        aria-hidden="true"
-                        className={styles.statusBranchIcon}
-                    />
-                    main
-                </span>
-                <span data-testid="unsaved-count">
-                    {dirtyPaths.size === 1
-                        ? "1 unsaved file"
-                        : `${dirtyPaths.size} unsaved files`}
-                </span>
-                <span className={styles.statusPath}>{activePath ?? ""}</span>
-            </footer>
+            <StatusBar model={model} />
 
             <AlertDialog.Root
                 open={pendingData !== undefined}
@@ -275,7 +240,27 @@ export default function IdeWorkbench() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
+/** The status bar follows the model: a commit re-renders it, not the layout. */
+function StatusBar({ model }: { model: Model<Types> }) {
+    const unsaved = useModelState(() => dirtyPaths(model).size, { model });
+    const path = useModelState(() => activePath(model), { model });
+    return (
+        <footer className={styles.statusBar}>
+            <span className={styles.statusBranch}>
+                <GitBranch
+                    aria-hidden="true"
+                    className={styles.statusBranchIcon}
+                />
+                main
+            </span>
+            <span data-testid="unsaved-count">
+                {unsaved === 1 ? "1 unsaved file" : `${unsaved} unsaved files`}
+            </span>
+            <span className={styles.statusPath}>{path ?? ""}</span>
+        </footer>
+    );
+}
+
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -353,11 +338,6 @@ function Border({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/**
- * Where a border's panel opens, with its splitter on the layout's side. An overlay border paints
- * over the layout, so it gets a stacking order (above the tabsets and their splitters), a shadow
- * and a line on the side facing the layout.
- */
 function BorderContent({ node }: { node: BorderNode<Types> }) {
     return (
         <Dockable.BorderContent
@@ -368,10 +348,6 @@ function BorderContent({ node }: { node: BorderNode<Types> }) {
     );
 }
 
-/**
- * The bar between two children of a row, or between a border's panel and the layout, with a grip
- * for the themes that show one.
- */
 function Splitter({
     node,
     index,

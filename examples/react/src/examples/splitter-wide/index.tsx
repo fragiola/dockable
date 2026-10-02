@@ -2,18 +2,12 @@
 
 import {
     createModel,
-    getSplitterPath,
     type LayoutJson,
     type RowNode,
     type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
-    useDockable,
-    useSplitter,
-} from "@fragiola/dockable-react";
+import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { PanelBody } from "../_kit/card";
 import { KpiPanel } from "../_kit/charts";
@@ -127,18 +121,12 @@ export default function SplitterWide() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
 }
 
-/** A tab's content, by component: the data carries what it shows. */
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "stats":
@@ -181,7 +169,6 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -196,7 +183,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -208,7 +194,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -224,43 +209,27 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
 
 /**
  * A wide splitter: the element is 12px thick, and the engine measures it, so the panes leave that
- * much room between them and the whole bar is a grab area. It is built on the lower layer,
- * `useSplitter`, instead of `Dockable.Splitter`: the hook gives its state (`dragging`,
- * `orientation`) and the props of the separator element (the ref, `role`, the ARIA values, the
- * pointer and keyboard handlers, and the structural style that hides it while a tabset is
- * maximized). While you drag or focus it, a bubble shows `aria-valuetext`: where the splitter sits
- * in its row.
+ * much room between them and the whole bar is a grab area. `render` hands over the separator's
+ * props, `aria-valuetext` included: while you drag or focus it, a bubble shows where the splitter
+ * sits in its row.
  */
-function WideSplitter({ node, index }: RowSplitterProps<Types>) {
-    const { state, props } = useSplitter(node, index);
-    // the path (`/r0/s0`) comes from the row's own, which the engine knows by id
-    const { engine } = useDockable<Types>();
-    // the separator's orientation: "vertical" is a bar between side-by-side panes
-    const vertical = state.orientation === "vertical";
+function WideSplitter(props: RowSplitterProps<Types>) {
     return (
-        // biome-ignore lint/a11y/useSemanticElements: a focusable separator widget with a grip; an <hr> cannot hold children
-        // biome-ignore lint/a11y/useFocusableInteractive: tabIndex={0} comes in props
-        <div
+        <Dockable.Splitter
             {...props}
-            // biome-ignore lint/a11y/useAriaPropsForRole: aria-valuenow and the rest come in props
-            role="separator"
-            // a splitter has no name of its own: the app gives it one
             aria-label="Resize"
-            data-layout-path={getSplitterPath(
-                engine.get("layout-path-by", { nodeId: node.id }),
-                index,
+            className={styles.splitter}
+            render={(separator) => (
+                <div {...separator}>
+                    <span
+                        aria-hidden="true"
+                        data-testid="splitter-readout"
+                        className={styles.splitterReadout}
+                    >
+                        {separator["aria-valuetext"]}
+                    </span>
+                </div>
             )}
-            data-orientation={state.orientation}
-            data-dragging={state.dragging ? "" : undefined}
-            className={styles.splitter(vertical)}
-        >
-            <span
-                aria-hidden="true"
-                data-testid="splitter-readout"
-                className={styles.splitterReadout}
-            >
-                {props["aria-valuetext"]}
-            </span>
-        </div>
+        />
     );
 }

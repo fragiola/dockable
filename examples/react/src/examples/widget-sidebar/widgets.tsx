@@ -12,7 +12,6 @@ import {
 import { ChartPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 
-/** What the layout holds: each widget component and the type of its data. */
 export type Types = {
     tabs: {
         revenue: undefined;

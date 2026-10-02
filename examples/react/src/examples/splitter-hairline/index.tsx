@@ -4,6 +4,7 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
@@ -109,36 +110,35 @@ export default function SplitterHairline() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {tab.component === "files" ? (
-                                <PanelBody title={tab.label}>
-                                    <ul className={styles.fileList}>
-                                        {tab.data.files.map((file) => (
-                                            <li key={file}>{file}</li>
-                                        ))}
-                                    </ul>
-                                </PanelBody>
-                            ) : tab.component === "source" ? (
-                                <pre className={styles.code}>
-                                    {tab.data.code}
-                                </pre>
-                            ) : (
-                                <LogPanel />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "files":
+            return (
+                <PanelBody title={tab.label}>
+                    <ul className={styles.fileList}>
+                        {tab.data.files.map((file) => (
+                            <li key={file}>{file}</li>
+                        ))}
+                    </ul>
+                </PanelBody>
+            );
+        case "source":
+            return <pre className={styles.code}>{tab.data.code}</pre>;
+        case "terminal":
+            return <LogPanel />;
+    }
+}
+
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -153,7 +153,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -165,7 +164,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}

@@ -12,9 +12,10 @@ import {
     Dockable,
     type RowSplitterProps,
     useDockable,
+    useModelState,
 } from "@fragiola/dockable-react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import * as styles from "./styles";
 
 // Controls outside the layout drive what is inside it. The switcher above the layout selects a
@@ -84,33 +85,26 @@ export default function ExternalTabSwitcher() {
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </>
     );
 }
 
-/**
- * The controls outside the layout. They re-render on every commit (`subscribe`) and read what they
- * show with `model.get`. They are a component of their own, so a commit re-renders them, not the
- * layout.
- */
+/** The controls outside the layout: a component of their own, so a commit re-renders them, not the layout. */
 function Controls({ model }: { model: Model<Types> }) {
-    useSyncExternalStore(model.subscribe, () => model.state);
-    useSyncExternalStore(model.subscribe, () => model.state);
-    const tabs = model.get("tabs");
-    // "the tab the user is looking at": the selected tab of the active tabset (the first tabset
-    // until one is activated)
-    const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
-    const current = tabset
-        ? model.get("selected-tab-by", { tabsetId: tabset.id })
-        : undefined;
+    const tabs = useModelState(() => model.get("tabs"), { model });
+    // the tab the user is looking at: the selected tab of the active tabset (else the first)
+    const current = useModelState(
+        () => {
+            const tabset = model.get("default-tabset");
+            return tabset
+                ? model.get("selected-tab-by", { tabsetId: tabset.id })
+                : undefined;
+        },
+        { model },
+    );
     return (
         <div className={styles.controls}>
             <fieldset aria-label="Show tab" className={styles.switcher}>
@@ -198,7 +192,6 @@ function Counter({ tab }: { tab: CounterTab }) {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -213,7 +206,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -241,7 +233,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row (a drag to an edge splits the tabset). */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

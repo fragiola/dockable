@@ -76,16 +76,15 @@ function WorkbenchTab({
                 {canClose ? (
                     <button
                         type="button"
+                        // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                         tabIndex={-1}
-                        draggable={false}
                         aria-label={`Close ${tab.label}`}
                         data-testid="close-tab"
-                        onPointerDown={(event) => event.stopPropagation()}
+                        className={styles.closeButton}
                         onClick={(event) => {
-                            event.stopPropagation(); // do not select the tab being closed
+                            event.stopPropagation(); // a click on the tab would select it
                             close();
                         }}
-                        className={styles.closeButton}
                     >
                         {/* VS Code's convention: a dot while modified, the cross on hover */}
                         {dirty ? (
@@ -100,7 +99,6 @@ function WorkbenchTab({
                         />
                     </button>
                 ) : null}
-                {/* the active tabset's marker */}
                 <span aria-hidden="true" className={styles.tabMarker} />
             </Dockable.Tab>
             <ContextMenu.Content>
@@ -168,10 +166,9 @@ function WorkbenchTab({
 }
 
 export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
-    const { model, layoutId } = useDockable<Types>();
+    const { model } = useDockable<Types>();
     const { hiddenTabs } = useTabOverflow(node);
-    const maximized =
-        model.get("maximized-tabset", { layoutId })?.id === node.id;
+    const maximized = model.is("tabset-maximized", { tabsetId: node.id });
 
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
