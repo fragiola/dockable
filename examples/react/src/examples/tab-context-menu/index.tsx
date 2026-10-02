@@ -93,28 +93,7 @@ export default function TabContextMenu() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {tab.component === "note" ? (
-                                <PanelBody title={tab.label}>
-                                    <p className={styles.hint}>
-                                        {tab.data.text}
-                                    </p>
-                                </PanelBody>
-                            ) : tab.component === "chart" ? (
-                                <ChartPanel
-                                    kind={tab.data.kind}
-                                    seed={tab.data.seed}
-                                    title={tab.label}
-                                />
-                            ) : tab.component === "kpi" ? (
-                                <KpiPanel
-                                    label={tab.label}
-                                    seed={tab.data.seed}
-                                />
-                            ) : tab.component === "log" ? (
-                                <LogPanel />
-                            ) : (
-                                <TablePanel />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -122,6 +101,31 @@ export default function TabContextMenu() {
             </Dockable.Root>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "note":
+            return (
+                <PanelBody title={tab.label}>
+                    <p className={styles.hint}>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+        case "log":
+            return <LogPanel />;
+        case "table":
+            return <TablePanel />;
+    }
 }
 
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {

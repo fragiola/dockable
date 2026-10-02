@@ -6,6 +6,7 @@ import {
     type LayoutJson,
     type Model,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import {
@@ -134,26 +135,7 @@ export default function OverlayBorders() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "kpi" ? (
-                                    <KpiPanel
-                                        label={tab.label}
-                                        seed={tab.data.seed}
-                                    />
-                                ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.label}>
-                                        <p>{tab.data.text}</p>
-                                    </PanelBody>
-                                ) : tab.component === "chart" ? (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.label.length}
-                                        title={tab.label}
-                                    />
-                                ) : tab.component === "table" ? (
-                                    <TablePanel />
-                                ) : (
-                                    <LogPanel />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -176,6 +158,31 @@ export default function OverlayBorders() {
             </div>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+        case "doc":
+            return (
+                <PanelBody title={tab.label}>
+                    <p>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.label.length}
+                    title={tab.label}
+                />
+            );
+        case "table":
+            return <TablePanel />;
+        case "log":
+            return <LogPanel />;
+    }
 }
 
 /** The toolbar outside the layout: it follows the borders, and a commit re-renders it, not the layout. */

@@ -5,6 +5,7 @@ import {
     createModel,
     type Model,
     type RowNode,
+    type TabOf,
     type TabsetNode,
     veto as vetoResult,
 } from "@fragiola/dockable";
@@ -107,22 +108,7 @@ export default function LayoutLab() {
                                     node={tab}
                                     className={styles.panel}
                                 >
-                                    {tab.component === "chart" ? (
-                                        <ChartPanel
-                                            kind={tab.data.kind}
-                                            seed={tab.label.length}
-                                            title={tab.label}
-                                        />
-                                    ) : tab.component === "log" ? (
-                                        <LogPanel />
-                                    ) : (
-                                        <PanelBody title={tab.label}>
-                                            <p className={styles.cardText}>
-                                                {tab.data?.text ??
-                                                    "A card: its label names it, its data holds its text."}
-                                            </p>
-                                        </PanelBody>
-                                    )}
+                                    <Content tab={tab} />
                                 </Dockable.Panel>
                             )}
                         </Dockable.Panels>
@@ -135,6 +121,30 @@ export default function LayoutLab() {
             </div>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.label.length}
+                    title={tab.label}
+                />
+            );
+        case "log":
+            return <LogPanel />;
+        case "card":
+            return (
+                <PanelBody title={tab.label}>
+                    <p className={styles.cardText}>
+                        {tab.data?.text ??
+                            "A card: its label names it, its data holds its text."}
+                    </p>
+                </PanelBody>
+            );
+    }
 }
 
 /** The editor follows the model: a commit re-renders it, not the layout. */

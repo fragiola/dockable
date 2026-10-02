@@ -184,17 +184,7 @@ export default function LockedRegions() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "doc" ? (
-                                    <DocPanel tab={tab} onNotice={setNotice} />
-                                ) : (
-                                    <PanelBody title={tab.label}>
-                                        <p className={styles.panelText}>
-                                            Locked in place: this tab cannot be
-                                            dragged, and nothing can be dropped
-                                            into or beside it.
-                                        </p>
-                                    </PanelBody>
-                                )}
+                                <Content tab={tab} onNotice={setNotice} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -203,6 +193,28 @@ export default function LockedRegions() {
             </div>
         </>
     );
+}
+
+function Content({
+    tab,
+    onNotice,
+}: {
+    tab: TabOf<Types>;
+    onNotice: (notice: string | undefined) => void;
+}) {
+    switch (tab.component) {
+        case "doc":
+            return <DocPanel tab={tab} onNotice={onNotice} />;
+        case "console":
+            return (
+                <PanelBody title={tab.label}>
+                    <p className={styles.panelText}>
+                        Locked in place: this tab cannot be dragged, and nothing
+                        can be dropped into or beside it.
+                    </p>
+                </PanelBody>
+            );
+    }
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */

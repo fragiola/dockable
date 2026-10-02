@@ -4,6 +4,7 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
@@ -109,21 +110,7 @@ export default function SplitterHairline() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {tab.component === "files" ? (
-                                <PanelBody title={tab.label}>
-                                    <ul className={styles.fileList}>
-                                        {tab.data.files.map((file) => (
-                                            <li key={file}>{file}</li>
-                                        ))}
-                                    </ul>
-                                </PanelBody>
-                            ) : tab.component === "source" ? (
-                                <pre className={styles.code}>
-                                    {tab.data.code}
-                                </pre>
-                            ) : (
-                                <LogPanel />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -131,6 +118,25 @@ export default function SplitterHairline() {
             </Dockable.Root>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "files":
+            return (
+                <PanelBody title={tab.label}>
+                    <ul className={styles.fileList}>
+                        {tab.data.files.map((file) => (
+                            <li key={file}>{file}</li>
+                        ))}
+                    </ul>
+                </PanelBody>
+            );
+        case "source":
+            return <pre className={styles.code}>{tab.data.code}</pre>;
+        case "terminal":
+            return <LogPanel />;
+    }
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */

@@ -6,6 +6,7 @@ import {
     type Model,
     type OnExternalDrag,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
@@ -230,24 +231,7 @@ export default function DropFiles() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "table" ? (
-                                    <CsvTable csv={tab.data.csv} />
-                                ) : tab.component === "chart" ? (
-                                    <CsvChart csv={tab.data.csv} />
-                                ) : tab.component === "image" ? (
-                                    <ImageOf file={images.get(tab.id)} />
-                                ) : tab.component === "info" ? (
-                                    <FileInfo
-                                        type={tab.data.type}
-                                        size={tab.data.size}
-                                    />
-                                ) : tab.component === "error" ? (
-                                    <ErrorNote message={tab.data.message} />
-                                ) : tab.component === "pending" ? (
-                                    <Pending />
-                                ) : (
-                                    <Welcome />
-                                )}
+                                <Content tab={tab} images={images} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -257,6 +241,32 @@ export default function DropFiles() {
             </div>
         </>
     );
+}
+
+function Content({
+    tab,
+    images,
+}: {
+    tab: TabOf<Types>;
+    /** a dropped image's File, by its tab id */
+    images: ReadonlyMap<string, File>;
+}) {
+    switch (tab.component) {
+        case "table":
+            return <CsvTable csv={tab.data.csv} />;
+        case "chart":
+            return <CsvChart csv={tab.data.csv} />;
+        case "image":
+            return <ImageOf file={images.get(tab.id)} />;
+        case "info":
+            return <FileInfo type={tab.data.type} size={tab.data.size} />;
+        case "error":
+            return <ErrorNote message={tab.data.message} />;
+        case "pending":
+            return <Pending />;
+        case "welcome":
+            return <Welcome />;
+    }
 }
 
 /** An image tab whose File is gone (the page reloaded a saved layout) says so. */

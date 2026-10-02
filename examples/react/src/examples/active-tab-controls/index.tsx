@@ -6,6 +6,7 @@ import {
     type Model,
     type RowNode,
     type TabNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import {
@@ -117,17 +118,7 @@ export default function ActiveTabControls() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "chart" ? (
-                                    <ChartPanel
-                                        // keyed on the kind: a pie and a line are different charts
-                                        key={tab.data.kind}
-                                        kind={tab.data.kind}
-                                        seed={tab.data.seed}
-                                        title={tab.label}
-                                    />
-                                ) : (
-                                    <TablePanel />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -136,6 +127,23 @@ export default function ActiveTabControls() {
             </div>
         </>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    // keyed on the kind: a pie and a line are different charts
+                    key={tab.data.kind}
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "table":
+            return <TablePanel />;
+    }
 }
 
 /** The toolbar outside the layout: it follows the current tab, and a commit re-renders it, not the layout. */

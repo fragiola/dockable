@@ -107,17 +107,7 @@ export default function Keyboard() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "keys" ? (
-                                    <KeysPanel />
-                                ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.label}>
-                                        <p>{tab.data.text}</p>
-                                    </PanelBody>
-                                ) : tab.component === "table" ? (
-                                    <TablePanel />
-                                ) : (
-                                    <LogPanel />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -126,6 +116,23 @@ export default function Keyboard() {
             </div>
         </Tooltip.Provider>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "keys":
+            return <KeysPanel />;
+        case "doc":
+            return (
+                <PanelBody title={tab.label}>
+                    <p>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "table":
+            return <TablePanel />;
+        case "log":
+            return <LogPanel />;
+    }
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */

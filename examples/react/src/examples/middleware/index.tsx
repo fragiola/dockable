@@ -6,6 +6,7 @@ import {
     type LayoutJson,
     type Middleware,
     type RowNode,
+    type TabOf,
     type TabsetNode,
     veto,
 } from "@fragiola/dockable";
@@ -306,20 +307,7 @@ export default function MiddlewareExample() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "chart" ? (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.label.length}
-                                        title={tab.label}
-                                    />
-                                ) : tab.component === "kpi" ? (
-                                    <KpiPanel
-                                        label={tab.label}
-                                        seed={tab.data.seed}
-                                    />
-                                ) : (
-                                    <Log entries={log} />
-                                )}
+                                <Content tab={tab} log={log} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -328,6 +316,23 @@ export default function MiddlewareExample() {
             </div>
         </>
     );
+}
+
+function Content({ tab, log }: { tab: TabOf<Types>; log: LogEntry[] }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.label.length}
+                    title={tab.label}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+        case "log":
+            return <Log entries={log} />;
+    }
 }
 
 /** What the observing middleware wrote, newest first. */

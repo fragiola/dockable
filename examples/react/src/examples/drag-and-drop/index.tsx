@@ -5,6 +5,7 @@ import {
     type DropLocation,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
@@ -104,22 +105,7 @@ export default function DragAndDrop() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {tab.component === "chart" ? (
-                                <ChartPanel
-                                    kind={tab.data.kind}
-                                    seed={tab.data.seed}
-                                    title={tab.label}
-                                />
-                            ) : tab.component === "kpi" ? (
-                                <KpiPanel
-                                    label={tab.label}
-                                    seed={tab.data.seed}
-                                />
-                            ) : tab.component === "table" ? (
-                                <TablePanel />
-                            ) : (
-                                <LogPanel />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -157,6 +143,25 @@ export default function DragAndDrop() {
             </Dockable.Root>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+        case "table":
+            return <TablePanel />;
+        case "log":
+            return <LogPanel />;
+    }
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */

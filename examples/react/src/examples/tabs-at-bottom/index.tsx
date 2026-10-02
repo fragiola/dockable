@@ -4,6 +4,7 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
@@ -118,22 +119,7 @@ export default function TabsAtBottom() {
                                 node={tab}
                                 className={styles.panel(bottom)}
                             >
-                                {tab.component === "table" ? (
-                                    <TablePanel />
-                                ) : tab.component === "chart" ? (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.data.seed}
-                                        title={tab.label}
-                                    />
-                                ) : tab.component === "log" ? (
-                                    <LogPanel />
-                                ) : (
-                                    <KpiPanel
-                                        label={tab.label}
-                                        seed={tab.data.seed}
-                                    />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -142,6 +128,25 @@ export default function TabsAtBottom() {
             </div>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "table":
+            return <TablePanel />;
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "log":
+            return <LogPanel />;
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+    }
 }
 
 /**

@@ -86,7 +86,7 @@ export default function AnalyticsDashboard() {
                                     node={tab}
                                     className={styles.panel}
                                 >
-                                    {renderContent(tab)}
+                                    <Content tab={tab} />
                                 </Dockable.Panel>
                             )}
                         </Dockable.Panels>
@@ -118,8 +118,8 @@ export default function AnalyticsDashboard() {
     );
 }
 
-function renderContent(tab: TabOf<Types>) {
-    // `tab.data` narrows on `tab.component`: each widget gets its own data type
+/** `tab.data` narrows on `tab.component`: each widget gets its own data type. */
+function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "chart":
             return <ChartWidget tab={tab} />;

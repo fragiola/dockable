@@ -5,6 +5,7 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import {
@@ -167,19 +168,7 @@ export default function UndoRedo() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "json" ? (
-                                    <LayoutJsonPanel />
-                                ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.label}>
-                                        <p>{tab.data.text}</p>
-                                    </PanelBody>
-                                ) : (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.data.seed}
-                                        title={tab.label}
-                                    />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -188,6 +177,27 @@ export default function UndoRedo() {
             </div>
         </>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "json":
+            return <LayoutJsonPanel />;
+        case "doc":
+            return (
+                <PanelBody title={tab.label}>
+                    <p>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+    }
 }
 
 /** A short name for a command, for the history list. */

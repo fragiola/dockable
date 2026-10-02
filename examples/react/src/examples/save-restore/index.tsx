@@ -5,6 +5,7 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import {
@@ -181,15 +182,7 @@ export default function SaveRestore() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "json" ? (
-                                    <JsonPanel />
-                                ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.label}>
-                                        <p>{tab.data.text}</p>
-                                    </PanelBody>
-                                ) : (
-                                    <TablePanel />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -198,6 +191,21 @@ export default function SaveRestore() {
             </div>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "json":
+            return <JsonPanel />;
+        case "doc":
+            return (
+                <PanelBody title={tab.label}>
+                    <p>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "table":
+            return <TablePanel />;
+    }
 }
 
 /** The model's JSON, live: this is everything there is to save. */

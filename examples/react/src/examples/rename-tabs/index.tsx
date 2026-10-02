@@ -109,24 +109,7 @@ export default function RenameTabs() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {tab.component === "note" ? (
-                                <PanelBody title={tab.label}>
-                                    <p className={styles.hint}>
-                                        {tab.data.text}
-                                    </p>
-                                </PanelBody>
-                            ) : tab.component === "chart" ? (
-                                <ChartPanel
-                                    kind={tab.data.kind}
-                                    seed={tab.data.seed}
-                                    title={tab.label}
-                                />
-                            ) : (
-                                <KpiPanel
-                                    label={tab.label}
-                                    seed={tab.data.seed}
-                                />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -134,6 +117,27 @@ export default function RenameTabs() {
             </Dockable.Root>
         </div>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "note":
+            return (
+                <PanelBody title={tab.label}>
+                    <p className={styles.hint}>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+    }
 }
 
 /** A tabset: a card with the strip of renamable tabs on top and the measured content area below. */

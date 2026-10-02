@@ -96,13 +96,7 @@ export default function ContentAwareTabs() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {/* `tab.data` narrows on `tab.component`: each panel gets its own
-                                typed tab */}
-                            {tab.component === "monitor" ? (
-                                <Monitor tab={tab} />
-                            ) : (
-                                <Editor tab={tab} />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -110,6 +104,16 @@ export default function ContentAwareTabs() {
             </Dockable.Root>
         </div>
     );
+}
+
+/** `tab.data` narrows on `tab.component`: each panel gets its own typed tab. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "monitor":
+            return <Monitor tab={tab} />;
+        case "document":
+            return <Editor tab={tab} />;
+    }
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */
