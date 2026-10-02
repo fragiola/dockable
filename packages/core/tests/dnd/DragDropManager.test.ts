@@ -887,6 +887,87 @@ describe("external drags (onExternalDrag)", () => {
         expect(onExternalDrag).toHaveBeenCalledTimes(2);
     });
 
+    it("leaves a native drag between two lists of a tab to the lists, even with a handler that accepts everything (caplin/FlexLayout#350)", () => {
+        const onExternalDrag = vi.fn(() => ({
+            tab: { component: "x", label: "x" },
+        }));
+        const s = setup({ onExternalDrag });
+        s.engine.adapter.attachMoveable("t0", s.panels.t0);
+        const content = s.engine.adapter.getMoveableElement("t0");
+        const from = content.appendChild(document.createElement("ul"));
+        const to = content.appendChild(document.createElement("ul"));
+        const item = from.appendChild(document.createElement("li"));
+        // the lists' own native drag and drop: accept the drag, move the item on drop
+        to.addEventListener("dragover", (event) => event.preventDefault());
+        to.addEventListener("drop", (event) => {
+            event.preventDefault();
+            to.appendChild(item);
+        });
+        const text = () => fakeDataTransfer(["text/plain"]);
+
+        item.dispatchEvent(dragEvent("dragstart", 50, 100, text()));
+        to.dispatchEvent(dragEvent("dragenter", 50, 120, text()));
+        to.dispatchEvent(dragEvent("dragover", 50, 120, text()));
+        expect(onExternalDrag).not.toHaveBeenCalled();
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(s.manager.getIndicatorState().visible).toBe(false);
+        to.dispatchEvent(dragEvent("drop", 50, 120, text()));
+        item.dispatchEvent(dragEvent("dragend", 50, 120, text()));
+        expect(item.parentElement).toBe(to);
+        expect(s.commands).toHaveLength(0);
+
+        // a drag from outside the layout (a file from the OS: no dragstart in the page) is asked
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185, foreign()));
+        expect(onExternalDrag).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a drag inside a nested layout to it: the outer layout neither asks nor claims it (caplin/FlexLayout#497)", () => {
+        const outerHandler = vi.fn(() => ({
+            tab: { component: "x", label: "outer" },
+        }));
+        const outer = setup({ onExternalDrag: outerHandler });
+        const innerHandler = vi.fn(() => ({
+            tab: { component: "x", label: "inner" },
+        }));
+        const inner = setup({ onExternalDrag: innerHandler });
+        // the inner layout lives in a tab of the outer one (two models)
+        outer.engine.adapter.attachMoveable("t0", outer.panels.t0);
+        outer.engine.adapter.getMoveableElement("t0").appendChild(inner.root);
+
+        // a file dragged into the inner layout: the inner layout takes it
+        inner.ts1.dispatchEvent(dragEvent("dragenter", 312, 185, foreign()));
+        inner.ts1.dispatchEvent(dragEvent("dragover", 312, 185, foreign()));
+        expect(innerHandler).toHaveBeenCalledTimes(1);
+        expect(outerHandler).not.toHaveBeenCalled();
+        expect(outer.manager.getIndicatorState().dragging).toBe(false);
+        inner.ts1.dispatchEvent(dragEvent("drop", 312, 185, foreign()));
+        expect(inner.commands.map((c) => c.command)).toEqual(["tab.add"]);
+        expect(outer.commands).toHaveLength(0);
+
+        // a native drag that starts in the inner layout's content is not the outer layout's
+        inner.engine.adapter.attachMoveable("t2", inner.panels.t2);
+        const text = inner.engine.adapter
+            .getMoveableElement("t2")
+            .appendChild(document.createElement("p"));
+        const plain = () => fakeDataTransfer(["text/plain"]);
+        text.dispatchEvent(dragEvent("dragstart", 312, 185, plain()));
+        text.dispatchEvent(dragEvent("dragenter", 312, 185, plain()));
+        expect(outerHandler).not.toHaveBeenCalled();
+        expect(innerHandler).toHaveBeenCalledTimes(1);
+        text.dispatchEvent(dragEvent("dragend", 312, 185, plain()));
+
+        // and a tab drag of the inner layout moves within it
+        inner.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        inner.ts1.dispatchEvent(dragEvent("dragenter", 312, 185));
+        inner.ts1.dispatchEvent(dragEvent("dragover", 312, 185));
+        inner.ts1.dispatchEvent(dragEvent("drop", 312, 185));
+        expect(inner.commands.map((c) => c.command)).toEqual([
+            "tab.add",
+            "tab.move",
+        ]);
+        expect(outer.commands).toHaveLength(0);
+    });
+
     it("does not treat a layout's own drag as external", () => {
         const onExternalDrag = vi.fn(() => ({
             tab: { component: "x", label: "x" },
