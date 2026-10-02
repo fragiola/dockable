@@ -1,0 +1,25 @@
+{
+    "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
+    "baseBranch": "main",
+    "access": "public",
+    "format": false,
+    "changelog": [
+        "@changesets/changelog-github",
+        {
+            "repo": "fragiola/dockable"
+        }
+    ],
+    "commit": false,
+    "ignore": [],
+    "fixed": [["@fragiola/dockable", "@fragiola/dockable-react"]],
+    "linked": [],
+    "updateInternalDependencies": "patch",
+    "changedFilePatterns": [
+        "src/**",
+        "package.json",
+        "README.md",
+        "LICENSE",
+        "tsdown.config.ts",
+        "tsconfig*.json"
+    ]
+}
