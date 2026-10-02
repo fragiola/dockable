@@ -114,8 +114,6 @@ function ScrollingTab({ tab }: { tab: TabOf<Types> }) {
 Tabs that shrink (`flex-shrink: 1` with a minimum width, a truncated label) combine with either:
 they shrink first, and overflow once they reach their minimum.
 
-Keep the strip's start padding in every case: a drop before the first tab needs it (gap 10).
-
 ## Your own measuring
 
 The decision itself is a pure function of the core, for a custom strip:

@@ -27,7 +27,7 @@ selecting only the attributes and roles the primitives render. Pass the class na
     border: 1px solid #e4e4e7;
 }
 
-/* the tab strip: keep start padding (drops before the first tab) and a min height */
+/* the tab strip: a min height (see below) */
 [role="tablist"] {
     display: flex;
     gap: 2px;
@@ -94,9 +94,6 @@ attribute.
   ([Sizing](/docs/getting-started/sizing)).
 - **No `flex`, `display` or geometry on rows, tabsets and panels**: the primitives set them
   inline (structural style), and inline wins. Size with weights instead.
-- **`padding-inline-start` on the tab list**: a drop before the first tab is rejected when that
-  tab is flush with the tabset's edge, because the edge belongs to the tabset's side drop
-  ([Limitations](/docs/limitations), gap 10).
 - **`min-height: 30px` on the tab list** (or a lower `edgeDockMargin`): a thin strip at the top
   of the layout falls inside the 10px top-edge docking band, so drops aimed at it dock to the
   layout edge instead (gap 11).
