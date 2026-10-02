@@ -42,7 +42,7 @@ export function Header({
     onFilters: (filters: Filters) => void;
     model: Model<Types>;
     undo: UndoManager<Types>;
-    history: UndoSnapshot<Types>;
+    history: UndoSnapshot;
 }) {
     return (
         <header className={styles.header}>

@@ -14,10 +14,10 @@ import {
     useModelState,
 } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { PanelBody } from "../_kit/card";
 import { CHART_KINDS, type ChartKind, ChartPanel } from "../_kit/charts";
-import { UndoManager } from "../_kit/undo";
+import { handleUndoKeys, UndoManager } from "../_kit/undo";
 import * as styles from "./styles";
 
 // Undo and redo with the examples' UndoManager (`_kit/undo.ts`: the package ships no undo). It
@@ -91,34 +91,13 @@ export default function UndoRedo() {
         undo.getSnapshot,
         undo.getSnapshot,
     );
-    // the names of the steps come from the manager's own steps: the command that made each one
-    const doUndo = () => undo.undo();
-    const doRedo = () => undo.redo();
 
-    // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes; text fields keep their own undo
-    const keys = useRef({ doUndo, doRedo });
-    keys.current = { doUndo, doRedo };
+    // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes
     useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (
-                !(event.ctrlKey || event.metaKey) ||
-                isTextField(event.target)
-            ) {
-                return;
-            }
-            const key = event.key.toLowerCase();
-            if (key === "z" && !event.shiftKey) {
-                keys.current.doUndo();
-            } else if (key === "y" || (key === "z" && event.shiftKey)) {
-                keys.current.doRedo();
-            } else {
-                return;
-            }
-            event.preventDefault();
-        };
+        const onKeyDown = (event: KeyboardEvent) => handleUndoKeys(undo, event);
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, []);
+    }, [undo]);
 
     return (
         <>
@@ -128,7 +107,7 @@ export default function UndoRedo() {
                     className={styles.button}
                     disabled={!snapshot.canUndo}
                     aria-keyshortcuts="Control+Z Meta+Z"
-                    onClick={doUndo}
+                    onClick={() => undo.undo()}
                 >
                     <Undo2 aria-hidden className={styles.buttonIcon} />
                     Undo
@@ -138,13 +117,14 @@ export default function UndoRedo() {
                     className={styles.button}
                     disabled={!snapshot.canRedo}
                     aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y"
-                    onClick={doRedo}
+                    onClick={() => undo.redo()}
                 >
                     <Redo2 aria-hidden className={styles.buttonIcon} />
                     Redo
                 </button>
                 <ol aria-label="History" className={styles.history}>
-                    {snapshot.undoCount + snapshot.redoCount === 0 ? (
+                    {snapshot.undoSteps.length + snapshot.redoSteps.length ===
+                    0 ? (
                         <li className={styles.historyHint}>
                             Move, resize, add or close tabs: each edit is a
                             step.
@@ -337,15 +317,6 @@ function LayoutJsonPanel() {
                 {text}
             </pre>
         </PanelBody>
-    );
-}
-
-function isTextField(target: EventTarget | null) {
-    const element = target as HTMLElement | null;
-    return (
-        element?.isContentEditable ||
-        element?.tagName === "INPUT" ||
-        element?.tagName === "TEXTAREA"
     );
 }
 
