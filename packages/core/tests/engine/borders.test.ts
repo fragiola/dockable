@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
     createLayoutEngine,
     DragDropManager,
@@ -184,6 +184,27 @@ describe("auto-hide borders during a drag", () => {
         expect(manager.getIndicatorState().revealedBorder).toBe("bottom");
         manager.onDragEnded();
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
+    });
+
+    it("notify once per dragover, revealing a border and moving the outline together", () => {
+        const s = setup(bottomAutoHide);
+        const manager = s.engine.adapter.getDragDropManager();
+        manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        s.root.dispatchEvent(dragEvent("dragenter", 30, 315));
+        const notified = vi.fn();
+        manager.subscribe(notified);
+        s.root.dispatchEvent(dragEvent("dragover", 30, 315));
+        expect(manager.getIndicatorState()).toMatchObject({
+            visible: true,
+            revealedBorder: "bottom",
+        });
+        expect(notified).toHaveBeenCalledTimes(1);
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        expect(manager.getIndicatorState()).toMatchObject({
+            targetNodeId: "ts1",
+            revealedBorder: undefined,
+        });
+        expect(notified).toHaveBeenCalledTimes(2);
     });
 
     it("do not reveal over the edge docking band, or a border that has tabs or is not auto-hide", () => {

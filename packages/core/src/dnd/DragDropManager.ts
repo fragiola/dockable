@@ -199,6 +199,18 @@ function isForeignDrag(event: DragEventLike): boolean {
     return !!types && types.length > 0 && !hasOwnPayload(event);
 }
 
+/** The indicator fields of a pointer over no target (over one that refuses the drop, if given). */
+function noTarget(refused?: DropCandidate) {
+    return {
+        visible: false,
+        targetNodeId: undefined,
+        targetTabSetId: undefined,
+        index: -1,
+        refused: refused !== undefined,
+        refusedTabSetId: refused?.container,
+    };
+}
+
 /** A command a drop runs, as the manager prepares it. */
 type DropCommand =
     | { command: "tab.move"; payload: PayloadOf<AnyTypes, "tab.move"> }
@@ -341,27 +353,19 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     private setIndicator(next: DropIndicatorState) {
         const prev = this.indicator;
-        if (
-            prev.visible === next.visible &&
-            rectEquals(prev.rect, next.rect) &&
-            prev.location === next.location &&
-            prev.kind === next.kind &&
-            prev.dragging === next.dragging &&
-            prev.dragNodeId === next.dragNodeId &&
-            prev.showEdges === next.showEdges &&
-            prev.tabDragSpeed === next.tabDragSpeed &&
-            prev.targetNodeId === next.targetNodeId &&
-            prev.targetTabSetId === next.targetTabSetId &&
-            prev.index === next.index &&
-            prev.refused === next.refused &&
-            prev.refusedTabSetId === next.refusedTabSetId &&
-            prev.revealedBorder === next.revealedBorder
-        ) {
-            return;
-        }
-        this.indicator = next;
-        for (const listener of [...this.listeners]) {
-            listener();
+        let key: keyof DropIndicatorState;
+        for (key in next) {
+            if (
+                key === "rect"
+                    ? !rectEquals(prev.rect, next.rect)
+                    : prev[key] !== next[key]
+            ) {
+                this.indicator = next;
+                for (const listener of [...this.listeners]) {
+                    listener();
+                }
+                return;
+            }
         }
     }
 
@@ -721,20 +725,11 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const root = this.engine.adapter.getFreshDomRect();
         // the outline starts as a 1x1 rect at the pointer (a view may animate from it)
         this.setIndicator({
-            visible: false,
+            ...this.idleIndicator(),
             rect: rect(event.clientX - root.x, event.clientY - root.y, 1, 1),
-            location: "center",
-            kind: "rect",
             dragging: true,
             dragNodeId: state.dragId,
             showEdges,
-            tabDragSpeed: this.engine.adapter.getTabDragSpeed(),
-            targetNodeId: undefined,
-            targetTabSetId: undefined,
-            index: -1,
-            refused: false,
-            refusedTabSetId: undefined,
-            revealedBorder: undefined,
         });
     };
 
@@ -871,9 +866,6 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const y = event.clientY - root.y;
 
         const revealedBorder = this.borderToReveal(x, y);
-        if (revealedBorder !== this.indicator.revealedBorder) {
-            this.setIndicator({ ...this.indicator, revealedBorder });
-        }
         const subject = state.subject;
         const kind: DropSubjectKind =
             subject.kind === "tab"
@@ -919,12 +911,8 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             this.target = undefined;
             this.setIndicator({
                 ...this.indicator,
-                visible: false,
-                targetNodeId: undefined,
-                targetTabSetId: undefined,
-                index: -1,
-                refused: refused !== undefined,
-                refusedTabSetId: refused?.container,
+                ...noTarget(refused),
+                revealedBorder,
             });
             return;
         }
@@ -945,6 +933,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             index: accepted.index,
             refused: false,
             refusedTabSetId: undefined,
+            revealedBorder,
         });
     };
 
@@ -1087,17 +1076,9 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     /** Hides this layout's outline without ending the drag (the pointer is over a drop zone). */
     hideIndicator() {
-        this.target = undefined;
         if (this.indicator.visible || this.indicator.refused) {
-            this.setIndicator({
-                ...this.indicator,
-                visible: false,
-                targetNodeId: undefined,
-                targetTabSetId: undefined,
-                index: -1,
-                refused: false,
-                refusedTabSetId: undefined,
-            });
+            this.target = undefined;
+            this.setIndicator({ ...this.indicator, ...noTarget() });
         }
     }
 
