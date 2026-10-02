@@ -31,13 +31,13 @@ export interface Transfer {
 export type TransferListener = (transfer: Transfer) => void;
 
 /** `meta` of the `tab.add` and `tab.close` of a transfer, so middleware can tell them apart. */
-export interface TransferMeta {
+export type TransferMeta = {
     transfer: {
         tabId: string;
         from: ModelHandle;
         to: ModelHandle;
     };
-}
+};
 
 /** What `transfer` takes. */
 export interface TransferRequest {
@@ -51,16 +51,68 @@ export interface TransferRequest {
     index?: number | undefined;
 }
 
-function endOf(model: Model<AnyTypes>, tab: string): TransferEnd {
-    const parent = model.get("node-parent-by", { nodeId: tab });
+/** Where a transferred tab goes in the target model. */
+export interface TransferPlacement {
+    to: string;
+    location: DockLocation;
+    index: number;
+}
+
+function endOf(model: Model<AnyTypes>, tabId: string): TransferEnd {
+    const parent = model.get("node-parent-by", { nodeId: tabId });
     return {
         model,
-        layoutId: model.get("layout-id-by", { nodeId: tab }) ?? "",
+        layoutId: model.get("layout-id-by", { nodeId: tabId }) ?? "",
         tabsetId: parent?.id,
         index: parent
-            ? parent.children.findIndex((child) => child.id === tab)
+            ? parent.children.findIndex((child) => child.id === tabId)
             : -1,
     };
+}
+
+/** How a tab moves into another model: its fields, the `tab.add` there, and the transfer's `meta`. */
+export interface TransferPlan {
+    init: TabInit;
+    add: TabInit & TransferPlacement;
+    meta: TransferMeta;
+}
+
+/**
+ * The plan that moves tab `tabId` of `source` into `target` (with its id, unless the target
+ * already has it); undefined when there is no such tab, or both models are the same.
+ */
+export function transferPlan(
+    source: Model<AnyTypes>,
+    target: Model<AnyTypes>,
+    tabId: string,
+    placement: TransferPlacement,
+): TransferPlan | undefined {
+    const tab = source.get("node-by", { id: tabId });
+    if (source === target || tab?.type !== "tab") {
+        return undefined;
+    }
+    const { type: _type, ...init } = tab;
+    const fields: TabInit = target.get("node-by", { id: tabId })
+        ? { ...init, id: undefined }
+        : init;
+    return {
+        init: fields,
+        add: { ...fields, ...placement },
+        meta: { transfer: { tabId, from: source, to: target } },
+    };
+}
+
+/** Whether both models accept a transfer: the target its `tab.add`, the source its `tab.close`. */
+export function canTransfer(
+    source: Model<AnyTypes>,
+    target: Model<AnyTypes>,
+    plan: TransferPlan,
+): boolean {
+    const options = { meta: plan.meta };
+    return (
+        target.can("tab.add", plan.add, options) &&
+        source.can("tab.close", { tabId: plan.meta.transfer.tabId }, options)
+    );
 }
 
 /**
@@ -114,104 +166,64 @@ export class DragGroup {
     transfer(request: TransferRequest): string | undefined {
         const source = this.engineOf(request.from);
         const target = this.engineOf(request.to);
-        if (
-            !source ||
-            !target ||
-            !source.adapter.model.get("node-by", { id: request.tab })
-        ) {
+        if (!source || !target) {
             return undefined;
         }
-        return this.transferTab(
-            source,
-            target,
-            request.tab,
-            request.target,
-            request.location ?? "center",
-            request.index ?? -1,
-        );
+        return this.transferTab(source, target, request.tab, {
+            to: request.target,
+            location: request.location ?? "center",
+            index: request.index ?? -1,
+        });
     }
 
     /**
-     * @internal the transfer itself: `targetEngine` is the target layout's engine (the main one or
-     * a popout's), `sourceEngine` the source model's main engine.
+     * @internal the transfer itself: `source` is the source model's main engine, `target` the target
+     * layout's engine (the main one or a popout's).
      */
     transferTab(
-        sourceEngine: LayoutEngine<AnyTypes>,
-        targetEngine: LayoutEngine<AnyTypes>,
+        source: LayoutEngine<AnyTypes>,
+        target: LayoutEngine<AnyTypes>,
         tabId: string,
-        to: string,
-        location: DockLocation,
-        index: number,
+        placement: TransferPlacement,
     ): string | undefined {
-        const source = sourceEngine.adapter.model as unknown as Model<AnyTypes>;
-        const target = targetEngine.adapter.model as unknown as Model<AnyTypes>;
-        const tab = source.get("node-by", { id: tabId });
-        if (source === target || tab?.type !== "tab") {
+        const from = source.adapter.model;
+        const to = target.adapter.model;
+        const plan = transferPlan(from, to, tabId, placement);
+        if (!plan || !canTransfer(from, to, plan)) {
             return undefined;
         }
-        const { type: _type, ...init } = tab;
-        const fields: TabInit = target.get("node-by", { id: tabId })
-            ? { ...init, id: undefined }
-            : init;
-        const meta: TransferMeta = {
-            transfer: { tabId, from: source, to: target },
-        };
-        const add = { ...fields, to, location, index };
-        // both sides must accept before anything changes
-        if (
-            !target.can("tab.add", add, { meta: { ...meta } }) ||
-            !source.can("tab.close", { tabId }, { meta: { ...meta } })
-        ) {
-            return undefined;
-        }
-        const from = endOf(source, tabId);
+        const options = { meta: plan.meta };
+        const origin = endOf(from, tabId);
         // the content moves with the tab: take its element before the source forgets it
-        const moveable = sourceEngine.adapter.main.adapter.takeMoveable(tabId);
-        const added = target.run("tab.add", add, { meta: { ...meta } });
+        const moveable = source.adapter.takeMoveable(tabId);
+        const added = to.run("tab.add", plan.add, options);
         if (!added.ok) {
-            sourceEngine.adapter.main.adapter.adoptMoveable(tabId, moveable);
+            source.adapter.adoptMoveable(tabId, moveable);
             return undefined;
         }
-        targetEngine.adapter.main.adapter.adoptMoveable(
-            added.value.tabId,
-            moveable,
-        );
-        const closed = source.run(
-            "tab.close",
-            { tabId },
-            { meta: { ...meta } },
-        );
-        if (!closed.ok) {
+        const addedId = added.value.tabId;
+        target.adapter.adoptMoveable(addedId, moveable);
+        if (!from.run("tab.close", { tabId }, options).ok) {
             // the source refused after all (its answer changed since the dry run): undo the add,
             // and the content goes back with the tab
-            const back = targetEngine.adapter.main.adapter.takeMoveable(
-                added.value.tabId,
-            );
-            const undone = target.run(
-                "tab.close",
-                { tabId: added.value.tabId },
-                { meta: { ...meta } },
-            );
-            if (undone.ok) {
-                sourceEngine.adapter.main.adapter.adoptMoveable(tabId, back);
+            const back = target.adapter.takeMoveable(addedId);
+            if (to.run("tab.close", { tabId: addedId }, options).ok) {
+                source.adapter.adoptMoveable(tabId, back);
             } else {
-                targetEngine.adapter.main.adapter.adoptMoveable(
-                    added.value.tabId,
-                    back,
-                );
+                target.adapter.adoptMoveable(addedId, back);
             }
             return undefined;
         }
         const transfer: Transfer = {
-            tab: added.value.tabId,
+            tab: addedId,
             previousId: tabId,
-            init: fields,
-            from,
-            to: endOf(target, added.value.tabId),
+            init: plan.init,
+            from: origin,
+            to: endOf(to, addedId),
         };
         for (const listener of [...this.listeners]) {
             listener(transfer);
         }
-        return added.value.tabId;
+        return addedId;
     }
 }

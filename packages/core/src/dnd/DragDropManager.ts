@@ -34,6 +34,7 @@ import type {
     TabOf,
     TabsetNode,
 } from "../state/types";
+import { canTransfer, type TransferPlacement, transferPlan } from "./DragGroup";
 
 /** The MIME type every Dockable drag carries; drags without it are not Dockable's. */
 export const DRAG_TYPE = "application/x-dockable";
@@ -215,7 +216,11 @@ function noTarget(refused?: DropCandidate) {
 type DropCommand =
     | { command: "tab.move"; payload: PayloadOf<AnyTypes, "tab.move"> }
     | { command: "tabset.move"; payload: PayloadOf<AnyTypes, "tabset.move"> }
-    | { command: "tab.add"; payload: PayloadOf<AnyTypes, "tab.add"> };
+    | { command: "tab.add"; payload: PayloadOf<AnyTypes, "tab.add"> }
+    | {
+          command: "transfer";
+          payload: { tabId: string } & TransferPlacement;
+      };
 
 /**
  * The drag-and-drop state machine of one layout engine, working on native drag events. The static
@@ -771,86 +776,60 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                 payload: { ...(subject.tab as TabInit), ...placement },
             };
         }
-        if (
-            !sameModel(
-                state.mainEngine.adapter.model,
-                this.engine.adapter.model,
-            )
-        ) {
-            // a drag group transfer: the target adds the tab (with its id when it is free)
-            const tab = subject.tab;
-            const { type: _type, ...fields } = tab;
-            const payload = this.engine.adapter.model.get("node-by", {
-                id: tab.id,
-            })
-                ? { ...fields, id: undefined }
-                : fields;
-            return {
-                command: "tab.add",
-                payload: { ...(payload as TabInit), ...placement },
-            };
-        }
         return {
-            command: "tab.move",
+            command: this.fromOtherModel(state) ? "transfer" : "tab.move",
             payload: { tabId: subject.tab.id, ...placement },
         };
     }
 
     /** whether the model accepts a command (asked once per candidate during a drag) */
     private accepts(state: DragState, command: DropCommand): boolean {
-        // the subject is the drag's: within one drag and one state, the placement decides
+        // the subject is the drag's: within one drag and its models' states, the placement decides
         const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
-        const sourceState = state.mainEngine.adapter.model.state;
+        const source = state.mainEngine.adapter.model;
         if (
             this.verdictsFor !== state ||
             this.verdictsState !== model.state ||
-            this.verdictsSourceState !== sourceState
+            this.verdictsSourceState !== source.state
         ) {
             this.verdictsFor = state;
             this.verdictsState = model.state;
-            this.verdictsSourceState = sourceState;
+            this.verdictsSourceState = source.state;
             this.verdicts = new Map();
         }
         const { to, location, index } = command.payload;
         const key = `${command.command}|${to}|${location}|${index}`;
         let verdict = this.verdicts.get(key);
         if (verdict === undefined) {
-            // a tab of another model of the drag group: asked as its transfer will run, with the
-            // same `meta.transfer` (TransferMeta), so a rule on it holds during the hover too
-            const subject = state.subject;
-            const transfer =
-                subject.kind === "tab" &&
-                !sameModel(
-                    state.mainEngine.adapter.model,
-                    this.engine.adapter.model,
-                )
-                    ? {
-                          meta: {
-                              transfer: {
-                                  tabId: subject.tab.id,
-                                  from: state.mainEngine.adapter.model,
-                                  to: this.engine.adapter.model,
-                              },
-                          },
-                      }
-                    : undefined;
-            verdict =
-                command.command === "tab.move"
-                    ? model.can("tab.move", command.payload)
-                    : command.command === "tabset.move"
-                      ? model.can("tabset.move", command.payload)
-                      : model.can("tab.add", command.payload, transfer) &&
-                        // a transfer also closes the tab in its own model: that must be allowed too
-                        (transfer === undefined ||
-                            subject.kind !== "tab" ||
-                            state.mainEngine.adapter.model.can(
-                                "tab.close",
-                                { tabId: subject.tab.id },
-                                transfer,
-                            ));
+            verdict = this.ask(source, command);
             this.verdicts.set(key, verdict);
         }
         return verdict;
+    }
+
+    private ask(source: Model<AnyTypes>, command: DropCommand): boolean {
+        const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
+        switch (command.command) {
+            case "tab.move":
+                return model.can("tab.move", command.payload);
+            case "tabset.move":
+                return model.can("tabset.move", command.payload);
+            case "tab.add":
+                return model.can("tab.add", command.payload);
+            case "transfer": {
+                const { tabId, ...placement } = command.payload;
+                const plan = transferPlan(source, model, tabId, placement);
+                return plan !== undefined && canTransfer(source, model, plan);
+            }
+        }
+    }
+
+    /** a drag that started in another model's layout (a drag group transfer) */
+    private fromOtherModel(state: DragState): boolean {
+        return !sameModel(
+            state.mainEngine.adapter.model,
+            this.engine.adapter.model,
+        );
     }
 
     onDragOver = (event: DragEventLike) => {
@@ -1045,32 +1024,32 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         event: DragEventLike,
     ) {
         const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
-        if (
-            this.isGroupTransfer(state) &&
-            state.subject.kind === "tab" &&
-            target.command === "tab.add"
-        ) {
-            const group = this.engine.adapter.getDragGroup();
-            group?.transferTab(
-                state.mainEngine,
-                this.engine as unknown as LayoutEngine<AnyTypes>,
-                state.subject.tab.id,
-                target.payload.to,
-                target.payload.location ?? "center",
-                target.payload.index ?? -1,
-            );
-            return;
-        }
-        if (target.command === "tab.add") {
-            const result = model.run("tab.add", target.payload);
-            state.onNewTabDropped?.(
-                result.ok ? result.value.tabId : undefined,
-                event,
-            );
-        } else if (target.command === "tabset.move") {
-            model.run("tabset.move", target.payload);
-        } else {
-            model.run("tab.move", target.payload);
+        switch (target.command) {
+            case "transfer": {
+                const { tabId, ...placement } = target.payload;
+                this.engine.adapter
+                    .getDragGroup()
+                    ?.transferTab(
+                        state.mainEngine,
+                        this.engine as unknown as LayoutEngine<AnyTypes>,
+                        tabId,
+                        placement,
+                    );
+                return;
+            }
+            case "tab.add": {
+                const result = model.run("tab.add", target.payload);
+                state.onNewTabDropped?.(
+                    result.ok ? result.value.tabId : undefined,
+                    event,
+                );
+                return;
+            }
+            case "tabset.move":
+                model.run("tabset.move", target.payload);
+                return;
+            case "tab.move":
+                model.run("tab.move", target.payload);
         }
     }
 
