@@ -566,13 +566,30 @@ describe("interaction", () => {
     });
 
     it("announces the splitter's new value after one arrow key", () => {
+        // a 200px row whose tabsets share it by their flex-grow, as a browser lays them out
+        const grow = (p: string) => Number(path(p)?.style.flexGrow ?? 1) || 1;
+        vi.spyOn(
+            HTMLElement.prototype,
+            "getBoundingClientRect",
+        ).mockImplementation(function (this: HTMLElement) {
+            const first = (200 * grow("/ts0")) / (grow("/ts0") + grow("/ts1"));
+            const p = this.getAttribute("data-layout-path");
+            const [x, width] =
+                p === "/ts0"
+                    ? [0, first]
+                    : p === "/ts1"
+                      ? [first, 200 - first]
+                      : p === "/s0"
+                        ? [first, 0]
+                        : [0, 200];
+            return DOMRect.fromRect({ x, y: 0, width, height: 100 });
+        });
         render(<Layout model={fresh()} />);
         const splitter = mustPath("/s0");
-        const value = () => Number(splitter.getAttribute("aria-valuenow"));
-        expect(value()).toBe(50);
+        expect(splitter).toHaveAttribute("aria-valuenow", "50");
         fireEvent.keyDown(splitter, { key: "ArrowRight" });
-        expect(value()).toBeGreaterThan(50);
-        expect(splitter).toHaveAttribute("aria-valuetext", `${value()}%`);
+        expect(splitter).toHaveAttribute("aria-valuenow", "55");
+        expect(splitter).toHaveAttribute("aria-valuetext", "55%");
     });
 });
 
