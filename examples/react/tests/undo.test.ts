@@ -12,7 +12,7 @@ import {
     veto,
 } from "@fragiola/dockable";
 import { describe, expect, it, vi } from "vitest";
-import { UndoManager } from "../src/examples/_kit/undo";
+import { handleUndoKeys, UndoManager } from "../src/examples/_kit/undo";
 
 type Types = { tabs: { tab: undefined } };
 
@@ -328,5 +328,52 @@ describe("UndoManager", () => {
             undo.redo();
             expect(listener).toHaveBeenCalledTimes(2);
         });
+    });
+});
+
+describe("handleUndoKeys", () => {
+    const press = (
+        key: string,
+        modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean },
+        target: EventTarget | null = null,
+    ) => ({
+        key,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        ...modifiers,
+        target,
+        preventDefault: vi.fn(),
+    });
+
+    it("undoes on Ctrl/Cmd+Z and redoes on Shift+Ctrl/Cmd+Z and Ctrl+Y", () => {
+        const { m, undo } = setup();
+        m.run("tab.close", { tabId: "t1" });
+        const z = press("z", { ctrlKey: true });
+        handleUndoKeys(undo, z);
+        expect(z.preventDefault).toHaveBeenCalled();
+        expect(canRedo(undo)).toBe(true);
+        handleUndoKeys(undo, press("Z", { metaKey: true, shiftKey: true }));
+        expect(canUndo(undo)).toBe(true);
+        handleUndoKeys(undo, press("z", { ctrlKey: true }));
+        handleUndoKeys(undo, press("y", { ctrlKey: true }));
+        expect(canRedo(undo)).toBe(false);
+    });
+
+    it("leaves other keys, unmodified keys and text fields alone", () => {
+        const { m, undo } = setup();
+        m.run("tab.close", { tabId: "t1" });
+        const field = Object.assign(new EventTarget(), {
+            closest: () => ({}),
+        });
+        for (const event of [
+            press("x", { ctrlKey: true }),
+            press("z", {}),
+            press("z", { ctrlKey: true }, field),
+        ]) {
+            handleUndoKeys(undo, event);
+            expect(event.preventDefault).not.toHaveBeenCalled();
+        }
+        expect(canUndo(undo)).toBe(true);
     });
 });

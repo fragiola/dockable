@@ -55,7 +55,8 @@ interface Entry<T extends DockableTypes> {
  * the state from before each step (a whole drag gesture, its transient commands included, is one
  * step). States are immutable, so keeping one costs nothing; undo and redo turn one back into a
  * document (`toLayoutJson`) and restore it in place with `layout.load`: the model stays the same,
- * and so does the content of every tab that is still there.
+ * and so does the content of every tab that is still there. It listens to its model for the
+ * model's whole life: create one manager per model, once.
  *
  * ```ts
  * const undo = new UndoManager(model);
@@ -216,9 +217,10 @@ export function handleUndoKeys<T extends DockableTypes>(
     undo: UndoManager<T>,
     event: UndoKeyEvent,
 ) {
+    const target = event.target;
     const inTextField =
-        event.target instanceof Element &&
-        event.target.closest("input, textarea, [contenteditable]") !== null;
+        isElement(target) &&
+        target.closest("input, textarea, [contenteditable]") !== null;
     if (!(event.ctrlKey || event.metaKey) || inTextField) {
         return;
     }
@@ -231,4 +233,9 @@ export function handleUndoKeys<T extends DockableTypes>(
         return;
     }
     event.preventDefault();
+}
+
+/** An element of any window: a popout's elements are not `instanceof` the page's `Element`. */
+function isElement(target: EventTarget | null): target is Element {
+    return target !== null && "closest" in target;
 }
