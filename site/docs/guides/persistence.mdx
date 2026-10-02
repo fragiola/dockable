@@ -68,7 +68,7 @@ it returns `{ ok: true, value }` or `{ ok: false, issues }`.
 ### Validating your data too
 
 The schema checks the layout's shape, not your tabs' `data`. Register a JSON Schema per component
-with `dataSchemas`, and `createModel`, `layout.load`, `tab.add` and `tab.set-data` validate each
+with `dataSchemas`, and `createModel`, `layout.load`, `tab.add`, `tab.set-data` and `tab.set-component` validate each
 tab's `data` with it, so a stored editor that lost its `path` is reported instead of crashing the
 editor:
 

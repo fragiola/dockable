@@ -27,6 +27,7 @@ export type {
     TabAddPayload,
     TabConfigurePayload,
     TabMovePayload,
+    TabSetComponentPayload,
     TabSetDataPayload,
     TabsetConfigurePayload,
     TabsetMovePayload,

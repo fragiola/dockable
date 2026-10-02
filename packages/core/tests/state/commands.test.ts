@@ -90,7 +90,7 @@ describe("tab commands", () => {
         });
     });
 
-    it("tab.add and tab.set-data validate data with the registered schema", () => {
+    it("tab.add, tab.set-data and tab.set-component validate data with the registered schema", () => {
         const model = createModel(tabsets(["One"]), {
             dataSchemas: {
                 editor: {
@@ -129,7 +129,7 @@ describe("tab commands", () => {
         );
         // a switch replaces the data whole: without `path` it is incomplete
         expect(
-            model.run("tab.set-data", {
+            model.run("tab.set-component", {
                 tabId: id,
                 component: "editor",
                 data: {},
@@ -236,10 +236,10 @@ describe("tab commands", () => {
         expect(Object.keys(data ?? {})).toEqual(["__proto__"]);
     });
 
-    it("tab.set-data with a component switches it and replaces the data", () => {
+    it("tab.set-component switches the component and replaces the data", () => {
         const { model } = setup(tabsets(["One"]));
         must(
-            model.run("tab.set-data", {
+            model.run("tab.set-component", {
                 tabId: "One",
                 component: "other",
                 data: { seed: 1 },
@@ -252,7 +252,12 @@ describe("tab commands", () => {
             label: "One",
             data: { seed: 1 },
         });
-        must(model.run("tab.set-data", { tabId: "One", component: "other" }));
+        must(
+            model.run("tab.set-component", {
+                tabId: "One",
+                component: "other",
+            }),
+        );
         expect(model.get("node-by", { id: "One" })).not.toHaveProperty("data");
         // a tab without data takes a patch as its first keys
         must(model.run("tab.set-data", { tabId: "One", data: { seed: 2 } }));
@@ -264,6 +269,16 @@ describe("tab commands", () => {
     it("tab.set-data refuses a patch that is not an object, or onto data that is not one", () => {
         const { model } = setup(tabsets(["One"]));
         // untyped input: a patch that is not an object fails the payload schema
+        // a patch takes no component: switching is tab.set-component
+        expect(
+            model.dispatch({
+                command: "tab.set-data",
+                payload: { tabId: "One", component: "test", data: {} },
+            }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/payload/component" },
+        });
         for (const data of [[1], "x", null]) {
             expect(
                 model.dispatch({
@@ -273,7 +288,7 @@ describe("tab commands", () => {
             ).toMatchObject({ ok: false, error: { code: "invalid_payload" } });
         }
         must(
-            model.run("tab.set-data", {
+            model.run("tab.set-component", {
                 tabId: "One",
                 component: "test",
                 data: "plain",

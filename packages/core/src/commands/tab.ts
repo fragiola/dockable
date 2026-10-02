@@ -285,43 +285,18 @@ export const tabMove = defineCommand({
 export const tabSetData = defineCommand({
     name: "tab.set-data",
     description:
-        "Change a tab's data. Without `component`, `data` is a shallow patch: its top-level keys replace the tab's, the others stay (none is removed). With `component`, the tab switches to that component and `data` is its whole new value. The resulting data is validated when the app registered a schema for the component.",
-    payloadSchema: {
-        type: "object",
-        anyOf: [
-            object(
-                {
-                    tabId: tabIdSchema,
-                    component: {
-                        not: {},
-                        description: "absent: the data is a patch",
-                    },
-                    data: {
-                        type: "object",
-                        description:
-                            "the keys to change; each replaces the tab's own (a shallow merge)",
-                    },
-                },
-                ["tabId", "data"],
-            ),
-            object(
-                {
-                    tabId: tabIdSchema,
-                    component: {
-                        type: "string",
-                        minLength: 1,
-                        description:
-                            "the tab's new component (its current one to replace the data whole)",
-                    },
-                    data: {
-                        ...dataSchema,
-                        description: "the component's whole data",
-                    },
-                },
-                ["tabId", "component"],
-            ),
-        ],
-    },
+        "Change some of a tab's data: `data` is a shallow patch, whose top-level keys replace the tab's while the others stay (none is removed). The merged data is validated when the app registered a schema for the tab's component. To switch the component, use `tab.set-component`.",
+    payloadSchema: object(
+        {
+            tabId: tabIdSchema,
+            data: {
+                type: "object",
+                description:
+                    "the keys to change; each replaces the tab's own (a shallow merge)",
+            },
+        },
+        ["tabId", "data"],
+    ),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft, validateData }) {
@@ -329,24 +304,49 @@ export const tabSetData = defineCommand({
         if (isError(tab)) {
             return { ok: false, error: tab };
         }
-        if (payload.component === undefined) {
-            const current = tab.data ?? {};
-            if (!isPlainObject(current)) {
-                return fail(
-                    "invalid_payload",
-                    `the data of tab "${tab.id}" is not an object: set it whole, with its component`,
-                    "/data",
-                );
-            }
-            // only the patch is copied (the kept keys are the state's own); a spread defines own
-            // keys, and an undefined value, dropped by the copy, changes nothing
-            const data = { ...current, ...cloneJson(payload.data) };
-            const invalid = validateData(tab.component, data, "/data");
-            if (invalid) {
-                return { ok: false, error: invalid };
-            }
-            draft.set(tab.id, "data", data);
-            return ok({ tabId: tab.id });
+        const current = tab.data ?? {};
+        if (!isPlainObject(current)) {
+            return fail(
+                "invalid_payload",
+                `the data of tab "${tab.id}" is not an object: replace it with tab.set-component`,
+                "/data",
+            );
+        }
+        // only the patch is copied (the kept keys are the state's own); a spread defines own
+        // keys, and an undefined value, dropped by the copy, changes nothing
+        const data = { ...current, ...cloneJson(payload.data) };
+        const invalid = validateData(tab.component, data, "/data");
+        if (invalid) {
+            return { ok: false, error: invalid };
+        }
+        draft.set(tab.id, "data", data);
+        return ok({ tabId: tab.id });
+    },
+});
+
+export const tabSetComponent = defineCommand({
+    name: "tab.set-component",
+    description:
+        "Switch a tab to another component (or reset it to its own): `data` is the component's whole new value, validated when the app registered a schema for that component. The tab keeps its id, label and place.",
+    payloadSchema: object(
+        {
+            tabId: tabIdSchema,
+            component: {
+                type: "string",
+                minLength: 1,
+                description:
+                    "the tab's new component (a key of the app's registry)",
+            },
+            data: { ...dataSchema, description: "the component's whole data" },
+        },
+        ["tabId", "component"],
+    ),
+    resultSchema: tabIdResult,
+    transient: false,
+    reduce(payload, { draft, validateData }) {
+        const tab = attachedTab(draft, payload.tabId);
+        if (isError(tab)) {
+            return { ok: false, error: tab };
         }
         const invalid = validateData(payload.component, payload.data, "/data");
         if (invalid) {

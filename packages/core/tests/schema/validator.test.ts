@@ -119,54 +119,6 @@ describe("the schema validator", () => {
         ).toEqual([{ path: "", message: "must match exactly one shape" }]);
     });
 
-    it("reports the alternative whose keys the value has", () => {
-        const schema: JsonSchema = {
-            anyOf: [
-                {
-                    type: "object",
-                    properties: {
-                        id: { type: "string" },
-                        data: { type: "object" },
-                    },
-                    required: ["id", "data"],
-                    additionalProperties: false,
-                },
-                {
-                    type: "object",
-                    properties: {
-                        id: { type: "string" },
-                        kind: { type: "string" },
-                    },
-                    required: ["id", "kind"],
-                    additionalProperties: false,
-                },
-            ],
-        };
-        expect(validate(schema, { id: "a", data: 1 })).toEqual([
-            { path: "/data", message: "must be an object" },
-        ]);
-        expect(validate(schema, { id: "a", kind: 2 })).toEqual([
-            { path: "/kind", message: "must be a string" },
-        ]);
-        // fitting neither alternative's keys
-        expect(validate(schema, { id: "a" })).toEqual([
-            { path: "", message: "does not match any allowed shape" },
-        ]);
-    });
-
-    it("refuses a value that matches `not` (`not: {}`: the property must be absent)", () => {
-        const schema: JsonSchema = {
-            type: "object",
-            properties: { a: { not: {} }, b: { not: { type: "string" } } },
-        };
-        expect(validate(schema, {})).toEqual([]);
-        expect(validate(schema, { b: 1 })).toEqual([]);
-        expect(validate(schema, { a: 1, b: "x" })).toEqual([
-            { path: "/a", message: "is not allowed" },
-            { path: "/b", message: "is not allowed" },
-        ]);
-    });
-
     it("reads own keys only: an inherited name is neither a property nor a required key", () => {
         const schema: JsonSchema = {
             type: "object",

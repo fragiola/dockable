@@ -92,7 +92,7 @@ middleware are typed by it.
 | option | type | description |
 | --- | --- | --- |
 | `createId` | `CreateId` | generates the id of a node or window created without one; default `` `${kind}-${n}` `` |
-| `dataSchemas` | `{ [K in ComponentOf<T>]?: JsonSchema }` | a JSON Schema per tab component: loading, `tab.add`, `tab.set-data` and `layout.load` validate that component's `data` with it (`invalid_payload`, or a `LayoutValidationError` at creation) |
+| `dataSchemas` | `{ [K in ComponentOf<T>]?: JsonSchema }` | a JSON Schema per tab component: loading, `tab.add`, `tab.set-data`, `tab.set-component` and `layout.load` validate that component's `data` with it (`invalid_payload`, or a `LayoutValidationError` at creation) |
 | `freeze` | `boolean` | freeze every state object (`Object.freeze`, deeply); default `true`. With `false` the state is not frozen, but must still never be mutated |
 
 ```ts

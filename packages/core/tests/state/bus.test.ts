@@ -748,6 +748,7 @@ describe("state", () => {
             "tab.close",
             "tab.move",
             "tab.set-data",
+            "tab.set-component",
             "tab.pin",
             "tab.popout",
             "tab.configure",

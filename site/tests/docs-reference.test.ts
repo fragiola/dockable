@@ -30,10 +30,7 @@ const read = (path: string) => readFileSync(path, "utf-8");
 /** What the test reads of a command in the core's registry. */
 interface CommandInfo {
     name: string;
-    payloadSchema: {
-        properties?: Record<string, unknown>;
-        anyOf?: { properties?: Record<string, unknown> }[];
-    };
+    payloadSchema: { properties?: Record<string, unknown> };
     resultSchema: { properties?: Record<string, unknown> };
 }
 
@@ -348,12 +345,7 @@ describe("the core reference", () => {
                 `### \`${info.name}\` on api/commands.mdx`,
             ).not.toBe("");
             const rows = tableRowNames(section);
-            for (const schema of [
-                info.payloadSchema,
-                // a payload of several shapes: each shape's fields
-                ...(info.payloadSchema.anyOf ?? []),
-                info.resultSchema,
-            ]) {
+            for (const schema of [info.payloadSchema, info.resultSchema]) {
                 for (const field of Object.keys(schema.properties ?? {})) {
                     expect(rows.has(field), `${info.name}.${field}`).toBe(true);
                 }

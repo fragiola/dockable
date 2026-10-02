@@ -10,6 +10,7 @@ import {
     tabPin,
     tabPopout,
     tabSelect,
+    tabSetComponent,
     tabSetData,
 } from "./tab";
 import {
@@ -34,6 +35,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
     tabClose,
     tabMove,
     tabSetData,
+    tabSetComponent,
     tabPin,
     tabPopout,
     tabConfigure,

@@ -78,28 +78,28 @@ export function commands(model: Model<Types>): void {
         const window: string = popped.value.windowId;
         use(window);
     }
-    // tab.set-data: with a component, the whole data of that component
-    model.run("tab.set-data", {
+    // tab.set-component: a component and its whole data
+    model.run("tab.set-component", {
         tabId: "t",
         component: "editor",
         // @ts-expect-error: the data is checked against the component
         data: { name: "x", series: [] },
     });
-    model.run("tab.set-data", {
+    model.run("tab.set-component", {
         tabId: "t",
         component: "editor",
         data: { name: "a", path: "/a", dirty: true },
     });
-    // @ts-expect-error: a switch takes the whole data, not a patch
-    model.run("tab.set-data", {
+    model.run("tab.set-component", {
         tabId: "t",
         component: "editor",
+        // @ts-expect-error: a switch takes the whole data, not a patch
         data: { dirty: true },
     });
     // @ts-expect-error: a component that needs data needs it in a switch
-    model.run("tab.set-data", { tabId: "t", component: "chart" });
-    model.run("tab.set-data", { tabId: "t", component: "empty" });
-    // without a component, a patch: some keys of a component's data
+    model.run("tab.set-component", { tabId: "t", component: "chart" });
+    model.run("tab.set-component", { tabId: "t", component: "empty" });
+    // tab.set-data: a patch, some keys of a component's data
     model.run("tab.set-data", { tabId: "t", data: { dirty: true } });
     model.run("tab.set-data", { tabId: "t", data: { series: ["a"] } });
     model.run("tab.set-data", {
@@ -114,6 +114,12 @@ export function commands(model: Model<Types>): void {
     });
     // @ts-expect-error: a patch is an object
     model.run("tab.set-data", { tabId: "t", data: "x" });
+    model.run("tab.set-data", {
+        tabId: "t",
+        // @ts-expect-error: a patch takes no component (tab.set-component switches it)
+        component: "editor",
+        data: { dirty: true },
+    });
     // tab.configure renames; a label cannot be removed
     model.run("tab.configure", { tabId: "t", label: "New name" });
     // @ts-expect-error: a tab always has a label

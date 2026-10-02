@@ -108,12 +108,12 @@ model.run("tab.add", { component: "chart", label: "Sales", data: { series: [] },
 model.run("tab.add", { component: "chart", label: "Sales", data: { path: "/x" }, to: "main" });
 ```
 
-`tab.set-data` changes an existing tab's data. Without `component`, `data` is a **shallow patch**:
-the top-level keys you pass replace the tab's, and the others stay. A patch is typed as some keys of
-a component's data (`DataPatchOf<Types>`), so a key no component has, or a value of the wrong
-type, does not compile. The tab's id does not say its component, so the model checks the merged
-data against the tab's component at runtime (with `dataSchemas`, below). With `component`, the tab
-switches to that component and `data` is its **whole** new value, typed by that component:
+`tab.set-data` changes some of an existing tab's data: `data` is a **shallow patch**, whose
+top-level keys replace the tab's while the others stay. A patch is typed as some keys of a
+component's data (`DataPatchOf<Types>`), so a key no component has, or a value of the wrong type,
+does not compile. The tab's id does not say its component, so the model checks the merged data
+against the tab's component at runtime (with `dataSchemas`, below). `tab.set-component` switches a
+tab to another component, and its `data` is the **whole** new value, typed by that component:
 
 ```ts
 const tab = model.get("selected-tab-by", { tabsetId: "main" });
@@ -122,14 +122,14 @@ if (tab?.component === "editor") {
 }
 
 // a switch takes the whole data of the new component
-model.run("tab.set-data", { tabId: "t1", component: "chart", data: { series: ["a"] } });
+model.run("tab.set-component", { tabId: "t1", component: "chart", data: { series: ["a"] } });
 
 // @ts-expect-error: no component has `colour` in its data
 model.run("tab.set-data", { tabId: "t1", data: { colour: "red" } });
 ```
 
 A patch never removes a key: set an optional one to its empty value (`false`, `null`, `""`), or
-switch with the whole data. Renaming is not a data change: it is `tab.configure` with a new
+replace the whole data with `tab.set-component` (its current component, to keep it). Renaming is not a data change: it is `tab.configure` with a new
 `label`.
 
 A toolbar outside the layout can drive the tab the user is looking at this way: it narrows the
@@ -178,7 +178,7 @@ const model = createModel<Types>(json, { dataSchemas });
 
 - `createModel` throws a `LayoutValidationError` listing every tab whose data fails, with its JSON
   path (`validateLayout(json, { dataSchemas })` returns the same issues without throwing).
-- `tab.add`, `tab.set-data` and `layout.load` return `invalid_payload`, with the path of the
+- `tab.add`, `tab.set-data`, `tab.set-component` and `layout.load` return `invalid_payload`, with the path of the
   offending `data`. Nothing changes. A patch is validated once merged, so the keys it keeps count.
 
 The schemas use the JSON Schema subset the model's validator supports (`type`, `properties`,

@@ -200,21 +200,22 @@ tab and the controls both read it, so a click inside the tab and one outside sta
 
 ## Tab data and behaviour
 
-Two commands change an existing tab, each taking only what changes:
+Three commands change an existing tab, each taking only what changes:
 
 - `tab.configure` changes the tab's own fields: its `label`, its behaviour flags and its size
   limits (`enableClose`, `enableDrag`, `enablePopout`, `minWidth`, …). A key you leave out stays as
   it is. A `null` flag or limit removes the tab's own value, so the layout default applies again;
   the label cannot be removed.
-- `tab.set-data` changes its `data`. Without `component`, `data` is a shallow patch: the keys you
-  pass replace the tab's, the others stay (`{ tabId, data: { dirty: true } }`). With `component`,
-  the tab switches to that component and `data` is its whole new value. With `dataSchemas`
-  registered on `createModel`, the resulting data is validated first.
+- `tab.set-data` changes some of its `data`: a shallow patch, whose keys replace the tab's while
+  the others stay (`{ tabId, data: { dirty: true } }`).
+- `tab.set-component` switches it to another component, with that component's whole `data`.
+
+With `dataSchemas` registered on `createModel`, the resulting data is validated first.
 
 ```tsx
 model.run("tab.configure", { tabId: tab.id, label: "notes.md", enableClose: false });
 model.run("tab.set-data", { tabId: tab.id, data: { dirty: true } });
-model.run("tab.set-data", { tabId: tab.id, component: "chart" }); // a chart has no data
+model.run("tab.set-component", { tabId: tab.id, component: "chart" }); // a chart has no data
 ```
 
 The [command reference](/docs/api/commands) lists every payload field.

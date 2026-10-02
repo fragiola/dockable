@@ -9,7 +9,7 @@ export default {
     features: [
         "onExternalDrag",
         "DataTransfer",
-        "tab.set-data",
+        "tab.set-component",
         "tab.add",
         "model.dispatch",
         "layout.load",

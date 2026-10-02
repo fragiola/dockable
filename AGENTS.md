@@ -204,8 +204,8 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 - **No `any` in public types.** A guard test checks the core's exported declarations, and
   `pnpm build` checks every package's emitted `.d.ts` (`scripts/check-dts.ts`).
 - **Data is typed by the registry.** An app declares `Types` (`{ tabs: { editor: {…} } }`) and
-  `createModel<Types>`; `tab.data` narrows on `tab.component`, and `tab.add`/`tab.set-data`
-  payloads are checked against it. Parts that hand nodes to a children function take the
+  `createModel<Types>`; `tab.data` narrows on `tab.component`, and `tab.add`/`tab.set-data`/
+  `tab.set-component` payloads are checked against it. Parts that hand nodes to a children function take the
   registry as a type argument (`<Dockable.Panels<Types>>`). No casts on node data or kinds, in
   the packages or the examples.
 - **Schemas and types are tested together.** Every command's payload and result schema, and the

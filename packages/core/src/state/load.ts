@@ -39,7 +39,7 @@ export class LayoutValidationError extends Error {
     }
 }
 
-/** Per-component data schemas: `tab.add`, `tab.set-data` and loading validate `data` with them. */
+/** Per-component data schemas: `tab.add`, `tab.set-data`, `tab.set-component` and loading validate `data` with them. */
 export type DataSchemas = {
     readonly [component: string]: JsonSchema | undefined;
 };

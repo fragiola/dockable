@@ -159,7 +159,7 @@ export function openFile(model: Model<Types>, path: string) {
 const STORAGE_KEY = "dockable-docs:ide-workbench:layout:v4";
 
 /**
- * The editor's data schema: loading (and `tab.add`, `tab.set-data`) validates `data` with it, so
+ * The editor's data schema: loading (and `tab.add`, `tab.set-data`, `tab.set-component`) validates `data` with it, so
  * a stored layout whose editor lost its `path` is reported instead of crashing the editor. The
  * other components have no data, so no schema.
  */

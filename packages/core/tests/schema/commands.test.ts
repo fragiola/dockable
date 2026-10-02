@@ -68,6 +68,12 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
         path: "/data",
         result: { tabId: "t" },
     },
+    "tab.set-component": {
+        valid: { tabId: "t", component: "chart", data: { series: [1] } },
+        invalid: { tabId: "t", data: {} },
+        path: "/component",
+        result: { tabId: "t" },
+    },
     "tab.pin": {
         valid: { tabId: "t", value: true },
         invalid: { tabId: "t", value: "yes" },

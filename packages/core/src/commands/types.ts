@@ -58,17 +58,18 @@ export type DataPatchOf<T extends DockableTypes> = {
     [K in ComponentOf<T>]: PatchOf<TabDataOf<T, K>>;
 }[ComponentOf<T>];
 
-/**
- * The payload of `tab.set-data`. Without `component`, `data` is a shallow patch merged into the
- * tab's data. With `component`, the tab switches to it and `data` is its whole new value.
- */
-export type TabSetDataPayload<T extends DockableTypes> =
-    | { tabId: string; component?: never; data: DataPatchOf<T> }
-    | {
-          [K in ComponentOf<T>]: { tabId: string; component: K } & DataField<
-              TabDataOf<T, K>
-          >;
-      }[ComponentOf<T>];
+/** The payload of `tab.set-data`: a shallow patch of the tab's data. */
+export type TabSetDataPayload<T extends DockableTypes> = {
+    tabId: string;
+    data: DataPatchOf<T>;
+};
+
+/** The payload of `tab.set-component`: a component and its whole data. */
+export type TabSetComponentPayload<T extends DockableTypes> = {
+    [K in ComponentOf<T>]: { tabId: string; component: K } & DataField<
+        TabDataOf<T, K>
+    >;
+}[ComponentOf<T>];
 
 export type TabConfigurePayload = {
     tabId: string;
@@ -180,6 +181,10 @@ export interface CommandMap<T extends DockableTypes = AnyTypes> {
     "tab.move": { payload: TabMovePayload; result: { tabId: string } };
     "tab.set-data": {
         payload: TabSetDataPayload<T>;
+        result: { tabId: string };
+    };
+    "tab.set-component": {
+        payload: TabSetComponentPayload<T>;
         result: { tabId: string };
     };
     "tab.pin": {

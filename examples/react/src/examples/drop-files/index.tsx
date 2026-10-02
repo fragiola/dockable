@@ -87,11 +87,11 @@ async function openFile(
     const kind = kindOf(file);
     if (kind === "image") {
         keep(tabId, file);
-        model.run("tab.set-data", { tabId, component: "image" });
+        model.run("tab.set-component", { tabId, component: "image" });
         return;
     }
     if (kind === "other") {
-        model.run("tab.set-data", {
+        model.run("tab.set-component", {
             tabId,
             component: "info",
             data: { type: file.type, size: file.size },
@@ -103,7 +103,7 @@ async function openFile(
         text = await file.text();
     } catch {
         // the file went away after the drop (moved, deleted, no longer readable)
-        model.run("tab.set-data", {
+        model.run("tab.set-component", {
             tabId,
             component: "error",
             data: { message: "The file could not be read." },
@@ -112,7 +112,7 @@ async function openFile(
     }
     if (kind === "csv") {
         const csv = parseCsv(text);
-        model.run("tab.set-data", {
+        model.run("tab.set-component", {
             tabId,
             component: "table",
             data: { csv },
@@ -143,7 +143,7 @@ async function openFile(
             ? undefined
             : model.dispatch({ command: "layout.load", payload: { layout } });
     if (!result?.ok) {
-        model.run("tab.set-data", {
+        model.run("tab.set-component", {
             tabId,
             component: "error",
             data: {

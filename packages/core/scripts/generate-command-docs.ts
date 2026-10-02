@@ -23,7 +23,6 @@ interface JsonSchema {
     readonly items?: JsonSchema;
     readonly anyOf?: readonly JsonSchema[];
     readonly oneOf?: readonly JsonSchema[];
-    readonly not?: JsonSchema;
 }
 
 interface CommandInfo {
@@ -85,6 +84,11 @@ const EXAMPLES: Record<string, unknown> = {
     "tab.close": { tabId: "tab-1" },
     "tab.move": { tabId: "tab-1", to: "tabset-2", location: "right" },
     "tab.set-data": { tabId: "tab-1", data: { dirty: true } },
+    "tab.set-component": {
+        tabId: "tab-1",
+        component: "editor",
+        data: { path: "/b.ts" },
+    },
     "tab.pin": { tabId: "tab-1", value: true },
     "tab.popout": { tabId: "tab-1" },
     "tab.configure": { tabId: "tab-1", label: "b.ts", enableClose: false },
@@ -137,9 +141,6 @@ function typeOf(schema: JsonSchema): string {
     if (schema.$ref) {
         return schema.$ref.replace("#/$defs/", "");
     }
-    if (schema.not) {
-        return "never";
-    }
     if (schema.const !== undefined) {
         return JSON.stringify(schema.const);
     }
@@ -184,16 +185,6 @@ function cell(text: string): string {
 }
 
 function fieldTable(schema: JsonSchema): string {
-    // a payload of several shapes: one table per shape
-    const shapes = schema.anyOf ?? schema.oneOf;
-    if (shapes) {
-        return shapes
-            .map(
-                (shape, i) =>
-                    `${i === 0 ? "Either" : "Or"}:\n\n${fieldTable(shape)}`,
-            )
-            .join("\n\n");
-    }
     const properties = Object.entries(schema.properties ?? {});
     if (properties.length === 0) {
         return "No fields.";
@@ -378,11 +369,7 @@ async function render(): Promise<string> {
                 `${info.name}: its definition was not found in the sources`,
             );
         }
-        for (const schema of [
-            info.payloadSchema,
-            ...(info.payloadSchema.anyOf ?? info.payloadSchema.oneOf ?? []),
-            info.resultSchema,
-        ]) {
+        for (const schema of [info.payloadSchema, info.resultSchema]) {
             for (const [field, property] of Object.entries(
                 schema.properties ?? {},
             )) {
