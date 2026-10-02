@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as core from "@fragiola/dockable";
 import { describe, expect, it } from "vitest";
-import { exportedNames } from "../../../scripts/exported-names";
+import { exportedNames } from "../../../scripts/exported-names.ts";
 import * as react from "../src/index";
 
 const read = (path: string) =>

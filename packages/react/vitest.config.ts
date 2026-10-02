@@ -1,6 +1,6 @@
 import { defaultClientConditions, defaultServerConditions } from "vite";
 import { defineProject } from "vitest/config";
-import { withSourceCondition } from "../../scripts/source-condition";
+import { withSourceCondition } from "../../scripts/source-condition.ts";
 
 export default defineProject({
     // The core from its sources (the source export condition), not its dist, in either
