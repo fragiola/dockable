@@ -17,6 +17,7 @@ import {
 import { useDockableContext } from "../src/context";
 import {
     Layout,
+    type LayoutProps,
     mounts,
     recordCommands,
     renderNode,
@@ -785,6 +786,49 @@ describe("StrictMode", () => {
             document.querySelectorAll(`[${MOVEABLE_ATTRIBUTE}]`),
         ).toHaveLength(2);
         expect(screen.getAllByTestId(/^content-/)).toHaveLength(2);
+    });
+
+    it("keeps the model's listeners at one set, whatever props change (caplin/FlexLayout#504)", () => {
+        const model = fresh();
+        let listeners = 0;
+        let calls = 0;
+        const subscribe = model.subscribe;
+        model.subscribe = (listener) => {
+            listeners++;
+            const unsubscribe = subscribe((event) => {
+                calls++;
+                listener(event);
+            });
+            return () => {
+                listeners--;
+                unsubscribe();
+            };
+        };
+        const app = (props: Partial<LayoutProps>) => (
+            <React.StrictMode>
+                <Layout model={model} {...props} />
+            </React.StrictMode>
+        );
+        const { rerender, unmount } = render(app({}));
+        const mounted = listeners;
+        expect(mounted).toBeGreaterThan(0);
+        // every prop the Root passes on to its engine, as new values
+        for (const [i, props] of [
+            { keyMap: { closeTab: "Ctrl+W" } },
+            { realtimeResize: false, tabDragSpeed: 0.1 },
+            { onExternalDrag: () => undefined, popoutURL: "popout.html" },
+            { keyMap: { closeTab: "Ctrl+W" }, onExternalDrag: () => undefined },
+        ].entries()) {
+            rerender(app(props));
+            expect(listeners, `after re-render ${i}`).toBe(mounted);
+        }
+        // a command reaches each listener once
+        act(() => {
+            model.run("tab.select", { tabId: "t1" });
+        });
+        expect(calls).toBe(mounted);
+        unmount();
+        expect(listeners).toBe(0);
     });
 });
 

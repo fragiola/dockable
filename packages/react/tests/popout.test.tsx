@@ -202,7 +202,7 @@ describe("Dockable.Popout", () => {
         expect(mounts.get("t2")).toBe(1);
     });
 
-    it("opens exactly one window under StrictMode", async () => {
+    it("opens exactly one window under StrictMode (caplin/FlexLayout#322)", async () => {
         const model = popoutModel();
         render(
             <React.StrictMode>
