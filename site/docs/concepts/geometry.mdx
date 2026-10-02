@@ -106,6 +106,8 @@ layout JSON (`location: "start"`), in command payloads, in the default border id
 (`border_start`), in the paths (`/border/start`, `/edge/end`) and in the DOM (`data-location`,
 `data-drop-location`, `data-edge`).
 
-Borders already follow the page's direction: the start border's strip comes first in its flex
-row, so it renders on the right in RTL. Drops are still hit-tested physically, the left of the
-screen being `start` (see RTL in [Known limitations](/docs/limitations)).
+Everything follows the page's direction. The start border's strip comes first in its flex row, so
+it renders on the right in RTL; the engine reads the root's `direction` and works from the start
+side: a drop near the right edge of a tabset is `start` in RTL, an overlay start border sits on
+the right, and splitters and arrow keys follow the screen
+([Right-to-left layouts](/docs/guides/rtl)). Inline styles stay physical (`left`, `width`).

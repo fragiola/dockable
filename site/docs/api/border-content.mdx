@@ -60,7 +60,8 @@ tab direction, which is the strip's alone):
 
 - The element: `display: flex` (a row for start and end borders, a column otherwise) or
   `display: none` while closed, `flex-shrink: 0`. On an overlay border also `position: absolute`
-  against the layout's edge (`left: 0; top: 0; bottom: 0` for a start border in LTR, and so on); a
+  against the layout's edge, on the border's side of the screen (`left: 0; top: 0; bottom: 0` for a
+start border in LTR, `right: 0` in RTL, and so on); a
   start or end overlay stops above and below the open top and bottom overlays
   (`engine.get("overlay-placement-by", { borderId })`). An overlay is also
   `pointer-events: none`, so presses reach the tab panel positioned over its area; its splitter

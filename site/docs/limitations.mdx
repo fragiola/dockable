@@ -15,8 +15,8 @@ use and the Epic that will remove it, when one is scheduled.
 | 1 | `Tab` knows `selected` but not whether its **tabset is active**, so "the selected tab of the active tabset" has no attribute. | An ancestor selector: `.tabset[data-active] .tab[data-selected]`, or Tailwind's `in-data-active:` / `group-data-active:` on a child of the tab. | not scheduled yet |
 | 2 | **Panels live outside their tabset** (in the panel layer), so a tabset's `border-radius`/`overflow` cannot clip them, and a panel cannot be styled by its tabset's state. | Rounded tabsets repeat the tabset's inner radius on the panel's bottom corners (it breaks if the strip moves to the bottom), or use square tabsets. The active tabset is marked on its selected tab instead of with a tabset-wide ring. | not scheduled yet |
 | 3 | ~~A popout document does not get the page's root attributes and body classes.~~ **Solved**: `popoutMirrorRoot` on `Root` mirrors `<html>` and `<body>` attributes. See [Popouts](/docs/guides/popouts#theming-the-popout). | None needed. | Epic [#20](https://github.com/fragiola/dockable/issues/20) (done) |
-| 4 | Flipping `dir` at runtime moves every tabset without resizing any, so the engine's observers never fire and **panels stay at their old positions**. | Call `engine.run("measure-and-position")` after changing `dir`. | not scheduled yet |
-| 5 | In **RTL, splitter drags and keyboard resizing are wrong** (a drag jumps the first tabset to full width, arrows do nothing), and edge and side drops are hit-tested physically (the left side on screen is always `start`, which renders on the right in RTL). | None. RTL renders correctly, but do not ship an RTL layout that users resize or rearrange. | not scheduled yet |
+| 4 | ~~Flipping `dir` at runtime leaves the panels at their old positions.~~ **Solved**: the engine observes `dir` attributes and repositions the panels. See [Right-to-left layouts](/docs/guides/rtl#flipping-the-direction-at-runtime). | None needed. | Epic [#112](https://github.com/fragiola/dockable/issues/112) (done) |
+| 5 | ~~In RTL, splitter drags, keyboard resizing and drops are wrong.~~ **Solved**: the engine reads the root's direction, so splitters, arrow keys, side, edge and strip drops and overlay borders follow the screen, with `start` on the right. See [Right-to-left layouts](/docs/guides/rtl). | None needed. | Epic [#112](https://github.com/fragiola/dockable/issues/112) (done) |
 | 6 | Styling **every splitter** the same way needs `renderSplitter` on every `Row` (root, nested, and inside `Popout`). | Pass `renderSplitter` to every `Row` (the examples write one `Splitter` component and pass it in their recursion), or style `[role="separator"]` from a stylesheet. | not scheduled yet |
 | 7 | ~~A pop out button for a tabset's selected tab has no primitive.~~ **Solved**: `Dockable.PopoutTrigger`. See [Popouts](/docs/guides/popouts). | None needed. | Epic [#20](https://github.com/fragiola/dockable/issues/20) (done) |
 | 8 | ~~No drop-target state on the tabset under the pointer.~~ **Solved**: `data-drop-target` and `data-drop-location` on `TabSet`, `data-drop-target` and `data-drop-index` on `TabList`. See [Drop zones and drop feedback](/docs/guides/drop-zones). | None needed. | Epic [#19](https://github.com/fragiola/dockable/issues/19) (done) |
@@ -41,15 +41,9 @@ use and the Epic that will remove it, when one is scheduled.
 
 ## RTL
 
-Dockable **renders** right-to-left correctly (the rows mirror, the tab strips run from the right),
-but **interaction is not RTL-aware** yet:
-
-- splitter drags and arrow-key resizing are wrong in RTL (gap 5);
-- drop locations are named logically, but hit-tested physically: the left side on screen is always
-  [`start`](/docs/concepts/geometry#sides-start-and-end), which renders on the right in RTL (gap 5);
-- flipping `dir` at runtime needs a manual `engine.run("measure-and-position")` (gap 4).
-
-The fix (the core reading the row's direction) is not scheduled yet. Until then, treat RTL layouts as display-only.
+Right-to-left layouts render and respond with `start` on the right: see
+[Right-to-left layouts](/docs/guides/rtl). A direction set by CSS alone (no `dir` attribute) is
+the one change the engine does not see: run `engine.run("measure-and-position")` after it.
 
 ## Popout edge cases
 

@@ -1,0 +1,90 @@
+---
+title: Right-to-left layouts
+description: Run a layout in a right-to-left page, where start is on the right and splitters, arrow keys, drops and borders follow the screen.
+---
+
+A layout follows the direction of the page it renders in. Set `dir="rtl"` on `<html>` (or on any
+ancestor of `Dockable.Root`) and [`start`](/docs/concepts/geometry#sides-start-and-end) is the
+right side: the first tabset of a row, the first tab of a strip and the start border are on the
+right, and every interaction lands where the pointer or the key points.
+
+<Example id="rtl-layout" />
+
+## Turning it on
+
+Nothing in the layout changes: the same JSON, the same primitives, the same commands. The rows and
+the tab strips are CSS flex, so they mirror with the page. The engine reads the computed
+`direction` of its root each time it measures, and works from the start side in RTL:
+
+```tsx
+<html lang="ar" dir="rtl">
+    …
+    <Dockable.Root model={model}>…</Dockable.Root>
+</html>
+```
+
+`engine.get("direction")` says which one it read, `"ltr"` or `"rtl"` (take the engine from
+[`useDockable`](/docs/api/hooks)). Each layout reads its own root, so a popout window, which
+copies the page's `lang` and `dir`, reads its own document's.
+
+## What follows the direction
+
+| part | in RTL |
+| --- | --- |
+| splitter, pointer | the splitter follows the pointer |
+| splitter, keys | ArrowLeft moves it left, ArrowRight right: the way they point, as in LTR |
+| splitter, ARIA | `aria-valuenow` is the start child's share of the row: the child on the right |
+| border splitter | grows its panel towards the layout: ArrowLeft for the start border, ArrowRight for the end one |
+| side drops | the half of a tabset nearer the right edge is `start` |
+| edge drops | the right edge band is `start`, and `Dockable.EdgeIndicator edge="start"` is drawn there |
+| strip drops | the slots run from the right: a drop at the right of the first tab is index 0 |
+| overlay borders | a start overlay sits on the right (`engine.get("overlay-placement-by")` returns `right: 0`) |
+| tab keys | in a horizontal strip, ArrowLeft moves focus to the next tab, ArrowRight to the previous one |
+| drop outline | `Dockable.DropIndicator` is placed on the side the drop goes to |
+
+The names never change with the direction: a drop on the right of a tabset is still
+`data-drop-location="start"`, and the command it runs is the same `tab.move` with
+`location: "start"`. Top and bottom stay physical (vertical writing modes are not supported).
+
+## Flipping the direction at runtime
+
+The engine observes the `dir` attribute of every element of its document: changing it on `<html>`
+or on a wrapper repositions the panels by itself, with the tabsets.
+
+```tsx
+<div dir={rtl ? "rtl" : "ltr"}>
+    <Dockable.Root model={model}>…</Dockable.Root>
+</div>
+```
+
+A direction changed by CSS alone (a class that sets `direction: rtl`, with no `dir` attribute)
+moves the tabsets without the engine noticing: run `engine.run("measure-and-position")` after it.
+
+## Borders
+
+The start border's strip comes first in the frame's flex row, so it renders on the right. How its
+side labels read is yours: `data-tab-direction` says what the `tabDirection` prop asks for, and the
+engine does not change it with the page. On the right, labels usually read down, so pass
+`tabDirection="down"` there (`"up"` stays the default):
+
+```tsx
+<Dockable.Border node={border} tabDirection={rtl ? "down" : "up"}>…</Dockable.Border>
+```
+
+Your styles then turn the labels from the attribute, the same way in both directions (see
+[Borders](/docs/guides/borders#3-style-the-strips)).
+
+## Styling
+
+The engine writes physical inline styles (`left`, `width`) for the panels and the outline, mapped
+from the start side. Your styles mirror with the page when they are logical: Tailwind's `ps-`,
+`pe-`, `start-`, `end-`, `border-s`, `border-e`, or CSS `padding-inline-start`, `inset-inline-end`.
+What has no logical form needs an `rtl:` variant (or `:dir(rtl)`):
+
+- an icon that points along the row, such as an edge indicator's arrow: `rtl:-scale-x-100`;
+- a transform that centres a splitter's grab area from its start:
+  `rtl:data-[orientation=vertical]:after:translate-x-1/2` (see [Splitters](/docs/guides/splitters));
+- a shadow or a gradient drawn on one side.
+
+Text in another direction than the page's, such as English in an RTL page, keeps its punctuation
+in place with `dir="auto"` on its element.

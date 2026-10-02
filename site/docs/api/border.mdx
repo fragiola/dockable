@@ -32,7 +32,7 @@ against the tab buttons' measured boxes, so any styling works.
 | prop | type | default | description |
 | --- | --- | --- | --- |
 | `node` | `BorderNode<T>` | required | the border |
-| `tabDirection` | `"up" \| "down"` | `"up"` | the start border's tab direction, exposed as `data-tab-direction` for your styles (rotating the labels is yours); ignored on the other sides |
+| `tabDirection` | `"up" \| "down"` | `"up"` | the start border's tab direction, exposed as `data-tab-direction` for your styles (rotating the labels is yours); ignored on the other sides. The page's direction does not change it: pass `"down"` in RTL, where the start border is on the right |
 | `children` | `ReactNode` | none | the strip's content: a `Dockable.TabList`, and any buttons |
 
 ## State

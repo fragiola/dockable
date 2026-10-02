@@ -52,7 +52,7 @@ Each theme gets one verdict for Dockable:
 | T11 sizing and constraints | 10 | addressed where the model owns it (min/max, root orientation); fill and fixed sizes are not built |
 | T12 drag and drop interop and robustness | 13 | addressed: only Dockable's drags are claimed and content drags never are, every drop and dragend resets from the capture phase, drop policy as middleware; cross-window tab drag is not built |
 | T13 accessibility and keyboard | 6 | solved: APG patterns, names from the app, a `matchesKey` that tolerates events with no key |
-| T14 RTL, i18n, hard-coded text | 5 | i18n by design; RTL interaction is not built (gaps 4 and 5) |
+| T14 RTL, i18n, hard-coded text | 5 | i18n by design; RTL solved: splitters, keys, drops, borders and a runtime `dir` flip follow the direction |
 | T15 tab strip, overflow, borders, menus | 17 | menus by design; overflow loops solved; several open tabs per border are not built |
 
 ## T1 Remount, state loss and re-renders on model change
@@ -382,12 +382,14 @@ Right-to-left layouts and translated strings.
 - [#286](https://github.com/caplin/FlexLayout/issues/286) buttonFactory prop for customizing buttons. (closed)
 - [#52](https://github.com/caplin/FlexLayout/issues/52) Programmatic Tab Rename (open, stale)
 
-**Verdict: i18n by design; RTL interaction not built.** There is no text to translate: the
-packages ship no labels and no label keys, and every accessible name comes from the app. A layout
-renders right to left (the rows mirror, the tab strips run from the right), but interaction is not
-RTL-aware: splitter drags and arrow-key resizing, physical edge and side drops, and a runtime `dir`
-flip are gaps 4 and 5 of `limitations.mdx`, which
-[#118](https://github.com/fragiola/dockable/issues/118) is to solve.
+**Verdict: i18n by design; RTL solved.** There is no text to translate: the packages ship no
+labels and no label keys, and every accessible name comes from the app. A layout renders right to
+left (the rows mirror, the tab strips run from the right), and since
+[#118](https://github.com/fragiola/dockable/issues/118) it responds that way too: the engine reads
+its root's direction (`engine.get("direction")`), so splitter drags and keys, side, edge and strip
+drops (#225's tab bar positions included) and overlay borders follow the screen, and a runtime
+`dir` flip repositions the panels (gaps 4 and 5 of `limitations.mdx`, solved). The RTL fixture's
+spec (`apps/playground/e2e/rtl.spec.ts`) drives each of them.
 
 ## T15 Tab strip, overflow, borders, menus
 
@@ -448,8 +450,6 @@ same features from the docs' side.
   [caplin/FlexLayout#470](https://github.com/caplin/FlexLayout/issues/470).
 - **Cross-window tab drag** (T12): dragging a tab to another browser tab or window.
   [caplin/FlexLayout#203](https://github.com/caplin/FlexLayout/issues/203).
-- **RTL interaction** (T14): splitters, arrow keys, logical drops and a runtime `dir` flip (gaps 4
-  and 5). [caplin/FlexLayout#225](https://github.com/caplin/FlexLayout/issues/225).
 - **Several open tabs per border** (T15): a border shows one selected tab at a time.
   [caplin/FlexLayout#210](https://github.com/caplin/FlexLayout/issues/210).
 - **A popout document hook** (T8) for libraries that portal into the global `document`.

@@ -67,7 +67,7 @@ key names what it returns, and one that takes an id ends in `-by`, completed by 
 | `"flex-by"` | `{ nodeId }` | `FlexSizing` | how a row or a tabset sizes in its row: `grow`, its `flex-grow` (its weight × 1000, at least 1, so a small weight still fills), and its flex min/max (`minWidth`, `minHeight`, `maxWidth`, `maxHeight`), from its own limits, its tabs' and its tab strip's height |
 | `"overlay-placement-by"` | `{ borderId }` | `OverlayPlacement \| undefined` | where an overlay border's panel sits over the layout (`position: absolute`): its insets in px, `top`, `right`, `bottom`, `left`, an edge it leaves free absent. A top or bottom overlay spans its edge; a start or end one stops at the open top and bottom overlays (their size plus a splitter). `undefined` for a border that is not an overlay |
 | `"popout-mode-by"` | `{ nodeId }` | `"popout" \| "dock" \| undefined` | what a popout button does for a tab or a tabset: `"dock"` when it is in a window (`engine.run("dock-back")`), `"popout"` when it can pop out now (`engine.can("popout")`), `undefined` when neither. `Dockable.PopoutTrigger` reads it |
-| `"direction"` | none | `"ltr" \| "rtl"` | the computed `direction` of this layout's root, read when the engine measures: `start` is on the left in `"ltr"`, on the right in `"rtl"`. Splitters, arrow keys, drops and overlay borders follow it |
+| `"direction"` | none | `"ltr" \| "rtl"` | the computed `direction` of this layout's root, read when the engine measures: `start` is on the left in `"ltr"`, on the right in `"rtl"`. Splitters, arrow keys, drops and overlay borders follow it ([Right-to-left layouts](/docs/guides/rtl)) |
 | `"splitter-size"` | none | `number` | the measured splitter thickness, shared by every layout of the model |
 | `"owner-document"` | none | `Document \| undefined` | the document this layout renders in (a popout's own, for a window's layout): attach listeners for a part of this layout here. Tab content renders under the main layout's root, so it reads its own element's `ownerDocument` to follow the tab into a popout |
 | `"owner-window"` | none | `Window \| undefined` | the window this layout renders in |
@@ -430,7 +430,7 @@ realtime resize, it exposes the bounded preview offset instead, and commits on r
 | field | type | description |
 | --- | --- | --- |
 | `dragging` | `boolean` | true while the splitter is being dragged with the pointer |
-| `previewOffset` | `number \| undefined` | while an outline (non-realtime) drag is in progress: how far, in px along the splitter's axis, the splitter would move if released now (bounded). `undefined` otherwise |
+| `previewOffset` | `number \| undefined` | while an outline (non-realtime) drag is in progress: how far, in px along the splitter's axis on screen (negative is left or up, in RTL too), the splitter would move if released now (bounded). `undefined` otherwise |
 
 ## Keyboard
 

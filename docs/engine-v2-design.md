@@ -16,6 +16,7 @@ Epic lists: rule 7, Provenance, and the popout close policy (§11.3).
 > (`src/engine/verbs.ts`), everything else is under `engine.adapter`, `engine.run` is no longer an
 > alias of `model.run`, and `useDockable()` returns `{ model, engine, layoutId }`. The names below
 > are the record's, not the current API: see `site/docs/concepts/model-and-engine.mdx`.
+> Since Epic #112, the `left`/`right` locations below are `start`/`end` (`site/docs/api/json-model.mdx`).
 
 ## Contents
 

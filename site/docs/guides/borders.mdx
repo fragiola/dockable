@@ -130,15 +130,11 @@ the top), and turn the start border's half a turn more when it reads "up", FlexL
 ```
 
 Which way the start border reads is a prop of the strip, not a model field: `tabDirection="down"` on
-`Dockable.Border` sets `data-tab-direction="down"`. In a right-to-left page the start border is on
-the right, where labels usually read down: flip the rule there with `:dir(rtl)` (or Tailwind's
-`rtl:` variant, `rtl:in-data-[tab-direction=up]:rotate-0`):
-
-```css
-[data-tab-direction="up"] [role="tab"]:dir(rtl) {
-    transform: none;
-}
-```
+`Dockable.Border` sets `data-tab-direction="down"`. The attribute is what the prop asks for; the
+page's direction does not change it. In a right-to-left page the start border is on the right,
+where labels usually read down: pass `tabDirection="down"` there, so the attribute says what is
+drawn and the same rule turns the labels in both directions
+([Right-to-left layouts](/docs/guides/rtl#borders)).
 
 With Tailwind, as the examples do: `in-data-[orientation=vertical]:[writing-mode:vertical-rl]
 in-data-[tab-direction=up]:rotate-180` on the tab. Drops into the strip are hit-tested against the

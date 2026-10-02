@@ -63,9 +63,10 @@ The engine observes the root with a `ResizeObserver` and listens to its window's
 root that changes size (a window resize, a collapsed sidebar, a CSS transition) re-measures and
 repositions the panels without a re-render. You never need to tell it the size.
 
-If something moves the tabsets **without resizing any element** (flipping `dir` at runtime is
-the known case), call `engine.run("measure-and-position")` with the engine from
-[`useDockable`](/docs/api/hooks) to re-run the measure pass. See [Limitations](/docs/limitations), gap 4.
+A changed `dir` attribute moves the tabsets without resizing any element; the engine observes it
+too. If something else moves them **without resizing any element** (a direction set by CSS alone),
+call `engine.run("measure-and-position")` with the engine from [`useDockable`](/docs/api/hooks) to
+re-run the measure pass. See [Right-to-left layouts](/docs/guides/rtl).
 
 ## Minimum sizes
 
