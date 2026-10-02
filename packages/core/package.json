@@ -1,6 +1,6 @@
 {
     "name": "@fragiola/dockable",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "description": "Headless layout manager for dockable panels: a typed state model with a command bus, the layout engine, drag and drop, popouts.",
     "keywords": [
         "layout",
