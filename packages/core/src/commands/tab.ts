@@ -27,10 +27,9 @@ import {
 import { tidy } from "../state/tidy";
 import type { AnyTab } from "../state/tree";
 import { MAIN_LAYOUT } from "../state/types";
-import { defineCommand, fail, ok } from "./define";
+import { defineCommand, type Failure, fail, ok } from "./define";
 import { dropOnBorder, dropOnRow, dropOnTabset } from "./dock";
 import { checkDrop, type DropTarget, resolveTarget } from "./rules";
-import type { CommandError } from "./types";
 
 const tabIdSchema = { ...idSchema, description: "the tab's id" } as const;
 
@@ -55,21 +54,13 @@ export function place(
     return target.id;
 }
 
-/** The tab `id` in the tree, or a not_found error. */
-export function attachedTab(
-    draft: Draft,
-    id: string,
-    path = "/tabId",
-): AnyTab | CommandError {
+/** The tab `id` in the tree, or why not. */
+function attachedTab(draft: Draft, id: string): AnyTab | Failure {
     const tab = draft.tab(id);
     if (!tab || !draft.isAttached(id)) {
-        return { code: "not_found", message: `no tab "${id}"`, path };
+        return fail("not_found", `no tab "${id}"`, "/tabId");
     }
     return tab;
-}
-
-export function isError(value: object): value is CommandError {
-    return "code" in value && "message" in value && !("type" in value);
 }
 
 /** The rect of the n-th new window when none is given. */
@@ -103,8 +94,8 @@ export const tabAdd = defineCommand({
     transient: false,
     reduce(payload, { draft, validateData }) {
         const target = resolveTarget(draft, payload.to);
-        if (isError(target)) {
-            return { ok: false, error: target };
+        if ("error" in target) {
+            return target;
         }
         if (payload.id !== undefined && draft.isUsed(payload.id)) {
             return fail(
@@ -113,9 +104,9 @@ export const tabAdd = defineCommand({
                 "/id",
             );
         }
-        const invalid = validateData(payload.component, payload.data, "/data");
+        const invalid = validateData(payload.component, payload.data);
         if (invalid) {
-            return { ok: false, error: invalid };
+            return invalid;
         }
         const location = payload.location ?? "center";
         const refused = checkDrop(
@@ -125,7 +116,7 @@ export const tabAdd = defineCommand({
             location,
         );
         if (refused) {
-            return { ok: false, error: refused };
+            return refused;
         }
         const tab = draft.create(
             tabNode(payload, payload.id ?? draft.newId("tab")),
@@ -152,8 +143,8 @@ export const tabSelect = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         const parent = draft.parentOf(tab.id);
         const container = parent === undefined ? undefined : draft.get(parent);
@@ -182,8 +173,8 @@ export const tabClose = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         const resolved = resolveTab(draft.getDefaults(), tab);
         if (resolved.pinned) {
@@ -221,15 +212,15 @@ export const tabMove = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         if (!resolveTab(draft.getDefaults(), tab).enableDrag) {
             return fail("refused", `tab "${tab.id}" cannot be moved`, "/tabId");
         }
         const target = resolveTarget(draft, payload.to);
-        if (isError(target)) {
-            return { ok: false, error: target };
+        if ("error" in target) {
+            return target;
         }
         const location = payload.location ?? "center";
         const refused = checkDrop(
@@ -239,7 +230,7 @@ export const tabMove = defineCommand({
             location,
         );
         if (refused) {
-            return { ok: false, error: refused };
+            return refused;
         }
         place(
             draft,
@@ -273,8 +264,8 @@ export const tabSetData = defineCommand({
     transient: false,
     reduce(payload, { draft, validateData }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         const current = tab.data ?? {};
         if (!isPlainObject(current)) {
@@ -287,9 +278,9 @@ export const tabSetData = defineCommand({
         // only the patch is copied (the kept keys are the state's own); a spread defines own
         // keys, and an undefined value, dropped by the copy, changes nothing
         const data = { ...current, ...cloneJson(payload.data) };
-        const invalid = validateData(tab.component, data, "/data");
+        const invalid = validateData(tab.component, data);
         if (invalid) {
-            return { ok: false, error: invalid };
+            return invalid;
         }
         draft.set(tab.id, "data", data);
         return ok({ tabId: tab.id });
@@ -317,12 +308,12 @@ export const tabSetComponent = defineCommand({
     transient: false,
     reduce(payload, { draft, validateData }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
-        const invalid = validateData(payload.component, payload.data, "/data");
+        const invalid = validateData(payload.component, payload.data);
         if (invalid) {
-            return { ok: false, error: invalid };
+            return invalid;
         }
         draft.set(tab.id, "component", payload.component);
         draft.set(tab.id, "data", cloneJson(payload.data));
@@ -350,8 +341,8 @@ export const tabPin = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         const parent = draft.parentOf(tab.id);
         if ((tab.pinned === true) === payload.value) {
@@ -404,8 +395,8 @@ export const tabPopout = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         if (draft.layoutOf(tab.id) !== MAIN_LAYOUT) {
             return fail(
@@ -459,8 +450,8 @@ export const tabConfigure = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         for (const [key, value] of Object.entries(payload)) {
             if (key !== "tabId" && value !== undefined) {

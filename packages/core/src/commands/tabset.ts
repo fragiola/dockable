@@ -17,11 +17,10 @@ import { adjustSelectedIndex } from "../state/selection";
 import { tidy } from "../state/tidy";
 import type { AnyTabset } from "../state/tree";
 import { MAIN_LAYOUT } from "../state/types";
-import { defineCommand, fail, ok } from "./define";
+import { defineCommand, type Failure, fail, ok } from "./define";
 import { dropOnRow } from "./dock";
 import { checkDrop, resolveTarget } from "./rules";
-import { defaultWindowRect, isError, place } from "./tab";
-import type { CommandError } from "./types";
+import { defaultWindowRect, place } from "./tab";
 
 const tabsetIdSchema = { ...idSchema, description: "the tabset's id" } as const;
 
@@ -29,15 +28,11 @@ const tabsetIdResult = object({ tabsetId: describedId("tabset") }, [
     "tabsetId",
 ]);
 
-/** The tabset `id` in the tree, or a not_found error. */
-function attachedTabset(
-    draft: Draft,
-    id: string,
-    path = "/tabsetId",
-): AnyTabset | CommandError {
+/** The tabset `id` in the tree, or why not. */
+function attachedTabset(draft: Draft, id: string): AnyTabset | Failure {
     const tabset = draft.tabset(id);
     if (!tabset || !draft.isAttached(id)) {
-        return { code: "not_found", message: `no tabset "${id}"`, path };
+        return fail("not_found", `no tabset "${id}"`, "/tabsetId");
     }
     return tabset;
 }
@@ -50,8 +45,8 @@ export const tabsetActivate = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tabset = attachedTabset(draft, payload.tabsetId);
-        if (isError(tabset)) {
-            return { ok: false, error: tabset };
+        if ("error" in tabset) {
+            return tabset;
         }
         const layout = draft.layoutOf(tabset.id);
         if (layout !== undefined) {
@@ -79,8 +74,8 @@ export const tabsetMaximize = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tabset = attachedTabset(draft, payload.tabsetId);
-        if (isError(tabset)) {
-            return { ok: false, error: tabset };
+        if ("error" in tabset) {
+            return tabset;
         }
         const layout = draft.layoutOf(tabset.id) ?? MAIN_LAYOUT;
         const maximized = draft.getMaximized(layout) === tabset.id;
@@ -136,8 +131,8 @@ export const tabsetClose = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tabset = attachedTabset(draft, payload.tabsetId);
-        if (isError(tabset)) {
-            return { ok: false, error: tabset };
+        if ("error" in tabset) {
+            return tabset;
         }
         const defaults = draft.getDefaults();
         if (!resolveTabset(defaults, tabset).enableClose) {
@@ -193,8 +188,8 @@ export const tabsetMove = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tabset = attachedTabset(draft, payload.tabsetId);
-        if (isError(tabset)) {
-            return { ok: false, error: tabset };
+        if ("error" in tabset) {
+            return tabset;
         }
         if (!resolveTabset(draft.getDefaults(), tabset).enableDrag) {
             return fail(
@@ -204,8 +199,8 @@ export const tabsetMove = defineCommand({
             );
         }
         const target = resolveTarget(draft, payload.to);
-        if (isError(target)) {
-            return { ok: false, error: target };
+        if ("error" in target) {
+            return target;
         }
         const location = payload.location ?? "center";
         const refused = checkDrop(
@@ -215,7 +210,7 @@ export const tabsetMove = defineCommand({
             location,
         );
         if (refused) {
-            return { ok: false, error: refused };
+            return refused;
         }
         // a moved subtree that holds the maximized tabset cannot stay maximized
         const from = draft.layoutOf(tabset.id);
@@ -254,8 +249,8 @@ export const tabsetPopout = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tabset = attachedTabset(draft, payload.tabsetId);
-        if (isError(tabset)) {
-            return { ok: false, error: tabset };
+        if ("error" in tabset) {
+            return tabset;
         }
         const layout = draft.layoutOf(tabset.id);
         if (layout !== MAIN_LAYOUT) {
@@ -316,8 +311,8 @@ export const tabsetConfigure = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tabset = attachedTabset(draft, payload.tabsetId);
-        if (isError(tabset)) {
-            return { ok: false, error: tabset };
+        if ("error" in tabset) {
+            return tabset;
         }
         for (const [key, value] of Object.entries(payload)) {
             if (key !== "tabsetId" && value !== undefined) {

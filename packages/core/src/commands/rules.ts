@@ -13,8 +13,8 @@ import {
 import type { Draft } from "../state/draft";
 import type { AnyBorder, AnyRow, AnyTabset } from "../state/tree";
 import { MAIN_LAYOUT } from "../state/types";
+import { type Failure, fail } from "./define";
 import { isInSubtree } from "./dock";
-import type { CommandError } from "./types";
 
 /** What is being placed. */
 export type DropSubject =
@@ -26,10 +26,7 @@ export type DropSubject =
 export type DropTarget = AnyTabset | AnyRow | AnyBorder;
 
 /** The node `to` names: a tabset, a row, a border, or a layout id (its root row). */
-export function resolveTarget(
-    draft: Draft,
-    to: string,
-): DropTarget | CommandError {
+export function resolveTarget(draft: Draft, to: string): DropTarget | Failure {
     const root = draft.rootOf(to);
     const id = root ?? to;
     const node = draft.get(id);
@@ -42,15 +39,15 @@ export function resolveTarget(
     ) {
         return node;
     }
-    return {
-        code: "not_found",
-        message: `"${to}" is not a tabset, row, border or layout`,
-        path: "/to",
-    };
+    return fail(
+        "not_found",
+        `"${to}" is not a tabset, row, border or layout`,
+        "/to",
+    );
 }
 
-function refused(message: string, path = "/to"): CommandError {
-    return { code: "refused", message, path };
+function refused(message: string, path = "/to"): Failure {
+    return fail("refused", message, path);
 }
 
 /** Why placing `subject` at `target`/`location` is refused, or undefined when it is allowed. */
@@ -59,7 +56,7 @@ export function checkDrop(
     subject: DropSubject,
     target: DropTarget,
     location: DockLocation,
-): CommandError | undefined {
+): Failure | undefined {
     const defaults = draft.getDefaults();
 
     if (target.type === "tabset") {

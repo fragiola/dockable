@@ -14,8 +14,7 @@ import { validate } from "../schema/validator";
 import type { Draft } from "../state/draft";
 import { type AnyNode, childrenOf, walkState } from "../state/tree";
 import type { LayoutDefaults } from "../state/types";
-import { defineCommand, ok } from "./define";
-import type { CommandError } from "./types";
+import { defineCommand, type Failure, invalid, ok } from "./define";
 
 /** Each kind's defaults, nullable: null removes a field (or a kind), so the built-in value applies. */
 const builtIn = "the built-in value applies";
@@ -147,9 +146,9 @@ export const layoutLoad = defineCommand({
     transient: false,
     reduce(payload, { draft, loadLayout }) {
         const before = currentIds(draft);
-        const built = loadLayout(payload.layout, "/layout");
+        const built = loadLayout(payload.layout);
         if (!built.ok) {
-            return { ok: false, error: built.error };
+            return built;
         }
         const after = new Set<string>();
         walkState(built.state, (node) => after.add(node.id));
@@ -176,7 +175,7 @@ const batchEntrySchema = object(
     ["command", "payload"],
 );
 
-export const batchPayloadSchema = object(
+const batchPayloadSchema = object(
     {
         commands: {
             type: "array",
@@ -208,34 +207,21 @@ export const batch = defineCommand({
         const runAll = (
             commands: readonly { command: string; payload: unknown }[],
             path: string,
-        ): { readonly ok: false; readonly error: CommandError } | undefined => {
+        ): Failure | undefined => {
             for (const [i, entry] of commands.entries()) {
                 const at = `${path}/${i}`;
                 if (entry.command === "batch") {
-                    const issues = validate(
-                        batchPayloadSchema,
-                        entry.payload,
-                        `${at}/payload`,
-                    );
-                    const first = issues[0];
-                    if (first) {
-                        return {
-                            ok: false as const,
-                            error: {
-                                code: "invalid_payload" as const,
-                                message: first.message,
-                                path: first.path,
-                                issues,
-                            },
-                        };
-                    }
                     const nested = entry.payload as {
                         commands: { command: string; payload: unknown }[];
                     };
-                    const failed = runAll(
-                        nested.commands,
-                        `${at}/payload/commands`,
-                    );
+                    const failed =
+                        invalid(
+                            validate(
+                                batchPayloadSchema,
+                                entry.payload,
+                                `${at}/payload`,
+                            ),
+                        ) ?? runAll(nested.commands, `${at}/payload/commands`);
                     if (failed) {
                         return failed;
                     }
