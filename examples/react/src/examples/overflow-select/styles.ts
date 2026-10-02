@@ -48,6 +48,12 @@ export const strip =
 export const tabList =
     "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]";
 
+/** The scrolling strip keeps every tab at its size (`shrink-0` on the tab) and scrolls sideways. */
+export const scrollingTabList = cn(
+    tabList,
+    "overflow-x-auto overscroll-x-contain [scrollbar-width:thin]",
+);
+
 export const tab = cn(
     "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
     "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
