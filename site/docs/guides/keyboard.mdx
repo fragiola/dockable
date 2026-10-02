@@ -26,7 +26,7 @@ bindings. A `TabList` with `orientation="vertical"` switches the arrows to Up/Do
 ## The key map
 
 Command shortcuts come from a **key map**: `"Ctrl+Shift+Key"` strings, merged over
-`defaultKeyMap` (from `@fragiola/dockable`). Pass yours to `Dockable.Root`:
+`defaultKeyMap` (from `@fragiola/dockable-react`). Pass yours to `Dockable.Root`:
 
 ```tsx
 <Dockable.Root
@@ -81,8 +81,7 @@ Commands you add (maximize, pop out, undo) need your own key handler. `matchesKe
 from the core matches a binding string, so your shortcuts can use the same format:
 
 ```tsx
-import { matchesKey } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { matchesKey, useDockable } from "@fragiola/dockable-react";
 
 function useMaximizeShortcut() {
     const { model } = useDockable<Types>();

@@ -1,5 +1,9 @@
-import type { RowNode, TabOf, TabsetNode } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import {
+    Dockable,
+    type RowNode,
+    type TabOf,
+    type TabsetNode,
+} from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
 import type { Types } from "./layouts";
 import { TabContent } from "./TabContent";

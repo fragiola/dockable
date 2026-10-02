@@ -1,4 +1,4 @@
-import type { TabOf } from "@fragiola/dockable";
+import type { TabOf } from "@fragiola/dockable-react";
 import { useState } from "react";
 import type { Types } from "./layouts";
 

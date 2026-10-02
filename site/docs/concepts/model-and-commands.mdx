@@ -15,7 +15,7 @@ windows, focus) is an engine's. Which one to go to for what is on
 ## JSON in, JSON out
 
 ```ts
-import { createModel, type LayoutJson } from "@fragiola/dockable";
+import { createModel, type LayoutJson } from "@fragiola/dockable-react";
 
 type Types = { tabs: { editor: { path: string }; log: undefined } };
 
@@ -152,7 +152,7 @@ primitives run (a click selecting a tab, a drop moving one, a splitter resizing 
 context and a `next` function, and can do three things:
 
 ```ts
-import { type Middleware, veto } from "@fragiola/dockable";
+import { type Middleware, veto } from "@fragiola/dockable-react";
 
 const policy: Middleware<Types> = (ctx, next) => {
     // veto: return an error without calling next(); the "readme" tab cannot be closed

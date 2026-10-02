@@ -23,13 +23,16 @@
         "typecheck": "pnpm -r typecheck",
         "test": "vitest run",
         "build": "pnpm -r build && node scripts/check-dts.ts",
+        "check:package": "pnpm --filter \"./packages/*\" build && node scripts/check-package.ts",
         "e2e": "pnpm --workspace-concurrency=1 --filter playground --filter examples-react e2e",
         "dev": "pnpm --filter playground dev",
         "site:export": "node site/export.ts",
         "site:dev": "node site/dev.ts"
     },
     "devDependencies": {
+        "@arethetypeswrong/cli": "0.18.5",
         "@biomejs/biome": "2.5.10",
+        "publint": "0.3.24",
         "vitest": "4.1.11"
     }
 }

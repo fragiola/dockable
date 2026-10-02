@@ -4,12 +4,13 @@ import {
     type BorderNode,
     type ComponentOf,
     createModel,
+    Dockable,
     type LayoutJson,
     type RowNode,
+    type SplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import { Dockable, type SplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import {
     Bell,
     Bookmark,

@@ -1,4 +1,4 @@
-import type { CommandInfo, JsonSchema } from "@fragiola/dockable";
+import type { CommandInfo, JsonSchema } from "@fragiola/dockable-react";
 
 // Everything here is plain data from `model.get("commands")`: each command's name, description and
 // JSON Schemas. Nothing is Dockable-specific beyond that list.

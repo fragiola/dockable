@@ -1,7 +1,6 @@
 "use client";
 
-import type { Model } from "@fragiola/dockable";
-import { useModelState } from "@fragiola/dockable-react";
+import { type Model, useModelState } from "@fragiola/dockable-react";
 import {
     ChevronRight,
     FileCode2,

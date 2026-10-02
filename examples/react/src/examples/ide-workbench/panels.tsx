@@ -1,7 +1,6 @@
 "use client";
 
-import type { TabNode } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { type TabNode, useDockable } from "@fragiola/dockable-react";
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { FILE_PATHS, PROBLEMS } from "./files";

@@ -15,7 +15,7 @@ A tab's `data` is typed by its component (see [Typed data](/docs/concepts/typed-
 status there, next to the tab's name:
 
 ```ts
-import { createModel, type LayoutJson, type TabOf } from "@fragiola/dockable";
+import { createModel, type LayoutJson, type TabOf } from "@fragiola/dockable-react";
 
 type Status = "healthy" | "degraded" | "down";
 
@@ -33,8 +33,7 @@ The content writes it with `tab.set-data`. `data` is a patch: the keys it passes
 the others stay, and the result is checked against the tab's component:
 
 ```tsx
-import type { TabNode } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { type TabNode, useDockable } from "@fragiola/dockable-react";
 
 function Editor({ tab }: { tab: TabNode<"document", Types["tabs"]["document"]> }) {
     const { model } = useDockable<Types>();
@@ -136,7 +135,7 @@ from a button, a key or a drop zone, and `model.can("tab.close", …)` then answ
 close button can hide itself:
 
 ```ts
-import { veto } from "@fragiola/dockable";
+import { veto } from "@fragiola/dockable-react";
 
 model.use((ctx, next) => {
     if (ctx.command === "tab.close") {

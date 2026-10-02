@@ -5,7 +5,7 @@ import type {
     CommandResult,
     DockableTypes,
     Model,
-} from "@fragiola/dockable";
+} from "@fragiola/dockable-react";
 import { useEffect, useId, useState } from "react";
 import * as styles from "./styles";
 import { fieldsOf, fromToolCall, toolName, toTools } from "./tools";

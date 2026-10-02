@@ -2,13 +2,11 @@
 
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     type RowNode,
-    type TabsetNode,
-} from "@fragiola/dockable";
-import {
-    Dockable,
     type RowSplitterProps,
+    type TabsetNode,
     useDockable,
 } from "@fragiola/dockable-react";
 import { ArrowDownToLine, SquareArrowOutUpRight } from "lucide-react";

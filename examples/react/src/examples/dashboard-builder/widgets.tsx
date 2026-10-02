@@ -1,6 +1,6 @@
 "use client";
 
-import type { TabInitOf, TabOf } from "@fragiola/dockable";
+import type { TabInitOf, TabOf } from "@fragiola/dockable-react";
 import {
     ChartArea,
     ChartLine,

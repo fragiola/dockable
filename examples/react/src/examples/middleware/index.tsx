@@ -3,14 +3,15 @@
 import {
     type CommandResult,
     createModel,
+    Dockable,
     type LayoutJson,
     type Middleware,
     type RowNode,
+    type RowSplitterProps,
     type TabOf,
     type TabsetNode,
     veto,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Switch } from "#/components/ui/switch";
 import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";

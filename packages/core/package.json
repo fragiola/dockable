@@ -2,6 +2,16 @@
     "name": "@fragiola/dockable",
     "version": "0.0.0",
     "description": "Headless layout manager for dockable panels: a typed state model with a command bus, the layout engine, drag and drop, popouts.",
+    "keywords": [
+        "layout",
+        "docking",
+        "dock",
+        "tabs",
+        "splitter",
+        "panels",
+        "headless",
+        "drag-and-drop"
+    ],
     "license": "MIT",
     "type": "module",
     "author": {
@@ -15,19 +25,34 @@
         "directory": "packages/core"
     },
     "homepage": "https://fragiola.com/dockable",
+    "bugs": {
+        "url": "https://github.com/fragiola/dockable/issues"
+    },
     "sideEffects": false,
     "exports": {
         ".": {
-            "development": "./src/index.ts",
+            "@fragiola/source": "./src/index.ts",
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
         "./package.json": "./package.json"
     },
     "files": [
         "dist",
+        "README.md",
         "LICENSE"
     ],
+    "publishConfig": {
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js",
+                "default": "./dist/index.js"
+            },
+            "./package.json": "./package.json"
+        }
+    },
     "scripts": {
         "build": "tsdown",
         "typecheck": "tsc --noEmit",

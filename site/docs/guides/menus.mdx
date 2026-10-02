@@ -17,8 +17,7 @@ Attach the menu to the `Tab` with `onContextMenu` (props are forwarded), or make
 library's trigger with `render`. With Fragiola UI's `ContextMenu` (Base UI):
 
 ```tsx
-import type { TabOf } from "@fragiola/dockable";
-import { Dockable, useDockable } from "@fragiola/dockable-react";
+import { Dockable, type TabOf, useDockable } from "@fragiola/dockable-react";
 import { ContextMenu } from "#/components/ui/context-menu";
 
 type Types = { tabs: { card: undefined } };
@@ -77,7 +76,7 @@ fails, none applies). Filter the tabs with `model.can` first, so a pinned or unc
 not make the whole batch fail:
 
 ```ts
-import type { BatchEntry, TabOf } from "@fragiola/dockable";
+import type { BatchEntry, TabOf } from "@fragiola/dockable-react";
 
 const parent = model.get("node-parent-by", { nodeId: tab.id });
 const siblings = parent && parent.type !== "row" ? parent.children : [];

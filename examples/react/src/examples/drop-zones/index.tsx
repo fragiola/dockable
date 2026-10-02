@@ -2,14 +2,15 @@
 
 import {
     createModel,
+    Dockable,
     type DragSubject,
     type LayoutJson,
     type Model,
     type RowNode,
+    type RowSplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import {
     ExternalLink,
     type LucideIcon,

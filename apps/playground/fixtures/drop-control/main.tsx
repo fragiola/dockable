@@ -1,5 +1,9 @@
-import { createModel, type RowNode, veto } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import {
+    createModel,
+    Dockable,
+    type RowNode,
+    veto,
+} from "@fragiola/dockable-react";
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { layoutFromQuery, type Types } from "../../src/fixture/layouts";

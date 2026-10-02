@@ -1,12 +1,10 @@
 import {
     createModel,
+    Dockable,
     MAIN_LAYOUT,
     type RowNode,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import {
-    Dockable,
     useDockable,
     useDragNode,
     useModelState,
