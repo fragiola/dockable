@@ -1,8 +1,9 @@
 // Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/layout/EdgeIndicators.tsx
 // (the edge targets shown during a drag); the markup, icons and class names are not copied.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
-import * as React from "react";
+import type * as React from "react";
 import { useLayoutContext } from "./context";
+import { useIndicator } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -37,12 +38,7 @@ export interface EdgeIndicatorProps
 export function EdgeIndicator(props: EdgeIndicatorProps) {
     const { edge, children, ...rest } = props;
     const { engine } = useLayoutContext("EdgeIndicator");
-    const manager = engine.adapter.getDragDropManager();
-    const indicator = React.useSyncExternalStore(
-        manager.subscribe,
-        manager.getIndicatorState,
-        manager.getIndicatorState,
-    );
+    const indicator = useIndicator(engine, (current) => current);
     const visible = indicator.dragging && indicator.showEdges;
     const rect = visible
         ? engine.adapter.edgeBands().find((band) => band.location === edge)

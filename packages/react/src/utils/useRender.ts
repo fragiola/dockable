@@ -1,5 +1,33 @@
 import * as React from "react";
-import { mergeProps, mergeRefs } from "./mergeProps";
+import { mergeProps } from "./mergeProps";
+
+/** A callback ref that forwards to every ref in `refs` (function refs and ref objects alike). */
+function mergeRefs<T>(
+    ...refs: (React.Ref<T> | undefined)[]
+): React.RefCallback<T> {
+    return (value) => {
+        const cleanups = refs.map((ref) => {
+            if (typeof ref === "function") {
+                const cleanup = ref(value);
+                return typeof cleanup === "function"
+                    ? cleanup
+                    : () => ref(null);
+            }
+            if (ref) {
+                ref.current = value;
+                return () => {
+                    ref.current = null;
+                };
+            }
+            return undefined;
+        });
+        return () => {
+            for (const cleanup of cleanups) {
+                cleanup?.();
+            }
+        };
+    };
+}
 
 /**
  * Props a `render` function receives: spread them onto the element it returns. `ref` is a callback
@@ -121,18 +149,13 @@ export function useRenderElement<State>(
         typeof className === "function" ? className(options.state) : className;
     const resolvedStyle =
         typeof style === "function" ? style(options.state) : style;
-    const structural = options.style;
-    const mergedStyle =
-        resolvedStyle || structural
-            ? { ...resolvedStyle, ...structural }
-            : undefined;
 
     const props = mergeProps(options.props, external);
     if (resolvedClassName !== undefined) {
         props.className = resolvedClassName;
     }
-    if (mergedStyle !== undefined) {
-        props.style = mergedStyle;
+    if (resolvedStyle || options.style) {
+        props.style = { ...resolvedStyle, ...options.style };
     }
     props.ref = ref;
 
@@ -142,12 +165,10 @@ export function useRenderElement<State>(
     if (renderElement) {
         const elementProps = renderElement.props;
         const merged = mergeProps(props, elementProps);
-        // the element's own style sits under the structural keys too
         if (elementProps.style || props.style) {
             merged.style = {
                 ...(elementProps.style as React.CSSProperties),
-                ...resolvedStyle,
-                ...structural,
+                ...(props.style as React.CSSProperties),
             };
         }
         merged.ref = ref;

@@ -1,5 +1,5 @@
-import * as React from "react";
 import { useLayoutContext } from "./context";
+import { useMeasurable } from "./hooks";
 import { useTabSetNode } from "./TabSet";
 import {
     type DivPrimitiveProps,
@@ -22,12 +22,7 @@ export function TabSetContent(props: TabSetContentProps) {
     const tabset = useTabSetNode("TabSetContent");
     const { engine } = useLayoutContext("TabSetContent");
     const id = tabset.id;
-    const ref = React.useCallback(
-        (element: HTMLElement | null) => {
-            engine.adapter.registerMeasurable(id, "tabsetcontent", element);
-        },
-        [engine, id],
-    );
+    const ref = useMeasurable(engine, id, "tabsetcontent");
     const state: TabSetContentState = {
         empty: tabset.children.length === 0,
     };

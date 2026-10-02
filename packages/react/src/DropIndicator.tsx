@@ -3,8 +3,9 @@ import {
     type DropKind,
     type DropLocation,
 } from "@fragiola/dockable";
-import * as React from "react";
+import type * as React from "react";
 import { useLayoutContext } from "./context";
+import { useIndicator } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -45,12 +46,7 @@ export interface DropIndicatorProps
 export function DropIndicator(props: DropIndicatorProps) {
     const { children, ...rest } = props;
     const { engine } = useLayoutContext("DropIndicator");
-    const manager = engine.adapter.getDragDropManager();
-    const indicator = React.useSyncExternalStore(
-        manager.subscribe,
-        manager.getIndicatorState,
-        manager.getIndicatorState,
-    );
+    const indicator = useIndicator(engine, (current) => current);
 
     const state: DropIndicatorState = {
         visible: indicator.visible,

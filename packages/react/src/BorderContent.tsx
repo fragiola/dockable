@@ -12,7 +12,7 @@ import {
 import * as React from "react";
 import { borderAttributes } from "./Border";
 import { useDockableContext, useLayoutContext } from "./context";
-import { useBorder } from "./hooks";
+import { useBorder, useMeasurable } from "./hooks";
 import { Splitter } from "./Splitter";
 import {
     type DivPrimitiveProps,
@@ -62,12 +62,7 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
     const { engine } = useLayoutContext("BorderContent");
     const { state } = useBorder(node);
     const id = node.id;
-    const areaRef = React.useCallback(
-        (element: HTMLElement | null) => {
-            engine.adapter.registerMeasurable(id, "bordercontent", element);
-        },
-        [engine, id],
-    );
+    const areaRef = useMeasurable(engine, id, "bordercontent");
     const location = node.location;
     // a left or right border: sized by width
     const horizontal = location === "left" || location === "right";

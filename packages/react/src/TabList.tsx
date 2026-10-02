@@ -102,11 +102,10 @@ export function TabList<T extends DockableTypes = AnyTypes>(
             .join(" ") || undefined;
 
     const drop = useTabSetDropState(engine, id);
-    const dropIndex = drop.strip ? drop.index : undefined;
     const state: TabListState = {
         orientation,
-        dropTarget: drop.strip,
-        dropIndex,
+        dropTarget: drop.index !== undefined,
+        dropIndex: drop.index,
         overflowing: tabOverflow.overflowing,
         hiddenCount: tabOverflow.hiddenTabs.length,
     };
@@ -128,7 +127,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
                 ),
                 orientation,
                 "drop-target": state.dropTarget,
-                "drop-index": dropIndex,
+                "drop-index": state.dropIndex,
                 overflowing: state.overflowing,
             }),
             children: tabs,

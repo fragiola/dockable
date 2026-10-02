@@ -26,7 +26,7 @@ import {
     type PopoutHooks,
 } from "./context";
 import { DragGroupContext } from "./DragGroup";
-import { useDragState } from "./hooks";
+import { useDragState, useIndicator } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -139,12 +139,7 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     // never reaches a layout that is gone; the setup re-joins after a StrictMode remount
     React.useEffect(() => dragGroup?.group.join(engine), [dragGroup, engine]);
     const dragState = useDragState();
-    const manager = engine.adapter.getDragDropManager();
-    const refused = React.useSyncExternalStore(
-        manager.subscribe,
-        () => manager.getIndicatorState().refused,
-        () => false,
-    );
+    const refused = useIndicator(engine, (indicator) => indicator.refused);
     const revision = React.useSyncExternalStore(
         engine.adapter.subscribe,
         engine.adapter.getSnapshot,

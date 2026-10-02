@@ -8,10 +8,12 @@ import {
     type DockableTypes,
     DragDropManager,
     type DragState,
+    type DropIndicatorState,
     type DropLocation,
     type DropZoneOptions,
     type LayoutEngine,
     type LayoutState,
+    type MeasurableKind,
     type Model,
     type NewTabDropped,
     type RowNode,
@@ -161,16 +163,38 @@ export interface TabSetState {
     dropIndex: number | undefined;
 }
 
+/** @internal the engine's drop indicator state, selected: re-renders only when the selection changes */
+export function useIndicator<S>(
+    engine: LayoutEngine,
+    select: (indicator: DropIndicatorState) => S,
+): S {
+    const manager = engine.adapter.getDragDropManager();
+    const snapshot = () => select(manager.getIndicatorState());
+    return React.useSyncExternalStore(manager.subscribe, snapshot, snapshot);
+}
+
+/** @internal a callback ref that registers its element with the engine, measured as `kind` */
+export function useMeasurable(
+    engine: LayoutEngine,
+    id: string,
+    kind: MeasurableKind,
+): React.RefCallback<HTMLElement> {
+    return React.useCallback(
+        (element: HTMLElement | null) => {
+            engine.adapter.registerMeasurable(id, kind, element);
+        },
+        [engine, id, kind],
+    );
+}
+
 /** @internal what `TabList` and `Border` read of the current drop; apps read `TabSetState` */
 export interface TabSetDropState {
     /** the current drag would drop into or beside this tabset */
     target: boolean;
     /** while it is the target: where the drag would dock */
     location: DropLocation | undefined;
-    /** while it is the target: the drop goes into its tab strip, at `index` */
-    strip: boolean;
-    /** for a strip drop: the insertion index among the tabset's children, else -1 */
-    index: number;
+    /** while the drop goes into its tab strip: the insertion index among its tabs */
+    index: number | undefined;
     /** the current drag is over this tabset, but a drop rule refuses it */
     refused: boolean;
 }
@@ -178,8 +202,7 @@ export interface TabSetDropState {
 const NO_DROP: TabSetDropState = {
     target: false,
     location: undefined,
-    strip: false,
-    index: -1,
+    index: undefined,
     refused: false,
 };
 
@@ -196,42 +219,33 @@ const DROP_LOCATIONS: readonly DropLocation[] = [
  * state. The snapshot is a string, so tabsets re-render only when their own answer changes, not
  * on every pointer move.
  */
-export function useTabSetDropState<T extends DockableTypes>(
-    engine: LayoutEngine<T>,
+export function useTabSetDropState(
+    engine: LayoutEngine,
     tabsetId: string,
 ): TabSetDropState {
-    const manager = engine.adapter.getDragDropManager();
-    const key = React.useSyncExternalStore(
-        manager.subscribe,
-        () => {
-            const indicator = manager.getIndicatorState();
-            if (indicator.refused && indicator.refusedTabsetId === tabsetId) {
-                return "refused";
-            }
-            if (indicator.visible && indicator.targetTabsetId === tabsetId) {
-                // a strip drop targets the tabset itself, at an index
-                const strip =
-                    indicator.location === "center" &&
-                    indicator.index >= 0 &&
-                    indicator.targetNodeId === tabsetId;
-                return strip
-                    ? `${indicator.location}:${indicator.index}`
-                    : indicator.location;
-            }
-            return "";
-        },
-        () => "",
-    );
+    const key = useIndicator(engine, (indicator) => {
+        if (indicator.refused && indicator.refusedTabsetId === tabsetId) {
+            return "refused";
+        }
+        if (indicator.visible && indicator.targetTabsetId === tabsetId) {
+            const strip =
+                indicator.location === "center" &&
+                indicator.index >= 0 &&
+                indicator.targetNodeId === tabsetId;
+            return strip
+                ? `${indicator.location}:${indicator.index}`
+                : indicator.location;
+        }
+        return "";
+    });
     return React.useMemo(() => {
         if (key === "") return NO_DROP;
         if (key === "refused") return { ...NO_DROP, refused: true };
         const [name, index] = key.split(":");
-        const location = DROP_LOCATIONS.find((l) => l === name);
         return {
             target: true,
-            location,
-            strip: index !== undefined,
-            index: index === undefined ? -1 : Number(index),
+            location: DROP_LOCATIONS.find((l) => l === name),
+            index: index === undefined ? undefined : Number(index),
             refused: false,
         };
     }, [key]);
@@ -279,14 +293,9 @@ export function useTabSet<T extends DockableTypes>(
         dropTarget: drop.target,
         dropLocation: drop.location,
         dropRefused: drop.refused,
-        dropIndex: drop.strip ? drop.index : undefined,
+        dropIndex: drop.index,
     };
-    const ref = React.useCallback(
-        (element: HTMLElement | null) => {
-            engine.adapter.registerMeasurable(id, "tabset", element);
-        },
-        [engine, id],
-    );
+    const ref = useMeasurable(engine, id, "tabset");
     const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
         if (
             !isAuxEvent(event) &&
@@ -327,12 +336,7 @@ export function useBorder<T extends DockableTypes>(
         dropTarget: drop.target,
         dropRefused: drop.refused,
     };
-    const ref = React.useCallback(
-        (element: HTMLElement | null) => {
-            engine.adapter.registerMeasurable(id, "borderheader", element);
-        },
-        [engine, id],
-    );
+    const ref = useMeasurable(engine, id, "borderheader");
     return { state, props: { ref } };
 }
 

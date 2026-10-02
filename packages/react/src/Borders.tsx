@@ -11,6 +11,7 @@ import type {
 import * as React from "react";
 import { BorderContent } from "./BorderContent";
 import { typedModel, useDockableContext, useLayoutContext } from "./context";
+import { useIndicator } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -51,19 +52,20 @@ export function Borders<T extends DockableTypes = AnyTypes>(
     const { model: erased } = useDockableContext("Borders");
     const model = typedModel<T>(erased);
     const { engine } = useLayoutContext("Borders");
-    const manager = engine.adapter.getDragDropManager();
-    React.useSyncExternalStore(
-        manager.subscribe,
-        () => manager.getIndicatorState().revealedBorder,
-        () => undefined,
-    );
+    const borders = model.get("borders");
+    const shownIds = useIndicator(engine, () =>
+        borders
+            .filter((border) =>
+                engine.is("border-shown", { borderId: border.id }),
+            )
+            .map((border) => border.id)
+            .join("\n"),
+    ).split("\n");
 
     const shown = new Map<BorderLocation, BorderNode<T>>();
     for (const location of LOCATIONS) {
-        const border = model
-            .get("borders")
-            .find((b) => b.location === location);
-        if (border && engine.is("border-shown", { borderId: border.id })) {
+        const border = borders.find((b) => b.location === location);
+        if (border && shownIds.includes(border.id)) {
             shown.set(location, border);
         }
     }

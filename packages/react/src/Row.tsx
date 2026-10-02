@@ -9,6 +9,7 @@ import type {
 } from "@fragiola/dockable";
 import * as React from "react";
 import { typedModel, useDockableContext, useLayoutContext } from "./context";
+import { useMeasurable } from "./hooks";
 import { Splitter } from "./Splitter";
 import {
     type DivPrimitiveProps,
@@ -64,12 +65,7 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
     const root = node === undefined;
     const horizontal = engine.adapter.rowOrientation(id) === "horizontal";
 
-    const ref = React.useCallback(
-        (element: HTMLElement | null) => {
-            engine.adapter.registerMeasurable(id, "row", element);
-        },
-        [engine, id],
-    );
+    const ref = useMeasurable(engine, id, "row");
 
     const items: React.ReactNode[] = [];
     for (const [index, child] of row.children.entries()) {
