@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createLayoutEngine,
+    createSplitterController,
     type LayoutEngine,
     type LayoutJson,
 } from "../../src";
@@ -45,7 +46,7 @@ function setup(json: LayoutJson = twoTabsets) {
     const dom = mountTwoTabsets(engine, rects);
     engine.run("measure-and-position");
     engine.adapter.prepare();
-    engine.get("size-limits-by", { nodeId: "row" });
+    read(engine);
     vi.mocked(computePaths).mockClear();
     vi.mocked(sizeRanges).mockClear();
     return { model, rects, engine, ...dom };
@@ -115,6 +116,30 @@ describe("LayoutEngine derived view data", () => {
         read(engine);
         expect(sizeRanges).toHaveBeenCalledTimes(1);
         expect(computePaths).not.toHaveBeenCalled();
+    });
+
+    it("rebuilds no path while a splitter is dragged in realtime", () => {
+        const { model, rects, engine, root, splitter } = setup();
+        rects.set(splitter, 0, 0, 0, 0);
+        const own = rects.set(
+            root.appendChild(document.createElement("div")),
+            206,
+            20,
+            8,
+            300,
+        );
+        const controller = createSplitterController(engine, "row", 1);
+        controller.attach(own);
+        vi.mocked(computePaths).mockClear();
+        for (const weight of [40, 42, 44, 46, 48]) {
+            model.run(
+                "row.resize",
+                { rowId: "row", weights: [weight, 100 - weight] },
+                { transient: true },
+            );
+        }
+        expect(computePaths).not.toHaveBeenCalled();
+        controller.dispose();
     });
 
     it("knows each row's orientation, flipped at every level", () => {
