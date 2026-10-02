@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
     defaultKeyMap,
     hasModifier,
-    type IKeyEventLike,
-    type IKeyMap,
+    type KeyEventLike,
+    type KeyMap,
     matchesKey,
     resolveKeyMap,
     toAriaKeyShortcuts,
@@ -13,8 +13,8 @@ import {
 
 const keyEvent = (
     key: string,
-    mods: Partial<IKeyEventLike> = {},
-): IKeyEventLike => ({
+    mods: Partial<KeyEventLike> = {},
+): KeyEventLike => ({
     key,
     ctrlKey: false,
     shiftKey: false,
@@ -81,7 +81,7 @@ describe("resolveKeyMap", () => {
     });
 
     it("disables a binding given as an explicit undefined", () => {
-        const keyMap: IKeyMap = { closeTab: undefined };
+        const keyMap: KeyMap = { closeTab: undefined };
         expect(resolveKeyMap(keyMap).closeTab).toBeUndefined();
         expect(resolveKeyMap(keyMap).renameTab).toBe(defaultKeyMap.renameTab);
     });

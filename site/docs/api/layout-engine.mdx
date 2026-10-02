@@ -450,10 +450,10 @@ Two helpers are exported with it:
 
 ## Keyboard
 
-The configurable command shortcuts. `Dockable.Root` takes an `IKeyMap` as `keyMap`; see
+The configurable command shortcuts. `Dockable.Root` takes a `KeyMap` as `keyMap`; see
 [Keyboard](/docs/guides/keyboard).
 
-`IKeyMap`, bindings as `"Ctrl+Shift+Key"` strings (modifiers in any order, key compared
+`KeyMap`, bindings as `"Ctrl+Shift+Key"` strings (modifiers in any order, key compared
 case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disables a shortcut:
 
 | field | default | description |
@@ -472,7 +472,7 @@ case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disable
 | `matchesKey(event, spec)` | true when `event` is exactly the key combination `spec` (a disabled binding never matches) |
 | `hasModifier(event)` | true when any modifier key is held (the fixed ARIA pattern keys, arrows on tabs and splitters, only apply unmodified) |
 | `toAriaKeyShortcuts(spec)` | the `aria-keyshortcuts` spelling of a binding (`Ctrl` becomes `Control`) |
-| `IKeyEventLike` | the fields shared by native and framework keyboard events: `key`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |
+| `KeyEventLike` | the fields shared by native and framework keyboard events: `key`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |
 
 ## Tab overflow
 
@@ -480,13 +480,13 @@ The arithmetic behind `registerTabList`: which tabs of a strip fit, and which go
 menu. Dockable hides the tabs that do not fit (keeping the selected one) instead of scrolling
 the strip. See [Tab overflow](/docs/guides/tab-overflow).
 
-`computeTabOverflow(input: ITabOverflowInput): ITabOverflowResult` splits a strip's tabs into the
+`computeTabOverflow(input: TabOverflowInput): TabOverflowResult` splits a strip's tabs into the
 visible and the hidden ones. When every tab fits, all are visible. Otherwise the tabs fit from the
 start into `available - reserve`, stopping at the first that does not fit; when the selected tab
 is not among them, tabs are taken off the end until it fits, and it is shown in its place. The
 selected tab always shows, even alone in too small a strip; with no selection, the first tab does.
 
-`ITabOverflowInput` (sizes in px along the strip's axis):
+`TabOverflowInput` (sizes in px along the strip's axis):
 
 | field | type | description |
 | --- | --- | --- |
@@ -496,7 +496,7 @@ selected tab always shows, even alone in too small a strip; with no selection, t
 | `selectedIndex` | `number` | the selected tab's index, or -1: it stays in the strip when anything is hidden |
 | `reserve` | `number` | the space the overflow trigger takes, reserved only when something is hidden |
 
-`ITabOverflowResult`:
+`TabOverflowResult`:
 
 | field | type | description |
 | --- | --- | --- |

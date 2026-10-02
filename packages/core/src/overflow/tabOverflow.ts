@@ -4,7 +4,7 @@
 // in the strip.
 
 /** What {@link computeTabOverflow} needs, all sizes in px along the strip's axis. */
-export interface ITabOverflowInput {
+export interface TabOverflowInput {
     /** the space for the tabs: the strip's inner size, plus the trigger's space while it shows */
     available: number;
     /** each tab's natural size, in model order */
@@ -18,7 +18,7 @@ export interface ITabOverflowInput {
 }
 
 /** The indices of the tabs that stay in the strip and of those that go to the menu, in model order. */
-export interface ITabOverflowResult {
+export interface TabOverflowResult {
     visible: number[];
     hidden: number[];
 }
@@ -42,8 +42,8 @@ function extent(sizes: readonly number[], indices: number[], gap: number) {
  * no selection, the first tab does.
  */
 export function computeTabOverflow(
-    input: ITabOverflowInput,
-): ITabOverflowResult {
+    input: TabOverflowInput,
+): TabOverflowResult {
     const { available, sizes, gap, selectedIndex, reserve } = input;
     const all = sizes.map((_, index) => index);
     if (extent(sizes, all, gap) <= available + EPSILON) {

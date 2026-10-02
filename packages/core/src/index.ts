@@ -89,8 +89,20 @@ export type {
     Orientation,
 } from "./geometry/dock";
 export type { Rect } from "./geometry/rect";
-export * from "./keyboard/keymap";
-export * from "./overflow/tabOverflow";
+export {
+    defaultKeyMap,
+    hasModifier,
+    type KeyEventLike,
+    type KeyMap,
+    matchesKey,
+    resolveKeyMap,
+    toAriaKeyShortcuts,
+} from "./keyboard/keymap";
+export {
+    computeTabOverflow,
+    type TabOverflowInput,
+    type TabOverflowResult,
+} from "./overflow/tabOverflow";
 export {
     computePaths,
     DROP_INDICATOR_PATH,

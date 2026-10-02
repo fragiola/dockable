@@ -1,7 +1,7 @@
 import type {
     AnyTypes,
     DockableTypes,
-    IKeyMap,
+    KeyMap,
     LayoutEngine,
     Model,
 } from "@fragiola/dockable";
@@ -25,7 +25,7 @@ export interface DockableContextValue {
     model: Model;
     /** the render revision: changes whenever the layout should re-render */
     revision: number;
-    keyMap: IKeyMap;
+    keyMap: KeyMap;
     /** the panel layer of each layout, keyed by layout id */
     layers: ReadonlyMap<string, PanelLayer>;
     /** adds (or, with `null`, removes) the panel layer of a layout */

@@ -27,7 +27,7 @@ import {
     relativeTo,
     toRect,
 } from "../geometry/rect";
-import { type IKeyEventLike, matchesKey } from "../keyboard/keymap";
+import { type KeyEventLike, matchesKey } from "../keyboard/keymap";
 import { computeTabOverflow } from "../overflow/tabOverflow";
 import {
     computePaths,
@@ -310,7 +310,7 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
      * tab button, the key closes the panel. Returns true (and prevents the default) when it did
      */
     handleOverlayKeyDown(
-        event: IKeyEventLike & { preventDefault(): void },
+        event: KeyEventLike & { preventDefault(): void },
         key: string | undefined,
     ): boolean;
 
@@ -658,7 +658,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 clientY: number;
             }) => this.handleOverlayPointerDown(event),
             handleOverlayKeyDown: (
-                event: IKeyEventLike & { preventDefault(): void },
+                event: KeyEventLike & { preventDefault(): void },
                 key: string | undefined,
             ) => this.handleOverlayKeyDown(event, key),
             isRealtimeResize: () => this.isRealtimeResize(),
@@ -1807,7 +1807,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
      * panel closed.
      */
     private handleOverlayKeyDown(
-        event: IKeyEventLike & { preventDefault(): void },
+        event: KeyEventLike & { preventDefault(): void },
         key: string | undefined,
     ): boolean {
         const doc = this.currentDocument;
