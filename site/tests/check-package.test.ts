@@ -1,8 +1,13 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
     exportProblems,
+    findTarballs,
     publishedExportsProblems,
     servedImports,
+    tarballsOption,
     withoutSource,
 } from "../../scripts/check-package.ts";
 import { SOURCE_CONDITION } from "../../scripts/source-condition.ts";
@@ -75,5 +80,32 @@ describe("the packed package check", () => {
                 'import "/@vite/client";\nimport { Dockable } from "/node_modules/.vite/deps/x.js?v=1";\nimport React from "react";',
             ),
         ).toEqual(["/@vite/client", "/node_modules/.vite/deps/x.js?v=1"]);
+    });
+
+    it("reads the tarballs directory of --tarballs, and nothing else", () => {
+        expect(tarballsOption([])).toBeUndefined();
+        expect(tarballsOption(["--tarballs", "out"])).toBe("out");
+        expect(tarballsOption(["--tarballs=out"])).toBe("out");
+        expect(() => tarballsOption(["--tarballs"])).toThrow();
+        expect(() => tarballsOption(["--tarballs", "--other"])).toThrow();
+        expect(() => tarballsOption(["--tarballs="])).toThrow();
+        expect(() => tarballsOption(["out"])).toThrow();
+    });
+
+    it("finds the tarballs at any depth of a directory, as changeset pack writes them", () => {
+        const dir = mkdtempSync(join(tmpdir(), "dockable-tarballs-"));
+        try {
+            mkdirSync(join(dir, "packages"));
+            writeFileSync(join(dir, "publish-plan.json"), "{}");
+            writeFileSync(join(dir, "packages", "b-0.1.0.tgz"), "");
+            writeFileSync(join(dir, "packages", "a-0.1.0.tgz"), "");
+            writeFileSync(join(dir, "packages", "notes.txt"), "");
+            expect(findTarballs(dir)).toEqual([
+                join(dir, "packages", "a-0.1.0.tgz"),
+                join(dir, "packages", "b-0.1.0.tgz"),
+            ]);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
     });
 });

@@ -12,6 +12,11 @@
 //   A consumer's dev server adds
 //   the `development` condition, which once pointed the published `exports` at sources that are
 //   not in the tarball.
+//
+// `--tarballs <dir>` checks the tarballs found in `dir` (at any depth) instead of packing: the
+// release workflow passes the directory `changeset pack` wrote, so what is checked is what is
+// published. A package with no tarball there (a publish plan may hold only some packages) is
+// packed from the repo, as without the option.
 import { execFileSync, spawn } from "node:child_process";
 import {
     mkdirSync,
@@ -23,7 +28,7 @@ import {
 } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { SOURCE_CONDITION } from "./source-condition.ts";
 
 const root = join(import.meta.dirname, "..");
@@ -75,6 +80,34 @@ export function publishedExportsProblems(
     return expected === actual
         ? []
         : [`published exports ${actual} are not the exports ${expected}`];
+}
+
+/** The directory of `--tarballs <dir>` (or `--tarballs=<dir>`), if given; any other argument throws. */
+export function tarballsOption(args: string[]): string | undefined {
+    let dir: string | undefined;
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === "--tarballs") {
+            dir = args[++i];
+            if (dir === undefined || dir.startsWith("--")) {
+                throw new Error("--tarballs needs a directory");
+            }
+        } else if (arg?.startsWith("--tarballs=")) {
+            dir = arg.slice("--tarballs=".length);
+            if (dir === "") throw new Error("--tarballs needs a directory");
+        } else {
+            throw new Error(`unknown argument: ${arg}`);
+        }
+    }
+    return dir;
+}
+
+/** The `.tgz` files under `dir`, at any depth, sorted. */
+export function findTarballs(dir: string): string[] {
+    return readdirSync(dir, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".tgz"))
+        .map((entry) => join(entry.parentPath, entry.name))
+        .sort();
 }
 
 function run(command: string, args: string[], cwd: string): void {
@@ -344,14 +377,58 @@ async function loadThroughDevServer(dir: string): Promise<void> {
     }
 }
 
+/** The name of `packages/<name>/package.json` (`@fragiola/…`). */
+function packageName(name: string): string {
+    const manifest = JSON.parse(
+        readFileSync(join(root, "packages", name, "package.json"), "utf8"),
+    ) as { name: string };
+    return manifest.name;
+}
+
+/**
+ * A tarball for each of `packages/*`, by directory name: the one in `given` (`--tarballs`) when
+ * there is one, else `pnpm pack` into `packs`. A given tarball of no package of the repo throws.
+ */
+function tarballsFor(
+    names: string[],
+    packs: string,
+    given: string | undefined,
+): Map<string, string> {
+    const byPackage = new Map<string, string>();
+    if (given !== undefined) {
+        const found = findTarballs(resolve(given));
+        if (found.length === 0) {
+            throw new Error(`--tarballs: no .tgz file under ${given}`);
+        }
+        for (const tarball of found) {
+            byPackage.set(packedManifest(tarball).name, tarball);
+        }
+    }
+    const tarballs = new Map<string, string>();
+    for (const name of names) {
+        const manifestName = packageName(name);
+        const tarball = byPackage.get(manifestName);
+        byPackage.delete(manifestName);
+        console.log(
+            `check-package: ${manifestName} from ${tarball ?? "pnpm pack"}`,
+        );
+        tarballs.set(name, tarball ?? pack(name, packs));
+    }
+    if (byPackage.size > 0) {
+        throw new Error(
+            `--tarballs: no package of the repo is ${[...byPackage.keys()].join(", ")}`,
+        );
+    }
+    return tarballs;
+}
+
 async function main() {
+    const given = tarballsOption(process.argv.slice(2));
     const packs = mkdtempSync(join(tmpdir(), "dockable-pack-"));
     const app = mkdtempSync(join(tmpdir(), "dockable-smoke-"));
     try {
         const names = readdirSync(join(root, "packages"));
-        const tarballs = new Map(
-            names.map((name) => [name, pack(name, packs)]),
-        );
+        const tarballs = tarballsFor(names, packs, given);
         const problems = [...tarballs].flatMap(([name, tarball]) =>
             lint(name, tarball),
         );
