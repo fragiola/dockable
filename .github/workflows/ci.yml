@@ -22,8 +22,8 @@
 # nothing but the www trigger: with one coordinator merging one PR at a time, main is what its PR
 # tested. Revisit this when PRs merge concurrently (or from out-of-date branches): then main can
 # differ from every tested head, and the checks should run again before the trigger (`needs`).
-# The same push also runs release.yml: the Version Packages PR, or the npm publish (which runs
-# `pnpm check:package` again on what it packs).
+# The same push also runs release.yml: the Version Packages PR, or the npm publish (whose pack
+# job runs `scripts/check-package.ts --tarballs` on the very tarballs it publishes).
 
 name: CI
 
