@@ -221,14 +221,13 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     /** registers (or unregisters) the element a tab's content panel is positioned with */
     registerTabPanel(tabId: string, element: HTMLElement | null): void;
     /**
-     * registers (or unregisters) a splitter element. Its thickness (its width while
-     * `isHorizontal()`, its height otherwise) becomes the splitter size
+     * registers a splitter element; returns its remover. Its thickness (its width while
+     * `isHorizontal()`, its height otherwise) becomes the splitter size of every layout of the model
      */
     registerSplitter(
         element: HTMLElement,
         isHorizontal: () => boolean,
-        register?: boolean,
-    ): void;
+    ): () => void;
     /**
      * makes `element` a drop zone for this model's drags: a drop the zone accepts calls
      * `options.onDrop` instead of moving anything. Returns its remover
@@ -432,6 +431,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     >();
     private readonly rects = new Map<string, Rect>();
     private readonly tabPanels = new Map<string, HTMLElement>();
+    private readonly splitters = new Map<HTMLElement, () => boolean>();
     private geometryResizeObserver: ResizeObserver | undefined;
     private readonly tabLists = new Map<
         string,
@@ -647,8 +647,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             registerSplitter: (
                 element: HTMLElement,
                 isHorizontal: () => boolean,
-                register?: boolean,
-            ) => this.registerSplitter(element, isHorizontal, register),
+            ) => this.registerSplitter(element, isHorizontal),
             registerDropZone: (element: Element, options: DropZoneOptions<T>) =>
                 this.registerDropZone(element, options),
             getRegistrations: () => this.getRegistrations(),
@@ -1005,6 +1004,10 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.measurables.clear();
         this.rects.clear();
         this.tabPanels.clear();
+        for (const element of this.splitters.keys()) {
+            this.shared.splitters.delete(element);
+        }
+        this.splitters.clear();
         this.tabLists.clear();
         this.overflowTriggers.clear();
         this.overflowListeners.clear();
@@ -1172,14 +1175,28 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     // Registration
     // *********************************************************************************
 
-    /** Registers (or, with `null`, unregisters) an element whose geometry the engine measures. */
+    private watch(
+        prev: HTMLElement | undefined,
+        next: HTMLElement | null | undefined,
+    ) {
+        if (prev === next) {
+            return;
+        }
+        if (prev) {
+            this.geometryResizeObserver?.unobserve(prev);
+        }
+        if (next) {
+            this.geometryResizeObserver?.observe(next);
+        }
+    }
+
     private registerMeasurable(
         id: string,
         kind: MeasurableKind,
         element: HTMLElement | null,
     ) {
         const key = `${kind}:${id}`;
-        const prev = this.measurables.get(key);
+        this.watch(this.measurables.get(key)?.element, element);
         if (element) {
             this.measurables.set(key, { kind, id, element });
         } else {
@@ -1189,56 +1206,29 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 this.rects.delete(key);
             }
         }
-        if (prev?.element !== element) {
-            if (prev) {
-                this.geometryResizeObserver?.unobserve(prev.element);
-            }
-            if (element) {
-                this.geometryResizeObserver?.observe(element);
-            }
-        }
     }
 
-    /**
-     * Registers (or, with `null`, unregisters) a tab container's tab list for tab overflow: when its
-     * tabs do not fit, the engine hides the ones that do not (keeping the selected one) and reports
-     * them through {@link getHiddenTabs}. `vertical` is the direction the tabs run.
-     */
     private registerTabList(
         containerId: string,
         element: HTMLElement | null,
         vertical = false,
     ) {
-        const prev = this.tabLists.get(containerId);
-        if (prev && prev.element !== element) {
-            this.geometryResizeObserver?.unobserve(prev.element);
-        }
+        this.watch(this.tabLists.get(containerId)?.element, element);
         if (element) {
             this.tabLists.set(containerId, { element, vertical });
-            if (prev?.element !== element) {
-                this.geometryResizeObserver?.observe(element);
-            }
         } else {
             this.tabLists.delete(containerId);
             this.setHiddenTabs(containerId, []);
         }
     }
 
-    /**
-     * Registers (or unregisters) the overflow trigger of a tab container: the element that opens
-     * the consumer's menu of hidden tabs. The space it takes is reserved in the strip.
-     */
     private registerOverflowTrigger(
         containerId: string,
         element: HTMLElement | null,
     ) {
-        const prev = this.overflowTriggers.get(containerId);
-        if (prev && prev !== element) {
-            this.geometryResizeObserver?.unobserve(prev);
-        }
+        this.watch(this.overflowTriggers.get(containerId), element);
         if (element) {
             this.overflowTriggers.set(containerId, element);
-            this.geometryResizeObserver?.observe(element);
         } else {
             this.overflowTriggers.delete(containerId);
         }
@@ -1375,25 +1365,21 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    /**
-     * Registers (or unregisters) a splitter element. Its thickness (width while `isHorizontal()`,
-     * i.e. the splitter sits between side by side children; height otherwise) becomes the
-     * splitter size. The orientation is read at every measure pass, since a row can flip it.
-     */
     private registerSplitter(
         element: HTMLElement,
         isHorizontal: () => boolean,
-        register = true,
-    ) {
-        const splitters = this.shared.splitters;
-        if (register) {
-            if (!splitters.has(element)) {
-                this.geometryResizeObserver?.observe(element);
-            }
-            splitters.set(element, isHorizontal);
-        } else if (splitters.delete(element)) {
-            this.geometryResizeObserver?.unobserve(element);
+    ): () => void {
+        if (!this.splitters.has(element)) {
+            this.watch(undefined, element);
         }
+        this.splitters.set(element, isHorizontal);
+        this.shared.splitters.set(element, isHorizontal);
+        return () => {
+            if (this.splitters.delete(element)) {
+                this.shared.splitters.delete(element);
+                this.watch(element, undefined);
+            }
+        };
     }
 
     /** @internal the registered elements (tests and debugging) */
@@ -1401,7 +1387,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return {
             measurables: this.measurables,
             tabPanels: this.tabPanels,
-            splitters: this.shared.splitters,
+            splitters: this.splitters,
         };
     }
 
@@ -1560,7 +1546,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             for (const { element } of this.measurables.values()) {
                 observer.observe(element);
             }
-            for (const element of this.shared.splitters.keys()) {
+            for (const element of this.splitters.keys()) {
                 observer.observe(element);
             }
             for (const { element } of this.tabLists.values()) {

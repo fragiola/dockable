@@ -136,6 +136,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     private readonly listeners = new Set<() => void>();
     private element: HTMLElement | null = null;
     private stopDrag: (() => void) | undefined;
+    private unregister: (() => void) | undefined;
     private draggingTimer: number | undefined;
     private bounds: [number, number] = [0, 0];
     private startPosition = 0;
@@ -204,21 +205,16 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         if (this.element === element) {
             return;
         }
-        if (this.element) {
-            this.element.removeEventListener("touchstart", this.onTouchStart);
-            this.engine.adapter.registerSplitter(
-                this.element,
-                this.isHorizontal,
-                false,
-            );
-        }
+        this.element?.removeEventListener("touchstart", this.onTouchStart);
+        this.unregister?.();
+        this.unregister = undefined;
         this.element = element;
         if (element) {
             element.addEventListener("touchstart", this.onTouchStart, {
                 passive: false,
             });
             if (!this.border()) {
-                this.engine.adapter.registerSplitter(
+                this.unregister = this.engine.adapter.registerSplitter(
                     element,
                     this.isHorizontal,
                 );

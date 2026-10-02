@@ -446,6 +446,26 @@ describe("LayoutEngine registration bookkeeping", () => {
             root.querySelectorAll(`[${MOVEABLES_HOME_ATTRIBUTE}]`),
         ).toHaveLength(1);
     });
+
+    it("observes only its own splitters: a window's engine never watches the main layout's", () => {
+        const { engine, splitter } = setup();
+        const main = RecordingResizeObserver.instances[0];
+        const sub = engine.adapter.createPopoutEngine("window");
+        sub.adapter.attachRoot(
+            document.body.appendChild(document.createElement("div")),
+        );
+        const popout = RecordingResizeObserver.instances[1];
+        expect(main?.observed.has(splitter)).toBe(true);
+        expect(popout?.observed.has(splitter)).toBe(false);
+
+        const own = document.body.appendChild(document.createElement("div"));
+        const unregister = sub.adapter.registerSplitter(own, () => true);
+        expect(popout?.observed.has(own)).toBe(true);
+        expect(main?.observed.has(own)).toBe(false);
+        unregister();
+        expect(popout?.observed.has(own)).toBe(false);
+        sub.adapter.dispose();
+    });
 });
 
 describe("LayoutEngine keyboard focus", () => {
