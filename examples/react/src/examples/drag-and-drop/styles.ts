@@ -40,11 +40,15 @@ export const edgeIndicator =
 
 export const edgeArrow = "size-3";
 
-/** The tabset the drag would drop into (or beside) has `data-drop-target`: an inset ring. */
-export const tabset = cn(
-    "palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)",
-    "data-drop-target:ring-2 data-drop-target:ring-palette-ring data-drop-target:ring-inset",
-);
+/** `relative` anchors the drop target's outline; `group/tabset` lets it read the tabset's data-*. */
+export const tabset =
+    "group/tabset palette-raised relative rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line)";
+
+/** The tabset the drag would drop into (or beside) has `data-drop-target`: an outline above its
+ * panel. Panels are portalled into the root after the tabsets: `z-20` paints it above them, and
+ * `pointer-events-none` keeps it out of the drag's hit-testing. */
+export const dropTargetOutline =
+    "palette-blue pointer-events-none absolute inset-0 z-20 hidden rounded-[inherit] border-2 border-palette-base group-data-drop-target/tabset:block";
 
 export const strip =
     "flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line";

@@ -5,7 +5,8 @@ description: When a strip has more tabs than fit, the ones that do not fit go to
 
 When a strip has more tabs than it can show, Dockable hides the ones that do not fit, one by one
 as the strip narrows, and always keeps the selected tab in view (the VS Code behavior). You list
-the hidden tabs in a menu of your own, opened by `Dockable.TabOverflowTrigger`.
+the hidden tabs in a menu of your own, opened by `Dockable.TabOverflowTrigger`. A strip can also
+keep every tab and scroll instead: the example shows both, one per tabset.
 
 <Example id="overflow-select" />
 
@@ -74,7 +75,8 @@ another tab goes to the menu in its place. The result also has `overflowing`. Wh
 the registry, not of the package. The trigger has no name of its own: give it an `aria-label`.
 
 The [`overflow-select`](/examples/overflow-select) example uses Fragiola UI's `Select`, with
-`Dockable.TabOverflowTrigger` rendered as its trigger.
+`Dockable.TabOverflowTrigger` rendered as its trigger. Its second tabset scrolls instead (see
+[Wrap or scroll instead](#wrap-or-scroll-instead)).
 
 ## It works everywhere tabs do
 
@@ -87,7 +89,8 @@ The [`overflow-select`](/examples/overflow-select) example uses Fragiola UI's `S
 
 A strip that wraps (`flex-wrap: wrap`, several rows of tabs) or scrolls (`overflow-x: auto`)
 keeps every tab: turn tab overflow off with `overflow={false}` on the tab list. A per-tabset
-switch is your data (a `wrap` field in the registry's `tabset` type, read as `tabset.data?.wrap`).
+switch is your data: the [`overflow-select`](/examples/overflow-select) example's registry has
+`tabset: { overflow: "select" | "scroll" }`, and its tabset reads `node.data?.overflow`.
 For a scrolling strip, scroll the selected tab into view when the selection changes.
 `useModelState` re-renders the tab only when its answer changes:
 

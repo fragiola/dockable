@@ -19,7 +19,8 @@ import * as styles from "./styles";
 // No drop outline at all (the root has no `Dockable.DropIndicator`): the targets show themselves.
 // While a drag would drop into (or beside) a tabset, it has `data-drop-target` and
 // `data-drop-location` (center, top, bottom, left, right); a drop into its tab strip also gives the
-// insertion index. The styles read only those.
+// insertion index. The styles read only those: a layer in the tabset, above its panel, fills the
+// part the drop would take, and a caret marks the insertion point in the strip.
 
 // What the layout holds: one component per kind of content, each named by its label.
 type Types = {
@@ -136,7 +137,7 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset that marks itself while it is a drop target: a ring or a side bar, and a caret in its strip. */
+/** A tabset that marks itself while it is a drop target: the part the drop would take, or a caret in its strip. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     // the same state the tabset's data-* come from: is a strip drop aimed here, and where?
     const { dropIndex } = useTabSet(node).state;
@@ -155,11 +156,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                             dropIndex === tabs.length &&
                             index === tabs.length - 1;
                         return (
-                            <Dockable.Tab
-                                node={tab}
-                                // a caret before (or after) the tab, at the strip's insertion point
-                                className={styles.tab(before, after)}
-                            >
+                            <Dockable.Tab node={tab} className={styles.tab}>
                                 <span className={styles.tabName}>
                                     {tab.label}
                                 </span>
@@ -168,12 +165,20 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                     aria-hidden="true"
                                     className={styles.tabMarker}
                                 />
+                                {/* the strip's insertion point, before (or after) this tab */}
+                                {(before || after) && (
+                                    <span
+                                        aria-hidden="true"
+                                        className={styles.dropCaret(after)}
+                                    />
+                                )}
                             </Dockable.Tab>
                         );
                     }}
                 </Dockable.TabList>
             </div>
             <Dockable.TabSetContent />
+            <span aria-hidden="true" className={styles.dropHighlight} />
         </Dockable.TabSet>
     );
 }

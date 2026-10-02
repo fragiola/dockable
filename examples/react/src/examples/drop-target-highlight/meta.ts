@@ -3,7 +3,7 @@ import type { ExampleMeta } from "../meta-types";
 export default {
     title: "Drop target highlight",
     description:
-        "The tabset under a drag glows, the side it would dock to lights up, and a drop into a tab strip shows a caret at the insertion point. All from data attributes, with no outline at all.",
+        "The part of the tabset a drag would take lights up above its panel: all of it, or the half for a side. A drop into a tab strip shows a caret instead.",
     category: "drag-and-drop",
     order: 2,
     features: [

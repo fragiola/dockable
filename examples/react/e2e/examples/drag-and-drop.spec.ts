@@ -1,15 +1,14 @@
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { centre, moveDragTo, openExample, path, startDrag } from "../helpers";
-
-const shadow = (locator: Locator) =>
-    locator.evaluate((el) => getComputedStyle(el).boxShadow);
 
 test("drop into a tabset and at the layout's edge", async ({ page }) => {
     await openExample(page, "drag-and-drop");
     const root = path(page, "/layout");
     const indicator = path(page, "/outline");
     const target = path(page, "/r1/ts0");
-    const idle = await shadow(target);
+    // the layer that outlines the target tabset above its panel
+    const outline = target.locator(":scope > span[aria-hidden]");
+    await expect(outline).toBeHidden();
 
     // into a tabset: a "rect" drop in its centre; the dragged tab and the root are marked
     const dragged = path(page, "/ts0/tb1");
@@ -20,17 +19,20 @@ test("drop into a tabset and at the layout's edge", async ({ page }) => {
     await expect(indicator).toBeVisible();
     await expect(indicator).toHaveAttribute("data-drop-kind", "rect");
     await expect(indicator).toHaveAttribute("data-drop-location", "center");
-    // the target tabset is marked, and highlighted, while it is the target
+    // the target tabset is marked, and outlined, while it is the target
     await expect(target).toHaveAttribute("data-drop-target", "");
     await expect(target).toHaveAttribute("data-drop-location", "center");
-    expect(await shadow(target)).not.toBe(idle);
+    await expect(outline).toBeVisible();
+    await expect(
+        path(page, "/r1/ts1").locator(":scope > span[aria-hidden]"),
+    ).toBeHidden();
     await page.mouse.up();
     await expect(path(page, "/r1/ts0/tabstrip").getByRole("tab")).toHaveText([
         "Inbox",
         "Or me",
     ]);
     await expect(root).not.toHaveAttribute("data-dragging");
-    expect(await shadow(target)).toBe(idle);
+    await expect(outline).toBeHidden();
 
     // at the layout's left edge: an "edge" drop makes a new tabset there
     const box = await root.boundingBox();

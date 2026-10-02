@@ -178,7 +178,7 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 
 /**
  * A tabset. The one the drag would drop into (or beside) has `data-drop-target` (and
- * `data-drop-location`), so it is styled from data alone.
+ * `data-drop-location`), so it is styled from data alone: a layer above its panel outlines it.
  */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
@@ -200,6 +200,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 </Dockable.TabList>
             </div>
             <Dockable.TabSetContent />
+            <span aria-hidden="true" className={styles.dropTargetOutline} />
         </Dockable.TabSet>
     );
 }
