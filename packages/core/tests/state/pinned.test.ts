@@ -90,7 +90,7 @@ describe("pinned tabs", () => {
         const { model } = setup({
             ...tabsets(["One", "Two"]),
             defaults: { tab: { enablePopout: true } },
-            borders: [{ location: "left", children: [tab("B")] }],
+            borders: [{ location: "start", children: [tab("B")] }],
         });
         must(model.run("tab.pin", { tabId: "One", value: true }));
         expect(model.run("tab.close", { tabId: "One" })).toMatchObject({

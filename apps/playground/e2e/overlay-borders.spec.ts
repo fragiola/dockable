@@ -7,7 +7,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { checkTab, dragSplitter, findPath, waitForBox } from "./helpers";
 
-type BorderLocation = "top" | "bottom" | "left" | "right";
+type BorderLocation = "top" | "bottom" | "start" | "end";
 
 const open = async (page: Page) => {
     await page.goto("/fixtures/borders/?layout=test_overlay");
@@ -42,8 +42,8 @@ test("an overlay border opens over the layout; a split one shrinks it", async ({
     page,
 }) => {
     const main = await open(page);
-    await findPath(page, "/border/left/tb0").click();
-    await expect(findPath(page, "/border/left/t0")).toBeVisible();
+    await findPath(page, "/border/start/tb0").click();
+    await expect(findPath(page, "/border/start/t0")).toBeVisible();
     sameBox(await waitForBox(findPath(page, "/ts0"), "ts0"), main);
 
     await findPath(page, "/border/bottom/tb0").click();
@@ -84,43 +84,43 @@ test("toggling a border's type: overlay restores the layout, the splitter still 
 
 test("clicking a tabset closes an open overlay", async ({ page }) => {
     await open(page);
-    await findPath(page, "/border/left/tb0").click();
-    await expect(findPath(page, "/border/left/t0")).toBeVisible();
+    await findPath(page, "/border/start/tb0").click();
+    await expect(findPath(page, "/border/start/t0")).toBeVisible();
     await findPath(page, "/ts1/t0").click({ position: { x: 150, y: 200 } });
-    await expect(findPath(page, "/border/left/t0")).toBeHidden();
-    await checkTab(page, "/border/left", 0, false, "left1");
+    await expect(findPath(page, "/border/start/t0")).toBeHidden();
+    await checkTab(page, "/border/start", 0, false, "left1");
 });
 
 test("dragging a layout splitter closes an open overlay", async ({ page }) => {
     await open(page);
-    await findPath(page, "/border/left/tb0").click();
-    await expect(findPath(page, "/border/left/t0")).toBeVisible();
+    await findPath(page, "/border/start/tb0").click();
+    await expect(findPath(page, "/border/start/t0")).toBeVisible();
     await dragSplitter(page, findPath(page, "/s1"), false, 40);
-    await expect(findPath(page, "/border/left/t0")).toBeHidden();
+    await expect(findPath(page, "/border/start/t0")).toBeHidden();
 });
 
 test("Escape closes the overlay from its tab button or from inside the panel, focusing the tab button", async ({
     page,
 }) => {
     await open(page);
-    const button = findPath(page, "/border/left/tb0");
+    const button = findPath(page, "/border/start/tb0");
     await button.click();
-    await expect(findPath(page, "/border/left/t0")).toBeVisible();
+    await expect(findPath(page, "/border/start/t0")).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(findPath(page, "/border/left/t0")).toBeHidden();
+    await expect(findPath(page, "/border/start/t0")).toBeHidden();
     await expect(button).toBeFocused();
 
     await button.click();
-    await findPath(page, "/border/left/t0").getByTestId("input").click();
+    await findPath(page, "/border/start/t0").getByTestId("input").click();
     await page.keyboard.press("Escape");
-    await expect(findPath(page, "/border/left/t0")).toBeHidden();
+    await expect(findPath(page, "/border/start/t0")).toBeHidden();
     await expect(button).toBeFocused();
 });
 
 test("clicking inside the overlay panel keeps it open", async ({ page }) => {
     await open(page);
-    await findPath(page, "/border/left/tb0").click();
-    const panel = findPath(page, "/border/left/t0");
+    await findPath(page, "/border/start/tb0").click();
+    const panel = findPath(page, "/border/start/t0");
     await panel.getByTestId("counter").click();
     await panel.click({ position: { x: 20, y: 200 } });
     await expect(panel).toBeVisible();
@@ -131,29 +131,29 @@ test("the overlay splitter resizes it, and the size persists when it reopens", a
     page,
 }) => {
     await open(page);
-    await findPath(page, "/border/left/tb0").click();
+    await findPath(page, "/border/start/tb0").click();
     const before = await waitForBox(
-        findPath(page, "/border/left/t0"),
-        "left panel",
+        findPath(page, "/border/start/t0"),
+        "start panel",
     );
-    await dragSplitter(page, findPath(page, "/border/left/s-1"), false, 100);
+    await dragSplitter(page, findPath(page, "/border/start/s-1"), false, 100);
     const after = await waitForBox(
-        findPath(page, "/border/left/t0"),
-        "left panel",
+        findPath(page, "/border/start/t0"),
+        "start panel",
     );
     expect(after.width).toBeGreaterThan(before.width + 50);
 
     await findPath(page, "/ts2/t0").click({ position: { x: 100, y: 200 } });
-    await expect(findPath(page, "/border/left/t0")).toBeHidden();
-    await findPath(page, "/border/left/tb0").click();
+    await expect(findPath(page, "/border/start/t0")).toBeHidden();
+    await findPath(page, "/border/start/tb0").click();
     const reopened = await waitForBox(
-        findPath(page, "/border/left/t0"),
-        "left panel",
+        findPath(page, "/border/start/t0"),
+        "start panel",
     );
     expect(Math.abs(reopened.width - after.width)).toBeLessThan(2);
 });
 
-for (const location of ["top", "bottom", "left", "right"] as const) {
+for (const location of ["top", "bottom", "start", "end"] as const) {
     test(`an overlay ${location} border opens over the layout and closes on an outside click`, async ({
         page,
     }) => {
@@ -167,28 +167,28 @@ for (const location of ["top", "bottom", "left", "right"] as const) {
     });
 }
 
-test("an open left overlay stops above an open bottom overlay", async ({
+test("an open start overlay stops above an open bottom overlay", async ({
     page,
 }) => {
     await open(page);
     await setBorderType(page, "bottom", "overlay");
     await findPath(page, "/border/bottom/tb0").click();
-    await findPath(page, "/border/left/tb0").click();
+    await findPath(page, "/border/start/tb0").click();
     await expect(findPath(page, "/border/bottom/t0")).toBeVisible();
-    await expect(findPath(page, "/border/left/t0")).toBeVisible();
+    await expect(findPath(page, "/border/start/t0")).toBeVisible();
     const bottom = await waitForBox(
         findPath(page, "/border/bottom/t0"),
         "bottom panel",
     );
-    const left = await waitForBox(
-        findPath(page, "/border/left/t0"),
-        "left panel",
+    const start = await waitForBox(
+        findPath(page, "/border/start/t0"),
+        "start panel",
     );
-    expect(bottom.x).toBeLessThanOrEqual(left.x);
-    expect(left.y + left.height).toBeLessThanOrEqual(bottom.y + 1);
+    expect(bottom.x).toBeLessThanOrEqual(start.x);
+    expect(start.y + start.height).toBeLessThanOrEqual(bottom.y + 1);
     const splitter = await waitForBox(
-        findPath(page, "/border/left/s-1"),
-        "left splitter",
+        findPath(page, "/border/start/s-1"),
+        "start splitter",
     );
-    expect(Math.abs(splitter.height - left.height)).toBeLessThan(2);
+    expect(Math.abs(splitter.height - start.height)).toBeLessThan(2);
 });

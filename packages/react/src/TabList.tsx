@@ -41,7 +41,7 @@ export interface TabListProps<T extends DockableTypes = AnyTypes>
     children: (tab: TabOf<T>) => React.ReactNode;
     /**
      * the direction the tabs are laid out in, for arrow key navigation; default horizontal
-     * (vertical in a left or right border)
+     * (vertical in a start or end border)
      */
     orientation?: "horizontal" | "vertical" | undefined;
     /**
@@ -64,7 +64,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
     const {
         children,
         orientation = border &&
-        (container.location === "left" || container.location === "right")
+        (container.location === "start" || container.location === "end")
             ? "vertical"
             : "horizontal",
         overflow = true,

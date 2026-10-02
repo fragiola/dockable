@@ -243,7 +243,8 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
   `data-open`, `data-overlay`/`data-docked`, `data-tab-direction`.
 - **`data-layout-path` on every element**: `/layout` (Root), `/row` (root row), `/r0`, `/ts0`,
   `/ts0/tabstrip`, `/ts0/content`, `/ts0/tb0`, `/ts0/t0`, `/s0`; with borders `/borders`, `/main`,
-  `/border/left`, `/border/left/tb0`, `/border/left/content`, `/border/left/s-1`; `/edge/top`.
+  `/border/start`, `/border/start/tb0`, `/border/start/content`, `/border/start/s-1`; `/edge/top`,
+  `/edge/start`. Sides are logical (`top`, `bottom`, `start`, `end`), never `left`/`right`.
 - **No text and no names.** Primitives render only their children and set no `aria-label` of
   their own. Accessible names come from the consumer (`aria-label`, children, `render` with state);
   the splitters a `Row` or a border inserts are named through `renderSplitter`.

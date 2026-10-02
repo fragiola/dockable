@@ -24,7 +24,7 @@ import {
 export interface BorderContentState {
     /** the side of the layout the border is on */
     location: BorderLocation;
-    /** the direction its tabs run: `"vertical"` for a left or right border */
+    /** the direction its tabs run: `"vertical"` for a start or end border */
     orientation: "horizontal" | "vertical";
     /** a tab is selected, so the border's panel is open */
     open: boolean;
@@ -64,8 +64,8 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
     const id = node.id;
     const areaRef = useMeasurable(engine, id, "bordercontent");
     const location = node.location;
-    // a left or right border: sized by width
-    const horizontal = location === "left" || location === "right";
+    // a start or end border: sized by width
+    const horizontal = location === "start" || location === "end";
     const { size, minSize, maxSize } =
         model.get("border-settings-by", { borderId: id }) ?? {};
     const path = engine.get("layout-path-by", { nodeId: id });
@@ -91,8 +91,8 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
                 )}
             </React.Fragment>
         ) : null;
-    // the splitter is on the layout's side: after the area on the left and top
-    const areaFirst = location === "left" || location === "top";
+    // the splitter is on the layout's side: after the area on the start and top
+    const areaFirst = location === "start" || location === "top";
 
     const structural: React.CSSProperties = {
         display: state.open ? "flex" : "none",

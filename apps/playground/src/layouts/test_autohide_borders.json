@@ -37,7 +37,7 @@
     },
     "borders": [
         {
-            "location": "left",
+            "location": "start",
             "children": [
                 {
                     "component": "testing",
@@ -46,7 +46,7 @@
             ]
         },
         {
-            "location": "right",
+            "location": "end",
             "children": []
         },
         {

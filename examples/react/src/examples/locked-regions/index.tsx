@@ -137,9 +137,9 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
     if (target?.type === "row") {
         const children = target.children;
         const beside =
-            location === "left"
+            location === "start"
                 ? children[0]
-                : location === "right"
+                : location === "end"
                   ? children[children.length - 1]
                   : undefined;
         if (beside && LOCKED.has(beside.id)) {

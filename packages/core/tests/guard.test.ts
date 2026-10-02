@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { COMMAND_DEFINITIONS } from "../src/commands/catalogue";
+import { layoutSchema } from "../src/schema/layout";
 
 const root = join(import.meta.dirname, "..");
 const src = join(root, "src");
@@ -222,6 +224,44 @@ describe("core package guard", () => {
         expect(FLEXLAYOUT_API.test('model.run("tab.add", payload)')).toBe(
             false,
         );
+    });
+
+    it("names sides logically: every location enum of the schemas is the start/end set", () => {
+        const SIDES = new Set([
+            "top",
+            "bottom",
+            "start",
+            "end",
+            "left",
+            "right",
+        ]);
+        const enums: unknown[][] = [];
+        const visit = (value: unknown) => {
+            if (Array.isArray(value)) {
+                value.forEach(visit);
+            } else if (value !== null && typeof value === "object") {
+                for (const [key, child] of Object.entries(value)) {
+                    if (
+                        key === "enum" &&
+                        Array.isArray(child) &&
+                        child.some((item) => SIDES.has(String(item)))
+                    ) {
+                        enums.push(child);
+                    }
+                    visit(child);
+                }
+            }
+        };
+        visit(layoutSchema);
+        for (const definition of COMMAND_DEFINITIONS.values()) {
+            visit(definition.payloadSchema);
+            visit(definition.resultSchema);
+        }
+        const found = new Set(enums.map((values) => values.join()));
+        expect([...found].sort()).toEqual([
+            "center,top,bottom,start,end",
+            "top,bottom,start,end",
+        ]);
     });
 
     it("ships the root licence, including the FlexLayout notice", () => {

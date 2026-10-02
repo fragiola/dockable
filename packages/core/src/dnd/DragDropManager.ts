@@ -322,7 +322,7 @@ export class DragDropManager {
         const parent = model.get("node-parent-by", { nodeId: id });
         const inSideBorder =
             parent?.type === "border" &&
-            (parent.location === "left" || parent.location === "right");
+            (parent.location === "start" || parent.location === "end");
         if (node.type === "tab" && !inSideBorder) {
             // keep the grab point: the image is offset by the pointer position within the element
             const r = this.engine.adapter.rectInLayout(
@@ -715,9 +715,9 @@ export class DragDropManager {
         }
         const location =
             x <= r.x + margin
-                ? "left"
+                ? "start"
                 : x >= r.x + r.width - margin
-                  ? "right"
+                  ? "end"
                   : y <= r.y + margin
                     ? "top"
                     : y >= r.y + r.height - margin

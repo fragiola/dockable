@@ -34,7 +34,7 @@ state the model holds has the same shape, with the omitted fields filled in.
     },
     "active": "editors",
     "borders": [
-        { "location": "left", "mode": "overlay", "children": [{ "component": "files", "label": "Files" }] }
+        { "location": "start", "mode": "overlay", "children": [{ "component": "files", "label": "Files" }] }
     ],
     "windows": [
         {
@@ -123,7 +123,7 @@ sources) whose `type` may be omitted:
 | `enableDrag` | `boolean` | it can be dragged or moved |
 | `enablePopout` | `boolean` | it can be popped out into a window, or dropped into one |
 | `minWidth`, `minHeight`, `maxWidth`, `maxHeight` | `number` | its size limits in px (`SizeLimits`) |
-| `borderWidth` | `number` | its own panel width in a left or right border (the border's `size` otherwise) |
+| `borderWidth` | `number` | its own panel width in a start or end border (the border's `size` otherwise) |
 | `borderHeight` | `number` | its own panel height in a top or bottom border |
 
 The types:
@@ -155,7 +155,7 @@ const readme: TabJson<Types> = {
 | --- | --- | --- |
 | `type` | `"border"` | optional |
 | `id` | `string` | default `border_<location>` |
-| `location` | `BorderLocation` | `"top"`, `"bottom"`, `"left"` or `"right"`; one border per side |
+| `location` | `BorderLocation` | `"top"`, `"bottom"`, `"start"` or `"end"`; one border per side |
 | `selected` | `number` | the index of the open tab; default `-1` (the panel is closed) |
 | `show` | `boolean` | `false` hides the border entirely |
 | `data` | `BorderDataOf<T>` | the app's data for the border, typed by the registry's `border` |

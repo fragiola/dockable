@@ -194,7 +194,7 @@ export function queries(model: Model<Types>): void {
         model.get("tabsets"),
         model.get("tabs"),
         model.get("root-row"),
-        model.get("selected-tab-by", { borderId: "left" }),
+        model.get("selected-tab-by", { borderId: "border_start" }),
         model.get("selected-tab-by", { layoutId: MAIN_LAYOUT }),
         model.get("window-by", { id: "w0" })?.root,
     );
@@ -228,7 +228,7 @@ export function queries(model: Model<Types>): void {
     // @ts-expect-error: selected-tab-by takes exactly one of them
     model.get("selected-tab-by", {});
     // @ts-expect-error: selected-tab-by takes exactly one of them, not two
-    model.get("selected-tab-by", { tabsetId: "ts0", borderId: "left" });
+    model.get("selected-tab-by", { tabsetId: "ts0", borderId: "border_start" });
     // @ts-expect-error: selected-tab-by takes exactly one of them, not two
     model.get("selected-tab-by", { tabsetId: "ts0", layoutId: MAIN_LAYOUT });
     // @ts-expect-error: a tabset's selected tab is read by the tabset's id, not a container's

@@ -32,7 +32,7 @@ for a [`Dockable.TabOverflowTrigger`](/docs/api/tab-overflow-trigger) to list.
 | prop | type | default | description |
 | --- | --- | --- | --- |
 | `children` | `(tab: TabOf<T>) => ReactNode` | required | renders a tab button (a `Dockable.Tab`); pass the model's registry as the type argument (`<Dockable.TabList<Types>>`) and `tab.data` narrows on `tab.component` |
-| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` (`"vertical"` in a left or right border) | the direction the tabs are laid out in, for arrow key navigation; default horizontal (vertical in a left or right border) |
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` (`"vertical"` in a start or end border) | the direction the tabs are laid out in, for arrow key navigation; default horizontal (vertical in a start or end border) |
 | `overflow` | `boolean` | `true` | tab overflow: the tabs that do not fit are hidden (the selected one stays), for a `Dockable.TabOverflowTrigger` to list; `false` keeps every tab, for a strip that wraps or scrolls |
 
 ## State
@@ -72,5 +72,5 @@ Name it with `aria-label` (from the tabset's `data`, when the app keeps a name t
 ## In a border
 
 `Dockable.TabList` works the same inside `Dockable.Border`: its path is
-`/border/<location>/tabstrip`, and it runs vertically in a left or right border. The border's strip
+`/border/<location>/tabstrip`, and it runs vertically in a start or end border. The border's strip
 (`Dockable.Border`) is what the engine measures there, not the tab list.

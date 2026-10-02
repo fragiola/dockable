@@ -84,7 +84,7 @@ checked against the command, and `data` against the component.
 model.run("tab.select", { tabId: "readme" });
 model.run("tab.close", { tabId: "readme" });
 model.run("tab.add", { component: "log", label: "Log", to: "editors", select: true });
-model.run("tab.move", { tabId: "log", to: "editors", location: "right" }); // split beside it
+model.run("tab.move", { tabId: "log", to: "editors", location: "end" }); // split beside it
 model.run("tab.configure", { tabId: "log", label: "Build log" }); // rename
 model.run("tab.set-data", { tabId: "readme", data: { path: "/docs/README.md" } }); // a data patch
 model.run("tabset.maximize", { tabsetId: "editors", value: true });
@@ -227,7 +227,7 @@ model.get("root-row"); // a layout's root row (default the main layout)
 model.get("all-tabs"); // every tab, in tree order: TabOf<Types>[]
 model.get("tabsets"); // a layout's tabsets
 model.get("selected-tab-by", { tabsetId: "editors" }); // a tabset's selected tab
-model.get("selected-tab-by", { borderId: "left" }); // a border's (none while it is closed)
+model.get("selected-tab-by", { borderId: "border_start" }); // a border's (none while it is closed)
 model.get("active-tabset"); // the active tabset of a layout
 model.get("maximized-tabset"); // the maximized tabset of a layout
 model.get("tab-settings-by", { tabId: "readme" }); // a tab's flags, resolved through the defaults

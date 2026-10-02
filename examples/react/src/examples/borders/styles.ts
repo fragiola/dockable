@@ -56,7 +56,7 @@ export const tabMarker =
 export const border = cn(
     "palette-surface shrink-0 bg-palette-base text-palette-contrast",
     "data-[orientation=vertical]:w-(--dk-tab-height) data-[orientation=horizontal]:h-(--dk-tab-height)",
-    "data-[location=left]:border-e data-[location=right]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
+    "data-[location=start]:border-e data-[location=end]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
     "data-drop-target:bg-palette-soft",
 );
 
@@ -69,7 +69,7 @@ export const borderTab = cn(
     "font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
     "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
     "data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40",
-    // a side border's labels turn with `writing-mode`; a left border that
+    // a side border's labels turn with `writing-mode`; a start border that
     // reads "up" (`data-tab-direction`) turns them half a turn more
     "in-data-[orientation=vertical]:[writing-mode:vertical-rl] in-data-[orientation=vertical]:px-1 in-data-[orientation=vertical]:py-2",
     "in-data-[tab-direction=up]:rotate-180",

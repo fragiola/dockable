@@ -93,7 +93,7 @@ export class Overlay<T extends DockableTypes> {
                 bottom = inset;
             }
         }
-        return border.location === "left"
+        return border.location === "start"
             ? { left: 0, top, bottom }
             : { right: 0, top, bottom };
     }

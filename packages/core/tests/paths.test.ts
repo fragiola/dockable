@@ -49,7 +49,7 @@ const model = createModel({
     },
     borders: [
         {
-            location: "left",
+            location: "start",
             children: [{ id: "files", component: "x", label: "x" }],
         },
     ],
@@ -72,9 +72,9 @@ describe("data-layout-path helpers", () => {
     });
 
     it("put borders under /border/<location>, and windows under /sublayout<n>", () => {
-        expect(path("border_left")).toBe("/border/left");
-        expect(path("files")).toBe("/border/left/t0");
-        expect(getTabButtonPath(path("files"))).toBe("/border/left/tb0");
+        expect(path("border_start")).toBe("/border/start");
+        expect(path("files")).toBe("/border/start/t0");
+        expect(getTabButtonPath(path("files"))).toBe("/border/start/tb0");
         expect(windowPath(1)).toBe("/sublayout1");
         const window = computePaths(model.state.root, windowPath(2));
         expect(window.get("ts0")).toBe("/sublayout2/ts0");

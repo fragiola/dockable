@@ -61,7 +61,7 @@ const json: LayoutJson<Types> = {
     defaults: { border: { size: 220 } },
     borders: [
         {
-            location: "left",
+            location: "start",
             selected: 0,
             children: [
                 { component: "explorer", label: "Explorer" },
@@ -77,7 +77,7 @@ const json: LayoutJson<Types> = {
             ],
         },
         {
-            location: "right",
+            location: "end",
             children: [{ component: "outline", label: "Outline" }],
         },
     ],

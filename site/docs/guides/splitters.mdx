@@ -146,7 +146,7 @@ twice the first's share, and a border's size is clamped to its `minSize` and `ma
 
 ```ts
 model.run("row.resize", { rowId: "main-row", weights: [30, 70] });
-model.run("border.resize", { borderId: "border_left", size: 280 });
+model.run("border.resize", { borderId: "border_start", size: 280 });
 ```
 
 `row.resize` needs one weight per child (`invalid_payload` otherwise); the root row's id is

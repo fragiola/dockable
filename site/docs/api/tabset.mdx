@@ -45,7 +45,7 @@ first for a strip at the bottom.
 | `hidden` | `boolean` | another tabset of the layout is maximized, so this one is hidden (`model.is("node-hidden-by-maximize", { nodeId })`) |
 | `empty` | `boolean` | the tabset has no tabs |
 | `dropTarget` | `boolean` | the current drag would drop into or beside this tabset (its content or its strip) |
-| `dropLocation` | `DropLocation \| undefined`: `"center" \| "top" \| "bottom" \| "left" \| "right"` | while it is the drop target: where the drag would dock relative to it |
+| `dropLocation` | `DropLocation \| undefined`: `"center" \| "top" \| "bottom" \| "start" \| "end"` | while it is the drop target: where the drag would dock relative to it |
 | `dropRefused` | `boolean` | the current drag is over this tabset, but a drop rule (or a middleware veto) refuses it |
 | `dropIndex` | `number \| undefined` | while the drag aims at this tabset's strip: the index among its tabs the tab would be inserted at (its length for the end), else `undefined` |
 
@@ -58,7 +58,7 @@ first for a strip at the bottom.
 | `data-maximized` | maximized |
 | `data-empty` | no tabs |
 | `data-drop-target` | the current drag would drop into or beside this tabset |
-| `data-drop-location` | while it is the drop target: `"center"`, `"top"`, `"bottom"`, `"left"` or `"right"` |
+| `data-drop-location` | while it is the drop target: `"center"`, `"top"`, `"bottom"`, `"start"` or `"end"` |
 | `data-drop-refused` | the current drag is over this tabset, but a drop rule refuses it |
 
 ## Structural style

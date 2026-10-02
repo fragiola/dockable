@@ -146,7 +146,7 @@ function WorkbenchTab({
                         model.run("tab.move", {
                             tabId: tab.id,
                             to: tabset.id,
-                            location: "right",
+                            location: "end",
                         })
                     }
                 >

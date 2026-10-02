@@ -162,7 +162,7 @@ model.use(keepMainFilled);
 ```
 
 The drag asks the same rule, so a border refuses the last tab of the main layout while it hovers,
-and `model.can("tab.move", { tabId, to: "border_left" })` answers false for it. Closing the last
+and `model.can("tab.move", { tabId, to: "border_start" })` answers false for it. Closing the last
 tab is not a move, so it still works; add `"tab.close"` to the set to keep that one too.
 
 ## Feedback for a refused target

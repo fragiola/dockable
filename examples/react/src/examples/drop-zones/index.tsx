@@ -164,12 +164,12 @@ export default function DropZones() {
                     onDrop={(tab) => {
                         const root = model.get("root-row");
                         if (!root) return;
-                        // the right edge of the root row: a new tabset on the right of the layout
+                        // the end edge of the root row (the right in LTR): a new tabset there
                         report(
                             model.run("tab.move", {
                                 tabId: tab.id,
                                 to: root.id,
-                                location: "right",
+                                location: "end",
                             }).ok,
                             `Moved ${tab.label} to the right`,
                         );

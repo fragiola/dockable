@@ -10,7 +10,7 @@ when you want edge indicators. `pointer-events: none`, like the drop indicator. 
 edge inside `Dockable.Root`; its stacking (`z-index`) is yours."
 
 ```tsx
-{(["top", "bottom", "left", "right"] as const).map((edge) => (
+{(["top", "bottom", "start", "end"] as const).map((edge) => (
     <Dockable.EdgeIndicator
         key={edge}
         edge={edge}
@@ -27,7 +27,7 @@ edge inside `Dockable.Root`; its stacking (`z-index`) is yours."
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `edge` | `"top" \| "bottom" \| "left" \| "right"` | required | the layout edge it marks |
+| `edge` | `"top" \| "bottom" \| "start" \| "end"` | required | the layout edge it marks |
 | `children` | `ReactNode` | none | its content (an arrow icon); the primitive renders none |
 
 ## State
@@ -36,7 +36,7 @@ edge inside `Dockable.Root`; its stacking (`z-index`) is yours."
 
 | field | type | description |
 | --- | --- | --- |
-| `edge` | `BorderLocation` | the edge (`"top" \| "bottom" \| "left" \| "right"`) |
+| `edge` | `BorderLocation` | the edge (`"top" \| "bottom" \| "start" \| "end"`) |
 | `visible` | `boolean` | a drag that can dock to the layout's edges is over the layout |
 | `dropTarget` | `boolean` | the drop would dock to this edge |
 

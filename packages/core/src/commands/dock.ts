@@ -222,12 +222,12 @@ export function dropOnRow(
     if (location === "center") {
         draft.attach(target, node, index === -1 ? children.length : index);
     } else if (
-        (horizontal && location === "left") ||
+        (horizontal && location === "start") ||
         (!horizontal && location === "top")
     ) {
         draft.attach(target, node, 0);
     } else if (
-        (horizontal && location === "right") ||
+        (horizontal && location === "end") ||
         (!horizontal && location === "bottom")
     ) {
         draft.attach(target, node);
@@ -241,7 +241,7 @@ export function dropOnRow(
         }
         const before =
             (horizontal && location === "top") ||
-            (!horizontal && location === "left");
+            (!horizontal && location === "start");
         if (before) {
             draft.attach(outer.id, node);
             draft.attach(outer.id, inner.id);

@@ -74,15 +74,15 @@ const json: LayoutJson<Types> = {
 const ARROWS: Partial<Record<DropLocation, typeof ArrowUp>> = {
     top: ArrowUp,
     bottom: ArrowDown,
-    left: ArrowLeft,
-    right: ArrowRight,
+    start: ArrowLeft,
+    end: ArrowRight,
 };
 
 const EDGES = [
     ["top", ArrowUp],
     ["bottom", ArrowDown],
-    ["left", ArrowLeft],
-    ["right", ArrowRight],
+    ["start", ArrowLeft],
+    ["end", ArrowRight],
 ] as const;
 
 export default function DragAndDrop() {

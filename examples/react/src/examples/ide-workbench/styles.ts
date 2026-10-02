@@ -62,7 +62,7 @@ export const border = cn(
     "palette-surface shrink-0 bg-palette-base text-palette-contrast",
     // a side bar is as wide as its icon buttons
     "data-[orientation=vertical]:w-10 data-[orientation=horizontal]:h-(--dk-tab-height)",
-    "data-[location=left]:border-e data-[location=right]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
+    "data-[location=start]:border-e data-[location=end]:border-s data-[location=top]:border-b data-[location=bottom]:border-t border-palette-line",
     "data-drop-target:bg-palette-soft",
 );
 
@@ -87,7 +87,7 @@ export const borderTabTooltip = "grid place-items-center";
  * splitters), a shadow and a line on the side facing the layout. */
 export const borderContent = cn(
     "data-overlay:z-30 data-overlay:shadow-xl data-overlay:border-palette-line",
-    "data-overlay:data-[location=left]:border-e data-overlay:data-[location=right]:border-s",
+    "data-overlay:data-[location=start]:border-e data-overlay:data-[location=end]:border-s",
     "data-overlay:data-[location=top]:border-b data-overlay:data-[location=bottom]:border-t",
 );
 

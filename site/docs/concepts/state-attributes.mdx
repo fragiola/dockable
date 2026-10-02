@@ -39,7 +39,7 @@ With Tailwind v4 the same attributes are variants: `data-selected:bg-palette-sof
 | `data-popout-enabled` | `Tab` | the tab can be popped out into a window (`enablePopout` and popouts are supported) |
 | `data-visible` | `Panel` | the panel is shown (selected, and not hidden by another tabset being maximized) |
 | `data-visible` | `DropIndicator` | a drop target is under the pointer |
-| `data-drop-location` | `DropIndicator` | while visible: `"center"`, `"top"`, `"bottom"`, `"left"` or `"right"` |
+| `data-drop-location` | `DropIndicator` | while visible: `"center"`, `"top"`, `"bottom"`, `"start"` or `"end"` |
 | `data-drop-kind` | `DropIndicator` | while visible: `"edge"` for a drop at the outer edge of a row, `"rect"` otherwise |
 | `data-drop-target` | `TabSet`, `TabList` | the current drag would drop into or beside this tabset (into this strip, for `TabList`) |
 | `data-drop-location` | `TabSet` | while it is the drop target: where the drag would dock |
@@ -49,10 +49,10 @@ With Tailwind v4 the same attributes are variants: `data-selected:bg-palette-sof
 | `data-overflowing` | `TabList` | some tabs do not fit in the strip, so they are hidden (tab overflow) |
 | `data-overflow-hidden` | `Tab` | this tab does not fit in its strip, so it is hidden (it also gets `display: none`) |
 | `data-count` | `TabOverflowTrigger` | the number of hidden tabs |
-| `data-location` | `Border`, `BorderContent` | `"top"`, `"bottom"`, `"left"` or `"right"` |
+| `data-location` | `Border`, `BorderContent` | `"top"`, `"bottom"`, `"start"` or `"end"` |
 | `data-open` | `Border`, `BorderContent` | a tab of the border is selected: its panel is open |
 | `data-overlay`, `data-docked` | `Border`, `BorderContent` | an overlay border / a split (docked) border |
-| `data-tab-direction` | `Border` | on a left border: `"up"` or `"down"` (`borderLeftTabDirection`) |
+| `data-tab-direction` | `Border` | on the start border: `"up"` or `"down"` (the `tabDirection` prop) |
 | `data-edge`, `data-drop-target` | `EdgeIndicator` | its edge; the drop would dock to that edge |
 
 A tab is *selected* (`data-selected`: the one its tabset shows) and a tabset is *active*

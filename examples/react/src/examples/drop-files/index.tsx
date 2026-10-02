@@ -127,7 +127,7 @@ async function openFile(
                 label: `${name} chart`,
                 data: { csv },
                 to: tabset.id,
-                location: "right",
+                location: "end",
             });
         }
         return;

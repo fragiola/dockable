@@ -161,15 +161,15 @@ describe("splitters", () => {
     it("bounds a border splitter and converts its position to a size", () => {
         const layout = rect(0, 0, 800, 600);
         const range = { ...free, minWidth: 100, minHeight: 100 };
-        const left = borderSplitterBounds(
-            "left",
+        const start = borderSplitterBounds(
+            "start",
             rect(0, 0, 30, 600),
             layout,
             range,
             8,
             { minSize: 50, maxSize: 400 },
         );
-        expect(left).toEqual([80, 430]);
+        expect(start).toEqual([80, 430]);
         const bottom = borderSplitterBounds(
             "bottom",
             rect(0, 570, 800, 30),
@@ -179,10 +179,10 @@ describe("splitters", () => {
         );
         expect(bottom).toEqual([100, 562]);
         expect(borderSplitSize("bottom", bottom, 400)).toBe(162);
-        expect(borderSplitSize("left", [30, 700], 230)).toBe(200);
+        expect(borderSplitSize("start", [30, 700], 230)).toBe(200);
         expect(
             borderSplitterBounds(
-                "left",
+                "start",
                 rect(0, 0, 30, 600),
                 rect(0, 0, 0, 0),
                 range,

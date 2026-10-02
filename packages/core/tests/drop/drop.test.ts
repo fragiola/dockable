@@ -29,15 +29,15 @@ describe("dock locations", () => {
         expect(dockLocationAt(r, 50, 50)).toBe("center");
         expect(dockLocationAt(r, 50, 5)).toBe("top");
         expect(dockLocationAt(r, 50, 95)).toBe("bottom");
-        expect(dockLocationAt(r, 5, 50)).toBe("left");
-        expect(dockLocationAt(r, 95, 50)).toBe("right");
+        expect(dockLocationAt(r, 5, 50)).toBe("start");
+        expect(dockLocationAt(r, 95, 50)).toBe("end");
         expect(dockLocationAt(r, 50, 40, true)).toBe("top");
         expect(dockLocationAt(rect(0, 0, 0, 10), 1, 1)).toBe("center");
     });
 
     it("gives each location half the rect", () => {
         expect(dockRect(r, "top")).toEqual(rect(0, 0, 100, 50));
-        expect(dockRect(r, "right")).toEqual(rect(50, 0, 50, 100));
+        expect(dockRect(r, "end")).toEqual(rect(50, 0, 50, 100));
         expect(dockRect(r, "center")).toBe(r);
     });
 
@@ -46,18 +46,18 @@ describe("dock locations", () => {
         expect(edgeBands(root, 10, 100)).toEqual([
             { location: "top", rect: rect(160, 20, 100, 10) },
             { location: "bottom", rect: rect(160, 310, 100, 10) },
-            { location: "left", rect: rect(10, 120, 10, 100) },
-            { location: "right", rect: rect(400, 120, 10, 100) },
+            { location: "start", rect: rect(10, 120, 10, 100) },
+            { location: "end", rect: rect(400, 120, 10, 100) },
         ]);
         expect(edgeAt(root, 10, 100, 12, 170)).toEqual({
-            location: "left",
+            location: "start",
             outline: rect(10, 20, 100, 300),
         });
         expect(edgeAt(root, 10, 100, 405, 170)?.outline).toEqual(
             rect(310, 20, 100, 300),
         );
         expect(edgeAt(root, 10, 100, 12, 30)).toBeUndefined(); // outside the band's length
-        expect(edgeAt(root, 10, 100000, 12, 30)?.location).toBe("left"); // the whole edge
+        expect(edgeAt(root, 10, 100000, 12, 30)?.location).toBe("start"); // the whole edge
     });
 });
 
@@ -210,8 +210,8 @@ describe("drop candidates", () => {
     it("offers the edge band first, then the tabset under the point", () => {
         const found = candidates(5, 150);
         expect(found.map((c) => [c.target, c.location, c.kind])).toEqual([
-            ["root", "left", "edge"],
-            ["a", "left", "rect"],
+            ["root", "start", "edge"],
+            ["a", "start", "rect"],
         ]);
     });
 

@@ -453,7 +453,7 @@ The payload type of each command (`TabAddPayload<T>`, `TabMovePayload`, …) is 
 | field | type | description |
 | --- | --- | --- |
 | `to` | `string` | a tabset, a row, a border, or a layout id (`MAIN_LAYOUT` or a window id: that layout's root row) |
-| `location` | `DockLocation` | `"center"` (default) goes into the target; an edge (`"top"`, `"bottom"`, `"left"`, `"right"`) of a tabset splits it; an edge of a root row docks beside the layout's edge |
+| `location` | `DockLocation` | `"center"` (default) goes into the target; an edge (`"top"`, `"bottom"`, `"start"`, `"end"`) of a tabset splits it; an edge of a root row docks beside the layout's edge |
 | `index` | `number` | for a center drop: the insertion index among the target's tabs; `-1` (default) appends |
 | `select` | `boolean` | whether the tab is selected in its new place; default: the target's auto-select rule |
 

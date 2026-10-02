@@ -296,7 +296,7 @@ function RemotePanel({ model }: { model: Model<Types> }) {
                                 component: "table",
                                 label: "New table",
                                 to: tabset.id,
-                                location: "right",
+                                location: "end",
                             })}
                             onClick={() =>
                                 report(
@@ -305,7 +305,7 @@ function RemotePanel({ model }: { model: Model<Types> }) {
                                         component: "table",
                                         label: `Table ${model.get("all-tabs").length + 1}`,
                                         to: tabset.id,
-                                        location: "right",
+                                        location: "end",
                                         select: true,
                                     }),
                                 )

@@ -57,7 +57,7 @@
             ]
         },
         {
-            "location": "left",
+            "location": "start",
             "mode": "overlay",
             "children": [
                 {
@@ -71,7 +71,7 @@
             ]
         },
         {
-            "location": "right",
+            "location": "end",
             "children": [
                 {
                     "component": "testing",

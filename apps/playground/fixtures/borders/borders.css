@@ -22,8 +22,8 @@
     padding-block: 4px;
 }
 
-/* side tabs read along the strip: a left border "up" (bottom to top) by default, "down" on
-   request, and a right border down; the tabs stay in order from the top */
+/* side tabs read along the strip: the start border "up" (bottom to top) by default, "down" on
+   request, and the end border down; the tabs stay in order from the top */
 [data-layout-path^="/border/"]
     [role="tablist"][data-orientation="vertical"]
     [role="tab"] {
@@ -31,7 +31,7 @@
     padding-block: 6px;
 }
 
-[data-layout-path="/border/left"][data-tab-direction="up"] [role="tab"] {
+[data-layout-path="/border/start"][data-tab-direction="up"] [role="tab"] {
     transform: rotate(180deg);
 }
 

@@ -56,7 +56,7 @@ A zone lives anywhere in the page, outside `Dockable.Root` too: it needs only th
 ## Where the drag would land
 
 While a drag is over the layout, the targeted tabset has `data-drop-target`, and
-`data-drop-location` says where the drag would dock: `center`, `top`, `bottom`, `left` or `right`.
+`data-drop-location` says where the drag would dock: `center`, `top`, `bottom`, `start` or `end`.
 A drop into a tab strip also marks the `TabList` with `data-drop-target` and gives
 `data-drop-index`, the insertion point.
 
@@ -67,7 +67,7 @@ A drop into a tab strip also marks the `TabList` with `data-drop-target` and giv
     node={tabset}
     className={[
         "data-drop-target:ring-2 data-drop-target:ring-palette-ring",
-        "data-[drop-location=left]:shadow-[inset_4px_0_0_var(--palette-ring)]",
+        "data-[drop-location=start]:shadow-[inset_4px_0_0_var(--palette-ring)]",
     ].join(" ")}
 >
 ```

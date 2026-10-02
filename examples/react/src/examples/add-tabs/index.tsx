@@ -41,11 +41,11 @@ const json: LayoutJson<Types> = {
     },
 };
 
-type Target = "active" | "right" | "bottom";
+type Target = "active" | "end" | "bottom";
 
 const TARGETS: { value: Target; label: string }[] = [
     { value: "active", label: "Active tabset" },
-    { value: "right", label: "New tabset on the right" },
+    { value: "end", label: "New tabset on the right" },
     { value: "bottom", label: "New tabset at the bottom" },
 ];
 

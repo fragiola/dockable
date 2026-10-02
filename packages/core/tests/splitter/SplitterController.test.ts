@@ -446,7 +446,7 @@ describe("SplitterController ARIA", () => {
             version: 1,
             borders: [
                 {
-                    location: "left",
+                    location: "start",
                     size: 200,
                     minSize: 50,
                     maxSize: 400,
@@ -464,7 +464,7 @@ describe("SplitterController ARIA", () => {
             },
         });
         engine = createLayoutEngine({ model });
-        controller = createSplitterController(engine, "border_left", 0);
+        controller = createSplitterController(engine, "border_start", 0);
         expect(controller.getAria()).toEqual({
             orientation: "vertical",
             valueNow: 200,
@@ -499,7 +499,7 @@ describe("border splitters", () => {
             version: 1,
             borders: [
                 {
-                    location: "left",
+                    location: "start",
                     size: 200,
                     minSize: 50,
                     maxSize: 300,
@@ -536,7 +536,7 @@ describe("border splitters", () => {
         const el = () => root.appendChild(document.createElement("div"));
         engine.adapter.attachRoot(root);
         engine.adapter.registerMeasurable(
-            "border_left",
+            "border_start",
             "borderheader",
             rects.set(el(), 0, 0, 30, 600),
         );
@@ -547,7 +547,7 @@ describe("border splitters", () => {
         );
         const splitterElement = rects.set(el(), 230, 0, 8, 600);
         engine.run("measure-and-position");
-        controller = createSplitterController(engine, "border_left", 0);
+        controller = createSplitterController(engine, "border_start", 0);
         controller.attach(splitterElement);
         expect(controller.isHorizontal()).toBe(true);
 
@@ -560,7 +560,7 @@ describe("border splitters", () => {
         );
         expect(actions.at(-1)).toMatchObject({
             command: "border.resize",
-            payload: { borderId: "border_left", size: 250 },
+            payload: { borderId: "border_start", size: 250 },
             transient: true,
         });
         pointer("pointermove", document, 900); // clamped by the bounds to the maximum
@@ -569,12 +569,12 @@ describe("border splitters", () => {
             command: "border.resize",
             transient: false,
         });
-        expect(model.get("node-by", { id: "border_left" })).toMatchObject({
+        expect(model.get("node-by", { id: "border_start" })).toMatchObject({
             size: 300,
         });
 
         key(controller, "ArrowLeft"); // towards the border's edge: it shrinks
-        expect(model.get("node-by", { id: "border_left" })).toMatchObject({
+        expect(model.get("node-by", { id: "border_start" })).toMatchObject({
             size: 290,
         });
     });

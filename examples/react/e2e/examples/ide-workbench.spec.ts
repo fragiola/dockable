@@ -60,11 +60,11 @@ test("opening an open file selects its tab, and closing a modified tab asks firs
     await expect(dialog).toBeHidden();
 });
 
-test("the left border is an activity bar: an upright icon named Explorer", async ({
+test("the start border is an activity bar: an upright icon named Explorer", async ({
     page,
 }) => {
     await openExample(page, "ide-workbench", { theme: "ide" });
-    const explorer = page.locator('[data-layout-path="/border/left/tb0"]');
+    const explorer = page.locator('[data-layout-path="/border/start/tb0"]');
     await expect(explorer).toHaveAccessibleName("Explorer");
     await expect(explorer.locator("svg")).toHaveCount(1);
     await expect(explorer).toHaveText("");

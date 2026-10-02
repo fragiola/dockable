@@ -40,8 +40,8 @@ tab direction, which is the strip's alone):
 
 | field | type | description |
 | --- | --- | --- |
-| `location` | `"top" \| "bottom" \| "left" \| "right"` | the side of the layout the border is on |
-| `orientation` | `"horizontal" \| "vertical"` | the direction its tabs run: `"vertical"` for a left or right border |
+| `location` | `"top" \| "bottom" \| "start" \| "end"` | the side of the layout the border is on |
+| `orientation` | `"horizontal" \| "vertical"` | the direction its tabs run: `"vertical"` for a start or end border |
 | `open` | `boolean` | a tab is selected, so the border's panel is open |
 | `overlay` | `boolean` | the panel opens over the layout (`mode: "overlay"`) instead of beside it |
 | `empty` | `boolean` | the border has no tabs |
@@ -58,15 +58,15 @@ tab direction, which is the strip's alone):
 
 ## Structural style
 
-- The element: `display: flex` (a row for left and right borders, a column otherwise) or
+- The element: `display: flex` (a row for start and end borders, a column otherwise) or
   `display: none` while closed, `flex-shrink: 0`. On an overlay border also `position: absolute`
-  against the layout's edge (`left: 0; top: 0; bottom: 0` for a left border, and so on); a left or
-  right overlay stops above and below the open top and bottom overlays
+  against the layout's edge (`left: 0; top: 0; bottom: 0` for a start border in LTR, and so on); a
+  start or end overlay stops above and below the open top and bottom overlays
   (`engine.get("overlay-placement-by", { borderId })`). An overlay is also
   `pointer-events: none`, so presses reach the tab panel positioned over its area; its splitter
   (`Dockable.Splitter` of a border is `pointer-events: auto`) keeps taking them. Hit-testing, not
   cosmetics.
-- The area: `width`, `min-width`, `max-width` (left and right) or `height`, `min-height`,
+- The area: `width`, `min-width`, `max-width` (start and end) or `height`, `min-height`,
   `max-height` (top and bottom), from the border's resolved `size`, `minSize` and `maxSize`
   (`model.get("border-settings-by", { borderId })`: its own values, else `defaults.border`).
 
@@ -80,6 +80,6 @@ An overlay border's panel opens over the layout instead of shrinking it. It clos
   goes back to the tab button.
 
 Both run `border.configure` with `open: false` through the model's middleware. Turn a border into
-an overlay with `model.run("border.configure", { borderId: "border_left", mode: "overlay" })` (a
+an overlay with `model.run("border.configure", { borderId: "border_start", mode: "overlay" })` (a
 border without an explicit id gets `border_<location>`), with `mode: "overlay"` in its JSON, or
 for every border with `defaults.border.mode`.

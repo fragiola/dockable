@@ -348,7 +348,7 @@ test.describe("drop indicator", () => {
         });
         const indicator = findPath(page, "/outline");
         await expect(indicator).toHaveAttribute("data-drop-kind", "edge");
-        await expect(indicator).toHaveAttribute("data-drop-location", "left");
+        await expect(indicator).toHaveAttribute("data-drop-location", "start");
         await drop();
     });
 });

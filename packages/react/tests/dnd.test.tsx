@@ -190,7 +190,7 @@ describe("Dockable.DropIndicator", () => {
         });
         expect(indicator).toHaveAttribute("data-visible", "");
         expect(indicator.getAttribute("data-drop-location")).toMatch(
-            /^(center|top|bottom|left|right)$/,
+            /^(center|top|bottom|start|end)$/,
         );
         expect(indicator.getAttribute("data-drop-kind")).toMatch(
             /^(rect|edge)$/,

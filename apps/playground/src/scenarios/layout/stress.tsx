@@ -241,6 +241,6 @@ function Splitter(props: RowSplitterProps<Types>) {
 const EDGES = [
     ["top", "↑"],
     ["bottom", "↓"],
-    ["left", "←"],
-    ["right", "→"],
+    ["start", "←"],
+    ["end", "→"],
 ] as const;

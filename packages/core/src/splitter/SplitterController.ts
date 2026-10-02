@@ -191,7 +191,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     isHorizontal = (): boolean => {
         const target = this.target();
         if (target?.type === "border") {
-            return target.location === "left" || target.location === "right";
+            return target.location === "start" || target.location === "end";
         }
         return this.engine.adapter.rowOrientation(this.nodeId) === "horizontal";
     };
@@ -389,7 +389,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             this.bounds = bounds;
             this.drag = { kind: "border", location: target.location, origin };
             this.horizontal =
-                target.location === "left" || target.location === "right";
+                target.location === "start" || target.location === "end";
         } else if (target) {
             const split = this.rowSplit(target);
             this.bounds = split.bounds;
@@ -448,9 +448,9 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         this.engine.adapter.setSplitterDragging(true);
         const target = this.target();
         if (target?.type === "border") {
-            // moving towards the border's edge shrinks it; bottom/right borders grow the other way
+            // moving towards the border's edge shrinks it; bottom and end borders grow the other way
             const grow =
-                target.location === "bottom" || target.location === "right"
+                target.location === "bottom" || target.location === "end"
                     ? -delta
                     : delta;
             const resolved = resolveBorder(

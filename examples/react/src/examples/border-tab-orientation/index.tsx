@@ -26,7 +26,7 @@ import { LogPanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // A side border's tabs read vertically here by default (writing-mode, and half a turn more on a
-// left border that reads "up"; see `Border` below). Nothing in the package imposes it:
+// start border that reads "up"; see `Border` below). Nothing in the package imposes it:
 // Dockable.Border only lays its tab list out as a column, and exposes `data-orientation` and
 // `data-tab-direction` for your CSS. The toggle below swaps class names, nothing else.
 
@@ -48,7 +48,7 @@ const json: LayoutJson<Types> = {
     defaults: { border: { size: 220 } },
     borders: [
         {
-            location: "left",
+            location: "start",
             selected: 0,
             children: [
                 {
@@ -78,7 +78,7 @@ const json: LayoutJson<Types> = {
             ],
         },
         {
-            location: "right",
+            location: "end",
             children: [
                 {
                     component: "notes",

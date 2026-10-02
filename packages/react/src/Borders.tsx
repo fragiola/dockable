@@ -33,11 +33,11 @@ export interface BordersProps<T extends DockableTypes = AnyTypes>
     renderContent?: ((border: BorderNode<T>) => React.ReactNode) | undefined;
 }
 
-const LOCATIONS: readonly BorderLocation[] = ["top", "bottom", "left", "right"];
+const LOCATIONS: readonly BorderLocation[] = ["top", "bottom", "start", "end"];
 
 /**
  * The frame that places the borders around the main layout, as FlexLayout does: the top and bottom
- * strips span the full width, the left and right strips sit between them, and each border's panel
+ * strips span the full width, the start and end strips sit between them, and each border's panel
  * area sits between its strip and the layout. Renders only structural flex. Place it directly in
  * `Dockable.Root` instead of the root `Dockable.Row`, and pass the row as its child.
  *
@@ -121,7 +121,7 @@ export function Borders<T extends DockableTypes = AnyTypes>(
                     style={{ ...fill, flexDirection: "row" }}
                     {...dataAttributes({ "layout-path": "/borders/middle" })}
                 >
-                    {strip("left")}
+                    {strip("start")}
                     {/* the anchor of top and bottom overlays */}
                     <div
                         style={{
@@ -134,7 +134,7 @@ export function Borders<T extends DockableTypes = AnyTypes>(
                         })}
                     >
                         {panel("top")}
-                        {/* the anchor of left and right overlays */}
+                        {/* the anchor of start and end overlays */}
                         <div
                             style={{
                                 ...fill,
@@ -145,13 +145,13 @@ export function Borders<T extends DockableTypes = AnyTypes>(
                                 "layout-path": "/borders/center",
                             })}
                         >
-                            {panel("left")}
+                            {panel("start")}
                             {main}
-                            {panel("right")}
+                            {panel("end")}
                         </div>
                         {panel("bottom")}
                     </div>
-                    {strip("right")}
+                    {strip("end")}
                 </div>,
                 strip("bottom"),
             ],

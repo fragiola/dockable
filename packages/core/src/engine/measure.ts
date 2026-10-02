@@ -339,7 +339,7 @@ export class Measure<T extends DockableTypes> {
         if (!element) {
             return false;
         }
-        if (border.location === "left" || border.location === "right") {
+        if (border.location === "start" || border.location === "end") {
             element.style.width = `${resolved.size}px`;
             element.style.minWidth = `${resolved.minSize}px`;
             element.style.maxWidth = `${resolved.maxSize}px`;

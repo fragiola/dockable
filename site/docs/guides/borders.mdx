@@ -29,7 +29,7 @@ const json: LayoutJson<Types> = {
     defaults: { border: { size: 220 } }, // every border's panel size
     borders: [
         {
-            location: "left",
+            location: "start",
             selected: 0, // open on its first tab; -1 (the default) is closed
             children: [
                 { id: "explorer", component: "explorer", label: "Explorer" },
@@ -47,8 +47,10 @@ const json: LayoutJson<Types> = {
 ```
 
 A border's tabs are ordinary tabs: `Dockable.Panels` renders their panels like any other, and
-their content keeps its state when they move between a border and a tabset. A border's `id` is
-`border_<location>` unless you give one. The fields are in the
+their content keeps its state when they move between a border and a tabset. Its `location` is
+`top`, `bottom`, `start` or `end`: [`start`](/docs/concepts/geometry#sides-start-and-end) is the
+side a line of text begins on (the left in LTR, the right in RTL). A border's `id` is
+`border_<location>` (`border_start`) unless you give one. The fields are in the
 [JSON model reference](/docs/api/json-model): `size`, `minSize`, `maxSize`, `show`, `autoHide`,
 `mode`, `enableDrop`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, and `data` (typed by
 the registry's `border` entry). Each behaviour field falls back to `defaults.border`.
@@ -57,7 +59,7 @@ the registry's `border` entry). Each behaviour field falls back to `defaults.bor
 
 `Dockable.Borders` replaces the root `Dockable.Row` inside `Dockable.Root`, and takes the row as
 its child. It lays the borders out around the main area, as FlexLayout does: the top and bottom
-strips span the full width, the left and right strips sit between them, and each panel area sits
+strips span the full width, the start and end strips sit between them, and each panel area sits
 between its strip and the layout.
 
 ```tsx
@@ -82,7 +84,7 @@ between its strip and the layout.
 ```
 
 - **`renderBar`** renders a border's strip (it receives the `BorderNode`): a `Dockable.Border`
-  with a `Dockable.TabList`. The tab list runs vertically in a left or right border
+  with a `Dockable.TabList`. The tab list runs vertically in a start or end border
   (`aria-orientation`, arrow keys).
 - **`renderContent`** (optional) renders the panel area: by default a `Dockable.BorderContent`,
   which holds an area sized by the border (the engine positions the selected tab's panel over it)
@@ -106,17 +108,17 @@ The primitives set only structural flex. Everything else is yours, through `data
 
 | on | attribute | meaning |
 | --- | --- | --- |
-| `Border`, `BorderContent` | `data-location` | `top`, `bottom`, `left` or `right` |
-| `Border`, `BorderContent` | `data-orientation` | `vertical` for a left or right border (the direction its tabs run) |
+| `Border`, `BorderContent` | `data-location` | `top`, `bottom`, `start` or `end` |
+| `Border`, `BorderContent` | `data-orientation` | `vertical` for a start or end border (the direction its tabs run) |
 | `Border`, `BorderContent` | `data-open` | a tab is selected: the panel is open |
 | `Border`, `BorderContent` | `data-overlay` / `data-docked` | an overlay border / a docked border |
 | `Border`, `BorderContent` | `data-empty` | the border has no tabs |
-| `Border` | `data-tab-direction` | on a left border: `up` (default) or `down`, from the `tabDirection` prop |
+| `Border` | `data-tab-direction` | on the start border: `up` (default) or `down`, from the `tabDirection` prop |
 | `Border` | `data-drop-target` | the current drag would drop into the border |
 | `Border` | `data-drop-refused` | the current drag is over the border, and a rule refuses it |
 
 Side labels are the classic question. Turn them with `writing-mode` (the tabs stay in order from
-the top), and turn a left border's half a turn more when it reads "up", FlexLayout's default:
+the top), and turn the start border's half a turn more when it reads "up", FlexLayout's default:
 
 ```css
 [data-location][data-orientation="vertical"] [role="tab"] {
@@ -127,8 +129,16 @@ the top), and turn a left border's half a turn more when it reads "up", FlexLayo
 }
 ```
 
-Which way a left border reads is a prop of the strip, not a model field: `tabDirection="down"` on
-`Dockable.Border` sets `data-tab-direction="down"`.
+Which way the start border reads is a prop of the strip, not a model field: `tabDirection="down"` on
+`Dockable.Border` sets `data-tab-direction="down"`. In a right-to-left page the start border is on
+the right, where labels usually read down: flip the rule there with `:dir(rtl)` (or Tailwind's
+`rtl:` variant, `rtl:in-data-[tab-direction=up]:rotate-0`):
+
+```css
+[data-tab-direction="up"] [role="tab"]:dir(rtl) {
+    transform: none;
+}
+```
 
 With Tailwind, as the examples do: `in-data-[orientation=vertical]:[writing-mode:vertical-rl]
 in-data-[tab-direction=up]:rotate-180` on the tab. Drops into the strip are hit-tested against the
@@ -166,10 +176,10 @@ activity bar.
 - **From code**, with the border's id:
 
 ```ts
-model.run("tab.select", { tabId: "search" }); // opens the left border on Search
-model.run("border.configure", { borderId: "border_left", open: false }); // closes its panel
-model.run("border.configure", { borderId: "border_left", open: true }); // reopens it (first tab if none)
-model.run("border.resize", { borderId: "border_left", size: 300 }); // clamped to minSize/maxSize
+model.run("tab.select", { tabId: "search" }); // opens the start border on Search
+model.run("border.configure", { borderId: "border_start", open: false }); // closes its panel
+model.run("border.configure", { borderId: "border_start", open: true }); // reopens it (first tab if none)
+model.run("border.resize", { borderId: "border_start", size: 300 }); // clamped to minSize/maxSize
 model.run("border.configure", { borderId: "border_bottom", show: false }); // hides the whole border
 ```
 
@@ -199,13 +209,13 @@ An **overlay** border (`mode: "overlay"`) opens over the layout instead of besid
 drawer:
 
 ```ts
-{ location: "left", mode: "overlay", children: [/* … */] }
+{ location: "start", mode: "overlay", children: [/* … */] }
 ```
 
 Switch one at runtime with `border.configure`:
 
 ```ts
-model.run("border.configure", { borderId: "border_left", mode: "overlay" }); // or "docked"
+model.run("border.configure", { borderId: "border_start", mode: "overlay" }); // or "docked"
 ```
 
 `model.get("border-settings-by", { borderId })?.mode` reads the mode in effect (the border's own, else
@@ -216,7 +226,7 @@ the default), and `model.is("border-overlay", { borderId })` answers the same as
   back to the tab button. A press on a border strip does not close it. Both close paths run
   `border.configure` with `open: false`.
 - `Dockable.BorderContent` is `position: absolute` against the layout's edge, and lets presses
-  through to the tab panel (`pointer-events: none`, except on its splitter). A left or right
+  through to the tab panel (`pointer-events: none`, except on its splitter). A start or end
   overlay stops above and below the open top and bottom overlays.
 - **Its stacking is yours**: give the content a `z-index` so its splitter paints above the
   tabsets (the examples use `data-overlay:z-30`), and a shadow if you like.
@@ -236,7 +246,7 @@ A drop in the band along an edge of the layout docks the tab to that whole edge,
 tabset. `Dockable.EdgeIndicator` marks those bands during a drag:
 
 ```tsx
-{(["top", "bottom", "left", "right"] as const).map((edge) => (
+{(["top", "bottom", "start", "end"] as const).map((edge) => (
     <Dockable.EdgeIndicator key={edge} edge={edge} className="edge-indicator">
         <ArrowIcon edge={edge} aria-hidden />
     </Dockable.EdgeIndicator>
@@ -256,6 +266,6 @@ taller than twice the band.
 
 ## Borders in the other examples
 
-The [IDE workbench](/examples/ide-workbench) keeps its explorer in a left border and the terminal
+The [IDE workbench](/examples/ide-workbench) keeps its explorer in the start border and the terminal
 and problems in a bottom border, and the [drag and drop](/examples/drag-and-drop) example shows the
 edge indicators.

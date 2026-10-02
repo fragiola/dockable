@@ -49,7 +49,7 @@ export function render(model: Model): string {
     return out.join(",");
 }
 
-/** The node at a render path (`/ts0`, `/r1/ts0`, `/ts0/t1`, `/b/left/t0`). */
+/** The node at a render path (`/ts0`, `/r1/ts0`, `/ts0/t1`, `/b/start/t0`). */
 export function at(model: Model, path: string): string {
     const parts = path.split("/").filter(Boolean);
     let node:

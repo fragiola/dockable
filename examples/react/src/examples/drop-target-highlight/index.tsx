@@ -17,7 +17,7 @@ import * as styles from "./styles";
 
 // No drop outline at all (the root has no `Dockable.DropIndicator`): the targets show themselves.
 // While a drag would drop into (or beside) a tabset, it has `data-drop-target` and
-// `data-drop-location` (center, top, bottom, left, right); a drop into its tab strip also gives the
+// `data-drop-location` (center, top, bottom, start, end); a drop into its tab strip also gives the
 // insertion index. The styles read only those: a layer in the tabset, above its panel, fills the
 // part the drop would take, and a caret marks the insertion point in the strip.
 

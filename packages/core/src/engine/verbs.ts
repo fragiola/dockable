@@ -87,7 +87,7 @@ export interface EngineGetMap {
         result: FlexSizing;
     };
     /**
-     * where an overlay border's panel sits over the layout: a left or right one stops at the open
+     * where an overlay border's panel sits over the layout: a start or end one stops at the open
      * top and bottom overlays; undefined for a border that is not an overlay
      */
     "overlay-placement-by": {

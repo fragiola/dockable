@@ -96,3 +96,16 @@ Rendering content inside the tabset would tie the content's position in the Reac
 layout's structure, and every move would unmount and remount it. Positioning panels over measured
 areas keeps the layout and the content independent: the structure re-renders freely, and the
 content never notices.
+
+## Sides: start and end
+
+A side of the layout, of a tabset or of a border is `top`, `bottom`, `start` or `end`, and a drop
+adds `center`. `start` is the side a line of text begins on: the left in a left-to-right page,
+the right in a right-to-left one. `end` is the other. The same words are used everywhere: in the
+layout JSON (`location: "start"`), in command payloads, in the default border ids
+(`border_start`), in the paths (`/border/start`, `/edge/end`) and in the DOM (`data-location`,
+`data-drop-location`, `data-edge`).
+
+Borders already follow the page's direction: the start border's strip comes first in its flex
+row, so it renders on the right in RTL. Drops are still hit-tested physically, the left of the
+screen being `start` (see RTL in [Known limitations](/docs/limitations)).

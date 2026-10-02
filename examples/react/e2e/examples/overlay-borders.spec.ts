@@ -7,24 +7,24 @@ test("an overlay border opens over the layout and closes on a click elsewhere or
     const stage = await openExample(page, "overlay-borders");
     const main = path(page, "/main");
     const before = await main.boundingBox();
-    await path(page, "/border/left/tb0").click();
-    await expect(path(page, "/border/left/t0")).toBeVisible();
+    await path(page, "/border/start/tb0").click();
+    await expect(path(page, "/border/start/t0")).toBeVisible();
     expect((await main.boundingBox())?.width).toBe(before?.width); // over, not beside
 
     // a click in the layout outside the panel closes it
     await path(page, "/ts1/t0").click({ position: { x: 40, y: 200 } });
-    await expect(path(page, "/border/left/t0")).toBeHidden();
+    await expect(path(page, "/border/start/t0")).toBeHidden();
 
     // Escape from the tab button closes it too
-    await path(page, "/border/left/tb0").click();
-    await expect(path(page, "/border/left/t0")).toBeVisible();
+    await path(page, "/border/start/tb0").click();
+    await expect(path(page, "/border/start/t0")).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(path(page, "/border/left/t0")).toBeHidden();
+    await expect(path(page, "/border/start/t0")).toBeHidden();
 
     // switched to split, it opens beside the layout
-    await stage.getByTestId("type-left").click();
-    await expect(stage.getByTestId("type-left")).toHaveText("Left: split");
-    await path(page, "/border/left/tb0").click();
+    await stage.getByTestId("type-start").click();
+    await expect(stage.getByTestId("type-start")).toHaveText("Start: split");
+    await path(page, "/border/start/tb0").click();
     await expect
         .poll(async () => (await main.boundingBox())?.width ?? 0)
         .toBeLessThan((before?.width ?? 0) - 100);
@@ -34,16 +34,16 @@ test("the empty auto-hide border appears while a tab is dragged near its edge, a
     page,
 }) => {
     await openExample(page, "overlay-borders");
-    await expect(path(page, "/border/right")).toHaveCount(0);
+    await expect(path(page, "/border/end")).toHaveCount(0);
     const main = await path(page, "/main").boundingBox();
     if (!main) throw new Error("no main area");
     await startDrag(page, path(page, "/ts0/tb1"));
     // the edge indicators show during the drag
-    await expect(path(page, "/edge/right")).toHaveAttribute("data-visible", "");
+    await expect(path(page, "/edge/end")).toHaveAttribute("data-visible", "");
     // near the right edge, above its middle (the middle is the edge docking band)
     await moveDragTo(page, { x: main.x + main.width - 4, y: main.y + 40 });
-    await expect(path(page, "/border/right")).toBeVisible();
-    const strip = await path(page, "/border/right").boundingBox();
+    await expect(path(page, "/border/end")).toBeVisible();
+    const strip = await path(page, "/border/end").boundingBox();
     if (!strip) throw new Error("no strip");
     await moveDragTo(page, {
         x: strip.x + strip.width / 2,
@@ -51,7 +51,7 @@ test("the empty auto-hide border appears while a tab is dragged near its edge, a
     });
     await page.mouse.up();
     await expect(
-        path(page, "/border/right/tabstrip").getByRole("tab"),
+        path(page, "/border/end/tabstrip").getByRole("tab"),
     ).toHaveText(["Calendar"]);
 });
 
@@ -60,7 +60,7 @@ for (const theme of ["light", "dark", "paper"] as const) {
         page,
     }) => {
         await openExample(page, "overlay-borders", { theme });
-        const edge = (location: "left" | "bottom", side: "Right" | "Top") =>
+        const edge = (location: "start" | "bottom", side: "Right" | "Top") =>
             path(page, `/border/${location}/content`).evaluate(
                 (element, name) =>
                     Number.parseFloat(
@@ -70,9 +70,9 @@ for (const theme of ["light", "dark", "paper"] as const) {
                     ) || 0,
                 side,
             );
-        await path(page, "/border/left/tb0").click();
-        await expect(path(page, "/border/left/t0")).toBeVisible();
-        expect(await edge("left", "Right")).toBeGreaterThan(0);
+        await path(page, "/border/start/tb0").click();
+        await expect(path(page, "/border/start/t0")).toBeVisible();
+        expect(await edge("start", "Right")).toBeGreaterThan(0);
         await page.keyboard.press("Escape");
         await path(page, "/border/bottom/tb0").click();
         await expect(path(page, "/border/bottom/t0")).toBeVisible();

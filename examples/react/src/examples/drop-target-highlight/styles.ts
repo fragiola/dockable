@@ -27,8 +27,8 @@ export const tabset =
 export const dropHighlight = cn(
     "palette-blue pointer-events-none absolute inset-0 z-20 hidden rounded-[inherit] border-2 border-palette-base bg-palette-base/25",
     "group-data-drop-target/tabset:block group-has-[[role=tablist][data-drop-target]]/tabset:hidden",
-    "group-data-[drop-location=left]/tabset:right-1/2",
-    "group-data-[drop-location=right]/tabset:left-1/2",
+    "group-data-[drop-location=start]/tabset:end-1/2",
+    "group-data-[drop-location=end]/tabset:start-1/2",
     "group-data-[drop-location=top]/tabset:bottom-1/2",
     "group-data-[drop-location=bottom]/tabset:top-1/2",
 );
