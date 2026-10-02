@@ -232,6 +232,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private verdicts = new Map<string, boolean>();
     private verdictsFor: DragState | undefined;
     private verdictsState: unknown;
+    private verdictsSourceState: unknown;
 
     constructor(engine: LayoutEngine<T>) {
         this.engine = engine;
@@ -804,9 +805,15 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private accepts(state: DragState, command: DropCommand): boolean {
         // the subject is the drag's: within one drag and one state, the placement decides
         const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
-        if (this.verdictsFor !== state || this.verdictsState !== model.state) {
+        const sourceState = state.mainEngine.adapter.model.state;
+        if (
+            this.verdictsFor !== state ||
+            this.verdictsState !== model.state ||
+            this.verdictsSourceState !== sourceState
+        ) {
             this.verdictsFor = state;
             this.verdictsState = model.state;
+            this.verdictsSourceState = sourceState;
             this.verdicts = new Map();
         }
         const { to, location, index } = command.payload;

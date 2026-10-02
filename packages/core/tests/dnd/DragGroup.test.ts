@@ -251,6 +251,27 @@ describe("dragging between two models", () => {
         expect(ids(a.model, "ts0")).toEqual(["a0", "a1"]);
     });
 
+    it("asks the source again once its layout changes during the hover", () => {
+        let locked = true;
+        const group = new DragGroup();
+        const a = layout("a", {
+            dragGroup: group,
+            middleware: (ctx, next) =>
+                locked && ctx.command === "tab.close" ? veto() : next(),
+        });
+        const b = layout("b", { dragGroup: group });
+        a.manager.startDrag(dragEvent("dragstart", 40, 35), "a0");
+        b.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        const refused = dragEvent("dragover", 312, 185);
+        b.root.dispatchEvent(refused);
+        expect(refused.defaultPrevented).toBe(false);
+        locked = false;
+        a.model.run("tab.select", { tabId: "a1" });
+        const over = dragEvent("dragover", 312, 185);
+        b.root.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(true);
+    });
+
     it("undoes the add, content included, when the source refuses the close only when it runs", () => {
         const group = new DragGroup();
         const a = layout("a", {
