@@ -7,7 +7,7 @@ import {
     type DockableTypes,
     getSplitterPath,
     type RowNode,
-    type SplitterState as SplitterControllerState,
+    type SplitterControllerState,
 } from "@fragiola/dockable";
 import type * as React from "react";
 import { useLayoutContext } from "./context";

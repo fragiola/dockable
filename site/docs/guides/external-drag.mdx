@@ -24,8 +24,7 @@ A `Dockable.DragSource` needs the layout's `model` and the tab to create: a type
 does not have to be inside `Dockable.Root`:
 
 ```tsx
-import { createModel, type LayoutJson, type Model } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { createModel, Dockable, type LayoutJson, type Model } from "@fragiola/dockable-react";
 import { useState } from "react";
 
 type Types = { tabs: { chart: { metric: string } } };
@@ -74,7 +73,7 @@ Native drag and drop cannot be done from the keyboard. Make the source a button 
 run the same command, into the active tabset:
 
 ```tsx
-import type { TabInitOf } from "@fragiola/dockable";
+import type { TabInitOf } from "@fragiola/dockable-react";
 
 const widget: TabInitOf<Types> = { component: "chart", label: "Revenue", data: { metric: "revenue" } };
 
@@ -98,7 +97,7 @@ drop.
 drag. Type it with `OnExternalDrag<Types>`:
 
 ```tsx
-import type { OnExternalDrag } from "@fragiola/dockable";
+import type { OnExternalDrag } from "@fragiola/dockable-react";
 
 type Types = { tabs: { file: undefined } };
 
@@ -150,7 +149,7 @@ pointer, so a refused target shows no drop outline. `ctx.payload` of a `tab.add`
 itself, placement included, so a rule reads its `component`:
 
 ```ts
-import { type Middleware, veto } from "@fragiola/dockable";
+import { type Middleware, veto } from "@fragiola/dockable-react";
 
 type Types = { tabs: { "kpi-sales": undefined; "kpi-churn": undefined; chart: undefined } };
 

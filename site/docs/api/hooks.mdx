@@ -16,8 +16,7 @@ which take the model as an option and work anywhere on the page.
 as the type argument (`useDockable<Types>()`); a child cannot infer it through context."
 
 ```tsx
-import type { TabOf } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { type TabOf, useDockable } from "@fragiola/dockable-react";
 
 type Types = { tabs: { card: undefined } };
 

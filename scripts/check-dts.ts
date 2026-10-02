@@ -51,6 +51,7 @@ function main() {
     console.log("check-dts: no `any` in the built declarations");
 }
 
-if (process.argv[1] === import.meta.filename) {
+// only when run, not when a test imports it (`import.meta.main` holds through a symlinked path)
+if (import.meta.main) {
     main();
 }

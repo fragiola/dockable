@@ -1,8 +1,10 @@
 "use client";
 
-import type { Model, TabOf, TabsetNode } from "@fragiola/dockable";
 import {
     Dockable,
+    type Model,
+    type TabOf,
+    type TabsetNode,
     useDockable,
     useTabOverflow,
 } from "@fragiola/dockable-react";

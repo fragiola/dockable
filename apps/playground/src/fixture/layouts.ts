@@ -1,4 +1,4 @@
-import type { LayoutJson, TabsetJson } from "@fragiola/dockable";
+import type { LayoutJson, TabsetJson } from "@fragiola/dockable-react";
 import testAutohideBorders from "../layouts/test_autohide_borders.json";
 import testBorderDirection from "../layouts/test_border_direction.json";
 import testOverlay from "../layouts/test_overlay.json";

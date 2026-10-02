@@ -11,7 +11,7 @@ the same commands drive the layout from code, from a test or from an AI assistan
 | package | what it is |
 |---|---|
 | [`@fragiola/dockable`](packages/core) | framework-agnostic core: typed model and command bus, layout engine, drag and drop, popout |
-| [`@fragiola/dockable-react`](packages/react) | composable React 19 primitives over the core |
+| [`@fragiola/dockable-react`](packages/react) | composable React 19 primitives over the core, and the core re-exported: what a React app installs |
 
 Derived from [FlexLayout](https://github.com/caplin/FlexLayout) by Caplin
 Systems Ltd (MIT). See [LICENSE](LICENSE).
@@ -27,6 +27,7 @@ pnpm check      # lint + format, and the generated command reference is up to da
 pnpm typecheck
 pnpm test       # unit and component tests
 pnpm build
+pnpm check:package  # the packed packages: publint, attw and a smoke app
 pnpm e2e        # Playwright
 ```
 

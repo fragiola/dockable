@@ -2,13 +2,14 @@
 
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     MAIN_LAYOUT,
     type RowNode,
+    type RowSplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { ChartLine, ScrollText, Table2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Select } from "#/components/ui/select";

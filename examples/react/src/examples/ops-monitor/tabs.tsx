@@ -1,7 +1,11 @@
 "use client";
 
-import type { ComponentOf, TabOf, TabsetNode } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import {
+    type ComponentOf,
+    Dockable,
+    type TabOf,
+    type TabsetNode,
+} from "@fragiola/dockable-react";
 import {
     Activity,
     BookOpen,

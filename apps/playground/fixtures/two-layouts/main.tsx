@@ -1,5 +1,9 @@
-import { createModel, type Model, type Transfer } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import {
+    createModel,
+    Dockable,
+    type Model,
+    type Transfer,
+} from "@fragiola/dockable-react";
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { layoutFromQuery, type Types } from "../../src/fixture/layouts";

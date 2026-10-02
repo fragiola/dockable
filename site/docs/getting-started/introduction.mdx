@@ -45,7 +45,7 @@ spells out the rule.
 | package | contains | depends on |
 | --- | --- | --- |
 | `@fragiola/dockable` | the framework-agnostic core: the model and its commands, JSON serialization and validation, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | nothing (DOM only) |
-| `@fragiola/dockable-react` | composable React primitives over the core (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, …) and the hooks under them | `react` and `react-dom` ^19 (peers) |
+| `@fragiola/dockable-react` | composable React primitives over the core (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, …), the hooks under them, and the whole core, re-exported: the one package a React app installs | the core (same version); `react` and `react-dom` ^19 (peers) |
 
 Every piece of logic that is not rendering lives in the core, so adapters for other frameworks
 can follow without duplicating behaviour.
@@ -73,7 +73,7 @@ compose and markup you own.
     <Card
         title="Installation"
         href="/docs/getting-started/installation"
-        description="Add the two packages to a React 19 app."
+        description="Add one package to a React 19 app."
     />
     <Card
         title="Your first layout"

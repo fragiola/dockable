@@ -1,12 +1,13 @@
 import {
     type CommandResult,
     createModel,
+    Dockable,
     type LayoutJson,
     type Model,
     type RowNode,
+    type RowSplitterProps,
     type TabsetNode,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { useRef, useState } from "react";
 import { Card } from "#/examples/_kit/card";
 import { cn } from "#/lib/cn";

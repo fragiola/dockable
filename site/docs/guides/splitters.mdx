@@ -95,7 +95,7 @@ absolutely positioned in the root and would otherwise cover it). This is gap 9 i
 recursion, and to the row inside `Dockable.Popout` (gap 6):
 
 ```tsx
-import type { RowNode, TabsetNode } from "@fragiola/dockable";
+import type { RowNode, TabsetNode } from "@fragiola/dockable-react";
 
 function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
     if (child.type === "tabset") return <MyTabSet node={child} />;

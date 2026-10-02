@@ -1,3 +1,6 @@
+// The whole core, so that a React app installs and imports one package. A local export would
+// silently shadow a core name of the same spelling: tests/index.test.ts fails on one.
+export * from "@fragiola/dockable";
 export type { BorderProps, BorderState } from "./Border";
 export type {
     BorderContentProps,

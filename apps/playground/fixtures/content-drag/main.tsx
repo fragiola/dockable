@@ -1,13 +1,14 @@
 import {
     createModel,
+    Dockable,
     type DragEventLike,
     type ExternalDrag,
     type LayoutJson,
     type RowNode,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import { Dockable, useDragNode } from "@fragiola/dockable-react";
+    useDragNode,
+} from "@fragiola/dockable-react";
 import { type ReactNode, StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "../../src/fixture/fixture.css";

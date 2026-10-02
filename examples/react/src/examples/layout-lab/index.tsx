@@ -3,17 +3,15 @@
 import {
     type BorderNode,
     createModel,
+    Dockable,
     type Model,
     type RowNode,
+    type SplitterProps,
     type TabOf,
     type TabsetNode,
-    veto as vetoResult,
-} from "@fragiola/dockable";
-import {
-    Dockable,
-    type SplitterProps,
     useDockable,
     useModelState,
+    veto as vetoResult,
 } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";

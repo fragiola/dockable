@@ -1,9 +1,9 @@
 import {
     createModel,
+    Dockable,
     type DragEventLike,
     type ExternalDrag,
-} from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { StrictMode, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { layoutFromQuery, type Types } from "../../src/fixture/layouts";

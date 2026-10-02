@@ -35,8 +35,11 @@ export interface Manifest {
     examples: ManifestExample[];
 }
 
-/** The packages every example needs, besides the npm packages it imports itself. */
-const BASE_PACKAGES = ["@fragiola/dockable", "@fragiola/dockable-react"];
+/**
+ * The packages every example needs, besides the npm packages it imports itself: the React
+ * package, which brings the core and re-exports it.
+ */
+const BASE_PACKAGES = ["@fragiola/dockable-react"];
 
 export async function buildManifest(): Promise<Manifest> {
     const entries = await loadExamples();

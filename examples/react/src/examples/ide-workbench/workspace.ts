@@ -8,7 +8,7 @@ import {
     type Node,
     type TabInitOf,
     type ValidationIssue,
-} from "@fragiola/dockable";
+} from "@fragiola/dockable-react";
 import { FILES, fileName } from "./files";
 
 // The workbench's state outside the layout: file contents ("disk" and unsaved buffers), the

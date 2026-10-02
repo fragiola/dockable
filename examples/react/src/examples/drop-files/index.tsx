@@ -2,14 +2,15 @@
 
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     type Model,
     type OnExternalDrag,
     type RowNode,
+    type RowSplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { FolderOpen } from "lucide-react";
 import { useState } from "react";
 import {

@@ -2,13 +2,14 @@
 
 import {
     type BorderNode,
+    Dockable,
     type Model,
     type RowNode,
     type TabOf,
     type TabsetNode,
+    useModelState,
     veto,
-} from "@fragiola/dockable";
-import { Dockable, useModelState } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { Bug, FolderTree, GitBranch, SquareTerminal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Clickable } from "#/components/atoms/clickable";

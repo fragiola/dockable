@@ -2,16 +2,17 @@
 
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     type Middleware,
     type Node,
     type RowNode,
+    type RowSplitterProps,
     type TabInitOf,
     type TabOf,
     type TabsetNode,
     veto,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { Siren } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Select } from "#/components/ui/select";

@@ -1,7 +1,6 @@
 "use client";
 
-import type { TabNode } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { type TabNode, useDockable } from "@fragiola/dockable-react";
 import type { EChartsOption } from "echarts";
 import {
     useEffect,

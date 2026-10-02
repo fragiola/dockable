@@ -8,7 +8,7 @@ import {
     type DockableTypes,
     DragDropManager,
     type DragState,
-    type DropIndicatorState,
+    type DropIndicatorSnapshot,
     type DropLocation,
     type DropZoneOptions,
     type LayoutEngine,
@@ -166,7 +166,7 @@ export interface TabSetState {
 /** @internal the engine's drop indicator state, selected: re-renders only when the selection changes */
 export function useIndicator<S>(
     engine: LayoutEngine,
-    select: (indicator: DropIndicatorState) => S,
+    select: (indicator: DropIndicatorSnapshot) => S,
 ): S {
     const manager = engine.adapter.getDragDropManager();
     const snapshot = () => select(manager.getIndicatorState());

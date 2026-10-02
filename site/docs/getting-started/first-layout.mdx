@@ -40,7 +40,7 @@ A layout is a tree: a **row** splits its space between its children, a **tabset*
 it acts as a column.
 
 ```tsx title="layout.ts"
-import type { LayoutJson } from "@fragiola/dockable";
+import type { LayoutJson } from "@fragiola/dockable-react";
 import type { Types } from "./types";
 
 export const json: LayoutJson<Types> = {
@@ -97,8 +97,7 @@ tabset or a nested row. A tabset renders its tab strip (`TabList` › `Tab`) and
 area (`TabSetContent`). `Row` inserts the splitters between children by itself.
 
 ```tsx title="render-node.tsx"
-import type { RowNode, TabsetNode } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { Dockable, type RowNode, type TabsetNode } from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
 import type { Types } from "./types";
 
@@ -150,7 +149,7 @@ Pick the content from the tab's `component`, as a factory would. The switch narr
 that component's data, with no cast:
 
 ```tsx title="tab-content.tsx"
-import type { TabOf } from "@fragiola/dockable";
+import type { TabOf } from "@fragiola/dockable-react";
 import type { Types } from "./types";
 
 export function TabContent({ tab }: { tab: TabOf<Types> }) {
@@ -174,8 +173,7 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
 ```tsx title="app.tsx"
 "use client";
 
-import { createModel } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { createModel, Dockable } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { json } from "./layout";
 import { renderNode } from "./render-node";

@@ -56,7 +56,13 @@ of three commands, so the rule guards those:
 row, with an edge `location`; code may also pass a layout id such as `MAIN_LAYOUT`). Return `veto(message)` to refuse, or `next()` to let it through:
 
 ```ts
-import { createModel, type Middleware, type TabAddPayload, type TabOf, veto } from "@fragiola/dockable";
+import {
+    createModel,
+    type Middleware,
+    type TabAddPayload,
+    type TabOf,
+    veto,
+} from "@fragiola/dockable-react";
 
 type Types = {
     tabs: { doc: { group: "tools" | "docs" }; console: undefined };

@@ -1,6 +1,6 @@
 "use client";
 
-import type { TabInit, TabNode } from "@fragiola/dockable";
+import type { TabInit, TabNode } from "@fragiola/dockable-react";
 import { type ReactNode, useState } from "react";
 import { Input } from "#/components/atoms/fields";
 import { PanelBody } from "../_kit/card";

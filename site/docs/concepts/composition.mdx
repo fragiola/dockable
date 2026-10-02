@@ -44,8 +44,7 @@ A row's children are tabsets or rows, so the child function is recursive. Write 
 plain function and pass it to every `Row`:
 
 ```tsx
-import type { RowNode, TabsetNode } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { Dockable, type RowNode, type TabsetNode } from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
 
 function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {

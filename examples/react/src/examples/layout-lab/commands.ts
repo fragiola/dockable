@@ -1,4 +1,4 @@
-import type { CommandName, LayoutJson } from "@fragiola/dockable";
+import type { CommandName, LayoutJson } from "@fragiola/dockable-react";
 import type { ChartKind } from "../_kit/charts";
 
 // The lab's registry and starting layout, and the log of the commands its middleware sees.

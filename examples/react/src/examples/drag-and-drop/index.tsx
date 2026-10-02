@@ -2,13 +2,14 @@
 
 import {
     createModel,
+    Dockable,
     type DropLocation,
     type LayoutJson,
     type RowNode,
+    type RowSplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";

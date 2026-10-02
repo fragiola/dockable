@@ -1,14 +1,12 @@
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     type RowJson,
     type RowNode,
+    type RowSplitterProps,
     type TabsetJson,
     type TabsetNode,
-} from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
     useDockable,
     useModelState,
 } from "@fragiola/dockable-react";
