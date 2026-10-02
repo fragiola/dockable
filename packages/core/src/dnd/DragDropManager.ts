@@ -9,7 +9,9 @@
 // - a drop is refused exactly when the model refuses the command it would run (`model.can`), so a
 //   middleware veto refuses a drop; there is no `onAllowDrop`;
 // - only drags that carry Dockable's MIME type are claimed (other libraries' drags pass through),
-//   and every `drop` and `dragend` in the document ends the page's drag state;
+//   and every `drop` and `dragend` in the document ends the page's drag state, from the capture
+//   phase, so content that stops a drop's propagation cannot leave the layout's hover state behind
+//   (caplin/FlexLayout#527);
 // - "add" drags (a consumer element dragged in) and external drags (a foreign drag accepted by
 //   `onExternalDrag`) drop through `tab.add`;
 // - drop zones: consumer elements that take a layout drag and hand it to the consumer.
@@ -261,7 +263,9 @@ export class DragDropManager {
             new DragState(this.engine.adapter.main, source, subject, onDrop),
             this.engine.get("owner-document"),
         );
+        // a fresh start: a drop the layout never saw must not leave it "active" (caplin/FlexLayout#527)
         this.dragEnterCount = 0;
+        this.active = false;
     }
 
     /** @internal */
@@ -339,13 +343,24 @@ export class DragDropManager {
         element.addEventListener("dragleave", onDragLeave);
         element.addEventListener("dragover", onDragOver);
         element.addEventListener("drop", onDrop);
-        // after the targets handled it (bubble phase on the document): whatever received the drop,
-        // the drag is over
+        // whatever received the drop, the drag is over. In the capture phase, so content that stops
+        // the event's propagation (an editor taking a text or file drop) cannot keep it from the
+        // layout (caplin/FlexLayout#527)
         const onDocumentEnd = () => {
             this.clearDragLocal();
             endDrag();
         };
-        doc.addEventListener("dragend", onDocumentEnd);
+        const onDocumentDrop = (event: DragEvent) => {
+            const state = getDragState();
+            if (!state || !this.active || !this.belongsToDrag(event)) {
+                // a drop this layout does not run: only its hover state is left to clear
+                this.clearDragLocal();
+            }
+            // otherwise the drop is still to be run (by the root, or a drop zone): the bubble phase
+            // ends it, else the source's dragend or the lost drag guard
+        };
+        doc.addEventListener("dragend", onDocumentEnd, true);
+        doc.addEventListener("drop", onDocumentDrop, true);
         doc.addEventListener("drop", onDocumentEnd);
         const model = this.engine.adapter.model;
         const main = this.engine.adapter.main === this.engine;
@@ -366,7 +381,8 @@ export class DragDropManager {
             element.removeEventListener("dragleave", onDragLeave);
             element.removeEventListener("dragover", onDragOver);
             element.removeEventListener("drop", onDrop);
-            doc.removeEventListener("dragend", onDocumentEnd);
+            doc.removeEventListener("dragend", onDocumentEnd, true);
+            doc.removeEventListener("drop", onDocumentDrop, true);
             doc.removeEventListener("drop", onDocumentEnd);
             this.clearDragLocal();
         };

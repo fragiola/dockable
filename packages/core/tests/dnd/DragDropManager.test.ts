@@ -501,6 +501,62 @@ describe("foreign drags and resets", () => {
         expect(children(s, "ts1")).toEqual(["t2", "t0"]);
     });
 
+    it("resets after a drop whose propagation the content stopped (caplin/FlexLayout#527)", () => {
+        const onExternalDrag = vi.fn(() => undefined);
+        const s = setup({ onExternalDrag });
+        // an editor in a tab handles text and file drops itself, and stops them there
+        const editor = s.panels.t0.appendChild(document.createElement("div"));
+        editor.addEventListener("drop", (event) => event.stopPropagation());
+        s.root.dispatchEvent(dragEvent("dragenter", 100, 100, foreign()));
+        editor.dispatchEvent(dragEvent("drop", 100, 100, foreign()));
+        // a file from the OS has no dragend in the page: nothing else tells the layout
+        // the next foreign drag entering the layout is asked about again
+        s.root.dispatchEvent(dragEvent("dragenter", 100, 100, foreign()));
+        expect(onExternalDrag).toHaveBeenCalledTimes(2);
+        editor.dispatchEvent(dragEvent("drop", 100, 100, foreign()));
+        // the next tab drag shows its overlay, edges and outline
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            dragging: true,
+            showEdges: true,
+        });
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        expect(s.manager.getIndicatorState().visible).toBe(true);
+        s.root.dispatchEvent(dragEvent("drop", 312, 185));
+        expect(children(s, "ts1")).toEqual(["t2", "t0"]);
+    });
+
+    it("starts each drag from a clean slate, even after a drop the document never saw (caplin/FlexLayout#527)", () => {
+        const s = setup();
+        // a library that swallows every drop on the window, before the document's listeners
+        const swallow = (event: Event) => event.stopPropagation();
+        window.addEventListener("drop", swallow, true);
+        try {
+            s.root.dispatchEvent(dragEvent("dragenter", 100, 100, foreign()));
+            s.panels.t0.dispatchEvent(dragEvent("drop", 100, 100, foreign()));
+        } finally {
+            window.removeEventListener("drop", swallow, true);
+        }
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            dragging: true,
+            showEdges: true,
+        });
+    });
+
+    it("ends the drag on a dragend whose propagation the source stopped (caplin/FlexLayout#527)", () => {
+        const s = setup();
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        const source = s.panels.t1.appendChild(document.createElement("div"));
+        source.addEventListener("dragend", (event) => event.stopPropagation());
+        source.dispatchEvent(dragEvent("dragend", 0, 0));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(s.manager.getIndicatorState().dragging).toBe(false);
+    });
+
     it("ends the page's drag on a drop anywhere in the document", () => {
         const s = setup();
         s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");

@@ -316,7 +316,8 @@ command through `model.run`.
 
 Every Dockable drag sets `DRAG_TYPE` (`"application/x-dockable"`) on its data transfer, and the
 manager claims only the events that carry it: another library's drag passes through, or goes to
-`onExternalDrag`. Every `drop` and `dragend` in the document ends the page's drag.
+`onExternalDrag`. Every `drop` and `dragend` in the document ends the page's drag, even one whose
+propagation your content stops: the manager listens in the capture phase.
 
 ### DragDropManager
 
