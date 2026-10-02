@@ -115,7 +115,9 @@ test("the popout document receives the page's styles", async ({ page }) => {
     await expect(tablist).toHaveCSS("display", "flex");
 });
 
-test("StrictMode opens exactly one window", async ({ page }) => {
+test("StrictMode opens exactly one window (caplin/FlexLayout#322)", async ({
+    page,
+}) => {
     await open(page);
     await popOutSelected(page, "/ts1");
     await page.waitForTimeout(500);
