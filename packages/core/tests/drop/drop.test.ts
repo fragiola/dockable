@@ -7,7 +7,9 @@ import {
 } from "../../src/drop/resolve";
 import { clampToPinnedRun, findStripDrop } from "../../src/drop/strip";
 import {
+    dockIndexPlus,
     dockLocationAt,
+    dockOrientation,
     dockRect,
     edgeAt,
     edgeBands,
@@ -33,6 +35,17 @@ describe("dock locations", () => {
         expect(dockLocationAt(r, 95, 50)).toBe("end");
         expect(dockLocationAt(r, 50, 40, true)).toBe("top");
         expect(dockLocationAt(rect(0, 0, 0, 10), 1, 1)).toBe("center");
+    });
+
+    it("puts a start or top drop before its target, an end or bottom one after it", () => {
+        expect(dockIndexPlus("start")).toBe(0);
+        expect(dockIndexPlus("top")).toBe(0);
+        expect(dockIndexPlus("end")).toBe(1);
+        expect(dockIndexPlus("bottom")).toBe(1);
+        expect(dockOrientation("start")).toBe("horizontal");
+        expect(dockOrientation("end")).toBe("horizontal");
+        expect(dockOrientation("top")).toBe("vertical");
+        expect(dockOrientation("center")).toBe("vertical");
     });
 
     it("gives each location half the rect", () => {

@@ -92,6 +92,32 @@ describe("tab commands", () => {
         });
     });
 
+    it("tab.move and tabset.move refuse a left or right location: the sides are start and end", () => {
+        const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
+        const before = text();
+        for (const location of ["left", "right"]) {
+            expect(
+                model.dispatch({
+                    command: "tab.move",
+                    payload: { tabId: "Two", to: "ts1", location },
+                }),
+            ).toMatchObject({
+                ok: false,
+                error: { code: "invalid_payload", path: "/payload/location" },
+            });
+            expect(
+                model.dispatch({
+                    command: "tabset.move",
+                    payload: { tabsetId: "ts0", to: "ts1", location },
+                }),
+            ).toMatchObject({
+                ok: false,
+                error: { code: "invalid_payload", path: "/payload/location" },
+            });
+        }
+        expect(text()).toBe(before);
+    });
+
     it("tab.add, tab.set-data and tab.set-component validate data with the registered schema", () => {
         const model = createModel(tabsets(["One"]), {
             dataSchemas: {

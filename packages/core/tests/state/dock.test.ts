@@ -23,6 +23,18 @@ describe("docking", () => {
         expect(weights(model)).toEqual([50, 50, 100]);
     });
 
+    it("split along the row before the target: start comes first in the row", () => {
+        const { model, text } = setup(tabsets(["One"], ["Two", "Three"]));
+        must(
+            model.run("tab.move", {
+                tabId: "Three",
+                to: "ts1",
+                location: "start",
+            }),
+        );
+        expect(text()).toBe("/ts0/t0[One]*,/ts1/t0[Three]*,/ts2/t0[Two]*");
+    });
+
     it("split across the row", () => {
         const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
         must(
@@ -63,6 +75,18 @@ describe("docking", () => {
         expect(text()).toBe("/ts0/t0[Two]*,/ts1/t0[One]*,/ts2/t0[Three]*");
         // a third of the row's total weight
         expect(weights(model)[0]).toBeCloseTo(200 / 3);
+    });
+
+    it("edge dock along at the end: the new tabset is last", () => {
+        const { model, text } = setup(tabsets(["One", "Two"], ["Three"]));
+        must(
+            model.run("tab.move", {
+                tabId: "Two",
+                to: "root",
+                location: "end",
+            }),
+        );
+        expect(text()).toBe("/ts0/t0[One]*,/ts1/t0[Three]*,/ts2/t0[Two]*");
     });
 
     it("edge dock across", () => {

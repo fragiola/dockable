@@ -452,6 +452,27 @@ describe("validating JSON v1", () => {
     });
 });
 
+describe("legacy locations", () => {
+    it("refuses a border at left or right: the sides are start and end", () => {
+        for (const location of ["left", "right"]) {
+            const json = {
+                ...tabsets(["One"]),
+                borders: [{ location, children: [] }],
+            };
+            const result = validateLayout(json);
+            expect(result.ok).toBe(false);
+            if (!result.ok) {
+                expect(result.issues).toEqual([
+                    expect.objectContaining({ path: "/borders/0/location" }),
+                ]);
+            }
+            expect(issuesOf(json)).toEqual([
+                expect.objectContaining({ path: "/borders/0/location" }),
+            ]);
+        }
+    });
+});
+
 describe("toLayoutJson", () => {
     it("turns a kept state back into a document layout.load takes", () => {
         const model = createModel(tabsets(["One", "Two"], ["Three"]));
