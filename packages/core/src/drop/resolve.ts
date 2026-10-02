@@ -119,7 +119,7 @@ function tabsetCandidate(
         const buttons = tabset.children.map((tab) =>
             geometry.tabButton(tab.id),
         );
-        let drop = findStripDrop(rect, strip, buttons, x, y, false, true);
+        let drop = findStripDrop(rect, strip, buttons, x, y, "tabset");
         if (!drop) {
             return undefined;
         }
@@ -164,16 +164,15 @@ function borderCandidate(
         const buttons = border.children.map((tab) =>
             geometry.tabButton(tab.id),
         );
-        const vertical =
-            border.location === "left" || border.location === "right";
         const drop = findStripDrop(
             strip,
             strip,
             buttons,
             x,
             y,
-            vertical,
-            false,
+            border.location === "left" || border.location === "right"
+                ? "vertical"
+                : "horizontal",
         );
         return drop
             ? {

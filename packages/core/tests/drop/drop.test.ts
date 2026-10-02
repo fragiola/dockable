@@ -63,20 +63,39 @@ describe("strip drops", () => {
     ];
 
     it("drops before a tab's centre, after the last one, or in an empty strip", () => {
-        expect(findStripDrop(host, strip, tabs, 80, 10, false, false)).toEqual({
+        expect(findStripDrop(host, strip, tabs, 80, 10, "horizontal")).toEqual({
             index: 1,
             outline: rect(58, 0, 3, 30),
         });
-        expect(findStripDrop(host, strip, tabs, 170, 10, false, false)).toEqual(
+        expect(findStripDrop(host, strip, tabs, 170, 10, "horizontal")).toEqual(
             {
                 index: 3,
                 outline: rect(178, 0, 3, 30),
             },
         );
-        expect(findStripDrop(host, strip, [], 170, 10, false, false)).toEqual({
+        expect(findStripDrop(host, strip, [], 170, 10, "horizontal")).toEqual({
             index: 0,
             outline: rect(0, 0, 2, 30),
         });
+    });
+
+    it("keeps a tabset's slots inside the tabset, and a vertical strip's along its own axis", () => {
+        const tabset = rect(20, 0, 300, 200);
+        expect(
+            findStripDrop(tabset, strip, tabs, 10, 10, "tabset"),
+        ).toBeUndefined();
+        expect(
+            findStripDrop(tabset, strip, tabs, 10, 10, "horizontal"),
+        ).toEqual({ index: 0, outline: rect(-2, 0, 3, 30) });
+        expect(findStripDrop(tabset, strip, tabs, 40, 10, "tabset")).toEqual({
+            index: 1,
+            outline: rect(58, 0, 3, 30),
+        });
+        const narrow = rect(0, 0, 20, 200);
+        const column = [rect(0, 30, 20, 40), rect(0, 70, 20, 40)];
+        expect(
+            findStripDrop(narrow, narrow, column, 10, 40, "vertical"),
+        ).toEqual({ index: 0, outline: rect(0, 28, 20, 3) });
     });
 
     it("skips tabs hidden by overflow", () => {
@@ -86,7 +105,7 @@ describe("strip drops", () => {
             tabs[2],
         ];
         expect(
-            findStripDrop(host, strip, hidden, 130, 10, false, false)?.index,
+            findStripDrop(host, strip, hidden, 130, 10, "horizontal")?.index,
         ).toBe(2);
     });
 
