@@ -138,6 +138,7 @@ or with text edited in place), CSSOM rules inserted by css-in-js libraries (poll
 (constructable) stylesheets, copied into one `<style>` element. A window renders once its linked
 stylesheets loaded, failed or timed out, so a blocked stylesheet never keeps it blank.
 `<html>` `lang` and `dir` are always copied; `mirrorRoot` copies more of `<html>` and `<body>`.
+A `<style>` or `<link>` placed in `<body>` is not copied: keep the styles a popout needs in `<head>`.
 
 | export | description |
 | --- | --- |
