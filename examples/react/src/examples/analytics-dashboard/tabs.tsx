@@ -77,26 +77,33 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     // one trigger both ways: it pops the selected tab out, and in the window docks it back
     const popoutTrigger = selected ? (
         <Dockable.PopoutTrigger
-            aria-label={
-                inPopout
-                    ? `Dock ${selected.label} back`
-                    : `Pop out ${selected.label}`
-            }
-            data-testid={inPopout ? "dock-back" : "popout"}
             className={styles.button}
-        >
-            {inPopout ? (
-                <PanelTopClose
-                    aria-hidden="true"
-                    className={styles.dockBackIcon}
-                />
-            ) : (
-                <ExternalLink
-                    aria-hidden="true"
-                    className={styles.buttonIcon}
-                />
-            )}
-        </Dockable.PopoutTrigger>
+            render={(props, state) =>
+                state.mode === "dock" ? (
+                    <button
+                        {...props}
+                        aria-label={`Dock ${selected.label} back`}
+                        data-testid="dock-back"
+                    >
+                        <PanelTopClose
+                            aria-hidden="true"
+                            className={styles.dockBackIcon}
+                        />
+                    </button>
+                ) : (
+                    <button
+                        {...props}
+                        aria-label={`Pop out ${selected.label}`}
+                        data-testid="popout"
+                    >
+                        <ExternalLink
+                            aria-hidden="true"
+                            className={styles.buttonIcon}
+                        />
+                    </button>
+                )
+            }
+        />
     ) : null;
 
     if (inPopout) {

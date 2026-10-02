@@ -225,7 +225,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 </Dockable.TabList>
                 <div className={styles.tabsetActions}>
                     <ScreenButton tabset={node} />
-                    <BackButton />
                 </div>
             </div>
             <Dockable.TabSetContent />
@@ -239,26 +238,30 @@ function ScreenButton({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <Dockable.PopoutTrigger
             target="tabset"
-            aria-label={`Move ${name} to another screen`}
-            data-testid="move-tabset"
-            // in a window, the trigger docks back (`data-mode="dock"`): BackButton does that
             className={styles.screenButton}
-        >
-            <MonitorUp aria-hidden className={styles.actionIcon} />
-        </Dockable.PopoutTrigger>
-    );
-}
-
-/** In a window: the selected tab back to the main screen. */
-function BackButton() {
-    return (
-        <Dockable.PopoutTrigger
-            aria-label="Back to the main screen"
-            data-testid="back"
-            className={styles.backButton}
-        >
-            <MonitorDown aria-hidden className={styles.actionIcon} />
-        </Dockable.PopoutTrigger>
+            render={(props, state) =>
+                state.mode === "dock" ? (
+                    <button
+                        {...props}
+                        aria-label="Back to the main screen"
+                        data-testid="back"
+                    >
+                        <MonitorDown
+                            aria-hidden
+                            className={styles.actionIcon}
+                        />
+                    </button>
+                ) : (
+                    <button
+                        {...props}
+                        aria-label={`Move ${name} to another screen`}
+                        data-testid="move-tabset"
+                    >
+                        <MonitorUp aria-hidden className={styles.actionIcon} />
+                    </button>
+                )
+            }
+        />
     );
 }
 

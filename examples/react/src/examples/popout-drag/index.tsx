@@ -159,9 +159,18 @@ function WindowButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <>
             <Dockable.PopoutTrigger
-                aria-label="Pop out the tab"
                 data-testid="popout-tab"
                 className={styles.windowButton}
+                render={(props, state) => (
+                    <button
+                        {...props}
+                        aria-label={
+                            state.mode === "dock"
+                                ? "Dock the tab back"
+                                : "Pop out the tab"
+                        }
+                    />
+                )}
             >
                 <SquareArrowOutUpRight
                     aria-hidden
@@ -173,9 +182,18 @@ function WindowButtons({ tabset }: { tabset: TabsetNode<Types> }) {
             {tabset.children.length > 1 ? (
                 <Dockable.PopoutTrigger
                     target="tabset"
-                    aria-label="Pop out the whole tabset"
                     data-testid="popout-tabset"
                     className={styles.tabsetWindowButton}
+                    render={(props, state) => (
+                        <button
+                            {...props}
+                            aria-label={
+                                state.mode === "dock"
+                                    ? "Dock the whole tabset back"
+                                    : "Pop out the whole tabset"
+                            }
+                        />
+                    )}
                 >
                     <AppWindow aria-hidden className={styles.tabsetIcon} />
                 </Dockable.PopoutTrigger>

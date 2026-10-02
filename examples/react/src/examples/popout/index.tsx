@@ -174,12 +174,20 @@ function PopoutButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
-    const inWindow = model.is("node-in-window", { nodeId: tabset.id });
     const name = selected?.label ?? "";
     return (
         <Dockable.PopoutTrigger
-            aria-label={inWindow ? `Dock ${name} back` : `Pop out ${name}`}
             className={styles.popoutButton}
+            render={(props, state) => (
+                <button
+                    {...props}
+                    aria-label={
+                        state.mode === "dock"
+                            ? `Dock ${name} back`
+                            : `Pop out ${name}`
+                    }
+                />
+            )}
         >
             <SquareArrowOutUpRight aria-hidden className={styles.popoutIcon} />
             <ArrowDownToLine aria-hidden className={styles.dockIcon} />

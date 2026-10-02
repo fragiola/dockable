@@ -13,10 +13,16 @@ test("tabs move between a popout window and the main layout, both ways", async (
     const chart = path(page, "/ts1/t0");
     await chart.getByTestId("counter").click();
 
-    await path(page, "/ts0").getByTestId("popout-tab").click(); // "Orders" to a window
+    await path(page, "/ts0")
+        .getByRole("button", { name: "Pop out the tab" })
+        .click(); // "Orders" to a window
     const [popout] = await waitForPopout(page);
     if (!popout) throw new Error("no popout");
     await expect(popout.getByRole("tab")).toHaveText(["Orders"]);
+    // in the window, the same trigger docks the tab back, and says so
+    await expect(
+        popout.getByRole("button", { name: "Dock the tab back" }),
+    ).toBeVisible();
 
     // "Chart" (main) into the window
     await dragAcrossWindows(
