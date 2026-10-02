@@ -131,7 +131,7 @@ describe("opening", () => {
         expect(manager.getWindow(layoutId)).toBe(win);
     });
 
-    it("keeps one window through a StrictMode-style detach and reattach", async () => {
+    it("keeps one window through a StrictMode-style detach and reattach (caplin/FlexLayout#322)", async () => {
         const { engine, root, manager, layoutId, openSpy, opened } = setup();
         engine.adapter.detachRoot();
         engine.adapter.attachRoot(root);
@@ -211,7 +211,7 @@ describe("opening", () => {
         expect(win.document.title).toBe("host");
     });
 
-    it("docks the tabs back when the window cannot open", () => {
+    it("docks the tabs back when the window cannot open: a blocked popup (caplin/FlexLayout#235)", () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         const { model, layoutId } = setup({}, () => null);
         expect(warn).toHaveBeenCalled();

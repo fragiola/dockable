@@ -267,6 +267,16 @@ describe("LayoutEngine and the model", () => {
         ]);
     });
 
+    it("adds no event of its own: one command, one model event (caplin/FlexLayout#513)", () => {
+        const { model, engine } = setup();
+        engine.run("measure-and-position");
+        const events = vi.fn();
+        model.subscribe(events);
+        model.run("tab.move", { tabId: "t2", to: "ts0" });
+        engine.run("measure-and-position");
+        expect(events).toHaveBeenCalledTimes(1);
+    });
+
     it("re-renders after every commit, the engine's and the app's", () => {
         const { model, engine } = setup();
         const listener = vi.fn();

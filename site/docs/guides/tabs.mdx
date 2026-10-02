@@ -107,7 +107,8 @@ A focused tab also closes with **`Ctrl+Delete`** (the `closeTab` binding of the
 first.
 
 When the last tab of a tabset closes, the tabset is removed, unless its `deleteWhenEmpty` or
-`enableClose` resolves to false. `tabset.close` closes a whole tabset: its closable tabs close, and
+`enableClose` resolves to false, or it is the main layout's last tabset (that one stays, empty, so
+there is always somewhere to add a tab). `tabset.close` closes a whole tabset: its closable tabs close, and
 the tabset goes once it is empty (the result lists the closed ids).
 
 <Example id="close-tabs" />

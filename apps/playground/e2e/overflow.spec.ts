@@ -83,3 +83,32 @@ test("a drop into a strip with hidden tabs lands between the visible ones", asyn
         .poll(async () => (await tabs(page).allTextContents()).slice(0, 3))
         .toEqual(["Alpha", "Other", "Bravo"]);
 });
+
+test("switching tabs at the overflow boundary settles, with no update loop (caplin/FlexLayout#498, caplin/FlexLayout#517)", async ({
+    page,
+}) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+        if (message.type() === "error") errors.push(message.text());
+    });
+    await open(page, 1600);
+    // the widths where the strip goes from no hidden tab to a few, trigger included
+    for (let width = 760; width >= 360; width -= 20) {
+        await page.setViewportSize({ width, height: 600 });
+        await page.waitForTimeout(50);
+        // every visible tab in turn, then a hidden one from the menu: each moves the boundary
+        for (const tab of await tabs(page).all()) {
+            if (await tab.isVisible()) await tab.click();
+        }
+        if ((await hiddenCount(page)) > 0) {
+            await findPath(page, "/ts0/button/overflow").click();
+            await page.getByRole("menuitem").first().click();
+        }
+        // settled: the same answer frame after frame
+        const settled = await hiddenCount(page);
+        await page.waitForTimeout(100);
+        expect(await hiddenCount(page), `stable at ${width}px`).toBe(settled);
+    }
+    expect(errors).toEqual([]);
+});

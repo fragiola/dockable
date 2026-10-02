@@ -77,7 +77,8 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
      * accepts a drag that did not start in a layout (files, links, text, another library's
      * element) as a new tab: return `{ tab, onDrop? }`, or `undefined` to ignore it. Called when
      * the drag enters the layout, when only `event.dataTransfer.types` is readable; read the data in
-     * `onDrop`.
+     * `onDrop`. A native drag that starts in the layout's own content (selected text, a list of
+     * your own) is the content's: it is not asked about.
      */
     onExternalDrag?: OnExternalDrag<T> | undefined;
     children?: React.ReactNode;

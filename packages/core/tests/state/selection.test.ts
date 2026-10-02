@@ -99,7 +99,7 @@ describe("selection", () => {
         });
         must(model.run("tab.move", { tabId: "One", to: "border_left" }));
         must(model.run("tab.move", { tabId: "Two", to: "border_right" }));
-        // the emptied tabset is removed and the main layout gets a new empty one
+        // the emptied tabset stays, empty: it is the main layout's last one
         expect(text()).toBe(
             "/b/left/t0[A],/b/left/t1[One],/b/right/t0[B],/b/right/t1[Two]*",
         );

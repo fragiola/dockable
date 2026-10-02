@@ -658,6 +658,32 @@ describe("events", () => {
         });
     });
 
+    it("emits exactly one event per run, dispatch or batch (caplin/FlexLayout#513)", () => {
+        const model = model2();
+        const listener = vi.fn();
+        model.subscribe(listener);
+        must(model.run("tab.select", { tabId: "Two" }));
+        expect(listener).toHaveBeenCalledTimes(1);
+        const dispatched = model.dispatch({
+            command: "tab.select",
+            payload: { tabId: "One" },
+        });
+        expect(dispatched.ok).toBe(true);
+        expect(listener).toHaveBeenCalledTimes(2);
+        must(
+            model.run("batch", {
+                commands: [
+                    { command: "tab.select", payload: { tabId: "Two" } },
+                    { command: "tab.close", payload: { tabId: "Three" } },
+                ],
+            }),
+        );
+        expect(listener).toHaveBeenCalledTimes(3);
+        // a refused command commits nothing, and emits nothing
+        expect(model.run("tab.select", { tabId: "missing" }).ok).toBe(false);
+        expect(listener).toHaveBeenCalledTimes(3);
+    });
+
     it("fires for a command that changed nothing, with before === after", () => {
         const model = model2();
         must(model.run("tab.select", { tabId: "One" }));

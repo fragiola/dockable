@@ -316,7 +316,8 @@ command through `model.run`.
 
 Every Dockable drag sets `DRAG_TYPE` (`"application/x-dockable"`) on its data transfer, and the
 manager claims only the events that carry it: another library's drag passes through, or goes to
-`onExternalDrag`. Every `drop` and `dragend` in the document ends the page's drag.
+`onExternalDrag`. Every `drop` and `dragend` in the document ends the page's drag, even one whose
+propagation your content stops: the manager listens in the capture phase.
 
 ### DragDropManager
 
@@ -450,10 +451,10 @@ case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disable
 | --- | --- |
 | `defaultKeyMap` | the default bindings above, exported so applications can display or re-register them |
 | `resolveKeyMap(keyMap)` | merges the configured bindings over the defaults; a binding passed as an explicit `undefined` disables that shortcut |
-| `matchesKey(event, spec)` | true when `event` is exactly the key combination `spec` (a disabled binding never matches) |
+| `matchesKey(event, spec)` | true when `event` is exactly the key combination `spec` (a disabled binding, or an event with no `key`, never matches) |
 | `hasModifier(event)` | true when any modifier key is held (the fixed ARIA pattern keys, arrows on tabs and splitters, only apply unmodified) |
 | `toAriaKeyShortcuts(...specs)` | the `aria-keyshortcuts` value of bindings: the set ones, space separated, `Ctrl` spelled `Control`; `undefined` when none is set |
-| `KeyEventLike` | the fields shared by native and framework keyboard events: `key`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |
+| `KeyEventLike` | the fields shared by native and framework keyboard events: `key` (optional: autofill and scripts send keydown events without one), `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |
 
 ## Tab overflow
 

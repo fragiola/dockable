@@ -121,7 +121,7 @@ describe("core package guard", () => {
         expect(offenders).toEqual([]);
     });
 
-    it("never touches global document, window or frame scheduling", () => {
+    it("never touches global document, window or frame scheduling: it loads in Node (caplin/FlexLayout#50)", () => {
         const offenders = listFiles(src).flatMap((file) => {
             const match = GLOBAL_DOM.exec(codeOnly(readFileSync(file, "utf8")));
             return match ? [`${file}: ${match[0]}`] : [];
@@ -129,7 +129,7 @@ describe("core package guard", () => {
         expect(offenders).toEqual([]);
     });
 
-    it("never reaches for the global crypto (ids come from an injectable generator)", () => {
+    it("never reaches for the global crypto (ids come from an injectable generator) (caplin/FlexLayout#383)", () => {
         const offenders = listFiles(src).flatMap((file) => {
             const match = GLOBAL_CRYPTO.exec(
                 codeOnly(readFileSync(file, "utf8")),

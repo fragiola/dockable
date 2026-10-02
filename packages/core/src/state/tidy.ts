@@ -12,18 +12,36 @@ import { MAIN_LAYOUT } from "./types";
  *   children are hoisted, their weights scaled to the row's);
  * - an empty tabset is removed when it may be (`deleteWhenEmpty` and `enableClose`), clearing a
  *   maximize that pointed at it;
- * - an empty main layout gets a new empty tabset, which becomes active; an empty window is removed.
+ * - the main layout keeps a tabset: when tidy would leave it with none, the first empty tabset it
+ *   removed stays, with its id (caplin/FlexLayout#291; FlexLayout makes a new one), else a new
+ *   empty tabset is made; either becomes active. An empty window is removed.
  */
 export function tidy(draft: Draft): void {
     for (const layout of draft.layoutIds()) {
         const root = draft.rootOf(layout);
-        if (root !== undefined) {
-            tidyRow(draft, root, layout, true);
+        if (root === undefined) {
+            continue;
+        }
+        const removed: string[] = [];
+        tidyRow(draft, root, removed);
+        if (draft.row(root)?.children.length === 0) {
+            if (layout !== MAIN_LAYOUT) {
+                draft.removeWindow(layout);
+                continue;
+            }
+            const kept = removed.shift() ?? newTabset(draft).id;
+            draft.attach(root, kept);
+            draft.setActive(layout, kept);
+        }
+        const maximized = draft.getMaximized(layout);
+        if (maximized !== undefined && removed.includes(maximized)) {
+            draft.setMaximized(layout, undefined);
         }
     }
 }
 
-function tidyRow(draft: Draft, rowId: string, layout: string, isRoot: boolean) {
+/** tidies a row and its descendants; the empty tabsets it removes are added to `removed` */
+function tidyRow(draft: Draft, rowId: string, removed: string[]) {
     let i = 0;
     for (;;) {
         const row = draft.row(rowId);
@@ -32,7 +50,7 @@ function tidyRow(draft: Draft, rowId: string, layout: string, isRoot: boolean) {
             break;
         }
         if (child.type === "row") {
-            tidyRow(draft, child.id, layout, false);
+            tidyRow(draft, child.id, removed);
             const grandchildren = draft.row(child.id)?.children ?? [];
             if (grandchildren.length === 0) {
                 draft.detach(child.id);
@@ -66,25 +84,12 @@ function tidyRow(draft: Draft, rowId: string, layout: string, isRoot: boolean) {
             const resolved = resolveTabset(draft.getDefaults(), child);
             if (resolved.deleteWhenEmpty && resolved.enableClose) {
                 draft.detach(child.id);
-                if (draft.getMaximized(layout) === child.id) {
-                    draft.setMaximized(layout, undefined);
-                }
+                removed.push(child.id);
             } else {
                 i++;
             }
         } else {
             i++;
-        }
-    }
-
-    const row = draft.row(rowId);
-    if (isRoot && row && row.children.length === 0) {
-        if (layout === MAIN_LAYOUT) {
-            const tabset = newTabset(draft);
-            draft.attach(rowId, tabset.id);
-            draft.setActive(layout, tabset.id);
-        } else {
-            draft.removeWindow(layout);
         }
     }
 }

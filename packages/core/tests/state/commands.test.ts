@@ -1,7 +1,9 @@
 // The behaviour of each command of the catalogue (design record §5).
 import { describe, expect, it } from "vitest";
+import { type Middleware, veto } from "../../src/commands/types";
 import type { Model } from "../../src/state/model";
 import { createModel } from "../../src/state/model";
+import type { Node } from "../../src/state/types";
 import { must, setup, tab, tabsets } from "./harness";
 
 function firstBorder(model: Model) {
@@ -580,6 +582,56 @@ describe("border commands", () => {
                 },
             ],
         });
+
+    it("moving every tab into a border empties the main layout, as designed; a middleware can veto it (caplin/FlexLayout#93)", () => {
+        // by design: the main layout keeps its tabset, empty, and the app decides
+        const { model } = withBorder();
+        must(model.run("tab.move", { tabId: "Main", to: "border_left" }));
+        expect(model.get("tabsets").map((ts) => ts.children.length)).toEqual([
+            0,
+        ]);
+
+        // the recipe of the restricting-drops guide: a move must leave a tab in the main layout
+        const holdsTabs = (node: Node | undefined): boolean =>
+            node?.type === "tabset"
+                ? node.children.length > 0
+                : node?.type === "row"
+                  ? node.children.some(holdsTabs)
+                  : false;
+        const moves = new Set([
+            "tab.move",
+            "tabset.move",
+            "tab.popout",
+            "tabset.popout",
+        ]);
+        const keepMainFilled: Middleware = (ctx, next) => {
+            if (!moves.has(ctx.command)) return next();
+            const root = { id: ctx.state.root.id };
+            const before = holdsTabs(ctx.get("node-by", root));
+            const result = next();
+            // the layout as the move left it: a veto now commits nothing
+            return result.ok && before && !holdsTabs(ctx.get("node-by", root))
+                ? veto("The main layout keeps at least one tab")
+                : result;
+        };
+        const guarded = withBorder().model;
+        guarded.use(keepMainFilled);
+        expect(
+            guarded.can("tab.move", { tabId: "Main", to: "border_left" }),
+        ).toBe(false);
+        const refused = guarded.run("tab.move", {
+            tabId: "Main",
+            to: "border_left",
+        });
+        expect(refused.ok ? undefined : refused.error.code).toBe("vetoed");
+        expect(guarded.get("layout-id-by", { nodeId: "Main" })).toBe("main");
+        // a tab from the border into the main layout, and back out, still moves
+        must(guarded.run("tab.move", { tabId: "A", to: "ts0" }));
+        must(guarded.run("tab.move", { tabId: "Main", to: "border_left" }));
+        expect(
+            guarded.run("tab.move", { tabId: "A", to: "border_left" }).ok,
+        ).toBe(false);
+    });
 
     it("border.resize sets the border's size, clamped", () => {
         const { model } = withBorder();
