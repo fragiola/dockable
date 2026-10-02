@@ -98,7 +98,6 @@ export default function ExternalTabSwitcher() {
  */
 function Controls({ model }: { model: Model<Types> }) {
     useSyncExternalStore(model.subscribe, () => model.state);
-    useSyncExternalStore(model.subscribe, () => model.state);
     const tabs = model.get("tabs");
     // "the tab the user is looking at": the selected tab of the active tabset (the first tabset
     // until one is activated)
