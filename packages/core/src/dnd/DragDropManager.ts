@@ -23,7 +23,7 @@ import type { LayoutEngine, MeasurableKind } from "../engine/LayoutEngine";
 import type { DockLocation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect, rect, rectEquals } from "../geometry/rect";
 import { enablePointerOnIFrames } from "../splitter/SplitterController";
-import { resolveBorder, resolveLayout } from "../state/defaults";
+import { borderShown, resolveLayout } from "../state/defaults";
 import type { TabInit, TabInitOf } from "../state/json";
 import type { Model } from "../state/model";
 import type {
@@ -877,18 +877,11 @@ export class DragDropManager {
         const border = location
             ? state.borders.find((candidate) => candidate.location === location)
             : undefined;
-        if (!location || !border) {
-            return undefined;
-        }
-        const resolved = resolveBorder(state.defaults, border);
-        if (
-            !resolved.show ||
-            !resolved.autoHide ||
-            border.children.length > 0
-        ) {
-            return undefined;
-        }
-        return location;
+        return border &&
+            !borderShown(state.defaults, border, false) &&
+            borderShown(state.defaults, border, true)
+            ? location
+            : undefined;
     }
 
     /** `drop` on the layout root: runs the command of the target found during the hover */

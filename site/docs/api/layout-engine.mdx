@@ -45,7 +45,7 @@ them; `can` and `check` dry-run them.
 | action | payload | result | does |
 | --- | --- | --- | --- |
 | `"popout"` | `{ nodeId }` | `{ windowId }` | pops a tab, or a whole tabset, out into a window at its place on screen: runs `tab.popout` or `tabset.popout`. Refused where popouts are not supported |
-| `"dock-back"` | `{ nodeId }` | `{ tabIds }` | docks a tab, or every tab of a tabset, of a window back into the main layout's active tabset (its first one otherwise): `window.close` when that is all the window holds, otherwise `tab.move`s in a `batch` (a pinned tab is unpinned for the move and pinned again). Refused for a node of the main layout |
+| `"dock-back"` | `{ nodeId }` | `{ tabIds }` | docks a tab, or every tab of a tabset, of a window back into the main layout's `"default-tabset"` (its active tabset, else its first): `window.close` when that is all the window holds, otherwise `tab.move`s in a `batch` (a pinned tab is unpinned for the move and pinned again). Refused for a node of the main layout |
 | `"focus-tabset"` | `{ direction }` | `{ tabsetId }` | moves focus to the selected tab button of the `"next"` or `"previous"` tabset of this layout (wrapping), from the tabset containing focus or else the active one, and activates it (`tabset.activate`). Refused when focus is not in the layout, is in a text field or a menu, or a tabset is maximized |
 | `"close-overlay-border"` | `{ borderId }` | `{ borderId }` | closes a border's open panel (`border.configure` with `open: false`); focus in the panel goes back to its tab button |
 | `"measure-and-position"` | none | `{}` | runs the measure-and-position cycle: measures every registered element, positions the tab panels and discovers the splitter size. The primitives run it after every commit; run it yourself when something moved the tabsets without resizing any element (flipping `dir` at runtime) |
@@ -64,7 +64,8 @@ key names what it returns, and one that takes an id ends in `-by`, completed by 
 | `"layout-path-by"` | `{ nodeId }` | `string` | the node's `data-layout-path` in this layout (the root row's is the layout's prefix: `""` for the main layout, `/sublayout<n>` for a window). See [Layout paths](/docs/concepts/layout-paths) |
 | `"tab-button-dom-id-by"` | `{ tabId }` | `string` | the DOM id of a tab's button, unique on the page (see `idScope`): its panel's `aria-labelledby` |
 | `"tab-panel-dom-id-by"` | `{ tabId }` | `string` | the DOM id of a tab's panel, unique on the page: its button's `aria-controls` |
-| `"size-limits-by"` | `{ nodeId }` | `SizeRange` | a row's or a tabset's flex min/max, from its own limits, its tabs' and its tab strip's height |
+| `"flex-by"` | `{ nodeId }` | `FlexSizing` | how a row or a tabset sizes in its row: `grow`, its `flex-grow` (its weight × 1000, at least 1, so a small weight still fills), and its flex min/max (`minWidth`, `minHeight`, `maxWidth`, `maxHeight`), from its own limits, its tabs' and its tab strip's height |
+| `"overlay-placement-by"` | `{ borderId }` | `OverlayPlacement \| undefined` | where an overlay border's panel sits over the layout (`position: absolute`): its insets in px, `top`, `right`, `bottom`, `left`, an edge it leaves free absent. A top or bottom overlay spans its edge; a left or right one stops at the open top and bottom overlays (their size plus a splitter). `undefined` for a border that is not an overlay |
 | `"splitter-size"` | none | `number` | the measured splitter thickness, shared by every layout of the model |
 | `"owner-document"` | none | `Document \| undefined` | the document this layout renders in (a popout's own, for a window's layout): attach listeners for a part of this layout here. Tab content renders under the main layout's root, so it reads its own element's `ownerDocument` to follow the tab into a popout |
 | `"owner-window"` | none | `Window \| undefined` | the window this layout renders in |
@@ -77,6 +78,8 @@ key names what it returns, and one that takes an id ends in `-by`, completed by 
 | `"tab-panel-visible"` | `{ tabId }` | the tab's panel is shown: selected, and not hidden by a maximized tabset or a hidden border |
 | `"main-layout"` | none | this engine draws the main layout, not a popout window's |
 | `"splitter-dragging"` | none | a splitter of the model is being dragged |
+| `"border-shown"` | `{ borderId }` | the border shows in this layout (the main one; a window's engine answers `false`): its `show` is on and, when it `autoHide`s, it has tabs or the current drag reveals it (the pointer near its edge). `Dockable.Borders` renders the borders it answers `true` for |
+| `"tab-tabbable"` | `{ tabId }` | the tab is its tab list's tab stop (`tabIndex` 0): the selected tab, or the first tab when none is selected |
 
 The keys are typed (`EngineActionKey`, `EngineGetKey`, `EngineIsKey`, with their maps
 `EngineActionMap`, `EngineGetMap` and `EngineIsMap`, and `EngineActionPayload<K>`,
@@ -291,6 +294,8 @@ selectors work across frameworks. See [Layout paths](/docs/concepts/layout-paths
 | `MeasureFunction` | `(element: HTMLElement) => Rect`: measures an element in viewport coordinates |
 | `MoveableOptions` | how a panel hosts its content (see [Moveables](#moveables)) |
 | `SizeRange` | the size range of a row or tabset, in px: `minWidth`, `minHeight`, `maxWidth`, `maxHeight` (read-only) |
+| `FlexSizing` | a `SizeRange` plus `grow`: what `"flex-by"` returns |
+| `OverlayPlacement` | an overlay border's insets in px (`top`, `right`, `bottom`, `left`, each optional and read-only): what `"overlay-placement-by"` returns |
 | `EdgeBand` | an edge drop band: `location` (a `BorderLocation`: `"top"`, `"bottom"`, `"left"` or `"right"`) and `rect`, relative to the layout root |
 
 ## Drag and drop
@@ -382,7 +387,7 @@ The drag in progress; there is one for the page, shared by every window of a mod
 | `index` | `number` | the insertion index in the target's tab strip, or -1 for a drop on the content area |
 | `refused` | `boolean` | the pointer is over a target that refuses the drop (a rule of the layout, a middleware) |
 | `refusedTabsetId` | `string \| undefined` | the id of the tabset (or border) that refused the drop, when it was one |
-| `revealedBorder` | `"top" \| "bottom" \| "left" \| "right" \| undefined` | an auto-hide border with no tabs that the drag reveals (main layout only) |
+| `revealedBorder` | `"top" \| "bottom" \| "left" \| "right" \| undefined` | an auto-hide border with no tabs that the drag reveals (main layout only); `engine.is("border-shown", { borderId })` answers with it |
 
 ## Splitters
 

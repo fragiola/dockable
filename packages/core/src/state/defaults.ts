@@ -167,6 +167,19 @@ export function resolveBorder(
     return { ...resolved, show: border.show !== false };
 }
 
+/**
+ * Whether a border shows: its `show` is on and, when it `autoHide`s, it has tabs or a drag
+ * reveals it.
+ */
+export function borderShown(
+    defaults: LayoutDefaults,
+    border: BorderLike,
+    revealed: boolean,
+): boolean {
+    const { show, autoHide } = resolveBorder(defaults, border);
+    return show && (!autoHide || border.children.length > 0 || revealed);
+}
+
 /** The layout-wide settings: `defaults.layout.x ?? built-in`. */
 export function resolveLayout(defaults: LayoutDefaults): ResolvedLayout {
     return resolve<Required<LayoutSettings>>(

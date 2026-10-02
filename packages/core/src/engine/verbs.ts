@@ -1,5 +1,16 @@
-import type { SizeRange } from "../split/split";
+import type { FlexSizing } from "../split/split";
 import type { NoPayload } from "../state/queries";
+
+/**
+ * Where an overlay border's panel sits over the layout: its insets from the layout's edges, in
+ * pixels. An edge it leaves free is absent.
+ */
+export interface OverlayPlacement {
+    readonly top?: number;
+    readonly right?: number;
+    readonly bottom?: number;
+    readonly left?: number;
+}
 
 /**
  * What `engine.run(action, payload)` does: each screen action's payload and result. An action's
@@ -14,8 +25,8 @@ export interface EngineActionMap {
      */
     popout: { payload: { nodeId: string }; result: { windowId: string } };
     /**
-     * docks a tab, or a tabset, of a window back into the main layout's active tabset (its first
-     * one otherwise): `window.close` when it is all its window holds, else `tab.move`s
+     * docks a tab, or a tabset, of a window back into the main layout's default tabset (its active
+     * one, else its first): `window.close` when it is all its window holds, else `tab.move`s
      */
     "dock-back": { payload: { nodeId: string }; result: { tabIds: string[] } };
     /**
@@ -67,10 +78,21 @@ export interface EngineGetMap {
         payload: { tabId: string };
         result: string;
     };
-    /** a row's or a tabset's size limits (its flex min/max), in pixels */
-    "size-limits-by": {
+    /**
+     * how a row or a tabset sizes in its row: its flex grow (from its weight, at least 1) and its
+     * min/max, in pixels
+     */
+    "flex-by": {
         payload: { nodeId: string };
-        result: SizeRange;
+        result: FlexSizing;
+    };
+    /**
+     * where an overlay border's panel sits over the layout: a left or right one stops at the open
+     * top and bottom overlays; undefined for a border that is not an overlay
+     */
+    "overlay-placement-by": {
+        payload: { borderId: string };
+        result: OverlayPlacement | undefined;
     };
     /** the measured splitter thickness, in pixels */
     "splitter-size": { payload: NoPayload; result: number };
@@ -100,6 +122,16 @@ export interface EngineIsMap {
     "main-layout": NoPayload;
     /** a splitter of the model is being dragged */
     "splitter-dragging": NoPayload;
+    /**
+     * a border shows in this layout (the main one): its `show` is on and, when it `autoHide`s, it
+     * has tabs or the drag reveals it
+     */
+    "border-shown": { borderId: string };
+    /**
+     * a tab is its tab list's tab stop (`tabIndex` 0): the selected tab, or the first one when
+     * none is selected
+     */
+    "tab-tabbable": { tabId: string };
 }
 
 /** A key of `engine.is`. */

@@ -80,6 +80,7 @@ export type {
     EngineIsKey,
     EngineIsMap,
     EngineIsPayload,
+    OverlayPlacement,
 } from "./engine/verbs";
 export type {
     BorderLocation,
@@ -125,7 +126,7 @@ export type {
     JsonValue,
     ValidationIssue,
 } from "./schema/types";
-export type { SizeRange } from "./split/split";
+export type { FlexSizing, SizeRange } from "./split/split";
 export {
     createSplitterController,
     type SplitterAria,

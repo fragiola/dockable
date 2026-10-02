@@ -1,7 +1,7 @@
 import { describedId, idSchema, object, rectSchema } from "../schema/fragments";
 import { type Draft, newTabset } from "../state/draft";
 import { tidy } from "../state/tidy";
-import { walk } from "../state/tree";
+import { defaultTabset, walk } from "../state/tree";
 import { MAIN_LAYOUT } from "../state/types";
 import { defineCommand, fail, ok } from "./define";
 import { dropOnTabset } from "./dock";
@@ -20,33 +20,15 @@ function tabsBelow(draft: Draft, id: string): string[] {
     return tabs;
 }
 
-/**
- * Where tabs docked back from a window go: the main layout's active tabset, else its first tabset
- * (a new one when it has none, which only a batch in progress can leave).
- */
+/** Where tabs docked back from a window go: the main layout's default tabset, else a new one. */
 function dockTarget(draft: Draft): string {
-    const active = draft.getActive(MAIN_LAYOUT);
-    if (active !== undefined && draft.layoutOf(active) === MAIN_LAYOUT) {
-        return active;
-    }
     const root = draft.rootOf(MAIN_LAYOUT);
-    const first = (id: string | undefined): string | undefined => {
-        const node = id === undefined ? undefined : draft.get(id);
-        if (!node || node.type === "tab" || node.type === "border") {
-            return undefined;
-        }
-        if (node.type === "tabset") {
-            return node.id;
-        }
-        for (const child of node.children) {
-            const found = first(child.id);
-            if (found !== undefined) {
-                return found;
-            }
-        }
-        return undefined;
-    };
-    const found = first(root);
+    const found = defaultTabset(
+        draft,
+        MAIN_LAYOUT,
+        root,
+        draft.getActive(MAIN_LAYOUT),
+    );
     if (found !== undefined) {
         return found;
     }

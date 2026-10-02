@@ -52,6 +52,44 @@ export function walkState(
     }
 }
 
+/** What {@link defaultTabset} reads: the committed state's index, or a draft. */
+export interface NodeLookup {
+    get(id: string): AnyNode | undefined;
+    layoutOf(id: string): string | undefined;
+}
+
+/**
+ * The tabset to place into when no target is given: the layout's active tabset, else its first in
+ * tree order. `rootId` and `activeId` are the layout's root row and active tabset.
+ */
+export function defaultTabset(
+    nodes: NodeLookup,
+    layoutId: string,
+    rootId: string | undefined,
+    activeId: string | undefined,
+): string | undefined {
+    if (activeId !== undefined && nodes.layoutOf(activeId) === layoutId) {
+        return activeId;
+    }
+    const first = (id: string): string | undefined => {
+        const node = nodes.get(id);
+        if (node?.type === "tabset") {
+            return node.id;
+        }
+        if (node?.type !== "row") {
+            return undefined;
+        }
+        for (const child of node.children) {
+            const found = first(child.id);
+            if (found !== undefined) {
+                return found;
+            }
+        }
+        return undefined;
+    };
+    return rootId === undefined ? undefined : first(rootId);
+}
+
 export interface IndexEntry {
     readonly node: AnyNode;
     /** the parent's id; undefined for a layout's root row and for a border */

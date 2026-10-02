@@ -37,8 +37,13 @@ import {
     windowPath,
 } from "../paths";
 import { PopoutManager, type PopoutOptions } from "../popout/PopoutManager";
-import { type SizeRange, sizeRanges } from "../split/split";
-import { resolveBorder, resolveLayout } from "../state/defaults";
+import {
+    type FlexSizing,
+    flexGrow,
+    type SizeRange,
+    sizeRanges,
+} from "../split/split";
+import { borderShown, resolveBorder, resolveLayout } from "../state/defaults";
 import type { Model } from "../state/model";
 import type { QueryArgs } from "../state/queries";
 import type { AnyBorder, AnyRow, AnyState } from "../state/tree";
@@ -57,6 +62,7 @@ import type {
     EngineGetResult,
     EngineIsKey,
     EngineIsPayload,
+    OverlayPlacement,
 } from "./verbs";
 
 /** The kinds of element whose geometry the engine measures. */
@@ -594,7 +600,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         "layout-path-by": ({ nodeId }) => this.path(nodeId),
         "tab-button-dom-id-by": ({ tabId }) => this.tabButtonId(tabId),
         "tab-panel-dom-id-by": ({ tabId }) => this.tabPanelId(tabId),
-        "size-limits-by": ({ nodeId }) => this.minMax(nodeId),
+        "flex-by": ({ nodeId }) => this.flex(nodeId),
+        "overlay-placement-by": ({ borderId }) =>
+            this.overlayPlacement(borderId),
         "splitter-size": () => this.splitterSize(),
         "owner-document": () => this.getCurrentDocument(),
         "owner-window": () => this.getCurrentWindow(),
@@ -607,6 +615,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         "tab-panel-visible": ({ tabId }) => this.isPanelVisible(tabId),
         "main-layout": () => this.isMainLayout(),
         "splitter-dragging": () => this.isSplitterDragging(),
+        "border-shown": ({ borderId }) => this.isBorderShown(borderId),
+        "tab-tabbable": ({ tabId }) => this.isTabbable(tabId),
     };
 
     private createAdapter(): LayoutEngineAdapter<T> {
@@ -831,6 +841,13 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 maxHeight: 99999,
             }
         );
+    }
+
+    private flex(id: string): FlexSizing {
+        const node = this.model.get("node-by", { id });
+        const weight =
+            node?.type === "row" || node?.type === "tabset" ? node.weight : 0;
+        return { ...this.minMax(id), grow: flexGrow(weight) };
     }
 
     private rowOrientation(rowId: string): Orientation {
@@ -1066,8 +1083,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             if (weight === undefined || !element) {
                 return false; // not registered: fall back to the re-render path
             }
-            // NOTE: flex-grow cannot have values < 1 otherwise it will not fill the parent
-            element.style.flexGrow = String(Math.max(1, weight * 1000));
+            element.style.flexGrow = String(flexGrow(weight));
         }
         engine.applyMeasuredGeometry();
         return true;
@@ -1646,6 +1662,61 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         });
     }
 
+    private overlayPlacement(borderId: string): OverlayPlacement | undefined {
+        const border = this.model.get("node-by", { id: borderId });
+        if (
+            border?.type !== "border" ||
+            !this.model.is("border-overlay", { borderId })
+        ) {
+            return undefined;
+        }
+        if (border.location === "top") {
+            return { top: 0, left: 0, right: 0 };
+        }
+        if (border.location === "bottom") {
+            return { bottom: 0, left: 0, right: 0 };
+        }
+        let top = 0;
+        let bottom = 0;
+        for (const other of this.openOverlayBorders()) {
+            const inset =
+                resolveBorder(this.state().defaults, other).size +
+                this.shared.splitterSize;
+            if (other.location === "top") {
+                top = inset;
+            } else if (other.location === "bottom") {
+                bottom = inset;
+            }
+        }
+        return border.location === "left"
+            ? { left: 0, top, bottom }
+            : { right: 0, top, bottom };
+    }
+
+    private isBorderShown(borderId: string): boolean {
+        const border = this.model.get("node-by", { id: borderId });
+        return (
+            this.isMainLayout() &&
+            border?.type === "border" &&
+            borderShown(
+                this.state().defaults,
+                border,
+                this.dragDropManager.getIndicatorState().revealedBorder ===
+                    border.location,
+            )
+        );
+    }
+
+    private isTabbable(tabId: string): boolean {
+        if (this.model.is("tab-selected", { tabId })) {
+            return true;
+        }
+        const container = this.tabContainerOf(tabId);
+        return (
+            container?.selected === -1 && container.children[0]?.id === tabId
+        );
+    }
+
     /**
      * Closes an overlay border's panel (`border.configure` with `open: false`). When focus was in
      * the panel, it goes back to the tab button.
@@ -1919,8 +1990,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     }
 
     /**
-     * Docks a node (a tab, or a tabset) of a window back into the main layout's active tabset (its
-     * first one otherwise). When it is all its window holds, the window closes (`window.close`);
+     * Docks a node (a tab, or a tabset) of a window back into the main layout's default tabset (its
+     * active one, else its first). When it is all its window holds, the window closes (`window.close`);
      * otherwise its tabs move (`tab.move`).
      */
     private dockBack(
@@ -1946,8 +2017,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (all.length === tabs.length) {
             return docked(execute("window.close", { windowId: layout }));
         }
-        const target =
-            this.model.get("active-tabset") ?? this.model.get("tabsets")[0];
+        const target = this.model.get("default-tabset");
         if (!target) {
             // no tabset to dock into: closing the window docks all of it
             return docked(execute("window.close", { windowId: layout }), all);

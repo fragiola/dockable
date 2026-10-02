@@ -45,7 +45,7 @@ function setup(json: LayoutJson = twoTabsets) {
     const dom = mountTwoTabsets(engine, rects);
     engine.run("measure-and-position");
     engine.adapter.prepare();
-    engine.get("size-limits-by", { nodeId: "row" });
+    engine.get("flex-by", { nodeId: "row" });
     vi.mocked(computePaths).mockClear();
     vi.mocked(sizeRanges).mockClear();
     return { model, rects, engine, ...dom };
@@ -54,7 +54,7 @@ function setup(json: LayoutJson = twoTabsets) {
 function read(engine: LayoutEngine) {
     return {
         path: engine.get("layout-path-by", { nodeId: "t2" }),
-        minHeight: engine.get("size-limits-by", { nodeId: "ts0" }).minHeight,
+        minHeight: engine.get("flex-by", { nodeId: "ts0" }).minHeight,
     };
 }
 

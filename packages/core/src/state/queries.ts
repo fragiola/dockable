@@ -13,9 +13,16 @@ import {
 import { deepFreeze } from "./draft";
 import type { LayoutJson } from "./json";
 import { toLayoutJson } from "./load";
-import { type AnyNode, type AnyState, type NodeIndex, walk } from "./tree";
+import {
+    type AnyNode,
+    type AnyState,
+    defaultTabset,
+    type NodeIndex,
+    walk,
+} from "./tree";
 import {
     type AnyTypes,
+    type BorderNode,
     type DockableTypes,
     MAIN_LAYOUT,
     type Node,
@@ -78,6 +85,10 @@ export interface ModelGetMap<T extends DockableTypes = AnyTypes> {
         payload: { id: string };
         result: WindowLayout<T> | undefined;
     };
+    /** the popout windows' layouts, in the order they opened */
+    windows: { payload: NoPayload; result: readonly WindowLayout<T>[] };
+    /** the borders (they belong to the main layout), in the layout's order */
+    borders: { payload: NoPayload; result: readonly BorderNode<T>[] };
     /** every tab of the model: the main layout's, its borders' and the windows', in tree order */
     "all-tabs": { payload: NoPayload; result: TabOf<T>[] };
     /** the tabs of a layout (the main layout's include its borders'), in tree order */
@@ -100,6 +111,14 @@ export interface ModelGetMap<T extends DockableTypes = AnyTypes> {
     };
     /** a layout's active tabset */
     "active-tabset": {
+        payload: { layoutId?: string | undefined };
+        result: TabsetNode<T> | undefined;
+    };
+    /**
+     * the tabset to place into when no target is given: the layout's active tabset, else its first
+     * in tree order (where `window.close` docks a window's tabs, for the main layout)
+     */
+    "default-tabset": {
         payload: { layoutId?: string | undefined };
         result: TabsetNode<T> | undefined;
     };
@@ -244,17 +263,21 @@ function tabsetById(
     return found?.type === "tabset" ? found : undefined;
 }
 
+/** The record of a layout that names its active and maximized tabsets. */
+function layoutRecord(
+    source: QuerySource,
+    layout: string = MAIN_LAYOUT,
+): { readonly active?: string; readonly maximized?: string } | undefined {
+    return layout === MAIN_LAYOUT ? source.state : windowLayout(source, layout);
+}
+
 /** A layout's active or maximized tabset. */
 function layoutTabset(
     source: QuerySource,
     layout: string | undefined,
     which: "active" | "maximized",
 ): TabsetNode | undefined {
-    const record =
-        layout === undefined || layout === MAIN_LAYOUT
-            ? source.state
-            : windowLayout(source, layout);
-    return tabsetById(source, record?.[which]);
+    return tabsetById(source, layoutRecord(source, layout)?.[which]);
 }
 
 /** The selected tab of a tabset or a border (of `type` only, when given). */
@@ -340,6 +363,8 @@ const GETTERS: Getters = {
     "layout-id-by": (source, { nodeId }) => source.index.layoutOf(nodeId),
     "root-row": (source, { layoutId }) => rootRow(source, layoutId),
     "window-by": (source, { id }) => windowLayout(source, id),
+    windows: (source) => source.state.windows,
+    borders: (source) => source.state.borders,
     "all-tabs": (source) => tabsOf(source),
     tabs: (source, { layoutId }) => tabsOf(source, layoutId ?? MAIN_LAYOUT),
     tabsets: (source, { layoutId }) => {
@@ -357,6 +382,16 @@ const GETTERS: Getters = {
     "selected-tab-by": selectedTabBy,
     "active-tabset": (source, { layoutId }) =>
         layoutTabset(source, layoutId, "active"),
+    "default-tabset": (source, { layoutId = MAIN_LAYOUT }) =>
+        tabsetById(
+            source,
+            defaultTabset(
+                source.index,
+                layoutId,
+                rootRow(source, layoutId)?.id,
+                layoutRecord(source, layoutId)?.active,
+            ),
+        ),
     "maximized-tabset": (source, { layoutId }) =>
         layoutTabset(source, layoutId, "maximized"),
     "tab-settings-by": (source, { tabId }) => {

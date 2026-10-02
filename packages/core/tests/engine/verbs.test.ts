@@ -235,7 +235,7 @@ describe("engine.get / is", () => {
         expect(engine.get("tab-panel-dom-id-by", { tabId: "t0" })).not.toBe(
             engine.get("tab-button-dom-id-by", { tabId: "t0" }),
         );
-        expect(engine.get("size-limits-by", { nodeId: "ts0" })).toMatchObject({
+        expect(engine.get("flex-by", { nodeId: "ts0" })).toMatchObject({
             minWidth: expect.any(Number),
             maxWidth: expect.any(Number),
         });
@@ -266,6 +266,58 @@ describe("engine.get / is", () => {
     });
 });
 
+describe("the layout rules", () => {
+    it("flex-by: a row's or a tabset's flex grow (its weight, at least 1) and its min/max", () => {
+        const json = structuredClone(twoTabsets);
+        const [ts0, ts1] = json.root.children ?? [];
+        if (ts0?.type !== "tabset" || ts1?.type !== "tabset") {
+            throw new Error("two tabsets");
+        }
+        ts0.minWidth = 120;
+        ts1.weight = 0.0005;
+        const engine = createLayoutEngine({ model: createModel(json) });
+        engines.push(engine);
+        expect(engine.get("flex-by", { nodeId: "ts0" })).toMatchObject({
+            grow: 50_000,
+            minWidth: 120,
+            maxWidth: 99999,
+        });
+        expect(engine.get("flex-by", { nodeId: "ts1" }).grow).toBe(1);
+        expect(engine.get("flex-by", { nodeId: "row" }).grow).toBe(100_000);
+        expect(engine.get("flex-by", { nodeId: "nope" })).toEqual({
+            grow: 1,
+            minWidth: 0,
+            minHeight: 0,
+            maxWidth: 99999,
+            maxHeight: 99999,
+        });
+    });
+
+    it("tab-tabbable: the selected tab, else the first one when none is selected", () => {
+        const { model, engine } = setup();
+        const tabbable = (tabId: string) =>
+            engine.is("tab-tabbable", { tabId });
+        expect(tabbable("t0")).toBe(true);
+        expect(tabbable("t1")).toBe(false);
+        model.run("tab.select", { tabId: "t1" });
+        expect(tabbable("t0")).toBe(false);
+        expect(tabbable("t1")).toBe(true);
+        const added = model.run("tab.add", {
+            component: "test",
+            label: "b1",
+            to: "left",
+        });
+        const b1 = added.ok ? added.value.tabId : "";
+        model.run("tab.select", { tabId: "b0" });
+        expect(tabbable("b0")).toBe(true);
+        expect(tabbable(b1)).toBe(false);
+        model.run("border.configure", { borderId: "left", open: false });
+        expect(tabbable("b0")).toBe(true);
+        expect(tabbable(b1)).toBe(false);
+        expect(tabbable("nope")).toBe(false);
+    });
+});
+
 const ACTION_KEYS = Object.keys({
     popout: true,
     "dock-back": true,
@@ -283,7 +335,8 @@ const GET_INPUTS: {
     "layout-path-by": { required: true, fields: ["nodeId"] },
     "tab-button-dom-id-by": { required: true, fields: ["tabId"] },
     "tab-panel-dom-id-by": { required: true, fields: ["tabId"] },
-    "size-limits-by": { required: true, fields: ["nodeId"] },
+    "flex-by": { required: true, fields: ["nodeId"] },
+    "overlay-placement-by": { required: true, fields: ["borderId"] },
     "splitter-size": { required: false, fields: [] },
     "owner-document": { required: false, fields: [] },
     "owner-window": { required: false, fields: [] },
@@ -294,6 +347,8 @@ const IS_KEYS = Object.keys({
     "tab-panel-visible": true,
     "main-layout": true,
     "splitter-dragging": true,
+    "border-shown": true,
+    "tab-tabbable": true,
 } satisfies Record<EngineIsKey, true>);
 
 describe("the key lists", () => {

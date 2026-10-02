@@ -249,7 +249,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     private rowSplit(row: AnyRow): RowSplit {
         const children = row.children.map((child) => ({
             rect: this.rect(child) ?? EMPTY_RECT,
-            range: this.engine.get("size-limits-by", { nodeId: child.id }),
+            range: this.engine.get("flex-by", { nodeId: child.id }),
         }));
         const orientation = this.engine.adapter.rowOrientation(row.id);
         const size = this.engine.get("splitter-size");
@@ -272,7 +272,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         if (!strip || !layout) {
             return { bounds: [0, 0], origin: [0, 0] };
         }
-        const range = this.engine.get("size-limits-by", {
+        const range = this.engine.get("flex-by", {
             nodeId: state.root.id,
         });
         const size = this.engine.get("splitter-size");
