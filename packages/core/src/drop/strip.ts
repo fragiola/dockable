@@ -3,6 +3,12 @@
 // strip's children are its tabs. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import { bottom, type Rect, rect, right } from "../geometry/rect";
 
+/**
+ * How a strip lays out its tabs: a border's strip runs `"horizontal"` or `"vertical"`; a tabset's
+ * runs horizontally, and a slot whose edge is outside the tabset (a tab scrolled out) is not offered.
+ */
+export type StripMode = "horizontal" | "vertical" | "tabset";
+
 /** A drop into a tab strip: the insertion index and the outline to show. */
 export interface StripDrop {
     readonly index: number;
@@ -41,7 +47,6 @@ function after(vertical: boolean, extent: Rect): Rect {
  * Where a drop over a strip goes: each tab on the pointer's line is split at its centre into a
  * "before" and an "after" slot; the space after the line's last tab appends. `host` is the
  * tabset's (or border strip's) rect, `strip` the strip's, `tabs` each tab's button rect in order.
- * With `restrictAtStripStart`, a slot whose edge is outside the host is not offered.
  */
 export function findStripDrop(
     host: Rect,
@@ -49,9 +54,9 @@ export function findStripDrop(
     tabs: readonly (Rect | undefined)[],
     x: number,
     y: number,
-    vertical: boolean,
-    restrictAtStripStart: boolean,
+    mode: StripMode,
 ): StripDrop | undefined {
+    const vertical = mode === "vertical";
     if (tabs.length === 0) {
         return {
             index: 0,
@@ -79,10 +84,7 @@ export function findStripDrop(
             : extent.x + extent.width / 2;
         if (p <= pos && pos < middle) {
             const edge = vertical ? extent.y : extent.x;
-            if (
-                !restrictAtStripStart ||
-                (host.x < edge && edge < right(host))
-            ) {
+            if (mode !== "tabset" || (host.x < edge && edge < right(host))) {
                 return { index, outline: before(vertical, extent) };
             }
             return undefined;
@@ -119,13 +121,13 @@ export function clampToPinnedRun(
     if (index === drop.index) {
         return drop;
     }
-    const boundary = index < tabs.length ? tabs[index] : tabs[tabs.length - 1];
+    const inside = index < tabs.length;
+    const boundary = inside ? tabs[index] : tabs[tabs.length - 1];
     if (!boundary) {
         return { index, outline: drop.outline };
     }
-    const outline =
-        index < tabs.length
-            ? rect(boundary.x - 2, boundary.y, 3, boundary.height)
-            : rect(right(boundary) - 2, boundary.y, 3, boundary.height);
-    return { index, outline };
+    return {
+        index,
+        outline: inside ? before(false, boundary) : after(false, boundary),
+    };
 }

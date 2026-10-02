@@ -5,8 +5,8 @@ description: A button that pops the selected tab, or the whole tabset, out into 
 
 "A button, inside `Dockable.TabSet`, that pops the selected tab (or the whole tabset) out into a
 window, and, in a window, docks it back into the main layout. It renders nothing when neither is
-possible (popouts unsupported, the model refuses it, no tab): `tab.popout` / `tabset.popout`
-decide, through `model.can`. It has no name of its own: give it an `aria-label`, or name it
+possible (popouts unsupported, the model refuses it, no tab): the engine decides
+(`engine.get("popout-mode-by", { nodeId })`). It has no name of its own: give it an `aria-label`, or name it
 from the state when the two actions need different names
 (`render={(props, state) => <button {...props} aria-label={state.mode === "dock" ? … : …} />}`)."
 

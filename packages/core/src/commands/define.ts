@@ -1,4 +1,4 @@
-import type { JsonSchema } from "../schema/types";
+import type { JsonSchema, ValidationIssue } from "../schema/types";
 import type { Draft } from "../state/draft";
 import type { AnyState, NodeIndex } from "../state/tree";
 import type { AnyTypes } from "../state/types";
@@ -14,19 +14,12 @@ import type {
 /** What a reducer can use besides the draft. */
 export interface ReduceContext {
     readonly draft: Draft;
-    /** validates a tab's data against the component's registered schema (undefined: valid) */
-    validateData(
-        component: string,
-        data: unknown,
-        path: string,
-    ): CommandError | undefined;
-    /** builds a whole state from a layout document (for `layout.load`) */
+    /** validates a tab's `/data` against the component's registered schema (undefined: valid) */
+    validateData(component: string, data: unknown): Failure | undefined;
+    /** builds a whole state from the `/layout` document (for `layout.load`) */
     loadLayout(
         json: unknown,
-        path: string,
-    ):
-        | { ok: true; state: AnyState; index: NodeIndex }
-        | { ok: false; error: CommandError };
+    ): { ok: true; state: AnyState; index: NodeIndex } | Failure;
     /** runs one command of a batch on the same draft, through the middleware chain */
     runInBatch(
         command: string,
@@ -54,15 +47,38 @@ export function ok<R>(value: R): { readonly ok: true; readonly value: R } {
     return { ok: true, value };
 }
 
+/** Why a command did not apply. */
+export type Failure = { readonly ok: false; readonly error: CommandError };
+
 export function fail(
     code: CommandErrorCode,
     message: string,
     path?: string,
-): { readonly ok: false; readonly error: CommandError } {
-    return {
-        ok: false,
-        error: path === undefined ? { code, message } : { code, message, path },
+    issues?: readonly ValidationIssue[],
+): Failure {
+    const error: { -readonly [K in keyof CommandError]: CommandError[K] } = {
+        code,
+        message,
     };
+    if (path !== undefined) {
+        error.path = path;
+    }
+    if (issues !== undefined) {
+        error.issues = issues;
+    }
+    return { ok: false, error };
+}
+
+/** The `invalid_payload` failure of schema issues (the first one's message and path), if any. */
+export function invalid(
+    issues: readonly ValidationIssue[],
+    prefix = "",
+): Failure | undefined {
+    const [first] = issues;
+    return (
+        first &&
+        fail("invalid_payload", `${prefix}${first.message}`, first.path, issues)
+    );
 }
 
 /**

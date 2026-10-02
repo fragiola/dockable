@@ -42,7 +42,7 @@ function AddTabButton() {
     const { model } = useDockable<Types>();
     const add = () => {
         // the tabset the user last pressed in, else the first one
-        const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+        const target = model.get("default-tabset");
         model.run("tab.add", {
             component: "chart",
             label: "Untitled", // a chart has no data
@@ -81,11 +81,13 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
     return (
         <button
             type="button"
+            // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
+            tabIndex={-1}
             aria-label={`Close ${tab.label}`}
-            // a press on the button must not start a drag or select the tab first
+            // keeps the press from activating the tabset
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
-                event.stopPropagation();
+                event.stopPropagation(); // a click on the tab would select it
                 model.run("tab.close", { tabId: tab.id });
             }}
         >
@@ -180,15 +182,19 @@ becomes the active one; in a border, the border's panel opens. `tabset.activate`
 active without changing its selection.
 
 Code outside the layout follows the selection the same way it changes it: through the model.
-Subscribe to re-read after every commit, and ask which tab the user is looking at, the selected
-tab of the active tabset. Do it in the controls' own component, so a commit re-renders them and
-not the layout beside them:
+Ask which tab the user is looking at, the selected tab of the default tabset (the active one,
+else the first), with `useModelState` and the model: it works outside `Dockable.Root`, and
+re-renders the controls only when the answer changes, never the layout beside them:
 
 ```tsx
 function Controls({ model }: { model: Model<Types> }) {
-    useSyncExternalStore(model.subscribe, () => model.state);
-    const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
-    const current = tabset ? model.get("selected-tab-by", { tabsetId: tabset.id }) : undefined;
+    const current = useModelState(
+        (_state, m) => {
+            const tabset = m.get("default-tabset");
+            return tabset ? m.get("selected-tab-by", { tabsetId: tabset.id }) : undefined;
+        },
+        { model },
+    );
     // …
 }
 ```

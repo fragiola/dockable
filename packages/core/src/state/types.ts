@@ -68,9 +68,20 @@ export interface SizeLimits {
 /** How a border's panel opens: beside the layout (`docked`) or over it (`overlay`). */
 export type BorderMode = "docked" | "overlay";
 
+/** The fields of a tab no layout default applies to. */
+export interface TabOwnFields {
+    /** pinned tabs sit at the start of their strip, cannot close and cannot leave their tabset */
+    pinned?: boolean;
+    /** the tab's own panel width in a left or right border (the border's `size` otherwise) */
+    borderWidth?: number;
+    /** the tab's own panel height in a top or bottom border */
+    borderHeight?: number;
+}
+
 /** A tab: component `K` with data `D`. */
 export interface TabNode<K extends string = string, D = unknown>
-    extends SizeLimits {
+    extends Readonly<TabDefaults>,
+        Readonly<TabOwnFields> {
     readonly type: "tab";
     readonly id: string;
     /** what the tab shows: the registry key that types `data` */
@@ -79,15 +90,6 @@ export interface TabNode<K extends string = string, D = unknown>
     readonly label: string;
     /** the app's data for the tab */
     readonly data: D;
-    /** pinned tabs sit at the start of their strip, cannot close and cannot leave their tabset */
-    readonly pinned?: boolean;
-    readonly enableClose?: boolean;
-    readonly enableDrag?: boolean;
-    readonly enablePopout?: boolean;
-    /** the tab's own panel width in a left or right border (the border's `size` otherwise) */
-    readonly borderWidth?: number;
-    /** the tab's own panel height in a top or bottom border */
-    readonly borderHeight?: number;
 }
 
 /** A tab of the registry `T`: a union discriminated by `component`, so `data` narrows. */
@@ -97,7 +99,7 @@ export type TabOf<T extends DockableTypes> = {
 
 /** A tabset: tabs sharing a strip and a content area. */
 export interface TabsetNode<T extends DockableTypes = AnyTypes>
-    extends SizeLimits {
+    extends Readonly<TabsetDefaults> {
     readonly type: "tabset";
     readonly id: string;
     /** relative size in its row */
@@ -106,13 +108,6 @@ export interface TabsetNode<T extends DockableTypes = AnyTypes>
     readonly selected: number;
     readonly children: readonly TabOf<T>[];
     readonly data?: TabsetDataOf<T>;
-    readonly enableDrop?: boolean;
-    readonly enableDrag?: boolean;
-    readonly enableDivide?: boolean;
-    readonly enableMaximize?: boolean;
-    readonly enableClose?: boolean;
-    readonly deleteWhenEmpty?: boolean;
-    readonly autoSelectTab?: boolean;
 }
 
 /** A row (or column): tabsets and rows laid out along its orientation. */
@@ -126,7 +121,8 @@ export interface RowNode<T extends DockableTypes = AnyTypes> {
 }
 
 /** A border: a strip of tabs on one side of the main layout, whose panel opens beside or over it. */
-export interface BorderNode<T extends DockableTypes = AnyTypes> {
+export interface BorderNode<T extends DockableTypes = AnyTypes>
+    extends Readonly<BorderDefaults> {
     readonly type: "border";
     readonly id: string;
     readonly location: BorderLocation;
@@ -134,17 +130,8 @@ export interface BorderNode<T extends DockableTypes = AnyTypes> {
     readonly selected: number;
     readonly children: readonly TabOf<T>[];
     readonly data?: BorderDataOf<T>;
-    readonly size?: number;
-    readonly minSize?: number;
-    readonly maxSize?: number;
-    readonly mode?: BorderMode;
     /** false hides the border entirely */
     readonly show?: boolean;
-    /** hide the strip while the border has no tabs (a drag near its edge reveals it) */
-    readonly autoHide?: boolean;
-    readonly enableDrop?: boolean;
-    readonly autoSelectTabWhenOpen?: boolean;
-    readonly autoSelectTabWhenClosed?: boolean;
 }
 
 /** A popout window's layout: a native window with its own root row. */
@@ -224,6 +211,7 @@ export interface BorderDefaults {
     minSize?: number;
     maxSize?: number;
     mode?: BorderMode;
+    /** hide the strip while the border has no tabs (a drag near its edge reveals it) */
     autoHide?: boolean;
     enableDrop?: boolean;
     autoSelectTabWhenOpen?: boolean;

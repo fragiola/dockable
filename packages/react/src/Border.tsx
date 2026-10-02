@@ -4,8 +4,9 @@
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { AnyTypes, BorderNode, DockableTypes } from "@fragiola/dockable";
 import type * as React from "react";
+import type { BorderContentState } from "./BorderContent";
 import { useLayoutContext } from "./context";
-import { type BorderState, useBorder } from "./hooks";
+import { useBorder } from "./hooks";
 import { TabContainerContext } from "./TabSet";
 import {
     type DivPrimitiveProps,
@@ -13,10 +14,13 @@ import {
     useRenderElement,
 } from "./utils/useRender";
 
-export type { BorderState };
+export interface BorderState extends BorderContentState {
+    /** a left border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"` */
+    tabDirection: "up" | "down" | undefined;
+}
 
 /** the data attributes of a border's state, shared by its strip and its content */
-export function borderAttributes(state: BorderState) {
+export function borderAttributes(state: BorderContentState) {
     return {
         location: state.location,
         orientation: state.orientation,
@@ -52,10 +56,15 @@ export function Border<T extends DockableTypes = AnyTypes>(
 ) {
     const { node, tabDirection, children, ...rest } = props;
     const { engine } = useLayoutContext("Border");
-    const { state, props: strip } = useBorder(node, { tabDirection });
+    const border = useBorder(node);
+    const state: BorderState = {
+        ...border.state,
+        tabDirection:
+            node.location === "left" ? (tabDirection ?? "up") : undefined,
+    };
     const element = useRenderElement("div", rest, {
         state,
-        ref: strip.ref,
+        ref: border.props.ref,
         props: {
             ...dataAttributes({
                 "layout-path": engine.get("layout-path-by", {

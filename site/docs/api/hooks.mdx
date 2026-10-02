@@ -53,7 +53,8 @@ element's `ownerDocument`. Which object to go to for what:
 ## useModelState
 
 "A value selected from the model's state, re-rendering the component only when the selection
-changes (`isEqual`, `Object.is` by default). The selector runs once per state; keep it pure."
+changes (`isEqual`, `Object.is` by default). The selector runs once per state; keep it pure.
+Inside a `Dockable.Root` it reads the root's model; pass `model` to read one anywhere."
 
 ```tsx
 import { useModelState } from "@fragiola/dockable-react";
@@ -64,7 +65,21 @@ function TabCount() {
 }
 ```
 
-`useModelState<T, S>(selector: (state: LayoutState<T>, model: Model<T>) => S, isEqual?: (a: S, b: S) => boolean): S`
+`useModelState<T, S>(selector: (state: LayoutState<T>, model: Model<T>) => S, options?: UseModelStateOptions<T, S>): S`
+
+`UseModelStateOptions<T, S>`:
+
+| option | type | description |
+| --- | --- | --- |
+| `model` | `Model<T>` | the model to read; default: the enclosing `Dockable.Root`'s. With it, the hook works anywhere: a toolbar, a sidebar or a status bar beside the root |
+| `isEqual` | `(a: S, b: S) => boolean` | whether two selections are the same, so the component does not re-render (default `Object.is`) |
+
+```tsx
+function OpenWindows({ model }: { model: Model<Types> }) {
+    const count = useModelState((_state, m) => m.get("windows").length, { model });
+    return <output>{count} windows</output>;
+}
+```
 
 It is `useSyncExternalStore` over `model.subscribe`, so:
 
@@ -77,8 +92,9 @@ It is `useSyncExternalStore` over `model.subscribe`, so:
   previous state, so an unchanged node is the same object. A selector that builds a new array or
   object each time needs an `isEqual` that compares contents, or it re-renders on every change of
   the layout;
-- it reads the model from its own context, which changes only when the root gets another model,
-  so it does not make the component re-render with every render of the layout.
+- inside a root, it reads the model from its own context, which changes only when the root gets
+  another model, so it does not make the component re-render with every render of the layout.
+  Outside one, it needs `model`; without either it throws.
 
 A realtime splitter drag commits on every move (transient `row.resize` runs), so a selector should
 stay cheap. Use it for anything that shows layout state outside the parts: a status bar, a list
@@ -126,8 +142,8 @@ function MyTabSet({ node, children }: { node: TabsetNode<Types>; children: React
 }
 ```
 
-A custom tabset must still apply the structural flex sizing `Dockable.TabSet` sets (flex-grow
-from `node.weight`, the min/max sizes from `engine.get("size-limits-by", { nodeId: node.id })`,
+A custom tabset must still apply the structural flex sizing `Dockable.TabSet` sets (flex-grow and
+the min/max sizes from `engine.get("flex-by", { nodeId: node.id })`,
 `display: none` when `state.hidden`), and provide the tabset to `TabList`/`TabSetContent`, which
 only `Dockable.TabSet` does. Prefer `Dockable.TabSet` with `render` unless you need something it
 cannot express. Reading `state` alone is fine too: `useTabSet(node).state.dropIndex` places an
@@ -159,19 +175,13 @@ The drop fields re-render the tabset only when its own answer changes, not on ev
 
 "The lower layer of `Dockable.Border`: its state, and the props for its strip."
 
-`useBorder<T>(node: BorderNode<T>, options?: UseBorderOptions): UseBorderResult`
-
-`UseBorderOptions`:
-
-| field | type | description |
-| --- | --- | --- |
-| `tabDirection` | `"up" \| "down" \| undefined` | a left border's tab direction; default `"up"`. Reported as `state.tabDirection` (undefined for the other borders) |
+`useBorder<T>(node: BorderNode<T>): UseBorderResult`
 
 `UseBorderResult`:
 
 | field | type | description |
 | --- | --- | --- |
-| `state` | `BorderState` | see [Dockable.Border](/docs/api/border#state) |
+| `state` | `BorderContentState` | see [Dockable.BorderContent](/docs/api/border-content#state); `Dockable.Border` adds its `tabDirection` |
 | `props` | `{ ref }` | `ref` measures the element as the border's tab header (its strip) |
 
 A custom strip must also provide the border to `Dockable.TabList`, which only `Dockable.Border`
@@ -190,7 +200,6 @@ The selected tab is never hidden."
 | --- | --- | --- |
 | `overflowing` | `boolean` | some of the container's tabs do not fit, so they are hidden |
 | `hiddenTabs` | `TabOf<T>[]` | the hidden tabs, in model order: what an overflow menu lists |
-| `visibleTabs` | `TabOf<T>[]` | the tabs that stay in the strip, in model order |
 
 It re-renders only when the container's hidden tabs change. See
 [Tab overflow](/docs/guides/tab-overflow).
@@ -217,18 +226,8 @@ function MySplitter({ node, index }: RowSplitterProps) {
 
 | field | type | description |
 | --- | --- | --- |
-| `state` | `UseSplitterState` | see below |
+| `state` | `SplitterState` | see [Dockable.Splitter](/docs/api/splitter#state) |
 | `props` | `{ ref, role, tabIndex, aria-*, onPointerDown, onKeyDown, style }` | the ref; `role="separator"`, `tabIndex: 0` and the ARIA values (`aria-orientation`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-valuetext`); the pointer and arrow-key handlers; and the structural style: `display: none` while hidden, the outline preview's `transform`, `pointer-events: auto` on a border's splitter |
-| `controller` | `SplitterController` | the headless controller behind it, for a gesture of your own: `onPointerDown`, `onKeyDown`, `getAria`, `isHidden`, … (see [LayoutEngine](/docs/api/layout-engine#splitters)) |
-
-`UseSplitterState`:
-
-| field | type | description |
-| --- | --- | --- |
-| `dragging` | `boolean` | the splitter is being dragged with the pointer |
-| `previewOffset` | `number \| undefined` | during an outline (non-realtime) drag: how far, in px, the splitter would move if released now |
-| `orientation` | `"horizontal" \| "vertical"` | the separator's orientation: `"vertical"` for a splitter between side by side children |
-| `hidden` | `boolean` | row splitters are hidden while a tabset is maximized |
 
 A drag runs `row.resize` (or `border.resize`); while a realtime drag moves, those runs are
 transient, and the release runs one lasting command.
@@ -288,7 +287,7 @@ run inside `Dockable.Root`: the drag goes to the layout of `model` that is mount
 | --- | --- | --- |
 | `model` | `Model<T>` | the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) |
 | `tab` | `TabInitOf<T> \| (() => TabInitOf<T>)` | the tab a drop creates: a `tab.add` init, checked against the registry. A function is called at each drag start, so every drop can get fresh data |
-| `onDrop` | `NewTabDropped \| undefined` | `(tab: string \| undefined, event) => void`: called after the drop with the new tab's id, or `undefined` when the add was refused |
+| `onDrop` | `NewTabDropped \| undefined` | `(tabId: string \| undefined, event) => void`: called after the drop with the new tab's id, or `undefined` when the add was refused |
 | `disabled` | `boolean \| undefined` | no drag starts while true |
 
 `UseDragSourceResult`:
@@ -334,7 +333,7 @@ foreign drag), `{ kind: "new", tab }` (a `TabInitOf<T>`).
 
 | field | type | description |
 | --- | --- | --- |
-| `state` | `{ over, active }` | `over`: a drag the zone takes is over it; `active`: a drag the zone would take is in progress |
+| `state` | `DropZoneState` | `over`: a drag the zone takes is over it; `active`: a drag the zone would take is in progress (see [Dockable.DropZone](/docs/api/drop-zone)) |
 | `props` | `{ ref }` | the zone's callback ref |
 
 While a drag the zone takes is over it, the layouts hide their outline.
@@ -342,13 +341,12 @@ While a drag the zone takes is over it, the layouts hide their outline.
 ## useDragGroup
 
 `useDragGroup(): DragGroup`: the drag group of the enclosing `Dockable.DragGroup`, for code that
-moves tabs between its layouts (`group.transfer({ tab, from, to, target, location, index })`, an
+moves tabs between its layouts (`group.transfer({ tabId, from, to, target, location, index })`, an
 undo) or listens to transfers. It must be called inside `Dockable.DragGroup`. See
 [Dockable.DragGroup](/docs/api/drag-group).
 
 ## Types
 
 Also exported: `TabSetState`, `DragProps`, `UseDockableResult`, `UseTabSetResult`,
-`UseBorderOptions`, `UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`,
-`UseSplitterState`, `UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`,
-`UseDropZoneOptions` and `UseDropZoneResult`.
+`UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`, `UseDragNodeResult`,
+`UseDragSourceOptions`, `UseDragSourceResult`, `UseDropZoneOptions` and `UseDropZoneResult`.

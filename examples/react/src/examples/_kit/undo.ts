@@ -15,12 +15,6 @@ import {
     toLayoutJson,
 } from "@fragiola/dockable";
 
-/** Commands that don't create an undo step by default (a window's screen rect is no step either). */
-const DEFAULT_IGNORE_COMMANDS: readonly CommandName[] = [
-    "tabset.activate",
-    "window.configure",
-];
-
 /** `meta` of the `layout.load` an undo or a redo runs, so it is not recorded as a step. */
 const UNDO_META = { undo: true } as const;
 
@@ -41,17 +35,9 @@ export interface UndoStep {
 }
 
 /** The state of an {@link UndoManager}. The same object is returned until something changes. */
-export interface UndoSnapshot<T extends DockableTypes = AnyTypes> {
-    /** the current model */
-    readonly model: Model<T> | null;
-    /** true if there is at least one undo step available */
+export interface UndoSnapshot {
     readonly canUndo: boolean;
-    /** true if there is at least one redo step available */
     readonly canRedo: boolean;
-    /** the number of undo steps available */
-    readonly undoCount: number;
-    /** the number of redo steps available */
-    readonly redoCount: number;
     /** the steps undo goes back through, oldest first (the last one is undone next) */
     readonly undoSteps: readonly UndoStep[];
     /** the steps redo goes forward through, the next one last */
@@ -69,54 +55,39 @@ interface Entry<T extends DockableTypes> {
  * the state from before each step (a whole drag gesture, its transient commands included, is one
  * step). States are immutable, so keeping one costs nothing; undo and redo turn one back into a
  * document (`toLayoutJson`) and restore it in place with `layout.load`: the model stays the same,
- * and so does the content of every tab that is still there.
+ * and so does the content of every tab that is still there. It listens to its model for the
+ * model's whole life: create one manager per model, once.
  *
  * ```ts
- * const undo = new UndoManager(createModel<Types>(json));
+ * const undo = new UndoManager(model);
  * const unsubscribe = undo.subscribe(() => render(undo.getSnapshot()));
- * undo.getModel()?.run("tab.close", { tabId: "t1" });
+ * model.run("tab.close", { tabId: "t1" });
  * undo.undo();
  * ```
  */
 export class UndoManager<T extends DockableTypes = AnyTypes> {
-    private model: Model<T> | null;
+    private readonly model: Model<T>;
     private readonly maxBufferSize: number;
     private readonly ignoreCommands: readonly CommandName[];
     private undoBuffer: Entry<T>[] = [];
     private redoBuffer: Entry<T>[] = [];
     /** the state after the last recorded commit: what the next step goes back to */
-    private last: LayoutState<T> | null = null;
+    private last: LayoutState<T>;
     /** a gesture (transient commands) is in progress since `last` */
     private adjusting = false;
-    private unsubscribeModel: (() => void) | undefined;
     private readonly listeners = new Set<() => void>();
-    private snapshot: UndoSnapshot<T>;
-    private disposed = false;
+    private snapshot: UndoSnapshot;
 
-    constructor(model: Model<T> | null, options?: UndoOptions) {
+    constructor(model: Model<T>, options?: UndoOptions) {
+        this.model = model;
         this.maxBufferSize = options?.maxBufferSize ?? 100;
-        this.ignoreCommands =
-            options?.ignoreCommands ?? DEFAULT_IGNORE_COMMANDS;
-        this.model = null;
-        this.attach(model);
+        this.ignoreCommands = options?.ignoreCommands ?? [
+            "tabset.activate",
+            "window.configure",
+        ];
+        this.last = model.state;
         this.snapshot = this.createSnapshot();
-    }
-
-    /** the current model */
-    getModel(): Model<T> | null {
-        return this.model;
-    }
-
-    /**
-     * Replaces the model (e.g. another document). By default the undo/redo history is cleared;
-     * pass `false` as the second argument to keep it.
-     */
-    setModel(model: Model<T>, resetHistory = true) {
-        this.attach(model);
-        if (resetHistory) {
-            this.clear();
-        }
-        this.notify();
+        model.subscribe(this.onCommit);
     }
 
     /** undo the most recent change, if any */
@@ -129,31 +100,8 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
         this.swap(this.redoBuffer, this.undoBuffer);
     }
 
-    /** clear the undo/redo history without touching the model */
-    reset() {
-        this.clear();
-        this.notify();
-    }
-
-    get canUndo() {
-        return this.undoBuffer.length > 0;
-    }
-
-    get canRedo() {
-        return this.redoBuffer.length > 0;
-    }
-
-    get undoCount() {
-        return this.undoBuffer.length;
-    }
-
-    get redoCount() {
-        return this.redoBuffer.length;
-    }
-
-    /** The current state. Returns the same object until the state changes (bound, so it can be
-     *  passed to `useSyncExternalStore` as is). */
-    getSnapshot = (): UndoSnapshot<T> => this.snapshot;
+    /** The current state, the same object until it changes (bound, for `useSyncExternalStore`). */
+    getSnapshot = (): UndoSnapshot => this.snapshot;
 
     /** Calls `listener` whenever the snapshot changes. Returns the unsubscribe function (bound). */
     subscribe = (listener: () => void): (() => void) => {
@@ -163,16 +111,8 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
         };
     };
 
-    /** Detaches from the model and drops every listener. */
-    dispose() {
-        this.disposed = true;
-        this.unsubscribeModel?.();
-        this.unsubscribeModel = undefined;
-        this.listeners.clear();
-    }
-
     private readonly onCommit = (event: CommandEvent<T>) => {
-        if (!this.model || event.meta?.undo === true) {
+        if (event.meta?.undo === true) {
             return; // an undo or a redo
         }
         if (event.before === event.after && !this.adjusting) {
@@ -194,19 +134,17 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
             }
             return;
         }
-        if (this.last) {
-            this.undoBuffer.push({
-                step: {
-                    command: event.command,
-                    commands: event.commands?.map((step) => step.command) ?? [
-                        event.command,
-                    ],
-                },
-                state: this.last,
-            });
-            if (this.undoBuffer.length > this.maxBufferSize) {
-                this.undoBuffer.shift();
-            }
+        this.undoBuffer.push({
+            step: {
+                command: event.command,
+                commands: event.commands?.map((step) => step.command) ?? [
+                    event.command,
+                ],
+            },
+            state: this.last,
+        });
+        if (this.undoBuffer.length > this.maxBufferSize) {
+            this.undoBuffer.shift();
         }
         this.redoBuffer = [];
         this.adjusting = false;
@@ -227,14 +165,13 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
     }
 
     private swap(from: Entry<T>[], to: Entry<T>[]) {
-        const model = this.model;
         const entry = from.pop();
-        if (!model || entry === undefined) {
+        if (entry === undefined) {
             return;
         }
-        const current = model.state;
+        const current = this.model.state;
         // in place: the model and the content of every tab it keeps stay mounted
-        const loaded = model.run(
+        const loaded = this.model.run(
             "layout.load",
             { layout: toLayoutJson(entry.state) },
             { meta: UNDO_META },
@@ -245,58 +182,60 @@ export class UndoManager<T extends DockableTypes = AnyTypes> {
         }
         to.push({ step: entry.step, state: current });
         this.adjusting = false;
-        this.last = model.state;
+        this.last = this.model.state;
         this.notify();
     }
 
-    private attach(model: Model<T> | null) {
-        if (model === this.model) {
-            return;
-        }
-        this.unsubscribeModel?.();
-        this.unsubscribeModel = undefined;
-        this.model = model;
-        this.last = model ? model.state : null;
-        this.adjusting = false;
-        if (model && !this.disposed) {
-            this.unsubscribeModel = model.subscribe(this.onCommit);
-        }
-    }
-
-    private clear() {
-        this.undoBuffer = [];
-        this.redoBuffer = [];
-        this.adjusting = false;
-        this.last = this.model ? this.model.state : null;
-    }
-
-    private createSnapshot(): UndoSnapshot<T> {
+    private createSnapshot(): UndoSnapshot {
         return {
-            model: this.model,
-            canUndo: this.canUndo,
-            canRedo: this.canRedo,
-            undoCount: this.undoCount,
-            redoCount: this.redoCount,
+            canUndo: this.undoBuffer.length > 0,
+            canRedo: this.redoBuffer.length > 0,
             undoSteps: this.undoBuffer.map((entry) => entry.step),
             redoSteps: this.redoBuffer.map((entry) => entry.step),
         };
     }
 
     private notify() {
-        const next = this.createSnapshot();
-        const prev = this.snapshot;
-        if (
-            prev.model === next.model &&
-            prev.undoCount === next.undoCount &&
-            prev.redoCount === next.redoCount &&
-            prev.undoSteps.at(-1) === next.undoSteps.at(-1) &&
-            prev.redoSteps.at(-1) === next.redoSteps.at(-1)
-        ) {
-            return;
-        }
-        this.snapshot = next;
+        this.snapshot = this.createSnapshot();
         for (const listener of [...this.listeners]) {
             listener();
         }
     }
+}
+
+/** What {@link handleUndoKeys} reads of a key event: a DOM `KeyboardEvent`, or React's. */
+type UndoKeyEvent = Pick<
+    KeyboardEvent,
+    "key" | "ctrlKey" | "metaKey" | "shiftKey" | "target" | "preventDefault"
+>;
+
+/**
+ * The undo shortcuts, for a `keydown` listener: Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z and
+ * Ctrl/Cmd+Y redo. A text field keeps its own undo.
+ */
+export function handleUndoKeys<T extends DockableTypes>(
+    undo: UndoManager<T>,
+    event: UndoKeyEvent,
+) {
+    const target = event.target;
+    const inTextField =
+        isElement(target) &&
+        target.closest("input, textarea, [contenteditable]") !== null;
+    if (!(event.ctrlKey || event.metaKey) || inTextField) {
+        return;
+    }
+    const key = event.key.toLowerCase();
+    if (key === "z" && !event.shiftKey) {
+        undo.undo();
+    } else if (key === "y" || key === "z") {
+        undo.redo();
+    } else {
+        return;
+    }
+    event.preventDefault();
+}
+
+/** An element of any window: a popout's elements are not `instanceof` the page's `Element`. */
+function isElement(target: EventTarget | null): target is Element {
+    return target !== null && "closest" in target;
 }

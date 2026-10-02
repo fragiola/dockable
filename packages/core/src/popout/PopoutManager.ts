@@ -1,5 +1,5 @@
 // Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/view/PopoutWindow.tsx (window
-// lifecycle and style mirroring) and src/view/layout/FloatingWindowContainer.tsx (URL building),
+// lifecycle) and src/view/layout/FloatingWindowContainer.tsx (URL building),
 // with React and class names removed. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see
 // LICENSE.
 //
@@ -11,21 +11,16 @@
 // - closing the window from the browser runs `window.close`: its tabs dock back into the main
 //   layout (FlexLayout's "float" close policy is not kept);
 // - the window opener is injectable (`openWindow`);
-// - adoptedStyleSheets (constructable stylesheets) are mirrored too;
 // - nothing names or titles the window unless the consumer provides a title.
 import type { LayoutEngine } from "../engine/LayoutEngine";
+import { type Rect, rectEquals } from "../geometry/rect";
 import type { AnyTypes, DockableTypes, WindowLayout } from "../state/types";
+import { mirrorRootAttributes, StyleMirror } from "./styles";
 
-/** Timeout for blocked stylesheets. */
-export const STYLE_LOAD_TIMEOUT_MS = 2000;
-/** Poll CSSOM rules (MutationObserver misses insertRule). */
-export const STYLE_POLL_INTERVAL_MS = 750;
 /** Poll a popout's screen position: a window that moves fires no event. */
 export const WINDOW_RECT_POLL_INTERVAL_MS = 1000;
 /** Attribute of the element the adapter renders a popout's layout into. */
 export const POPOUT_ATTRIBUTE = "data-dockable-popout";
-/** Attribute of the style element mirroring the main document's adopted stylesheets. */
-export const ADOPTED_STYLES_ATTRIBUTE = "data-dockable-adopted-styles";
 
 export type PopoutCallback<T extends DockableTypes = AnyTypes> = (
     layout: WindowLayout<T>,
@@ -69,21 +64,12 @@ interface PopoutEntry<T extends DockableTypes> {
     contentRoot: HTMLElement | undefined;
     /** releases the current document's observer, poll timer and listeners */
     cleanup: (() => void) | undefined;
-    closing: boolean;
 }
 
 /** true when the main window has a fine hover pointer (FlexLayout's `isDesktop`) */
 export function isDesktop(win: Window | undefined): boolean {
     return !!win?.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
 }
-
-const isLink = (element: Element): element is HTMLLinkElement =>
-    element.tagName === "LINK";
-const isStylesheetLink = (element: Element): element is HTMLLinkElement =>
-    isLink(element) &&
-    (element.getAttribute("rel") ?? "").split(/\s+/).includes("stylesheet");
-const isStyle = (element: Element): element is HTMLStyleElement =>
-    element.tagName === "STYLE";
 
 /**
  * Opens, mirrors and closes the native windows of a model's window layouts. One per main engine:
@@ -102,7 +88,6 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
     private revision = 0;
     private removeMainUnload: (() => void) | undefined;
     private attached = false;
-    private releaseToken: object | undefined;
 
     constructor(engine: LayoutEngine<T>) {
         this.engine = engine;
@@ -166,7 +151,6 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
     /** The main engine attached: opens the windows of the state's window layouts. */
     attach() {
         this.attached = true;
-        this.releaseToken = undefined; // a pending release (a StrictMode remount) is cancelled
         this.sync();
     }
 
@@ -176,13 +160,9 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
      */
     detach() {
         this.attached = false;
-        const token = {};
-        this.releaseToken = token;
         queueMicrotask(() => {
-            if (this.releaseToken === token && !this.attached) {
-                for (const layoutId of [...this.entries.keys()]) {
-                    this.close(layoutId);
-                }
+            if (!this.attached) {
+                this.closeAll();
             }
         });
     }
@@ -208,9 +188,6 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
     /** Opens the window of a window layout (idempotent per layout id). */
     private open(layout: WindowLayout<T>) {
         const layoutId = layout.id;
-        if (this.entries.has(layoutId)) {
-            return;
-        }
         const mainWindow = this.engine.get("owner-window");
         if (!mainWindow) {
             return; // opened once the engine is attached to a window
@@ -244,7 +221,6 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             engine,
             contentRoot: undefined,
             cleanup: undefined,
-            closing: false,
         };
         this.entries.set(layoutId, entry);
         PopoutManager.owners.set(popout, this);
@@ -255,11 +231,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
 
     /** runs `window.close` for a window layout (its tabs dock back into the main layout) */
     private dockBack(layoutId: string) {
-        if (
-            this.engine.adapter.model.state.windows.some(
-                (layout) => layout.id === layoutId,
-            )
-        ) {
+        if (this.layoutOf(layoutId)) {
             this.engine.adapter.model.run("window.close", {
                 windowId: layoutId,
             });
@@ -272,7 +244,6 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         if (!entry) {
             return;
         }
-        entry.closing = true; // the window's beforeunload must not dock the layout back
         this.entries.delete(layoutId);
         entry.cleanup?.();
         entry.engine.adapter.dispose();
@@ -290,13 +261,16 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         this.notify();
     }
 
-    /** Closes every window and releases every resource. */
-    dispose() {
-        this.attached = false;
+    private closeAll() {
         for (const layoutId of [...this.entries.keys()]) {
             this.close(layoutId);
         }
-        this.removeMainUnload?.();
+    }
+
+    /** Closes every window and releases every resource. */
+    dispose() {
+        this.attached = false;
+        this.closeAll();
         this.listeners.clear();
     }
 
@@ -306,11 +280,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         if (this.removeMainUnload) {
             return;
         }
-        const onUnload = () => {
-            for (const layoutId of [...this.entries.keys()]) {
-                this.close(layoutId);
-            }
-        };
+        const onUnload = () => this.closeAll();
         mainWindow.addEventListener("pagehide", onUnload);
         this.removeMainUnload = () => {
             mainWindow.removeEventListener("pagehide", onUnload);
@@ -324,9 +294,14 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
         });
     }
 
+    /** the entry is still the one open for its layout (not closed, not replaced) */
+    private isCurrent(entry: PopoutEntry<T>): boolean {
+        return this.entries.get(entry.layoutId) === entry;
+    }
+
     private onLoad(entry: PopoutEntry<T>) {
         const layout = this.layoutOf(entry.layoutId);
-        if (this.entries.get(entry.layoutId) !== entry || !layout) {
+        if (!this.isCurrent(entry) || !layout) {
             return;
         }
         // a reload of the popout re-fires load on the same Window: release the previous document's
@@ -341,18 +316,7 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             return;
         }
         popout.focus();
-
-        const rect = layout.rect;
-        // note: resizeTo must be before moveTo in chrome otherwise the window ends up at 0,0
-        popout.resizeTo(rect.width, rect.height);
-        popout.moveTo(rect.x, rect.y);
-        // converge on the metrics used when saving (screenLeft/Top, outerWidth/Height): browsers
-        // disagree on the reference points of resizeTo/moveTo, so correct by the reported difference
-        popout.resizeBy(
-            rect.width - popout.outerWidth,
-            rect.height - popout.outerHeight,
-        );
-        popout.moveBy(rect.x - popout.screenLeft, rect.y - popout.screenTop);
+        placeWindow(popout, layout.rect);
 
         const popoutDocument = popout.document;
         const title = this.options.title?.(layout);
@@ -372,23 +336,33 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
 
         const mirror = new StyleMirror(mainDocument, popoutDocument);
         mirror.copyStyles().then(() => {
-            if (
-                this.entries.get(entry.layoutId) === entry &&
-                popout.document === popoutDocument
-            ) {
+            if (this.isCurrent(entry) && popout.document === popoutDocument) {
                 entry.contentRoot = contentRoot; // render once the link styles loaded
                 this.notify();
                 // the content just mounted, so css-in-js libraries have inserted their rules for it
                 queueMicrotask(() => mirror.resyncStyles());
             }
         });
+        const stopTracking = this.trackWindowRect(entry);
+        const stopUnload = this.onPopoutUnload(entry, popoutDocument);
+        entry.cleanup = () => {
+            stopMirroringRoot();
+            mirror.dispose();
+            stopTracking();
+            stopUnload();
+        };
+    }
 
-        // record where the window is, so a saved layout reopens it in place: on resize, and by
-        // polling, since a window that only moves fires no event
+    /**
+     * records where the window is, so a saved layout reopens it in place: on resize, and by
+     * polling, since a window that only moves fires no event. Returns the function that stops.
+     */
+    private trackWindowRect(entry: PopoutEntry<T>): () => void {
+        const popout = entry.window;
         const onResize = () => {
             const current = this.layoutOf(entry.layoutId);
             if (
-                this.entries.get(entry.layoutId) !== entry ||
+                !this.isCurrent(entry) ||
                 !current ||
                 popout.screenTop <= -10000
             ) {
@@ -400,29 +374,33 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
                 width: popout.outerWidth,
                 height: popout.outerHeight,
             };
-            if (
-                rect.x === current.rect.x &&
-                rect.y === current.rect.y &&
-                rect.width === current.rect.width &&
-                rect.height === current.rect.height
-            ) {
-                return;
+            if (!rectEquals(rect, current.rect)) {
+                this.engine.adapter.model.run(
+                    "window.configure",
+                    { windowId: entry.layoutId, rect },
+                    { transient: true },
+                );
             }
-            this.engine.adapter.model.run(
-                "window.configure",
-                { windowId: entry.layoutId, rect },
-                { transient: true },
-            );
         };
         popout.addEventListener("resize", onResize);
-        const rectPoll = popout.setInterval(
-            onResize,
-            WINDOW_RECT_POLL_INTERVAL_MS,
-        );
+        const poll = popout.setInterval(onResize, WINDOW_RECT_POLL_INTERVAL_MS);
+        return () => {
+            popout.removeEventListener("resize", onResize);
+            popout.clearInterval(poll);
+        };
+    }
 
-        // listen for the popout unloading (needs to be after load for safari)
-        const onPopoutBeforeUnload = () => {
-            if (entry.closing || this.entries.get(entry.layoutId) !== entry) {
+    /**
+     * closing the window from the browser docks its tabs back (listened to after load, for
+     * safari). Returns the function that stops listening.
+     */
+    private onPopoutUnload(
+        entry: PopoutEntry<T>,
+        popoutDocument: Document,
+    ): () => void {
+        const popout = entry.window;
+        const onBeforeUnload = () => {
+            if (!this.isCurrent(entry)) {
                 return;
             }
             if (PopoutManager.owners.get(popout) !== this) {
@@ -438,15 +416,8 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
             this.close(entry.layoutId);
             this.dockBack(entry.layoutId);
         };
-        popout.addEventListener("beforeunload", onPopoutBeforeUnload);
-
-        entry.cleanup = () => {
-            stopMirroringRoot();
-            mirror.dispose();
-            popout.removeEventListener("resize", onResize);
-            popout.clearInterval(rectPoll);
-            popout.removeEventListener("beforeunload", onPopoutBeforeUnload);
-        };
+        popout.addEventListener("beforeunload", onBeforeUnload);
+        return () => popout.removeEventListener("beforeunload", onBeforeUnload);
     }
 
     /**
@@ -463,352 +434,17 @@ export class PopoutManager<T extends DockableTypes = AnyTypes> {
 }
 
 /**
- * Copies the main document's stylesheets into a popout document and keeps them in sync: `<link>`
- * and `<style>` elements (added, removed, or with text edited in place), CSSOM rules inserted by
- * css-in-js libraries (polled), and adopted (constructable) stylesheets.
+ * Moves and sizes a popout window to `rect`, converging on the metrics a saved rect is read with
+ * (screenLeft/Top, outerWidth/Height): browsers disagree on the reference points of resizeTo and
+ * moveTo, so the reported difference is corrected.
  */
-export class StyleMirror {
-    private readonly source: Document;
-    private readonly target: Document;
-    // map from main doc style -> this doc's equivalent style
-    private readonly styleMap = new Map<HTMLElement, HTMLElement>();
-    // per-source css rule count, to only re-sync css-in-js tags whose rules actually changed
-    private readonly lastRuleCount = new Map<HTMLElement, number>();
-    private adoptedClone: HTMLStyleElement | undefined;
-    private lastAdoptedSignature = "";
-    private lastAdoptedSheets: readonly CSSStyleSheet[] = [];
-    private lastAdoptedShape = "";
-    private observer: MutationObserver | undefined;
-    private pollTimer: number | undefined;
-
-    constructor(source: Document, target: Document) {
-        this.source = source;
-        this.target = target;
-    }
-
-    /** the styles copied so far, main document element → popout element */
-    getStyleMap(): ReadonlyMap<HTMLElement, HTMLElement> {
-        return this.styleMap;
-    }
-
-    /**
-     * Copies every stylesheet, then starts mirroring changes. Resolves once the linked stylesheets
-     * loaded (or failed, or timed out: a blocked stylesheet must not keep the popout blank).
-     */
-    copyStyles(): Promise<boolean[]> {
-        const promises: Promise<boolean>[] = [];
-        for (const element of this.source.querySelectorAll<HTMLElement>(
-            'style, link[rel="stylesheet"]',
-        )) {
-            this.copyStyle(element, promises);
-        }
-        this.syncAdopted();
-
-        // listen for style mutations. subtree + characterData so we also catch css-in-js libraries
-        // (styled-components, emotion) mutating the text of an existing <style> in place - a
-        // childList-only observer would miss those and leave the popout with stale styles. (rules
-        // inserted purely via the CSSOM sheet.insertRule api are not observable at all.)
-        const View = this.source.defaultView;
-        if (View?.MutationObserver) {
-            this.observer = new View.MutationObserver((mutations) =>
-                this.handleStyleMutations(mutations),
-            );
-            this.observer.observe(this.source.head, {
-                childList: true,
-                subtree: true,
-                characterData: true,
-            });
-        }
-        // poll the copied css-in-js style tags (and adopted sheets) for CSSOM rule changes the
-        // observer cannot see, and re-sync any that changed
-        this.pollTimer = this.target.defaultView?.setInterval(
-            () => this.resyncChangedStyles(),
-            STYLE_POLL_INTERVAL_MS,
-        );
-        return Promise.all(promises);
-    }
-
-    /** stops mirroring */
-    dispose() {
-        this.observer?.disconnect();
-        this.observer = undefined;
-        if (this.pollTimer !== undefined) {
-            this.target.defaultView?.clearInterval(this.pollTimer);
-            this.pollTimer = undefined;
-        }
-    }
-
-    handleStyleMutations(mutations: MutationRecord[]) {
-        for (const mutation of mutations) {
-            if (
-                mutation.type === "childList" &&
-                mutation.target === this.source.head
-            ) {
-                // style/link nodes added to or removed from the head
-                for (const addition of mutation.addedNodes) {
-                    if (
-                        addition.nodeType === 1 &&
-                        (isStylesheetLink(addition as Element) ||
-                            isStyle(addition as Element))
-                    ) {
-                        this.copyStyle(addition as HTMLElement);
-                    }
-                }
-                for (const removal of mutation.removedNodes) {
-                    const popoutStyle = this.styleMap.get(
-                        removal as HTMLElement,
-                    );
-                    if (popoutStyle) {
-                        popoutStyle.remove();
-                        this.styleMap.delete(removal as HTMLElement);
-                        this.lastRuleCount.delete(removal as HTMLElement);
-                    }
-                }
-            } else {
-                // a mutation inside an existing <style> (css-in-js updating its text): re-sync the
-                // owning style's current text (or css rules) into its clone in the popout
-                const styleElement = findOwningStyle(mutation.target);
-                const clone = styleElement && this.styleMap.get(styleElement);
-                if (styleElement && clone) {
-                    syncStyleElement(styleElement, clone as HTMLStyleElement);
-                }
-            }
-        }
-    }
-
-    private copyStyle(element: HTMLElement, promises?: Promise<boolean>[]) {
-        if (isLink(element)) {
-            // prefer links since they will keep paths to images etc
-            const linkElement = this.target.importNode(element, true);
-            this.target.head.appendChild(linkElement);
-            this.styleMap.set(element, linkElement);
-
-            if (promises) {
-                promises.push(
-                    new Promise((resolve) => {
-                        // resolve on error and after a timeout as well as on load: if a stylesheet is
-                        // blocked (CSP/adblock), 404s, or never fires load, the aggregate promise must
-                        // still settle - otherwise the content never renders and the popout stays blank
-                        let settled = false;
-                        const done = (loaded: boolean) => {
-                            if (!settled) {
-                                settled = true;
-                                resolve(loaded);
-                            }
-                        };
-                        linkElement.addEventListener("load", () => done(true));
-                        linkElement.addEventListener("error", () =>
-                            done(false),
-                        );
-                        this.target.defaultView?.setTimeout(
-                            () => done(false),
-                            STYLE_LOAD_TIMEOUT_MS,
-                        );
-                    }),
-                );
-            }
-        } else if (isStyle(element)) {
-            try {
-                const styleElement = this.target.importNode(element, true);
-                this.target.head.appendChild(styleElement);
-                syncStyleElement(element, styleElement);
-                this.styleMap.set(element, styleElement);
-            } catch {
-                // can throw an exception
-            }
-        }
-    }
-
-    /** re-sync every copied style tag */
-    resyncStyles() {
-        for (const [source, clone] of this.styleMap) {
-            if (isStyle(source)) {
-                syncStyleElement(source, clone as HTMLStyleElement);
-            }
-        }
-        this.syncAdopted();
-    }
-
-    /** re-sync the css-in-js (CSSOM-inserted) style tags whose rule count changed */
-    resyncChangedStyles() {
-        for (const [source, clone] of this.styleMap) {
-            if (!isStyle(source) || (source.textContent ?? "").trim() !== "") {
-                continue;
-            }
-            let count = 0;
-            try {
-                count = source.sheet?.cssRules.length ?? 0;
-            } catch {
-                // unreadable sheet
-            }
-            if (count !== this.lastRuleCount.get(source)) {
-                this.lastRuleCount.set(source, count);
-                syncStyleElement(source, clone as HTMLStyleElement);
-            }
-        }
-        this.syncAdopted();
-    }
-
-    /**
-     * mirrors the main document's adopted (constructable) stylesheets: they cannot be shared with
-     * another document, so their rules are copied into a single style element
-     */
-    private syncAdopted() {
-        const sheets = this.source.adoptedStyleSheets ?? [];
-        // serialize only when the set of sheets or their rule counts changed
-        let shape = "";
-        for (const sheet of sheets) {
-            let count = -1;
-            try {
-                count = sheet.cssRules.length;
-            } catch {
-                // unreadable rules are ignored
-            }
-            shape += `${count},`;
-        }
-        if (
-            sheets.length === this.lastAdoptedSheets.length &&
-            sheets.every((sheet, i) => sheet === this.lastAdoptedSheets[i]) &&
-            shape === this.lastAdoptedShape
-        ) {
-            return;
-        }
-        this.lastAdoptedSheets = [...sheets];
-        this.lastAdoptedShape = shape;
-        let css = "";
-        for (const sheet of sheets) {
-            try {
-                for (const rule of sheet.cssRules) {
-                    css += `${rule.cssText}\n`;
-                }
-            } catch {
-                // unreadable rules are ignored
-            }
-        }
-        if (css === this.lastAdoptedSignature) {
-            return;
-        }
-        this.lastAdoptedSignature = css;
-        if (!this.adoptedClone) {
-            this.adoptedClone = this.target.createElement("style");
-            this.adoptedClone.setAttribute(ADOPTED_STYLES_ATTRIBUTE, "");
-            this.target.head.appendChild(this.adoptedClone);
-        }
-        this.adoptedClone.textContent = css;
-    }
-}
-
-function findOwningStyle(node: globalThis.Node): HTMLStyleElement | undefined {
-    let element: globalThis.Node | null =
-        node.nodeType === 1 ? node : node.parentNode;
-    while (
-        element &&
-        !(element.nodeType === 1 && isStyle(element as Element))
-    ) {
-        element = element.parentNode;
-    }
-    return element ? (element as HTMLStyleElement) : undefined;
-}
-
-/**
- * sync the source <style>'s rules into the popout clone. css-in-js libraries (emotion,
- * styled-components) insert rules through the CSSOM sheet.insertRule api in production ("speedy"
- * mode), leaving textContent empty - a clone would be blank, so rebuild the clone from the sheet's
- * css rules in that case
- */
-function syncStyleElement(source: HTMLStyleElement, clone: HTMLStyleElement) {
-    const text = source.textContent ?? "";
-    if (text.trim() !== "") {
-        clone.textContent = text;
-    } else {
-        try {
-            clone.textContent = "";
-            const rules = source.sheet?.cssRules;
-            const sheet = clone.sheet;
-            if (rules && sheet) {
-                for (const rule of rules) {
-                    sheet.insertRule(rule.cssText, sheet.cssRules.length);
-                }
-            }
-        } catch {
-            // cross-origin sheets or unreadable rules are ignored
-        }
-    }
-}
-
-/** Attributes never mirrored with `mirrorRoot: true`: they belong to each document. */
-const UNMIRRORED = new Set(["style", "id"]);
-
-/**
- * Copies `<html>` and `<body>` attributes from `source` to `target` and keeps them in sync until the
- * returned function is called. `lang` and `dir` of `<html>` are always copied.
- */
-export function mirrorRootAttributes(
-    source: Document,
-    target: Document,
-    mirror: boolean | readonly string[] | undefined,
-): () => void {
-    const pairs: [Element, Element][] = [
-        [source.documentElement, target.documentElement],
-        [source.body, target.body],
-    ];
-    const listed = Array.isArray(mirror) ? new Set(mirror) : undefined;
-    const mirrored = (element: Element, name: string) => {
-        if (
-            element === source.documentElement &&
-            (name === "lang" || name === "dir")
-        ) {
-            return true;
-        }
-        if (mirror === true) {
-            return !UNMIRRORED.has(name);
-        }
-        return listed?.has(name) ?? false;
-    };
-    const copy = (from: Element, to: Element, name: string) => {
-        const value = from.getAttribute(name);
-        if (name === "class") {
-            // keep the popout's own classes: add the mirrored ones on top (the observer removes
-            // the ones the main document drops, one by one)
-            for (const cls of (value ?? "").split(/\s+/).filter(Boolean)) {
-                to.classList.add(cls);
-            }
-        } else if (value === null) {
-            to.removeAttribute(name);
-        } else {
-            to.setAttribute(name, value);
-        }
-    };
-    for (const [from, to] of pairs) {
-        for (const { name } of Array.from(from.attributes)) {
-            if (mirrored(from, name)) copy(from, to, name);
-        }
-    }
-    const view = source.defaultView;
-    if (!mirror || !view?.MutationObserver) {
-        return () => {};
-    }
-    const observer = new view.MutationObserver((records) => {
-        for (const record of records) {
-            const name = record.attributeName;
-            const from = record.target as Element;
-            const pair = pairs.find(([element]) => element === from);
-            if (!name || !pair || !mirrored(from, name)) continue;
-            if (name === "class") {
-                // a class removed from the main document goes from the popout too
-                const before = new Set(
-                    (record.oldValue ?? "").split(/\s+/).filter(Boolean),
-                );
-                const now = new Set(from.classList);
-                for (const cls of before) {
-                    if (!now.has(cls)) pair[1].classList.remove(cls);
-                }
-            }
-            copy(from, pair[1], name);
-        }
-    });
-    for (const [from] of pairs) {
-        observer.observe(from, { attributes: true, attributeOldValue: true });
-    }
-    return () => observer.disconnect();
+function placeWindow(popout: Window, rect: Rect) {
+    // resizeTo must be before moveTo in chrome, otherwise the window ends up at 0,0
+    popout.resizeTo(rect.width, rect.height);
+    popout.moveTo(rect.x, rect.y);
+    popout.resizeBy(
+        rect.width - popout.outerWidth,
+        rect.height - popout.outerHeight,
+    );
+    popout.moveBy(rect.x - popout.screenLeft, rect.y - popout.screenTop);
 }

@@ -1,11 +1,17 @@
-import { snap } from "../geometry/rect";
+import { type Rect, snap } from "../geometry/rect";
+import {
+    borderFieldProperties,
+    propertyNames,
+    tabFieldProperties,
+    tabsetDefaultProperties,
+} from "../schema/fragments";
 import { layoutSchema } from "../schema/layout";
 import type { JsonSchema, ValidationIssue } from "../schema/types";
 import { joinPointer, validate } from "../schema/validator";
 import { cloneJson } from "./clone";
 import { Draft, deepFreeze } from "./draft";
 import { IdSource } from "./ids";
-import type { LayoutJson } from "./json";
+import type { LayoutJson, TabInit } from "./json";
 import { tidy } from "./tidy";
 import {
     type AnyBorder,
@@ -22,6 +28,11 @@ import {
     type LayoutState,
     MAIN_LAYOUT,
 } from "./types";
+
+/** The rect of the n-th window when it has none. */
+export function defaultWindowRect(n: number): Rect {
+    return { x: 50 + 50 * n, y: 50 + 50 * n, width: 600, height: 400 };
+}
 
 /** Thrown by `createModel` for an invalid layout document: every problem, each with a JSON path. */
 export class LayoutValidationError extends Error {
@@ -56,19 +67,13 @@ export type BuildResult =
     | { ok: false; issues: ValidationIssue[] };
 
 // the JSON types the schema guarantees (loosely typed: the schema has validated the shape)
-interface TabJsonLike {
-    readonly [key: string]: unknown;
-    readonly id?: string;
-    readonly component: string;
-    readonly label: string;
-}
 interface TabsetJsonLike {
     readonly [key: string]: unknown;
     readonly type: "tabset";
     readonly id?: string;
     readonly weight?: number;
     readonly selected?: number;
-    readonly children?: readonly TabJsonLike[];
+    readonly children?: readonly TabInit[];
 }
 interface RowJsonLike {
     readonly [key: string]: unknown;
@@ -82,7 +87,7 @@ interface BorderJsonLike {
     readonly id?: string;
     readonly location: string;
     readonly selected?: number;
-    readonly children?: readonly TabJsonLike[];
+    readonly children?: readonly TabInit[];
 }
 interface WindowJsonLike {
     readonly id?: string;
@@ -101,56 +106,36 @@ interface LayoutJsonLike {
 }
 
 /** The fields copied from JSON onto a node, by kind (everything else is structural). */
-const TAB_FIELDS = [
+const TAB_FIELDS: readonly (keyof TabInit & string)[] = [
     "data",
-    "pinned",
-    "enableClose",
-    "enableDrag",
-    "enablePopout",
-    "minWidth",
-    "minHeight",
-    "maxWidth",
-    "maxHeight",
-    "borderWidth",
-    "borderHeight",
-] as const;
-const TABSET_FIELDS = [
-    "data",
-    "enableDrop",
-    "enableDrag",
-    "enableDivide",
-    "enableMaximize",
-    "enableClose",
-    "deleteWhenEmpty",
-    "autoSelectTab",
-    "minWidth",
-    "minHeight",
-    "maxWidth",
-    "maxHeight",
-] as const;
-const BORDER_FIELDS = [
-    "data",
-    "show",
-    "size",
-    "minSize",
-    "maxSize",
-    "mode",
-    "autoHide",
-    "enableDrop",
-    "autoSelectTabWhenOpen",
-    "autoSelectTabWhenClosed",
-] as const;
+    ...propertyNames(tabFieldProperties),
+];
+const TABSET_FIELDS = ["data", ...Object.keys(tabsetDefaultProperties)];
+const BORDER_FIELDS = ["data", ...Object.keys(borderFieldProperties)];
 
-function copyFields(
+function copyFields<S extends object>(
     target: Record<string, unknown>,
-    source: { readonly [key: string]: unknown },
-    fields: readonly string[],
+    source: S,
+    fields: readonly (keyof S & string)[],
 ) {
     for (const field of fields) {
-        if (source[field] !== undefined) {
-            target[field] = cloneJson(source[field]);
+        const value = source[field];
+        if (value !== undefined) {
+            target[field] = cloneJson(value);
         }
     }
+}
+
+/** A tab node from its fields (JSON, `tab.add`): the structural ones, then those it has. */
+export function tabNode(init: TabInit, id: string): AnyTab {
+    const node: Record<string, unknown> = {
+        type: "tab",
+        id,
+        component: init.component,
+        label: init.label,
+    };
+    copyFields(node, init, TAB_FIELDS);
+    return node as unknown as AnyTab;
 }
 
 function clampSelected(
@@ -266,21 +251,14 @@ export function buildState(
         return id;
     };
 
-    const buildTab = (tab: TabJsonLike, at: string): AnyTab => {
+    const buildTab = (tab: TabInit, at: string): AnyTab => {
         const schema = options.dataSchemas?.[tab.component];
         if (schema) {
             issues.push(...validate(schema, tab.data, joinPointer(at, "data")));
         }
-        const node: Record<string, unknown> = {
-            type: "tab",
-            id: tab.id ?? newId("tab"),
-            component: tab.component,
-            label: tab.label,
-        };
-        copyFields(node, tab, TAB_FIELDS);
-        return node as unknown as AnyTab;
+        return tabNode(tab, tab.id ?? newId("tab"));
     };
-    const buildTabs = (tabs: readonly TabJsonLike[] | undefined, at: string) =>
+    const buildTabs = (tabs: readonly TabInit[] | undefined, at: string) =>
         (tabs ?? []).map((tab, i) =>
             buildTab(tab, joinPointer(joinPointer(at, "children"), i)),
         );
@@ -332,14 +310,7 @@ export function buildState(
         const at = joinPointer(joinPointer(path, "windows"), i);
         return {
             id: windowLayout.id ?? newId("window"),
-            rect: snap(
-                windowLayout.rect ?? {
-                    x: 50 + 50 * i,
-                    y: 50 + 50 * i,
-                    width: 600,
-                    height: 400,
-                },
-            ),
+            rect: snap(windowLayout.rect ?? defaultWindowRect(i)),
             root: buildRow(windowLayout.root, joinPointer(at, "root")),
             ...(windowLayout.active !== undefined
                 ? { active: windowLayout.active }
@@ -369,18 +340,7 @@ export function buildState(
         if (id === undefined) {
             return;
         }
-        let top = id;
-        for (
-            let parent = index.parent(top);
-            parent !== undefined;
-            parent = index.parent(top)
-        ) {
-            top = parent;
-        }
-        if (
-            index.get(id)?.type !== "tabset" ||
-            index.layoutOfRoot(top) !== layout
-        ) {
+        if (index.get(id)?.type !== "tabset" || index.layoutOf(id) !== layout) {
             issues.push({
                 path: at,
                 message: `"${id}" is not a tabset of this layout`,
@@ -431,8 +391,13 @@ export function validateLayout<J = LayoutJson>(
         : { ok: false, issues: result.issues };
 }
 
-/** A state as a layout document (a writable copy). */
-export function stateToJson(state: AnyState): LayoutJson {
+/**
+ * A state as a layout document (a writable copy), like `model.get("layout-json")` for the current state:
+ * for a state kept from before (`event.before`, an undo step), to load it back with `layout.load`.
+ */
+export function toLayoutJson<T extends DockableTypes>(
+    state: LayoutState<T>,
+): LayoutJson<T> {
     // the state is JSON-shaped already: a copy, with the version, and without the empty parts
     const json: Record<string, unknown> = { version: 1 };
     if (Object.keys(state.defaults).length > 0) {
@@ -451,17 +416,5 @@ export function stateToJson(state: AnyState): LayoutJson {
     if (state.windows.length > 0) {
         json.windows = cloneJson(state.windows);
     }
-    return json as unknown as LayoutJson;
-}
-
-/**
- * A state as a layout document (a writable copy), like `model.get("layout-json")` for the current state:
- * for a state kept from before (`event.before`, an undo step), to load it back with `layout.load`.
- */
-export function toLayoutJson<T extends DockableTypes>(
-    state: LayoutState<T>,
-): LayoutJson<T> {
-    return stateToJson(
-        state as unknown as AnyState,
-    ) as unknown as LayoutJson<T>;
+    return json as unknown as LayoutJson<T>;
 }

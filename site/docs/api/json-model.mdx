@@ -129,6 +129,8 @@ sources) whose `type` may be omitted:
 The types:
 
 - `TabInit<K, D>`: the fields above for component `K` with data `D`.
+- `TabOwnFields`: `pinned`, `borderWidth` and `borderHeight`, the fields of a tab no layout
+  default applies to; the others follow `TabDefaults`.
 - `TabInitOf<T>`: a union of `TabInit` over the registry's components, so `data` is checked
   against `component`.
 - `TabJson<T>`: `TabInitOf<T>` with an optional `type: "tab"`.

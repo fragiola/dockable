@@ -18,7 +18,7 @@
  * Note: WCAG 2.1.4 requires single printable character shortcuts to be remappable or off by
  * default, so prefer function keys or modifier combinations.
  */
-export interface IKeyMap {
+export interface KeyMap {
     /** closes the focused tab button's tab (when the tab is closeable) */
     closeTab?: string;
     /** starts renaming the focused tab button's tab (when the tab is renameable, tabset tabs only) */
@@ -37,7 +37,7 @@ export interface IKeyMap {
 }
 
 /** the default keyboard bindings, exported so applications can display or re-register them */
-export const defaultKeyMap: Readonly<IKeyMap> = {
+export const defaultKeyMap: Readonly<KeyMap> = {
     closeTab: "Ctrl+Delete",
     renameTab: "F2",
     focusTabToggle: undefined,
@@ -47,7 +47,7 @@ export const defaultKeyMap: Readonly<IKeyMap> = {
 };
 
 /** the modifier/key fields shared by native and framework keyboard events */
-export interface IKeyEventLike {
+export interface KeyEventLike {
     key: string;
     ctrlKey: boolean;
     shiftKey: boolean;
@@ -57,7 +57,7 @@ export interface IKeyEventLike {
 
 /** true when `event` is exactly the key combination `spec` (a disabled binding never matches) */
 export function matchesKey(
-    event: IKeyEventLike,
+    event: KeyEventLike,
     spec: string | undefined,
 ): boolean {
     if (!spec) {
@@ -77,17 +77,24 @@ export function matchesKey(
 
 /** true when any modifier key is held; the fixed ARIA pattern keys (arrows on tabs and
  * splitters) only apply unmodified, so modified presses stay available for keymap bindings */
-export function hasModifier(event: IKeyEventLike): boolean {
+export function hasModifier(event: KeyEventLike): boolean {
     return event.ctrlKey || event.shiftKey || event.altKey || event.metaKey;
 }
 
 /** merge the configured bindings over the defaults; a binding passed as an explicit
  * undefined disables that shortcut */
-export function resolveKeyMap(keyMap: IKeyMap | undefined): IKeyMap {
+export function resolveKeyMap(keyMap: KeyMap | undefined): KeyMap {
     return { ...defaultKeyMap, ...keyMap };
 }
 
-/** the `aria-keyshortcuts` spelling of a binding */
-export function toAriaKeyShortcuts(spec: string | undefined) {
-    return spec?.replace(/\bctrl\b/i, "Control"); // the aria-keyshortcuts attribute spells it "Control"
+/** the `aria-keyshortcuts` value of bindings (`Ctrl` spelled `Control`), or undefined when none is set */
+export function toAriaKeyShortcuts(
+    ...specs: (string | undefined)[]
+): string | undefined {
+    return (
+        specs
+            .filter((spec): spec is string => !!spec)
+            .map((spec) => spec.replace(/\bctrl\b/i, "Control"))
+            .join(" ") || undefined
+    );
 }

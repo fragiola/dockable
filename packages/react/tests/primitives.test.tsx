@@ -355,6 +355,37 @@ describe("render, refs and props", () => {
         expect(panel.style.padding).toBe("2px");
     });
 
+    it("drops the engine's style keys from a Panel's render element too", () => {
+        render(
+            <Dockable.Root model={fresh()}>
+                <Dockable.Row>{renderNode}</Dockable.Row>
+                <Dockable.Panels>
+                    {(tab) => (
+                        <Dockable.Panel
+                            node={tab}
+                            render={
+                                <section
+                                    style={{
+                                        position: "static",
+                                        right: 7,
+                                        bottom: 3,
+                                        padding: 2,
+                                    }}
+                                />
+                            }
+                        />
+                    )}
+                </Dockable.Panels>
+            </Dockable.Root>,
+        );
+        const panel = mustPath("/ts0/t0");
+        expect(panel.tagName).toBe("SECTION");
+        expect(panel.style.position).toBe("absolute");
+        expect(panel.style.right).toBe("");
+        expect(panel.style.bottom).toBe("");
+        expect(panel.style.padding).toBe("2px");
+    });
+
     it("applies only structural inline styles", () => {
         const STRUCTURAL = new Set([
             "position",
@@ -652,11 +683,7 @@ describe("panels and content", () => {
                     }
                     attached.current.add(sub);
                     sub.adapter.attachRoot(layerHost);
-                    setLayer(window.id, {
-                        layoutId: window.id,
-                        element: layerHost,
-                        engine: sub,
-                    });
+                    setLayer(window.id, layerHost);
                 }
             });
             return null;

@@ -217,6 +217,41 @@ describe("Dockable.DropIndicator", () => {
         expect(indicator).not.toHaveAttribute("data-dragging");
     });
 
+    it("gives className and style the target's ids", () => {
+        const model = freshModel();
+        const styled: (string | undefined)[] = [];
+        render(
+            <Layout model={model}>
+                <Dockable.DropIndicator
+                    data-testid="indicator"
+                    className={(state) =>
+                        state.targetTabsetId
+                            ? `into-${state.targetTabsetId}`
+                            : "none"
+                    }
+                    style={(state) => {
+                        styled.push(state.targetNodeId);
+                        return {};
+                    }}
+                />
+                <DragFrom tabId="t2" />
+            </Layout>,
+        );
+        const indicator = screen.getByTestId("indicator");
+        expect(indicator).toHaveClass("none");
+        act(() => {
+            screen.getByTestId("start").click();
+        });
+        const root = path("/layout");
+        act(() => {
+            root.dispatchEvent(dragEvent("dragenter", 50, 50));
+            root.dispatchEvent(dragEvent("dragover", 50, 50));
+        });
+        expect(indicator).toHaveClass("into-ts0");
+        expect(styled.at(-1)).toBe("ts0");
+        expect(styled.at(0)).toBeUndefined();
+    });
+
     it("ignores drag events that do not carry Dockable's type", () => {
         const model = freshModel();
         render(

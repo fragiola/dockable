@@ -6,6 +6,7 @@ import {
     type LayoutJson,
     type Middleware,
     type RowNode,
+    type TabOf,
     type TabsetNode,
     veto,
 } from "@fragiola/dockable";
@@ -306,33 +307,32 @@ export default function MiddlewareExample() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "chart" ? (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.label.length}
-                                        title={tab.label}
-                                    />
-                                ) : tab.component === "kpi" ? (
-                                    <KpiPanel
-                                        label={tab.label}
-                                        seed={tab.data.seed}
-                                    />
-                                ) : (
-                                    <Log entries={log} />
-                                )}
+                                <Content tab={tab} log={log} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </>
     );
+}
+
+function Content({ tab, log }: { tab: TabOf<Types>; log: LogEntry[] }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.label.length}
+                    title={tab.label}
+                />
+            );
+        case "kpi":
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
+        case "log":
+            return <Log entries={log} />;
+    }
 }
 
 /** What the observing middleware wrote, newest first. */
@@ -354,7 +354,6 @@ function Log({ entries }: { entries: LogEntry[] }) {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -369,7 +368,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -394,7 +392,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

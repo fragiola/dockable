@@ -16,7 +16,6 @@ import { ChartPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-// What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
         chart: undefined;
@@ -68,14 +67,11 @@ export default function AddTabs() {
             label: `${kind.name} ${count.current}`,
         };
         if (target === "active") {
-            // the active tabset, or the first one when none is active yet
-            const tabset =
-                model.get("active-tabset") ?? model.get("tabsets")[0];
-            // dropped into the tabset's centre, at the end (-1), and selected (with no tabset
-            // left, into the layout itself: a new tabset)
+            // into the active tabset (else the first), at the end (-1), and selected; with no
+            // tabset left, into the layout itself: a new tabset
             model.run("tab.add", {
                 ...tab,
-                to: tabset?.id ?? MAIN_LAYOUT,
+                to: model.get("default-tabset")?.id ?? MAIN_LAYOUT,
                 location: "center",
                 index: -1,
                 select: true,
@@ -141,20 +137,13 @@ export default function AddTabs() {
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </div>
     );
 }
 
-/** A tab's content: `tab.data` narrows on `tab.component`. */
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "chart":
@@ -166,7 +155,6 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -181,7 +169,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -193,7 +180,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -207,7 +193,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

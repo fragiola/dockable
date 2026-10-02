@@ -3,15 +3,6 @@ import { cn } from "#/lib/cn";
 
 // How component-factory looks: one class string per part, read by index.tsx and factory.tsx.
 
-// ─── toolbar ───
-
-export const toolbar =
-    "palette-surface flex flex-wrap items-center gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast";
-
-export const status = "text-sm text-palette-accent/85";
-
-// ─── layout ───
-
 /** The root needs a size; the gutter goes on this wrapper (padding on the root would not move
  * its row, which is `position: absolute; inset: 0`). */
 export const frame = "flex min-h-0 flex-1 flex-col p-(--dk-gap)";
@@ -27,7 +18,7 @@ export const panel =
 /** Panels are portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(
-        "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
+        "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height] duration-(--dk-motion)",
         state.kind === "edge"
             ? "palette-orange bg-palette-base/25"
             : "palette-blue bg-palette-base/20",

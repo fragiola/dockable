@@ -34,7 +34,6 @@ interface DocumentData {
     dirty: boolean;
 }
 
-// What the layout holds: each tab component and the type of its data.
 type Types = { tabs: { monitor: MonitorData; document: DocumentData } };
 
 const STATUS = {
@@ -96,29 +95,25 @@ export default function ContentAwareTabs() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {/* `tab.data` narrows on `tab.component`: each panel gets its own
-                                typed tab */}
-                            {tab.component === "monitor" ? (
-                                <Monitor tab={tab} />
-                            ) : (
-                                <Editor tab={tab} />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "monitor":
+            return <Monitor tab={tab} />;
+        case "document":
+            return <Editor tab={tab} />;
+    }
+}
+
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -133,7 +128,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: a card with the strip of status tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -179,7 +173,6 @@ function StatusTab({ tab }: { tab: TabOf<Types> }) {
                 <status.Icon aria-hidden className={styles.tabIcon} />
             ) : null}
             <span className={styles.tabName}>{tab.label}</span>
-            {/* the active tabset's marker */}
             <span aria-hidden="true" className={styles.tabMarker} />
             {incidents ? (
                 <Badge
@@ -285,7 +278,6 @@ function Editor({ tab }: { tab: TabNode<"document", DocumentData> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

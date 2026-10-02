@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
     createLayoutEngine,
     DragDropManager,
@@ -19,7 +19,7 @@ import {
 const engines: LayoutEngine[] = [];
 afterEach(() => {
     if (DragDropManager.getDragState()) {
-        engines[0]?.adapter.getDragDropManager().onDragEnded();
+        DragDropManager.endDrag();
     }
     for (const engine of engines.splice(0)) engine.adapter.dispose();
     document.body.innerHTML = "";
@@ -84,7 +84,7 @@ describe("edge docking bands", () => {
             s.root.dispatchEvent(dragEvent("dragenter", x, y));
             s.root.dispatchEvent(dragEvent("dragover", x, y));
             const indicator = manager.getIndicatorState();
-            manager.onDragEnded();
+            DragDropManager.endDrag();
             return indicator;
         };
         // 6px below the top edge, at its centre: the top band
@@ -121,7 +121,7 @@ describe("edge bands in a short layout", () => {
             s.root.dispatchEvent(dragEvent("dragenter", x + 10, y + 20));
             s.root.dispatchEvent(dragEvent("dragover", x + 10, y + 20));
             const indicator = manager.getIndicatorState();
-            manager.onDragEnded();
+            DragDropManager.endDrag();
             return indicator;
         };
         expect(over(265, 2).kind).not.toBe("edge");
@@ -182,8 +182,29 @@ describe("auto-hide borders during a drag", () => {
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
         s.root.dispatchEvent(dragEvent("dragover", 30, 315));
         expect(manager.getIndicatorState().revealedBorder).toBe("bottom");
-        manager.onDragEnded();
+        DragDropManager.endDrag();
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
+    });
+
+    it("notify once per dragover, revealing a border and moving the outline together", () => {
+        const s = setup(bottomAutoHide);
+        const manager = s.engine.adapter.getDragDropManager();
+        manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        s.root.dispatchEvent(dragEvent("dragenter", 30, 315));
+        const notified = vi.fn();
+        manager.subscribe(notified);
+        s.root.dispatchEvent(dragEvent("dragover", 30, 315));
+        expect(manager.getIndicatorState()).toMatchObject({
+            visible: true,
+            revealedBorder: "bottom",
+        });
+        expect(notified).toHaveBeenCalledTimes(1);
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        expect(manager.getIndicatorState()).toMatchObject({
+            targetNodeId: "ts1",
+            revealedBorder: undefined,
+        });
+        expect(notified).toHaveBeenCalledTimes(2);
     });
 
     it("do not reveal over the edge docking band, or a border that has tabs or is not auto-hide", () => {
@@ -193,7 +214,7 @@ describe("auto-hide borders during a drag", () => {
         s.root.dispatchEvent(dragEvent("dragenter", 210, 315));
         s.root.dispatchEvent(dragEvent("dragover", 210, 315)); // the bottom edge's centre
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
-        manager.onDragEnded();
+        DragDropManager.endDrag();
 
         const plain = setup(
             withBorders([{ location: "bottom", children: [] }]),
@@ -203,6 +224,159 @@ describe("auto-hide borders during a drag", () => {
         plain.root.dispatchEvent(dragEvent("dragenter", 30, 315));
         plain.root.dispatchEvent(dragEvent("dragover", 30, 315));
         expect(plainManager.getIndicatorState().revealedBorder).toBeUndefined();
+    });
+});
+
+describe("border-shown", () => {
+    const tab = (id: string) => ({ id, component: "test", label: id });
+
+    it("is on for a border whose show is on, unless it auto-hides with no tabs", () => {
+        const { engine, model } = setup(
+            withBorders([
+                { location: "bottom", autoHide: true, children: [] },
+                { location: "top", children: [] },
+                { location: "right", show: false, children: [tab("r0")] },
+                { location: "left", autoHide: true, children: [tab("l0")] },
+            ]),
+        );
+        const shown = (borderId: string) =>
+            engine.is("border-shown", { borderId });
+        expect(shown("border_bottom")).toBe(false);
+        expect(shown("border_top")).toBe(true);
+        expect(shown("border_right")).toBe(false);
+        expect(shown("border_left")).toBe(true);
+        expect(shown("ts0")).toBe(false);
+        model.run("tab.move", { tabId: "t0", to: "border_bottom" });
+        expect(shown("border_bottom")).toBe(true);
+    });
+
+    it("is on for an empty auto-hide border while a drag reveals it", () => {
+        const s = setup(
+            withBorders([{ location: "bottom", autoHide: true, children: [] }]),
+        );
+        const shown = () =>
+            s.engine.is("border-shown", { borderId: "border_bottom" });
+        const manager = s.engine.adapter.getDragDropManager();
+        manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        s.root.dispatchEvent(dragEvent("dragenter", 30, 315));
+        s.root.dispatchEvent(dragEvent("dragover", 30, 315));
+        expect(shown()).toBe(true);
+        // revealed, it stays revealed while the pointer is near its edge
+        s.root.dispatchEvent(dragEvent("dragover", 32, 313));
+        expect(shown()).toBe(true);
+        s.root.dispatchEvent(dragEvent("dragover", 200, 150));
+        expect(shown()).toBe(false);
+        s.root.dispatchEvent(dragEvent("dragover", 30, 315));
+        DragDropManager.endDrag();
+        expect(shown()).toBe(false);
+    });
+
+    it("is off in a popout window's layout", () => {
+        const { engine } = setup({
+            ...withBorders([{ location: "top", children: [] }]),
+            windows: [
+                {
+                    id: "w0",
+                    rect: { x: 0, y: 0, width: 400, height: 300 },
+                    root: {
+                        type: "row",
+                        children: [
+                            {
+                                type: "tabset",
+                                children: [tab("w0t0")],
+                            },
+                        ],
+                    },
+                },
+            ],
+        });
+        const sub = engine.adapter.createPopoutEngine("w0");
+        engines.push(sub);
+        expect(engine.is("border-shown", { borderId: "border_top" })).toBe(
+            true,
+        );
+        expect(sub.is("border-shown", { borderId: "border_top" })).toBe(false);
+    });
+});
+
+describe("overlay-placement-by", () => {
+    const open = (
+        location: "top" | "bottom" | "left" | "right",
+        size: number,
+        mode: "overlay" | "docked" = "overlay",
+    ) => ({
+        location,
+        mode,
+        size,
+        selected: 0,
+        children: [{ id: `${location}0`, component: "test", label: "x" }],
+    });
+
+    it("spans a top or bottom overlay along its edge", () => {
+        const { engine } = setup(
+            withBorders([open("top", 50), open("bottom", 70)]),
+        );
+        expect(
+            engine.get("overlay-placement-by", { borderId: "border_top" }),
+        ).toEqual({ top: 0, left: 0, right: 0 });
+        expect(
+            engine.get("overlay-placement-by", { borderId: "border_bottom" }),
+        ).toEqual({ bottom: 0, left: 0, right: 0 });
+    });
+
+    it("stops a left or right overlay at the open top and bottom overlays (their size and a splitter)", () => {
+        const { engine, model } = setup(
+            withBorders([
+                open("top", 50),
+                open("bottom", 70),
+                open("left", 150),
+                open("right", 150),
+            ]),
+        );
+        const placement = (borderId: string) =>
+            engine.get("overlay-placement-by", { borderId });
+        const splitter = engine.get("splitter-size");
+        expect(splitter).toBe(8);
+        expect(placement("border_left")).toEqual({
+            left: 0,
+            top: 50 + splitter,
+            bottom: 70 + splitter,
+        });
+        expect(placement("border_right")).toEqual({
+            right: 0,
+            top: 50 + splitter,
+            bottom: 70 + splitter,
+        });
+        model.run("border.configure", { borderId: "border_top", open: false });
+        expect(placement("border_left")).toEqual({
+            left: 0,
+            top: 0,
+            bottom: 70 + splitter,
+        });
+        model.run("border.configure", {
+            borderId: "border_bottom",
+            show: false,
+        });
+        expect(placement("border_left")).toEqual({
+            left: 0,
+            top: 0,
+            bottom: 0,
+        });
+    });
+
+    it("ignores docked borders, and places none for a docked border", () => {
+        const { engine } = setup(
+            withBorders([open("top", 50, "docked"), open("left", 150)]),
+        );
+        expect(
+            engine.get("overlay-placement-by", { borderId: "border_left" }),
+        ).toEqual({ left: 0, top: 0, bottom: 0 });
+        expect(
+            engine.get("overlay-placement-by", { borderId: "border_top" }),
+        ).toBeUndefined();
+        expect(
+            engine.get("overlay-placement-by", { borderId: "ts0" }),
+        ).toBeUndefined();
     });
 });
 

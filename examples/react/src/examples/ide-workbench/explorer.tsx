@@ -1,5 +1,7 @@
 "use client";
 
+import type { Model } from "@fragiola/dockable";
+import { useModelState } from "@fragiola/dockable-react";
 import {
     ChevronRight,
     FileCode2,
@@ -11,6 +13,7 @@ import {
 import { useState } from "react";
 import { FILE_PATHS, fileName, folderOf } from "./files";
 import * as styles from "./styles";
+import { activePath, dirtyPaths, type Types } from "./workspace";
 
 // The file tree. It is the content of the left border's "Explorer" tab, and opens files through
 // the callback it is given (the example turns that into the `tab.add` / `tab.select` commands).
@@ -39,16 +42,16 @@ export function FileIcon({
 }
 
 export function Explorer({
-    activePath,
-    dirtyPaths,
+    model,
     onOpen,
     onResetLayout,
 }: {
-    activePath: string | undefined;
-    dirtyPaths: ReadonlySet<string>;
+    model: Model<Types>;
     onOpen: (path: string) => void;
     onResetLayout: () => void;
 }) {
+    const dirty = useModelState(() => dirtyPaths(model), { model });
+    const active = useModelState(() => activePath(model), { model });
     const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
     const folders = [...new Set(FILE_PATHS.map(folderOf))];
 
@@ -107,7 +110,7 @@ export function Explorer({
                                                 type="button"
                                                 data-testid="explorer-file"
                                                 aria-current={
-                                                    path === activePath
+                                                    path === active
                                                         ? "true"
                                                         : undefined
                                                 }
@@ -122,7 +125,7 @@ export function Explorer({
                                                 >
                                                     {fileName(path)}
                                                 </span>
-                                                {dirtyPaths.has(path) ? (
+                                                {dirty.has(path) ? (
                                                     <span
                                                         role="img"
                                                         aria-label="modified"

@@ -35,19 +35,13 @@ export interface ServiceData {
     alerts?: number;
 }
 
-/** What an incident tab keeps in its `data`: the region it belongs to (and may not leave). */
-export interface IncidentData {
-    region: "incident";
-}
-
-/** What the console holds: each tab component and the type of its data. */
 export type Types = {
     tabs: {
         overview: undefined;
         service: ServiceData;
         events: undefined;
-        runbook: IncidentData;
-        timeline: IncidentData;
+        runbook: undefined;
+        timeline: undefined;
     };
 };
 

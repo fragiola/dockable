@@ -19,7 +19,6 @@ import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-// What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
         chart: { kind: ChartKind; seed: number };
@@ -104,19 +103,12 @@ export default function CloseTabs() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -215,16 +207,14 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
             {closeable ? (
                 <button
                     type="button"
-                    // the keyboard closes with Ctrl+Delete on the tab itself (the keyMap's
-                    // closeTab), so the button is left out of the tab order
+                    // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                     tabIndex={-1}
                     aria-label={`Close ${tab.label}`}
                     className={styles.closeButton}
-                    // keep the press from selecting the tab or starting a drag
+                    // keeps the press from activating the tabset
                     onPointerDown={(event) => event.stopPropagation()}
-                    onMouseDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
-                        event.stopPropagation();
+                        event.stopPropagation(); // a click on the tab would select it
                         close();
                     }}
                 >
@@ -233,7 +223,6 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
             ) : (
                 <Lock aria-hidden className={styles.lockIcon} />
             )}
-            {/* the active tabset's marker */}
             <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
@@ -255,7 +244,6 @@ function CloseTabsetButton({ tabset }: { tabset: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

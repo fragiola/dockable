@@ -46,11 +46,18 @@ const queries = (await import(join(CORE_SRC, "state/queries.ts"))) as {
     MODEL_GET_KEYS: readonly string[];
     MODEL_IS_KEYS: readonly string[];
 };
-const verbs = (await import(join(CORE_SRC, "engine/verbs.ts"))) as {
-    ENGINE_ACTION_KEYS: readonly string[];
-    ENGINE_GET_KEYS: readonly string[];
-    ENGINE_IS_KEYS: readonly string[];
-};
+const verbs = read(join(CORE_SRC, "engine/verbs.ts"));
+
+/** The keys of the registry `export interface <name> { … }`: `popout`, `"dock-back"`, … */
+function registryKeys(source: string, name: string): string[] {
+    const body =
+        new RegExp(
+            `export interface ${name}\\b[^{]*\\{([\\s\\S]*?)\\n\\}`,
+        ).exec(source)?.[1] ?? "";
+    return [...body.matchAll(/^ {4}"?([\w-]+)"?:/gm)].map(
+        (match) => match[1] ?? "",
+    );
+}
 
 /** `key` appears in the page as a quoted key in code: `` `"selected-tab-by"` ``. */
 function mentionsKey(mdx: string, key: string): boolean {
@@ -385,15 +392,7 @@ describe("the core reference", () => {
     it("mentions every export of the core on an API page", () => {
         const index = read(join(CORE_SRC, "index.ts"));
         const names = namedExports(index).map((entry) => entry.name);
-        // `export * from "./x"`: every declaration the module exports
-        for (const match of index.matchAll(/export \* from "\.\/([^"]+)"/g)) {
-            const module = read(join(CORE_SRC, `${match[1]}.ts`));
-            for (const declaration of module.matchAll(
-                /^export (?:declare )?(?:const|function|class|interface|type|enum) (\w+)/gm,
-            )) {
-                names.push(declaration[1] ?? "");
-            }
-        }
+        expect(index).not.toMatch(/export \* from/);
         expect(names.length).toBeGreaterThan(100);
         const pages = readdirSync(API)
             .filter((file) => file.endsWith(".mdx"))
@@ -465,12 +464,13 @@ describe("the core reference", () => {
         expect([...members].sort()).toEqual(
             ["adapter", "can", "check", "get", "is", "layoutId", "run"].sort(),
         );
-        const adapterStart = source.indexOf(
+        const adapter = read(join(CORE_SRC, "engine/adapter.ts"));
+        const adapterStart = adapter.indexOf(
             "export interface LayoutEngineAdapter",
         );
-        const adapterBody = source.slice(
+        const adapterBody = adapter.slice(
             adapterStart,
-            source.indexOf("\n}\n", adapterStart),
+            adapter.indexOf("\n}\n", adapterStart),
         );
         const adapterMembers = [
             ...adapterBody.matchAll(/^ {4}(?:readonly )?(\w+)[<(:]/gm),
@@ -489,9 +489,9 @@ describe("the core reference", () => {
     it("lists every key of the engine's run, get and is", () => {
         const mdx = page("layout-engine");
         const keys = [
-            ...verbs.ENGINE_ACTION_KEYS,
-            ...verbs.ENGINE_GET_KEYS,
-            ...verbs.ENGINE_IS_KEYS,
+            ...registryKeys(verbs, "EngineActionMap"),
+            ...registryKeys(verbs, "EngineGetMap"),
+            ...registryKeys(verbs, "EngineIsMap"),
         ];
         expect(keys.length).toBeGreaterThan(10);
         for (const key of keys) {

@@ -1,33 +1,3 @@
-import type * as React from "react";
-
-/** A callback ref that forwards to every ref in `refs` (function refs and ref objects alike). */
-export function mergeRefs<T>(
-    ...refs: (React.Ref<T> | undefined)[]
-): React.RefCallback<T> {
-    return (value) => {
-        const cleanups = refs.map((ref) => {
-            if (typeof ref === "function") {
-                const cleanup = ref(value);
-                return typeof cleanup === "function"
-                    ? cleanup
-                    : () => ref(null);
-            }
-            if (ref) {
-                ref.current = value;
-                return () => {
-                    ref.current = null;
-                };
-            }
-            return undefined;
-        });
-        return () => {
-            for (const cleanup of cleanups) {
-                cleanup?.();
-            }
-        };
-    };
-}
-
 type AnyProps = Record<string, unknown>;
 
 function isHandler(
@@ -39,8 +9,7 @@ function isHandler(
 
 /**
  * Merges `external` props over `internal` ones: plain props from `external` win, event handlers
- * are composed (internal first, then external), `ref`s are merged and `style` objects are merged
- * with `internal` style keys winning (they are the structural ones).
+ * are composed (internal first, then external) and class names are joined.
  */
 export function mergeProps(internal: AnyProps, external: AnyProps): AnyProps {
     const merged: AnyProps = { ...internal };
@@ -53,18 +22,6 @@ export function mergeProps(internal: AnyProps, external: AnyProps): AnyProps {
             merged[key] = (...args: unknown[]) => {
                 current(...args);
                 value(...args);
-            };
-        } else if (key === "ref") {
-            merged.ref = current
-                ? mergeRefs(
-                      current as React.Ref<unknown>,
-                      value as React.Ref<unknown>,
-                  )
-                : value;
-        } else if (key === "style") {
-            merged.style = {
-                ...(value as React.CSSProperties),
-                ...(current as React.CSSProperties | undefined),
             };
         } else if (
             key === "className" &&

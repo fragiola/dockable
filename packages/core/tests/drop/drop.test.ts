@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { DragSubject } from "../../src/dnd/session";
 import {
     type DropGeometry,
-    type DropSubjectKind,
+    type DropQuery,
     dropCandidates,
 } from "../../src/drop/resolve";
 import { clampToPinnedRun, findStripDrop } from "../../src/drop/strip";
@@ -12,8 +13,15 @@ import {
     edgeBands,
 } from "../../src/geometry/dock";
 import { type Rect, rect } from "../../src/geometry/rect";
+import type { Model } from "../../src/state/model";
 import { createModel } from "../../src/state/model";
 import { tab } from "../state/harness";
+
+function tabOf(model: Model, id: string) {
+    const node = model.get("node-by", { id });
+    if (node?.type !== "tab") throw new Error(`no tab ${id}`);
+    return node;
+}
 
 describe("dock locations", () => {
     const r = rect(0, 0, 100, 100);
@@ -63,20 +71,39 @@ describe("strip drops", () => {
     ];
 
     it("drops before a tab's centre, after the last one, or in an empty strip", () => {
-        expect(findStripDrop(host, strip, tabs, 80, 10, false, false)).toEqual({
+        expect(findStripDrop(host, strip, tabs, 80, 10, "horizontal")).toEqual({
             index: 1,
             outline: rect(58, 0, 3, 30),
         });
-        expect(findStripDrop(host, strip, tabs, 170, 10, false, false)).toEqual(
+        expect(findStripDrop(host, strip, tabs, 170, 10, "horizontal")).toEqual(
             {
                 index: 3,
                 outline: rect(178, 0, 3, 30),
             },
         );
-        expect(findStripDrop(host, strip, [], 170, 10, false, false)).toEqual({
+        expect(findStripDrop(host, strip, [], 170, 10, "horizontal")).toEqual({
             index: 0,
             outline: rect(0, 0, 2, 30),
         });
+    });
+
+    it("keeps a tabset's slots inside the tabset, and a vertical strip's along its own axis", () => {
+        const tabset = rect(20, 0, 300, 200);
+        expect(
+            findStripDrop(tabset, strip, tabs, 10, 10, "tabset"),
+        ).toBeUndefined();
+        expect(
+            findStripDrop(tabset, strip, tabs, 10, 10, "horizontal"),
+        ).toEqual({ index: 0, outline: rect(-2, 0, 3, 30) });
+        expect(findStripDrop(tabset, strip, tabs, 40, 10, "tabset")).toEqual({
+            index: 1,
+            outline: rect(58, 0, 3, 30),
+        });
+        const narrow = rect(0, 0, 20, 200);
+        const column = [rect(0, 30, 20, 40), rect(0, 70, 20, 40)];
+        expect(
+            findStripDrop(narrow, narrow, column, 10, 40, "vertical"),
+        ).toEqual({ index: 0, outline: rect(0, 28, 20, 3) });
     });
 
     it("skips tabs hidden by overflow", () => {
@@ -86,7 +113,7 @@ describe("strip drops", () => {
             tabs[2],
         ];
         expect(
-            findStripDrop(host, strip, hidden, 130, 10, false, false)?.index,
+            findStripDrop(host, strip, hidden, 130, 10, "horizontal")?.index,
         ).toBe(2);
     });
 
@@ -142,18 +169,25 @@ describe("drop candidates", () => {
         borderStrip: () => rect(0, 300, 400, 20),
         borderContent: () => undefined,
     };
-    const tabSubject: DropSubjectKind = {
+    const tabSubject: DragSubject = {
         kind: "tab",
-        id: "A1",
-        pinned: false,
+        tab: tabOf(model, "A1"),
     };
     const candidates = (
         x: number,
         y: number,
-        subject: DropSubjectKind = tabSubject,
+        subject: DragSubject = tabSubject,
+        query: Partial<DropQuery> = {},
     ) =>
-        dropCandidates(model.state, "main", geometry, subject, x, y, {
-            excludeCenter: false,
+        dropCandidates({
+            state: model.state,
+            layoutId: "main",
+            maximized: undefined,
+            geometry,
+            subject,
+            x,
+            y,
+            ...query,
         });
 
     it("offers the edge band first, then the tabset under the point", () => {
@@ -182,9 +216,11 @@ describe("drop candidates", () => {
     });
 
     it("marks a tabset dropped on itself", () => {
-        expect(candidates(100, 150, { kind: "tabset", id: "a" })).toMatchObject(
-            [{ target: "a", self: true }],
-        );
+        const tabset = model.get("node-by", { id: "a" });
+        if (tabset?.type !== "tabset") throw new Error("no tabset");
+        expect(candidates(100, 150, { kind: "tabset", tabset })).toMatchObject([
+            { target: "a", self: true },
+        ]);
     });
 
     it("offers only the maximized tabset", () => {
@@ -193,15 +229,10 @@ describe("drop candidates", () => {
             maximized: "a",
         });
         expect(
-            dropCandidates(
-                maximized.state,
-                "main",
-                geometry,
-                tabSubject,
-                5,
-                150,
-                { excludeCenter: false },
-            ),
+            candidates(5, 150, tabSubject, {
+                state: maximized.state,
+                maximized: maximized.get("maximized-tabset", {}),
+            }),
         ).toMatchObject([{ target: "a", location: "center" }]);
     });
 });

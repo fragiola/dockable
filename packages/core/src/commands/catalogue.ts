@@ -65,8 +65,3 @@ export const COMMANDS: readonly CommandDefinition[] = [
 /** The command definitions by name. */
 export const COMMAND_DEFINITIONS: ReadonlyMap<string, CommandDefinition> =
     new Map(COMMANDS.map((definition) => [definition.name, definition]));
-
-/** Whether `name` is a built-in command. */
-export function isCommandName(name: string): name is CommandName {
-    return COMMAND_DEFINITIONS.has(name);
-}

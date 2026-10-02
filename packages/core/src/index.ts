@@ -36,16 +36,10 @@ export { veto } from "./commands/types";
 export {
     DRAG_TYPE,
     DragDropManager,
-    type DragEventLike,
-    type DragSourceKind,
-    DragState,
-    type DragSubject,
     type DropIndicatorState,
     type DropKind,
     type DropLocation,
-    type DropZoneOptions,
     type ExternalDrag,
-    type NewTabDropped,
     type OnExternalDrag,
 } from "./dnd/DragDropManager";
 export {
@@ -56,19 +50,24 @@ export {
     type TransferMeta,
     type TransferRequest,
 } from "./dnd/DragGroup";
+export type { DropZoneOptions } from "./dnd/dropZones";
+export {
+    type DragEventLike,
+    type DragSourceKind,
+    DragState,
+    type DragSubject,
+    type NewTabDropped,
+} from "./dnd/session";
+export type { LayoutEngineAdapter } from "./engine/adapter";
 export {
     createLayoutEngine,
-    LayoutEngine,
-    type LayoutEngineAdapter,
+    type LayoutEngine,
     type LayoutEngineOptions,
     type LayoutEngineSettings,
-    type MeasurableKind,
-    type MeasureFunction,
-    MOVEABLE_ATTRIBUTE,
-    MOVEABLES_HOME_ATTRIBUTE,
-    type MoveableOptions,
-    OVERLAY_ATTRIBUTE,
 } from "./engine/LayoutEngine";
+export type { MeasurableKind, MeasureFunction } from "./engine/measure";
+export { MOVEABLE_ATTRIBUTE, type MoveableOptions } from "./engine/moveables";
+export { OVERLAY_ATTRIBUTE } from "./engine/overlay";
 export type {
     EngineActionKey,
     EngineActionMap,
@@ -81,6 +80,7 @@ export type {
     EngineIsKey,
     EngineIsMap,
     EngineIsPayload,
+    OverlayPlacement,
 } from "./engine/verbs";
 export type {
     BorderLocation,
@@ -89,31 +89,34 @@ export type {
     Orientation,
 } from "./geometry/dock";
 export type { Rect } from "./geometry/rect";
-export * from "./keyboard/keymap";
-export * from "./overflow/tabOverflow";
 export {
-    computePaths,
+    defaultKeyMap,
+    hasModifier,
+    type KeyEventLike,
+    type KeyMap,
+    matchesKey,
+    resolveKeyMap,
+    toAriaKeyShortcuts,
+} from "./keyboard/keymap";
+export {
+    computeTabOverflow,
+    type TabOverflowInput,
+    type TabOverflowResult,
+} from "./overflow/tabOverflow";
+export {
     DROP_INDICATOR_PATH,
     getSplitterPath,
     getTabButtonId,
     getTabButtonPath,
     getTabPanelId,
     getTabStripPath,
-    windowPath,
 } from "./paths";
 export {
-    ADOPTED_STYLES_ATTRIBUTE,
-    isDesktop,
-    mirrorRootAttributes,
     type OpenWindow,
     POPOUT_ATTRIBUTE,
     type PopoutCallback,
     PopoutManager,
     type PopoutOptions,
-    STYLE_LOAD_TIMEOUT_MS,
-    STYLE_POLL_INTERVAL_MS,
-    StyleMirror,
-    WINDOW_RECT_POLL_INTERVAL_MS,
 } from "./popout/PopoutManager";
 export type { FromSchema } from "./schema/from-schema";
 export { layoutSchema } from "./schema/layout";
@@ -123,14 +126,12 @@ export type {
     JsonValue,
     ValidationIssue,
 } from "./schema/types";
-export type { SizeRange } from "./split/split";
+export type { FlexSizing, SizeRange } from "./split/split";
 export {
     createSplitterController,
-    enablePointerOnIFrames,
     type SplitterAria,
-    SplitterController,
+    type SplitterController,
     type SplitterState,
-    startDrag,
 } from "./splitter/SplitterController";
 export {
     BUILT_IN,
@@ -198,6 +199,7 @@ export {
     type TabDefaults,
     type TabNode,
     type TabOf,
+    type TabOwnFields,
     type TabsetDataOf,
     type TabsetDefaults,
     type TabsetNode,

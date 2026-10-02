@@ -172,6 +172,27 @@ describe("Dockable.Borders", () => {
         );
     });
 
+    it("gives the tab direction to the strip's state only, not to its content's", () => {
+        const states = new Map<string, object>();
+        render(
+            <BorderLayout
+                model={load(ideBorders)}
+                tabDirection="down"
+                renderContent={(border) => (
+                    <Dockable.BorderContent
+                        node={border}
+                        className={(state) => {
+                            states.set(state.location, state);
+                            return undefined;
+                        }}
+                    />
+                )}
+            />,
+        );
+        expect(states.get("left")).toMatchObject({ location: "left" });
+        expect(states.get("left")).not.toHaveProperty("tabDirection");
+    });
+
     it("sizes the open panel's area by the border size, and hides a closed one", () => {
         render(<BorderLayout model={load(ideBorders)} />);
         const bottom = element("/border/bottom/content");

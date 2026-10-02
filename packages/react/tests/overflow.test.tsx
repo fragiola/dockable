@@ -206,9 +206,11 @@ describe("Dockable.TabOverflowTrigger follows the primitive contract", () => {
                         data-testid="trigger"
                         aria-haspopup="menu"
                         onClick={onClick}
-                        className={(state) => `more more-${state.hiddenCount}`}
+                        className={(state) =>
+                            `more more-${state.hiddenTabs.length}`
+                        }
                         style={(state) => ({
-                            opacity: state.hiddenCount > 0 ? 1 : 0,
+                            opacity: state.hiddenTabs.length > 0 ? 1 : 0,
                             display: "block",
                         })}
                         render={(props, state) => {

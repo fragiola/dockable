@@ -40,6 +40,14 @@ test("tabsets go to their own windows, panels move between the windows, and ever
     ]);
     await expect(trafficWindow.getByRole("tab")).toHaveText(["Requests"]);
 
+    // in a window, the screen button brings the selected tab back, and only it
+    await eventsWindow.getByRole("tab", { name: "Events" }).click();
+    await eventsWindow
+        .getByRole("button", { name: "Back to the main screen" })
+        .click();
+    await expect(eventsWindow.getByRole("tab")).toHaveText(["Latency"]);
+    await expect(stage.getByRole("tab", { name: "Events" })).toHaveCount(1);
+
     // everything back on the main screen
     await stage.getByRole("button", { name: "Bring everything back" }).click();
     await expect

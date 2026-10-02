@@ -10,22 +10,25 @@ portalled into it. A node-less `Dockable.Row` inside renders that layout's root 
 of tabs in that layout are positioned in the window. Pop a tab out with `tab.popout`."
 
 ```tsx
-<Dockable.Popout<Types>
-    className="palette-surface bg-palette-base"
-    title={(layout) => `My app (${layout.id})`}
-    onOpen={(_layout, _window, doc) => {
+<Dockable.Root
+    model={model}
+    popoutTitle={(layout) => `My app (${layout.id})`}
+    onPopoutOpen={(_layout, _window, doc) => {
         doc.documentElement.dataset.theme = document.documentElement.dataset.theme;
     }}
 >
-    {() => (
-        <Dockable.Row<Types> renderSplitter={renderSplitter}>
-            {renderNode}
-        </Dockable.Row>
-    )}
-</Dockable.Popout>
+    {/* … */}
+    <Dockable.Popout<Types> className="palette-surface bg-palette-base">
+        {() => (
+            <Dockable.Row<Types> renderSplitter={renderSplitter}>
+                {renderNode}
+            </Dockable.Row>
+        )}
+    </Dockable.Popout>
+</Dockable.Root>
 ```
 
-A window is state: the model's `state.windows` holds one `WindowLayout<T>` per popout (its `id`,
+A window is state: `model.get("windows")` lists one `WindowLayout<T>` per popout (its `id`,
 its screen `rect`, its `root` row, its `active` and `maximized` tabsets). `tab.popout` and
 `tabset.popout` add one, `window.close` removes one (docking its tabs back into the main layout),
 and `window.configure` records its rect. A saved layout with windows reopens them when it loads.
@@ -37,19 +40,16 @@ model.run("window.close", { windowId: "window-1" }); // its tabs dock back, the 
 
 ## Props
 
-`PopoutProps<T>` extends the [common primitive props](/docs/api/root#common-props) (without the
-`title` attribute, which is redefined). The common props apply to **each window's root
-element**.
+`PopoutProps<T>` extends the [common primitive props](/docs/api/root#common-props). The common
+props apply to **each window's root element**.
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
 | `children` | `(layout: WindowLayout<T>) => ReactNode` | required | renders a window layout, usually `<Dockable.Row>{renderNode}</Dockable.Row>` |
-| `title` | `(layout: WindowLayout<T>) => string \| undefined` | none | the popout document's title; with none, the host page's title is kept |
-| `onOpen` | `PopoutCallback<T>`: `(layout: WindowLayout<T>, window: Window, document: Document) => void` | none | a popout document is ready, before its content renders |
-| `onClose` | `PopoutCallback<T>` | none | a popout window is closing (its tabs dock back into the main layout) |
 
-The window itself is set up on `Dockable.Root`: `popoutURL`, `supportsPopout`, `openWindow`,
-`popoutMirrorRoot`, `onPopoutOpen`, `onPopoutClose`.
+The window itself is set up on [`Dockable.Root`](/docs/api/root#props): `popoutURL`,
+`supportsPopout`, `openWindow`, `popoutMirrorRoot`, `popoutTitle`, `onPopoutOpen`,
+`onPopoutClose`.
 
 ## State
 
@@ -83,8 +83,8 @@ panels are positioned in.
   those whose layout left the state. Opening is idempotent per layout, and a release is deferred,
   so a React StrictMode remount keeps one window.
 - Closing a window from the browser runs `window.close`: its tabs dock back into the main layout's
-  active tabset (its first tabset when none is active), and `onClose` / `onPopoutClose` are
-  called first. The content of those tabs moves back to the main document before the window goes,
+  active tabset (its first tabset when none is active), and `onPopoutClose` is called
+  first. The content of those tabs moves back to the main document before the window goes,
   so it keeps its state.
 - Without popout support (`supportsPopout` false), or when the window cannot open (`openWindow`
   returns `null`, a blocked `window.open`), the window layout docks back (`window.close`).
@@ -115,7 +115,7 @@ another framework uses the same way (an app never needs it):
 | option | type | description |
 | --- | --- | --- |
 | `popoutURL` | `string` | the popout host page; default `"popout.html"`. The window layout's id is passed as `?id=` |
-| `supportsPopout` | `boolean` | whether window layouts open as popouts at all; default: `isDesktop(window)` |
+| `supportsPopout` | `boolean` | whether window layouts open as popouts at all; default: the main window has a fine hover pointer (a desktop) |
 | `title` | `(layout: WindowLayout<T>) => string \| undefined` | the popout document's title; with none, the host page's title is kept |
 | `onPopoutOpen` | `PopoutCallback<T>` | the popout document is ready, before its content renders (e.g. to set up a css-in-js cache) |
 | `onPopoutClose` | `PopoutCallback<T>` | the popout window is closing |
@@ -132,18 +132,16 @@ refuse, which docks the window layout back.
 
 ## Style mirroring
 
-A popout document gets the main document's styles, and keeps them in sync while it is open. The
-helpers are exported for adapters and tests:
+A popout document gets the main document's styles, and keeps them in sync while it is open: the
+`<link rel="stylesheet">` and `<style>` elements of the main document's `<head>` (added, removed,
+or with text edited in place), CSSOM rules inserted by css-in-js libraries (polled), and adopted
+(constructable) stylesheets, copied into one `<style>` element. A window renders once its linked
+stylesheets loaded, failed or timed out, so a blocked stylesheet never keeps it blank.
+`<html>` `lang` and `dir` are always copied; `mirrorRoot` copies more of `<html>` and `<body>`.
+A `<style>` or `<link>` placed in `<body>` is not copied: keep the styles a popout needs in `<head>`.
 
 | export | description |
 | --- | --- |
-| `StyleMirror` | copies the main document's stylesheets into a popout document and keeps them in sync: `<link>` and `<style>` elements (added, removed, or with text edited in place), CSSOM rules inserted by css-in-js libraries (polled), and adopted (constructable) stylesheets. `new StyleMirror(source, target)`, then `copyStyles()` (resolves once the linked stylesheets loaded, failed or timed out) and `dispose()` |
-| `mirrorRootAttributes(source, target, mirror)` | copies `<html>` and `<body>` attributes from one document to another and keeps them in sync until the returned function is called. `lang` and `dir` of `<html>` are always copied; `mirror: true` copies every attribute but `style` and `id`, a list copies those names. Classes are added on top of the popout's own |
-| `isDesktop(window)` | true when the window has a fine hover pointer: the default of `supportsPopout` |
-| `STYLE_LOAD_TIMEOUT_MS` | `2000`: how long a linked stylesheet may take before the window renders anyway (a blocked stylesheet must not keep the popout blank) |
-| `STYLE_POLL_INTERVAL_MS` | `750`: the interval at which CSSOM rules are polled (a `MutationObserver` misses `insertRule`) |
-| `WINDOW_RECT_POLL_INTERVAL_MS` | `1000`: the interval at which a popout's screen position is polled (a window that only moves fires no event) |
 | `POPOUT_ATTRIBUTE` | `"data-dockable-popout"`: the attribute of the element an adapter renders a window layout into |
-| `ADOPTED_STYLES_ATTRIBUTE` | `"data-dockable-adopted-styles"`: the attribute of the `<style>` element that mirrors the main document's adopted stylesheets (they cannot be shared across documents, so their rules are copied into one element) |
 
 See the [Popouts guide](/docs/guides/popouts).

@@ -129,6 +129,14 @@ describe("model.get", () => {
         expect(m.get("window-by", { id: "nope" })).toBeUndefined();
     });
 
+    it("windows and borders: the model's, in order", () => {
+        const m = model();
+        expect(ids(m.get("windows"))).toEqual(["w0"]);
+        expect(m.get("windows")).toBe(m.state.windows);
+        expect(ids(m.get("borders"))).toEqual(["left"]);
+        expect(m.get("borders")).toBe(m.state.borders);
+    });
+
     it("all-tabs: every tab of the model, its borders' and its windows' included", () => {
         expect(ids(model().get("all-tabs"))).toEqual(["a", "b", "c", "d", "e"]);
     });
@@ -212,6 +220,29 @@ describe("model.get", () => {
         must(m.run("tabset.activate", { tabsetId: "ts3" }));
         expect(m.get("active-tabset", { layoutId: "w0" })?.id).toBe("ts3");
         expect(m.get("maximized-tabset", { layoutId: "w0" })).toBeUndefined();
+    });
+
+    it("default-tabset: a layout's active tabset, else its first (main by default)", () => {
+        const m = model();
+        expect(m.get("default-tabset")?.id).toBe("ts1");
+        expect(m.get("default-tabset", { layoutId: MAIN_LAYOUT })?.id).toBe(
+            "ts1",
+        );
+        // the window has no active tabset: its first
+        expect(m.get("default-tabset", { layoutId: "w0" })?.id).toBe("ts3");
+        expect(m.get("default-tabset", { layoutId: "nope" })).toBeUndefined();
+    });
+
+    it("default-tabset: another layout's active tabset is never the main one's", () => {
+        const { active: _, windows = [], ...rest } = structuredClone(json);
+        const m = createModel({
+            ...rest,
+            windows: windows.map((w) => ({ ...w, active: "ts3" })),
+        });
+        expect(m.get("active-tabset")).toBeUndefined();
+        expect(m.get("active-tabset", { layoutId: "w0" })?.id).toBe("ts3");
+        expect(m.get("default-tabset")?.id).toBe("ts0");
+        expect(m.get("default-tabset", { layoutId: "w0" })?.id).toBe("ts3");
     });
 
     it("tab-, tabset- and border-settings-by: the node's own value, else the default", () => {
@@ -395,6 +426,8 @@ describe("the key lists", () => {
             "layout-id-by": { required: true, fields: ["nodeId"] },
             "root-row": { required: false, fields: ["layoutId"] },
             "window-by": { required: true, fields: ["id"] },
+            windows: { required: false, fields: [] },
+            borders: { required: false, fields: [] },
             "all-tabs": { required: false, fields: [] },
             tabs: { required: false, fields: ["layoutId"] },
             tabsets: { required: false, fields: ["layoutId"] },
@@ -403,6 +436,7 @@ describe("the key lists", () => {
                 fields: ["tabsetId", "borderId", "layoutId"],
             },
             "active-tabset": { required: false, fields: ["layoutId"] },
+            "default-tabset": { required: false, fields: ["layoutId"] },
             "maximized-tabset": { required: false, fields: ["layoutId"] },
             "tab-settings-by": { required: true, fields: ["tabId"] },
             "tabset-settings-by": { required: true, fields: ["tabsetId"] },

@@ -32,6 +32,22 @@ describe("popout helpers", () => {
         expect(unsupported.engine.can("popout", { nodeId: "t2" })).toBe(false);
     });
 
+    it('get("popout-mode-by"): dock in a window, popout when it can, else none', () => {
+        const { model, engine } = setup();
+        expect(engine.get("popout-mode-by", { nodeId: "t0" })).toBe("popout");
+        model.run("tab.configure", { tabId: "t0", enablePopout: false });
+        expect(engine.get("popout-mode-by", { nodeId: "t0" })).toBeUndefined();
+        engine.run("popout", { nodeId: "t2" });
+        expect(engine.get("popout-mode-by", { nodeId: "t2" })).toBe("dock");
+        expect(engine.get("popout-mode-by", { nodeId: "missing" })).toBe(
+            undefined,
+        );
+        const unsupported = setup(false);
+        expect(
+            unsupported.engine.get("popout-mode-by", { nodeId: "t2" }),
+        ).toBeUndefined();
+    });
+
     it('run("popout") pops a tab or a whole tabset into a window layout with a command', () => {
         const { model, engine, commands } = setup();
         const result = engine.run("popout", { nodeId: "ts0" });

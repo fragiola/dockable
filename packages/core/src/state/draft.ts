@@ -14,15 +14,13 @@ import {
 import { type LayoutDefaults, MAIN_LAYOUT } from "./types";
 
 /** A node's writable form inside a draft: its fields writable, its children a plain array. */
-export type Mutable<N> = {
+type Mutable<N> = {
     -readonly [K in keyof N]: N[K] extends readonly (infer E)[] ? E[] : N[K];
 };
-export type MutableRow = Mutable<AnyRow>;
-export type MutableTabset = Mutable<AnyTabset>;
-export type MutableTab = Mutable<AnyTab>;
-export type MutableBorder = Mutable<AnyBorder>;
-type MutableNode = MutableRow | MutableTabset | MutableTab | MutableBorder;
-type MutableParent = MutableRow | MutableTabset | MutableBorder;
+type MutableRow = Mutable<AnyRow>;
+type MutableTabset = Mutable<AnyTabset>;
+type MutableParent = MutableRow | MutableTabset | Mutable<AnyBorder>;
+type MutableNode = MutableParent | Mutable<AnyTab>;
 
 interface LayoutRecord {
     root: string;
@@ -58,10 +56,6 @@ export function deepFreeze<V>(value: V): V {
 export interface CommitResult {
     state: AnyState;
     index: NodeIndex;
-    /** false when the draft changed nothing: `state` is then the base state itself */
-    changed: boolean;
-    /** the ids (nodes and windows) no longer in the state */
-    removed: string[];
 }
 
 /**
@@ -145,11 +139,6 @@ export class Draft {
         this.load(state);
         this.structureChanged = false;
         this.replaced = true;
-    }
-
-    /** the state this draft started from (or was reset to) */
-    get baseState(): AnyState {
-        return this.base;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -275,7 +264,7 @@ export class Draft {
     // ---------------------------------------------------------------------------------------------
 
     /** the writable version of a node: cloned once, with its ancestors, on first write */
-    edit(id: string): MutableNode {
+    private edit(id: string): MutableNode {
         const existing = this.nodes.get(id);
         if (existing) {
             return existing;
@@ -295,38 +284,6 @@ export class Draft {
             }
         }
         return clone;
-    }
-
-    editTab(id: string): MutableTab {
-        const node = this.edit(id);
-        if (node.type !== "tab") {
-            throw new Error(`Draft.editTab: "${id}" is a ${node.type}`);
-        }
-        return node;
-    }
-
-    editTabset(id: string): MutableTabset {
-        const node = this.edit(id);
-        if (node.type !== "tabset") {
-            throw new Error(`Draft.editTabset: "${id}" is a ${node.type}`);
-        }
-        return node;
-    }
-
-    editRow(id: string): MutableRow {
-        const node = this.edit(id);
-        if (node.type !== "row") {
-            throw new Error(`Draft.editRow: "${id}" is a ${node.type}`);
-        }
-        return node;
-    }
-
-    editBorder(id: string): MutableBorder {
-        const node = this.edit(id);
-        if (node.type !== "border") {
-            throw new Error(`Draft.editBorder: "${id}" is a ${node.type}`);
-        }
-        return node;
     }
 
     private editParent(id: string): MutableParent {
@@ -481,12 +438,7 @@ export class Draft {
      */
     commit(freeze: boolean): CommitResult {
         if (!this.dirty) {
-            return {
-                state: this.base,
-                index: this.index,
-                changed: false,
-                removed: [],
-            };
+            return { state: this.base, index: this.index };
         }
         // a layout's active or maximized tabset must be a tabset of that layout
         for (const [layout, record] of this.layouts) {
@@ -507,15 +459,9 @@ export class Draft {
         }
 
         // what left the tree: detached subtrees not attached again, and removed windows
-        const removed: string[] = [];
         const removeSubtree = (id: string) => {
             const node = this.get(id);
-            if (this.index.has(id) || this.nodes.has(id)) {
-                if (this.index.has(id)) {
-                    removed.push(id);
-                }
-                this.index.delete(id);
-            }
+            this.index.delete(id);
             if (!node) {
                 return;
             }
@@ -534,7 +480,6 @@ export class Draft {
             if (!this.layouts.has(layoutId)) {
                 removeSubtree(root);
                 this.index.setRoot(root, undefined);
-                removed.push(layoutId);
             }
         }
 
@@ -629,8 +574,6 @@ export class Draft {
         return {
             state: freeze ? deepFreeze(state) : state,
             index: this.index,
-            changed: true,
-            removed,
         };
     }
 }

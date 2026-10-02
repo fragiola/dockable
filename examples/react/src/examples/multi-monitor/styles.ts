@@ -43,7 +43,7 @@ export const panel =
 /** Panels are portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(
-        "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
+        "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height] duration-(--dk-motion)",
         state.kind === "edge"
             ? "palette-orange bg-palette-base/25"
             : "palette-blue bg-palette-base/20",
@@ -79,19 +79,10 @@ export const tabMarker =
 
 export const tabsetActions = "flex items-center gap-0.5 pe-1";
 
-/** In a window, the trigger docks back (`data-mode="dock"`): it hides, BackButton does that. */
 export const screenButton = cn(
     "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
     "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
-    "disabled:pointer-events-none disabled:opacity-40 data-[mode=dock]:hidden",
-);
-
-/** In the main layout, the trigger pops out (`data-mode="popout"`): it hides, ScreenButton does
- * that. */
-export const backButton = cn(
-    "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",
-    "outline-none hover:bg-palette-soft hover:text-palette-contrast focus-visible:ring-2 focus-visible:ring-palette-ring",
-    "disabled:pointer-events-none disabled:opacity-40 data-[mode=popout]:hidden",
+    "disabled:pointer-events-none disabled:opacity-40",
 );
 
 export const actionIcon = "size-3.5";

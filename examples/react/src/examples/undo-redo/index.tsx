@@ -5,6 +5,7 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import {
@@ -14,10 +15,10 @@ import {
     useModelState,
 } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2, X } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { PanelBody } from "../_kit/card";
 import { CHART_KINDS, type ChartKind, ChartPanel } from "../_kit/charts";
-import { UndoManager } from "../_kit/undo";
+import { handleUndoKeys, UndoManager } from "../_kit/undo";
 import * as styles from "./styles";
 
 // Undo and redo with the examples' UndoManager (`_kit/undo.ts`: the package ships no undo). It
@@ -25,7 +26,6 @@ import * as styles from "./styles";
 // step; undo and redo load it back into the same model (`layout.load`), so mounted content is
 // kept. A splitter drag, many transient `row.resize` commands, is a single step.
 
-// What the layout holds: the live JSON, short documents and charts, each named by its label.
 type Types = {
     tabs: {
         json: undefined;
@@ -80,8 +80,7 @@ const IGNORED: readonly CommandName[] = ["tabset.activate", "tab.select"];
 
 export default function UndoRedo() {
     // one model and one manager for the example's lifetime: undo and redo load a layout into the
-    // same model, so nothing is swapped (and nothing is disposed in an effect cleanup: StrictMode
-    // would dispose it and remount the same instance)
+    // same model, so nothing is swapped
     const [model] = useState(() => createModel<Types>(json));
     const [undo] = useState(
         () => new UndoManager(model, { ignoreCommands: IGNORED }),
@@ -91,34 +90,13 @@ export default function UndoRedo() {
         undo.getSnapshot,
         undo.getSnapshot,
     );
-    // the names of the steps come from the manager's own steps: the command that made each one
-    const doUndo = () => undo.undo();
-    const doRedo = () => undo.redo();
 
-    // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes; text fields keep their own undo
-    const keys = useRef({ doUndo, doRedo });
-    keys.current = { doUndo, doRedo };
+    // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes
     useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (
-                !(event.ctrlKey || event.metaKey) ||
-                isTextField(event.target)
-            ) {
-                return;
-            }
-            const key = event.key.toLowerCase();
-            if (key === "z" && !event.shiftKey) {
-                keys.current.doUndo();
-            } else if (key === "y" || (key === "z" && event.shiftKey)) {
-                keys.current.doRedo();
-            } else {
-                return;
-            }
-            event.preventDefault();
-        };
+        const onKeyDown = (event: KeyboardEvent) => handleUndoKeys(undo, event);
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, []);
+    }, [undo]);
 
     return (
         <>
@@ -128,7 +106,7 @@ export default function UndoRedo() {
                     className={styles.button}
                     disabled={!snapshot.canUndo}
                     aria-keyshortcuts="Control+Z Meta+Z"
-                    onClick={doUndo}
+                    onClick={() => undo.undo()}
                 >
                     <Undo2 aria-hidden className={styles.buttonIcon} />
                     Undo
@@ -138,13 +116,14 @@ export default function UndoRedo() {
                     className={styles.button}
                     disabled={!snapshot.canRedo}
                     aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y"
-                    onClick={doRedo}
+                    onClick={() => undo.redo()}
                 >
                     <Redo2 aria-hidden className={styles.buttonIcon} />
                     Redo
                 </button>
                 <ol aria-label="History" className={styles.history}>
-                    {snapshot.undoCount + snapshot.redoCount === 0 ? (
+                    {snapshot.undoSteps.length + snapshot.redoSteps.length ===
+                    0 ? (
                         <li className={styles.historyHint}>
                             Move, resize, add or close tabs: each edit is a
                             step.
@@ -172,13 +151,8 @@ export default function UndoRedo() {
                     ))}
                 </ol>
             </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
-                <Dockable.Root
-                    // the same model throughout: undo and redo change its state, not the model
-                    model={model}
-                    className={styles.root}
-                >
+                <Dockable.Root model={model} className={styles.root}>
                     <Dockable.Row<Types>
                         renderSplitter={(props) => <Splitter {...props} />}
                     >
@@ -187,32 +161,36 @@ export default function UndoRedo() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "json" ? (
-                                    <LayoutJsonPanel />
-                                ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.label}>
-                                        <p>{tab.data.text}</p>
-                                    </PanelBody>
-                                ) : (
-                                    <ChartPanel
-                                        kind={tab.data.kind}
-                                        seed={tab.data.seed}
-                                        title={tab.label}
-                                    />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </>
     );
+}
+
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "json":
+            return <LayoutJsonPanel />;
+        case "doc":
+            return (
+                <PanelBody title={tab.label}>
+                    <p>{tab.data.text}</p>
+                </PanelBody>
+            );
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+    }
 }
 
 /** A short name for a command, for the history list. */
@@ -236,7 +214,6 @@ function describe(command: CommandName): string {
     }
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -263,7 +240,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -345,16 +321,6 @@ function LayoutJsonPanel() {
     );
 }
 
-function isTextField(target: EventTarget | null) {
-    const element = target as HTMLElement | null;
-    return (
-        element?.isContentEditable ||
-        element?.tagName === "INPUT" ||
-        element?.tagName === "TEXTAREA"
-    );
-}
-
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

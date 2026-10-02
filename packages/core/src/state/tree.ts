@@ -18,7 +18,6 @@ export type AnyTab = TabNode<string, unknown>;
 export type AnyBorder = BorderNode<AnyTypes>;
 export type AnyWindow = WindowLayout<AnyTypes>;
 export type AnyState = LayoutState<AnyTypes>;
-export type AnyParent = AnyRow | AnyTabset | AnyBorder;
 
 /** The children of a node (a tab has none). */
 export function childrenOf(node: AnyNode): readonly AnyNode[] {
@@ -37,19 +36,6 @@ export function walk(
     }
 }
 
-/** The root rows of a state's layouts, main first, with each layout's id. */
-export function layoutRoots(
-    state: AnyState,
-): { layout: string; root: AnyRow }[] {
-    return [
-        { layout: MAIN_LAYOUT, root: state.root },
-        ...state.windows.map((windowLayout) => ({
-            layout: windowLayout.id,
-            root: windowLayout.root,
-        })),
-    ];
-}
-
 /** Calls `fn` for every node of a state: the main tree, the borders, then each window's tree. */
 export function walkState(
     state: AnyState,
@@ -64,6 +50,44 @@ export function walkState(
             fn(node, parent, windowLayout.id),
         );
     }
+}
+
+/** What {@link defaultTabset} reads: the committed state's index, or a draft. */
+export interface NodeLookup {
+    get(id: string): AnyNode | undefined;
+    layoutOf(id: string): string | undefined;
+}
+
+/**
+ * The tabset to place into when no target is given: the layout's active tabset, else its first in
+ * tree order. `rootId` and `activeId` are the layout's root row and active tabset.
+ */
+export function defaultTabset(
+    nodes: NodeLookup,
+    layoutId: string,
+    rootId: string | undefined,
+    activeId: string | undefined,
+): string | undefined {
+    if (activeId !== undefined && nodes.layoutOf(activeId) === layoutId) {
+        return activeId;
+    }
+    const first = (id: string): string | undefined => {
+        const node = nodes.get(id);
+        if (node?.type === "tabset") {
+            return node.id;
+        }
+        if (node?.type !== "row") {
+            return undefined;
+        }
+        for (const child of node.children) {
+            const found = first(child.id);
+            if (found !== undefined) {
+                return found;
+            }
+        }
+        return undefined;
+    };
+    return rootId === undefined ? undefined : first(rootId);
 }
 
 export interface IndexEntry {
@@ -105,12 +129,22 @@ export class NodeIndex {
         return this.entries.get(id)?.parent;
     }
 
-    ids(): IterableIterator<string> {
-        return this.entries.keys();
-    }
-
-    get size(): number {
-        return this.entries.size;
+    /** the layout a node is in: its root row's, or the main layout for a border's */
+    layoutOf(id: string): string | undefined {
+        if (!this.entries.has(id)) {
+            return undefined;
+        }
+        let top = id;
+        for (
+            let parent = this.parent(top);
+            parent !== undefined;
+            parent = this.parent(top)
+        ) {
+            top = parent;
+        }
+        return this.get(top)?.type === "border"
+            ? MAIN_LAYOUT
+            : this.roots.get(top);
     }
 
     /** the layout of the root row `id`, if it is one */

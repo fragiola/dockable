@@ -7,7 +7,7 @@ A popout moves a tab into a **native browser window**. The content keeps its sta
 moveable element is re-parented into the new document with `appendChild`, never cloned, and its
 React tree stays where it was.
 
-In the model, a popout is a **window layout**: an entry of `state.windows` (a `WindowLayout`, with
+In the model, a popout is a **window layout**: an entry of `model.get("windows")` (a `WindowLayout`, with
 its `id`, its screen `rect` and its own root row). The core opens one native window per window
 layout while the layout is mounted, and closes a window whose layout is gone.
 
@@ -60,7 +60,7 @@ root row:
     <Dockable.Row<Types>>{renderNode}</Dockable.Row>
     <Dockable.Panels<Types>>{(tab) => <Dockable.Panel node={tab}>{content(tab)}</Dockable.Panel>}</Dockable.Panels>
     <Dockable.DropIndicator className="drop-indicator" />
-    <Dockable.Popout<Types> className="popout-root" title={(layout) => "My app"}>
+    <Dockable.Popout<Types> className="popout-root">
         {() => <Dockable.Row<Types>>{renderNode}</Dockable.Row>}
     </Dockable.Popout>
 </Dockable.Root>
@@ -128,19 +128,19 @@ them in sync, so a theme switch follows into open windows:
 
 The examples put their theme on `<body>` (`data-example-theme`) for this reason: `popoutMirrorRoot`
 carries it into every window, and the menus they portal into `<body>` take it too. A theme that
-lives on another element (a wrapper `div`) is not on the document root: set it in
-`Dockable.Popout`'s `onOpen`, which runs when the popout document is ready and before its content
-renders.
-`onPopoutOpen`/`onPopoutClose` on `Root` receive the same `(layout, window, document)` arguments
-(`layout` is the `WindowLayout`), for set-up that is not about rendering (a CSS-in-JS cache for
-the new document, analytics).
+lives on another element (a wrapper `div`) is not on the document root: set it in `Root`'s
+`onPopoutOpen`, which runs when the popout document is ready and before its content renders.
+`onPopoutOpen` and `onPopoutClose` receive `(layout, window, document)` (`layout` is the
+`WindowLayout`), also for set-up that is not about rendering (a CSS-in-JS cache for the new
+document, analytics). `popoutTitle` on `Root` names the window's document
+(`popoutTitle={(layout) => "My app"}`); with none, the host page's title is kept.
 
 ## Closing a popout
 
 When the user closes a popout window, the core runs **`window.close`** for its layout: its tabs
-move back into the main layout's active tabset (its first tabset when none is active), and the
-window layout is removed. The result lists the tabs that moved back. It is a command like any
-other, so a listener sees it and an undo can reverse it.
+move back into the main layout's active tabset (its first tabset when none is active:
+`model.get("default-tabset")`), and the window layout is removed. The result lists the tabs that
+moved back. It is a command like any other, so a listener sees it and an undo can reverse it.
 
 The same command closes a window from code:
 

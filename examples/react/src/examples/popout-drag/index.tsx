@@ -21,7 +21,6 @@ import * as styles from "./styles";
 // another; each window draws its own outline (a DropIndicator inside Dockable.Popout, below).
 // The content element moves with the tab, so the counter and the notes keep their values.
 
-// What the layout holds: one tab component, named by its label.
 type Types = { tabs: { card: undefined } };
 
 const card = (name: string) => ({ component: "card" as const, label: name });
@@ -53,7 +52,6 @@ const popoutURL = `${import.meta.env.BASE_URL}popout.html`;
 export default function PopoutDrag() {
     const [model] = useState(() => createModel<Types>(json));
     return (
-        // The root needs a size: the wrapper gives it one, and the gutter around it.
         <div className={styles.frame}>
             <Dockable.Root
                 model={model}
@@ -63,7 +61,6 @@ export default function PopoutDrag() {
                 popoutMirrorRoot
                 className={styles.root}
             >
-                {/* The layout's rows and tabsets: the developer owns the recursion. */}
                 <Dockable.Row<Types>
                     renderSplitter={(props) => <Splitter {...props} />}
                 >
@@ -82,7 +79,7 @@ export default function PopoutDrag() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                <DropIndicator />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
                 {/* Each popout window: its own floor, rows and drop outline, portalled into the
                     window once it is ready. */}
                 <Dockable.Popout<Types> className={styles.popout}>
@@ -96,7 +93,9 @@ export default function PopoutDrag() {
                                 {renderNode}
                             </Dockable.Row>
                             {/* a window shows its own outline during a drag into it */}
-                            <DropIndicator />
+                            <Dockable.DropIndicator
+                                className={styles.dropIndicator}
+                            />
                         </>
                     )}
                 </Dockable.Popout>
@@ -105,7 +104,6 @@ export default function PopoutDrag() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -135,7 +133,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -157,9 +154,18 @@ function WindowButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <>
             <Dockable.PopoutTrigger
-                aria-label="Pop out the tab"
                 data-testid="popout-tab"
                 className={styles.windowButton}
+                render={(props, state) => (
+                    <button
+                        {...props}
+                        aria-label={
+                            state.mode === "dock"
+                                ? "Dock the tab back"
+                                : "Pop out the tab"
+                        }
+                    />
+                )}
             >
                 <SquareArrowOutUpRight
                     aria-hidden
@@ -171,9 +177,18 @@ function WindowButtons({ tabset }: { tabset: TabsetNode<Types> }) {
             {tabset.children.length > 1 ? (
                 <Dockable.PopoutTrigger
                     target="tabset"
-                    aria-label="Pop out the whole tabset"
                     data-testid="popout-tabset"
                     className={styles.tabsetWindowButton}
+                    render={(props, state) => (
+                        <button
+                            {...props}
+                            aria-label={
+                                state.mode === "dock"
+                                    ? "Dock the whole tabset back"
+                                    : "Pop out the whole tabset"
+                            }
+                        />
+                    )}
                 >
                     <AppWindow aria-hidden className={styles.tabsetIcon} />
                 </Dockable.PopoutTrigger>
@@ -182,19 +197,6 @@ function WindowButtons({ tabset }: { tabset: TabsetNode<Types> }) {
     );
 }
 
-/** Where a dragged tab would land. */
-function DropIndicator() {
-    return (
-        <Dockable.DropIndicator
-            className={styles.dropIndicator}
-            style={(state) => ({
-                transitionDuration: `${state.tabDragSpeed}s`,
-            })}
-        />
-    );
-}
-
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

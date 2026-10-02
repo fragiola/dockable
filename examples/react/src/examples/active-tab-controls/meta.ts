@@ -7,11 +7,11 @@ export default {
     category: "external-integration",
     order: 3,
     features: [
-        "active-tabset",
+        "default-tabset",
         "selected-tab-by",
         "tab.set-data",
         "typed data",
-        "model.subscribe",
+        "useModelState",
         "Chart",
     ],
     docs: "/docs/concepts/typed-data",

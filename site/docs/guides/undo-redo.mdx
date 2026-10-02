@@ -17,21 +17,25 @@ several layouts combine are your app's decisions. The package gives you what you
 
 The examples' `UndoManager` (`examples/_kit/undo.ts`, in the code panel of the example below)
 puts these together: it records the state before each step, and on undo or redo loads it back
-with `layout.load`. Copy it, and change it to fit your app.
+with `layout.load`. It is small on purpose: `new UndoManager(model, options)`, `undo()`, `redo()`,
+and `subscribe`/`getSnapshot` for the UI, whose snapshot is `{ canUndo, canRedo, undoSteps,
+redoSteps }`. Copy it, and change it to fit your app.
 
 <Example id="undo-redo" />
 
 ## Wiring it to React
 
 The manager is a small external store: `subscribe` and `getSnapshot` are bound, so they go
-straight into `useSyncExternalStore`. The model never changes: undo and redo change its state, so
+straight into `useSyncExternalStore`. Create it once, beside the model (`useState`): it subscribes
+to the model in its constructor and listens for the model's whole life, so there is nothing to
+dispose in an effect. The model never changes: undo and redo change its state, so
 `Dockable.Root` keeps its engine and nothing remounts.
 
 ```tsx
 import { type CommandName, createModel, type LayoutJson } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
-import { useState, useSyncExternalStore } from "react";
-import { UndoManager } from "./undo"; // the examples' _kit/undo.ts, copied into your app
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { handleUndoKeys, UndoManager } from "./undo"; // the examples' _kit/undo.ts, copied into your app
 
 type Types = { tabs: { card: undefined } };
 
@@ -42,6 +46,13 @@ export function UndoableLayout({ json }: { json: LayoutJson<Types> }) {
     const [model] = useState(() => createModel<Types>(json));
     const [undo] = useState(() => new UndoManager(model, { ignoreCommands: IGNORED }));
     const { canUndo, canRedo } = useSyncExternalStore(undo.subscribe, undo.getSnapshot, undo.getSnapshot);
+
+    // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z and Ctrl/Cmd+Y redo; a text field keeps its own undo
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => handleUndoKeys(undo, event);
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [undo]);
 
     return (
         <>
@@ -61,9 +72,9 @@ export function UndoableLayout({ json }: { json: LayoutJson<Types> }) {
 }
 ```
 
-For keyboard shortcuts, listen for `Ctrl+Z` / `Ctrl+Shift+Z` (or `Meta` on macOS) on the
-document and call `undo()`/`redo()`, skipping events whose target is an editable field so text
-inputs keep their own undo.
+`handleUndoKeys(undo, event)` is the kit's shortcut handler: it takes a DOM `KeyboardEvent` or
+React's, so it also fits an `onKeyDown` on the element that should own the shortcuts (the
+dashboard example scopes them to itself that way).
 
 ## What is recorded
 
@@ -122,10 +133,10 @@ middleware and listeners stay installed across undo and redo.
 
 ## Loading another layout
 
-`undo.setModel(model)` switches the manager to another model and clears the history;
-`setModel(model, false)` keeps it. `undo.reset()` clears the history without touching the model.
 Loading a saved layout into the same model (`layout.load`) is itself a step, which an undo takes
-back; call `reset()` after it when it should not be.
+back. When it should not be, add a `reset()` to your copy that empties both buffers and takes the
+model's current state as the one the next step goes back to. A manager listens to one model for
+its lifetime: another model gets its own manager.
 
 ## Content state across undo
 

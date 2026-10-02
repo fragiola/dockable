@@ -623,15 +623,15 @@ Open or close a border's panel (open), switch it between docked and overlay (mod
 | --- | --- | --- | --- |
 | `borderId` | `string` | yes | the border's id (`border_<location>` unless the layout names it) |
 | `open` | `boolean` | no | open (true) or close (false) the border's panel |
-| `mode` | `"docked" \| "overlay" \| null` | no | docked (beside the layout) or overlay (over it) (null removes it: the layout default applies) |
 | `show` | `boolean \| null` | no | false hides the border entirely (null removes it: the layout default applies) |
+| `size` | `number \| null` | no | its panel's size, in px (null removes it: the layout default applies) |
+| `minSize` | `number \| null` | no | its panel's smallest size, in px (null removes it: the layout default applies) |
+| `maxSize` | `number \| null` | no | its panel's largest size, in px (null removes it: the layout default applies) |
+| `mode` | `"docked" \| "overlay" \| null` | no | docked (beside the layout) or overlay (over it) (null removes it: the layout default applies) |
 | `autoHide` | `boolean \| null` | no | hide the strip while the border has no tabs (a drag near its edge reveals it) (null removes it: the layout default applies) |
 | `enableDrop` | `boolean \| null` | no | whether tabs can be dropped into it (null removes it: the layout default applies) |
 | `autoSelectTabWhenOpen` | `boolean \| null` | no | whether a tab added while its panel is open is selected (null removes it: the layout default applies) |
 | `autoSelectTabWhenClosed` | `boolean \| null` | no | whether a tab added while its panel is closed is selected (which opens it) (null removes it: the layout default applies) |
-| `size` | `number \| null` | no | its panel's size, in px (null removes it: the layout default applies) |
-| `minSize` | `number \| null` | no | its panel's smallest size, in px (null removes it: the layout default applies) |
-| `maxSize` | `number \| null` | no | its panel's largest size, in px (null removes it: the layout default applies) |
 | `data` | `JSON` | no | the app's data (any JSON value) |
 
 **Result** (`{ borderId: string }`)

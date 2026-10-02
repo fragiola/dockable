@@ -13,27 +13,36 @@
 // - "add" drags (a consumer element dragged in) and external drags (a foreign drag accepted by
 //   `onExternalDrag`) drop through `tab.add`;
 // - drop zones: consumer elements that take a layout drag and hand it to the consumer.
-import type { PayloadOf } from "../commands/types";
 import {
     type DropCandidate,
     type DropGeometry,
-    type DropSubjectKind,
     dropCandidates,
 } from "../drop/resolve";
 import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { MeasurableKind } from "../engine/measure";
 import type { DockLocation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect, rect, rectEquals } from "../geometry/rect";
 import { enablePointerOnIFrames } from "../splitter/SplitterController";
-import { resolveBorder, resolveLayout, resolveTabset } from "../state/defaults";
-import type { TabInit, TabInitOf } from "../state/json";
+import { borderShown, resolveLayout } from "../state/defaults";
+import type { TabInitOf } from "../state/json";
 import type { Model } from "../state/model";
-import type { AnyState } from "../state/tree";
-import type {
-    AnyTypes,
-    DockableTypes,
-    TabOf,
-    TabsetNode,
-} from "../state/types";
+import type { AnyTypes, DockableTypes } from "../state/types";
+import { type DropCommand, DropCommands } from "./dropCommand";
+import { type DropZoneOptions, registerDropZone } from "./dropZones";
+import {
+    attachedMains,
+    type DragEventLike,
+    type DragSourceKind,
+    DragState,
+    type DragSubject,
+    endDrag,
+    endExternalDragOutside,
+    getDragState,
+    type NewTabDropped,
+    setDragState,
+    startAddDrag,
+    subscribeDrag,
+} from "./session";
 
 /** The MIME type every Dockable drag carries; drags without it are not Dockable's. */
 export const DRAG_TYPE = "application/x-dockable";
@@ -43,15 +52,6 @@ export type DropLocation = DockLocation;
 
 /** What a drop outline represents: a drop into or beside a node (`rect`), or at a layout edge. */
 export type DropKind = "rect" | "edge";
-
-/** What is being dragged. */
-export type DragSubject<T extends DockableTypes = AnyTypes> =
-    /** a tab of the layout */
-    | { readonly kind: "tab"; readonly tab: TabOf<T> }
-    /** a whole tabset of the layout */
-    | { readonly kind: "tabset"; readonly tabset: TabsetNode<T> }
-    /** a new tab (a drag source, or a foreign drag) */
-    | { readonly kind: "new"; readonly tab: TabInitOf<T> };
 
 /** What a drop indicator shows. The same object is returned until it changes. */
 export interface DropIndicatorState {
@@ -74,28 +74,16 @@ export interface DropIndicatorState {
     /** the id of the drop target node (a tabset, a row for edge drops, a border) */
     readonly targetNodeId: string | undefined;
     /** the id of the tabset (or border) the drop goes into or beside */
-    readonly targetTabSetId: string | undefined;
+    readonly targetTabsetId: string | undefined;
     /** the insertion index in the target's tab strip, or -1 for a drop on the content area */
     readonly index: number;
     /** the pointer is over a target that refuses the drop (a rule of the layout, a middleware) */
     readonly refused: boolean;
     /** the id of the tabset (or border) that refused the drop, when it was one */
-    readonly refusedTabSetId: string | undefined;
+    readonly refusedTabsetId: string | undefined;
     /** an auto-hide border with no tabs that the drag reveals (main layout only) */
     readonly revealedBorder: Exclude<DropLocation, "center"> | undefined;
 }
-
-/** The subset of a native `DragEvent` the manager uses. */
-export type DragEventLike = Pick<
-    DragEvent,
-    "clientX" | "clientY" | "dataTransfer" | "target" | "preventDefault"
->;
-
-/** Called after an add or external drag was dropped: the new tab's id, or undefined when refused. */
-export type NewTabDropped = (
-    tab: string | undefined,
-    event: DragEventLike,
-) => void;
 
 /** What `onExternalDrag` returns to accept a foreign drag: the tab to create, and a callback. */
 export interface ExternalDrag<T extends DockableTypes = AnyTypes> {
@@ -114,79 +102,8 @@ export type OnExternalDrag<T extends DockableTypes = AnyTypes> = (
     event: DragEventLike,
 ) => ExternalDrag<T> | undefined;
 
-/** Options of a drop zone: a consumer element that takes a layout drag. */
-export interface DropZoneOptions<T extends DockableTypes = AnyTypes> {
-    /** whether the zone takes this drag (default: every drag of the zone's model) */
-    accepts?: ((drag: DragSubject<T>) => boolean) | undefined;
-    /** called when the drag is dropped on the zone; nothing is moved: run the command you want */
-    onDrop: (drag: DragSubject<T>, event: DragEventLike) => void;
-    /** called when the pointer enters (`true`) or leaves (`false`) the zone during a drag it takes */
-    onOverChange?: ((over: boolean) => void) | undefined;
-}
-
-interface DropZone {
-    element: Element;
-    model: object;
-    options: DropZoneOptions<AnyTypes>;
-    enterCount: number;
-    over: boolean;
-}
-
-/** How a drag started: a node of a layout, a consumer element that adds a tab, a foreign drag. */
-export type DragSourceKind = "internal" | "add" | "external";
-
-/** The drag in progress. There is one for the page, shared by every window of a model. */
-export class DragState {
-    readonly mainEngine: LayoutEngine<AnyTypes>;
-    readonly source: DragSourceKind;
-    readonly subject: DragSubject<AnyTypes>;
-    /** called after an add or external drag was dropped */
-    readonly onNewTabDropped: NewTabDropped | undefined;
-
-    constructor(
-        mainEngine: LayoutEngine<AnyTypes>,
-        source: DragSourceKind,
-        subject: DragSubject<AnyTypes>,
-        onNewTabDropped?: NewTabDropped,
-    ) {
-        this.mainEngine = mainEngine;
-        this.source = source;
-        this.subject = subject;
-        this.onNewTabDropped = onNewTabDropped;
-    }
-
-    /** the id of the dragged tab or tabset (undefined for a new tab) */
-    get dragId(): string | undefined {
-        return this.subject.kind === "tab"
-            ? this.subject.tab.id
-            : this.subject.kind === "tabset"
-              ? this.subject.tabset.id
-              : undefined;
-    }
-
-    /** true for drags that create a new tab on drop */
-    isNewTab(): boolean {
-        return this.subject.kind === "new";
-    }
-
-    /** What is dragged, typed by the registry of `model`, when the drag belongs to `model`. */
-    subjectOf<T extends DockableTypes>(
-        model: Model<T>,
-    ): DragSubject<T> | undefined {
-        return sameModel(this.mainEngine.adapter.model, model)
-            ? (this.subject as unknown as DragSubject<T>)
-            : undefined;
-    }
-}
-
-/** whether two models (of any registries) are the same object */
-function sameModel(a: object, b: object): boolean {
-    return a === b;
-}
-
 function hasOwnPayload(event: DragEventLike): boolean {
-    const types = event.dataTransfer?.types;
-    return !!types && Array.from(types).includes(DRAG_TYPE);
+    return event.dataTransfer?.types.includes(DRAG_TYPE) ?? false;
 }
 
 /**
@@ -199,43 +116,48 @@ function isForeignDrag(event: DragEventLike): boolean {
     return !!types && types.length > 0 && !hasOwnPayload(event);
 }
 
-/** A command a drop runs, as the manager prepares it. */
-type DropCommand =
-    | { command: "tab.move"; payload: PayloadOf<AnyTypes, "tab.move"> }
-    | { command: "tabset.move"; payload: PayloadOf<AnyTypes, "tabset.move"> }
-    | { command: "tab.add"; payload: PayloadOf<AnyTypes, "tab.add"> };
+/** The indicator fields of a pointer over no target (over one that refuses the drop, if given). */
+function noTarget(refused?: DropCandidate) {
+    return {
+        visible: false,
+        targetNodeId: undefined,
+        targetTabsetId: undefined,
+        index: -1,
+        refused: refused !== undefined,
+        refusedTabsetId: refused?.container,
+    };
+}
 
 /**
  * The drag-and-drop state machine of one layout engine, working on native drag events. The static
  * {@link DragState} is shared across every engine and window of the page, so a drag can cross
  * layouts (popouts participate in the same drag).
  */
-export class DragDropManager<T extends DockableTypes = AnyTypes> {
-    private static dragState: DragState | undefined = undefined;
-    private static readonly dragListeners = new Set<() => void>();
-    private static readonly dropZones = new Set<DropZone>();
-    /** the managers of the main layouts attached to the page, by model (latest last) */
-    private static readonly attachedMains = new WeakMap<
-        object,
-        DragDropManager<AnyTypes>[]
-    >();
-
-    private readonly engine: LayoutEngine<T>;
+export class DragDropManager {
+    private readonly engine: LayoutEngine<AnyTypes>;
+    /** the rects the drop resolution reads, from this layout's engine */
+    private readonly geometry: DropGeometry;
     private dragEnterCount = 0;
-    private dragging = false;
     private active = false;
-    private target: DropCommand | "self" | undefined;
+    private target: DropCommand | undefined;
     private indicator: DropIndicatorState;
     private readonly listeners = new Set<() => void>();
-    private removeLostDragGuard: (() => void) | undefined;
-    /** the model's answers during the current drag, by candidate (the state does not change mid-drag) */
-    private verdicts = new Map<string, boolean>();
-    private verdictsFor: DragState | undefined;
-    private verdictsState: unknown;
+    private readonly commands: DropCommands;
 
-    constructor(engine: LayoutEngine<T>) {
+    constructor(engine: LayoutEngine<AnyTypes>) {
         this.engine = engine;
+        this.commands = new DropCommands(engine);
         this.indicator = this.idleIndicator();
+        const rect = (kind: MeasurableKind) => (id: string) =>
+            engine.adapter.rect(kind, id);
+        this.geometry = {
+            node: (id) => rect("row")(id) ?? rect("tabset")(id),
+            tabStrip: rect("tabstrip"),
+            content: rect("tabsetcontent"),
+            tabButton: rect("tabbutton"),
+            borderStrip: rect("borderheader"),
+            borderContent: rect("bordercontent"),
+        };
     }
 
     // *********************************************************************************
@@ -244,21 +166,19 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
 
     /** The drag in progress, if any. */
     static getDragState(): DragState | undefined {
-        return DragDropManager.dragState;
+        return getDragState();
     }
 
     /** Calls `listener` when a drag starts or ends. Returns the unsubscribe function. */
     static subscribeDrag(listener: () => void): () => void {
-        DragDropManager.dragListeners.add(listener);
-        return () => {
-            DragDropManager.dragListeners.delete(listener);
-        };
+        return subscribeDrag(listener);
     }
 
     /**
      * Starts dragging a new tab into the layout of `model` from a consumer element anywhere on the
-     * page (a sidebar item, a palette entry): {@link startAddDrag} on the manager of the model's
-     * attached main layout. Returns false, starting nothing, when no layout of `model` is attached.
+     * page (a sidebar item, a palette entry). Call from the element's `dragstart`, and
+     * {@link endDrag} from its `dragend`. A drop runs `tab.add`, then calls `onDrop` with the new
+     * tab's id. Returns false, starting nothing, when no layout of `model` is attached.
      */
     static startAddDrag<T extends DockableTypes>(
         model: Model<T>,
@@ -267,38 +187,12 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         onDrop?: NewTabDropped,
         dragImage?: Element | null,
     ): boolean {
-        const managers = DragDropManager.attachedMains.get(model);
-        const manager = managers?.[managers.length - 1] as
-            | DragDropManager<T>
-            | undefined;
-        if (!manager) {
-            return false;
-        }
-        manager.startAddDrag(event, tab, onDrop, dragImage);
-        return true;
+        return startAddDrag(model, event, tab, onDrop, dragImage);
     }
 
-    /** Ends the page's drag, if any (a drag source's `dragend`). */
+    /** Ends the page's drag, if any (a drag source's `dragend`, or the lost drag fallback). */
     static endDrag() {
-        DragDropManager.dragState?.mainEngine.adapter
-            .getDragDropManager()
-            .onDragEnded();
-    }
-
-    private static setDragState(state: DragState | undefined) {
-        if (DragDropManager.dragState === state) {
-            return;
-        }
-        DragDropManager.dragState = state;
-        if (state === undefined) {
-            for (const zone of DragDropManager.dropZones) {
-                DragDropManager.setZoneOver(zone, false);
-                zone.enterCount = 0;
-            }
-        }
-        for (const listener of [...DragDropManager.dragListeners]) {
-            listener();
-        }
+        endDrag();
     }
 
     // *********************************************************************************
@@ -327,37 +221,29 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             showEdges: false,
             tabDragSpeed: this.engine.adapter.getTabDragSpeed(),
             targetNodeId: undefined,
-            targetTabSetId: undefined,
+            targetTabsetId: undefined,
             index: -1,
             refused: false,
-            refusedTabSetId: undefined,
+            refusedTabsetId: undefined,
             revealedBorder: undefined,
         };
     }
 
     private setIndicator(next: DropIndicatorState) {
         const prev = this.indicator;
-        if (
-            prev.visible === next.visible &&
-            rectEquals(prev.rect, next.rect) &&
-            prev.location === next.location &&
-            prev.kind === next.kind &&
-            prev.dragging === next.dragging &&
-            prev.dragNodeId === next.dragNodeId &&
-            prev.showEdges === next.showEdges &&
-            prev.tabDragSpeed === next.tabDragSpeed &&
-            prev.targetNodeId === next.targetNodeId &&
-            prev.targetTabSetId === next.targetTabSetId &&
-            prev.index === next.index &&
-            prev.refused === next.refused &&
-            prev.refusedTabSetId === next.refusedTabSetId &&
-            prev.revealedBorder === next.revealedBorder
-        ) {
-            return;
-        }
-        this.indicator = next;
-        for (const listener of [...this.listeners]) {
-            listener();
+        let key: keyof DropIndicatorState;
+        for (key in next) {
+            if (
+                key === "rect"
+                    ? !rectEquals(prev.rect, next.rect)
+                    : prev[key] !== next[key]
+            ) {
+                this.indicator = next;
+                for (const listener of [...this.listeners]) {
+                    listener();
+                }
+                return;
+            }
         }
     }
 
@@ -365,82 +251,64 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     // Starting and ending a drag
     // *********************************************************************************
 
-    /** center drops are not offered for a tabset that can never merge (cannot close, or holds pinned tabs) */
-    private isExcludeCenter(subject: DragSubject<AnyTypes>): boolean {
-        if (subject.kind !== "tabset") {
-            return false;
-        }
-        const tabset = subject.tabset;
-        const flags = resolveTabset(this.state().defaults, tabset);
-        return (
-            !flags.enableClose ||
-            tabset.children.some((tab) => tab.pinned === true)
+    /** makes a drag of this layout's model the page's drag */
+    private setDrag(
+        source: DragSourceKind,
+        subject: DragSubject,
+        onDrop?: NewTabDropped,
+    ) {
+        setDragState(
+            new DragState(this.engine.adapter.main, source, subject, onDrop),
+            this.engine.get("owner-document"),
         );
+        this.dragEnterCount = 0;
     }
 
-    private state(): AnyState {
-        return this.engine.adapter.model.state as unknown as AnyState;
-    }
-
-    private begin(
+    /** @internal */
+    begin(
         event: DragEventLike,
         source: DragSourceKind,
-        subject: DragSubject<AnyTypes>,
-        onNewTabDropped?: NewTabDropped,
+        subject: DragSubject,
+        onDrop?: NewTabDropped,
     ) {
-        DragDropManager.setDragState(
-            new DragState(
-                this.engine.adapter.main as unknown as LayoutEngine<AnyTypes>,
-                source,
-                subject,
-                onNewTabDropped,
-            ),
-        );
+        this.setDrag(source, subject, onDrop);
         const dataTransfer = event.dataTransfer;
         if (dataTransfer) {
-            dataTransfer.setData(
-                DRAG_TYPE,
-                DragDropManager.dragState?.dragId ?? "",
-            );
+            dataTransfer.setData(DRAG_TYPE, getDragState()?.dragId ?? "");
             const copy = subject.kind === "new";
             dataTransfer.effectAllowed = copy ? "copy" : "copyMove";
             dataTransfer.dropEffect = copy ? "copy" : "move";
         }
-        this.dragEnterCount = 0;
-        this.installLostDragGuard();
     }
 
     /**
      * Starts dragging a tab or a whole tabset of this layout (by id). Call from the source's
-     * `dragstart`. `dragImage` is the element the browser snapshots; with none, the browser default.
+     * `dragstart`, and {@link endDrag} from its `dragend`. `dragImage` is the element the browser
+     * snapshots; with none, the browser default.
      */
     startDrag = (
         event: DragEventLike,
         id: string,
         dragImage?: Element | null,
     ) => {
-        const node = this.engine.adapter.model.get("node-by", {
-            id: id,
-        });
+        const model = this.engine.adapter.model;
+        const node = model.get("node-by", { id });
         if (node?.type !== "tab" && node?.type !== "tabset") {
             return;
         }
-        const subject: DragSubject<AnyTypes> =
+        this.begin(
+            event,
+            "internal",
             node.type === "tab"
-                ? { kind: "tab", tab: node as unknown as TabOf<AnyTypes> }
-                : {
-                      kind: "tabset",
-                      tabset: node as unknown as TabsetNode<AnyTypes>,
-                  };
-        this.begin(event, "internal", subject);
+                ? { kind: "tab", tab: node }
+                : { kind: "tabset", tabset: node },
+        );
         if (!dragImage) {
             return;
         }
         let x = 10;
         let y = 10;
-        const parent = this.engine.adapter.model.get("node-parent-by", {
-            nodeId: id,
-        });
+        const parent = model.get("node-parent-by", { nodeId: id });
         const inSideBorder =
             parent?.type === "border" &&
             (parent.location === "left" || parent.location === "right");
@@ -457,95 +325,14 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     };
 
     /**
-     * Starts dragging a new tab from a consumer element (a sidebar item, a palette entry). Call
-     * from the element's `dragstart`, and {@link onDragEnded} from its `dragend`. A drop runs
-     * `tab.add`, then calls `onDrop` with the new tab's id.
-     */
-    startAddDrag = (
-        event: DragEventLike,
-        tab: TabInitOf<T>,
-        onDrop?: NewTabDropped,
-        dragImage?: Element | null,
-    ) => {
-        this.begin(
-            event,
-            "add",
-            { kind: "new", tab: tab as TabInitOf<AnyTypes> },
-            onDrop,
-        );
-        if (dragImage) {
-            event.dataTransfer?.setDragImage(dragImage, 10, 10);
-        }
-    };
-
-    /** Asks the main engine's `onExternalDrag` whether a foreign drag can be dropped here. */
-    private startExternalDrag(event: DragEventLike) {
-        const external = this.engine.adapter.getOnExternalDrag()?.(event);
-        if (!external) {
-            return;
-        }
-        DragDropManager.setDragState(
-            new DragState(
-                this.engine.adapter.main as unknown as LayoutEngine<AnyTypes>,
-                "external",
-                { kind: "new", tab: external.tab as TabInitOf<AnyTypes> },
-                external.onDrop,
-            ),
-        );
-        this.installLostDragGuard();
-    }
-
-    /** Ends the drag. Called on `dragend` from the drag source, or by the lost drag fallback. */
-    onDragEnded = () => {
-        this.clearDragMain();
-        this.removeLostDragGuard?.();
-        DragDropManager.setDragState(undefined);
-    };
-
-    /**
-     * Lost drag fallback: `dragend` is dispatched on the drag source, so it never arrives when the
-     * source unmounts mid-drag. A pointer move with no button held, or a new press, ends a drag
-     * that is still registered.
-     */
-    private installLostDragGuard() {
-        this.removeLostDragGuard?.();
-        const doc = this.engine.get("owner-document");
-        if (!doc) {
-            return;
-        }
-        const state = DragDropManager.dragState;
-        const end = () => {
-            remove();
-            if (DragDropManager.dragState === state) {
-                this.onDragEnded();
-            }
-        };
-        const onPointerMove = (event: PointerEvent) => {
-            if (event.buttons === 0) {
-                end();
-            }
-        };
-        const remove = () => {
-            doc.removeEventListener("pointerdown", end, true);
-            doc.removeEventListener("pointermove", onPointerMove, true);
-            if (this.removeLostDragGuard === remove) {
-                this.removeLostDragGuard = undefined;
-            }
-        };
-        doc.addEventListener("pointerdown", end, true);
-        doc.addEventListener("pointermove", onPointerMove, true);
-        this.removeLostDragGuard = remove;
-    }
-
-    /**
      * Attaches the native drag listeners to a layout root, and the document listeners that end the
      * page's drag on every `dragend` and `drop` (a drop into an input, a drag released outside).
      * Returns the function that detaches them.
      */
     attach(element: HTMLElement): () => void {
         const doc = element.ownerDocument;
-        const onDragEnter = (event: DragEvent) => this.onDragEnterRaw(event);
-        const onDragLeave = (event: DragEvent) => this.onDragLeaveRaw(event);
+        const onDragEnter = (event: DragEvent) => this.onDragEnter(event);
+        const onDragLeave = (event: DragEvent) => this.onDragLeave(event);
         const onDragOver = (event: DragEvent) => this.onDragOver(event);
         const onDrop = (event: DragEvent) => this.onDrop(event);
         element.addEventListener("dragenter", onDragEnter);
@@ -556,32 +343,21 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         // the drag is over
         const onDocumentEnd = () => {
             this.clearDragLocal();
-            if (DragDropManager.dragState) {
-                DragDropManager.dragState.mainEngine.adapter
-                    .getDragDropManager()
-                    .onDragEnded();
-            }
+            endDrag();
         };
         doc.addEventListener("dragend", onDocumentEnd);
         doc.addEventListener("drop", onDocumentEnd);
-        const self = this as unknown as DragDropManager<AnyTypes>;
+        const model = this.engine.adapter.model;
         const main = this.engine.adapter.main === this.engine;
         if (main) {
-            const managers =
-                DragDropManager.attachedMains.get(this.engine.adapter.model) ??
-                [];
-            managers.push(self);
-            DragDropManager.attachedMains.set(
-                this.engine.adapter.model,
-                managers,
-            );
+            const managers = attachedMains.get(model) ?? [];
+            managers.push(this);
+            attachedMains.set(model, managers);
         }
         return () => {
             if (main) {
-                const managers = DragDropManager.attachedMains.get(
-                    this.engine.adapter.model,
-                );
-                const index = managers?.indexOf(self) ?? -1;
+                const managers = attachedMains.get(model);
+                const index = managers?.indexOf(this) ?? -1;
                 if (index >= 0) {
                     managers?.splice(index, 1);
                 }
@@ -600,8 +376,8 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     // Native drag events on the layout root
     // *********************************************************************************
 
-    /** the managers of every layout of this model: the main one and the popout windows' */
-    private managers(): DragDropManager<T>[] {
+    /** @internal the managers of every layout of this model: the main one and the popout windows' */
+    managers(): DragDropManager[] {
         const main = this.engine.adapter.main;
         const managers = [main.adapter.getDragDropManager()];
         const popouts = main.adapter.getPopoutManager();
@@ -616,55 +392,68 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         return managers;
     }
 
+    /** @internal a drag is over one of this model's layouts */
+    anyDragging(): boolean {
+        return this.managers().some((manager) => manager.indicator.dragging);
+    }
+
     /** decides which layout is the active drop target: the one the pointer is in */
-    updateActive(event: DragEventLike) {
+    private updateActive(event: DragEventLike) {
         const managers = this.managers();
         // windows first: a popout is its own document, so at most one layout has the pointer
         const found = [...managers.slice(1), managers[0]].find(
-            (manager) => manager && manager.getDragEnterCount() > 0,
+            (manager) => manager && manager.dragEnterCount > 0,
         );
         for (const manager of managers) {
             manager.setActive(manager === found, event);
         }
     }
 
-    setActive(active: boolean, event: DragEventLike) {
+    private setActive(active: boolean, event: DragEventLike) {
         if (this.active !== active) {
             this.active = active;
-            if (this.active) {
-                this.onDragEnter(event);
+            if (active) {
+                this.activate(event);
             } else {
-                this.onDragLeave(event);
+                this.deactivate();
             }
         }
     }
 
     /** `dragenter` on the layout root */
-    onDragEnterRaw = (event: DragEventLike) => {
-        const state = DragDropManager.dragState;
+    private onDragEnter(event: DragEventLike) {
+        const state = getDragState();
         if (state && state.source !== "external" && isForeignDrag(event)) {
             // a drag that is not Dockable's while a stale state lingers (its dragend never came)
-            state.mainEngine.adapter.getDragDropManager().onDragEnded();
+            endDrag();
         }
         // ask onExternalDrag once per entry into this layout: dragenter also bubbles from every
         // child the pointer crosses, which the enter count already tracks
         if (
-            !DragDropManager.dragState &&
+            !getDragState() &&
             this.dragEnterCount === 0 &&
             !hasOwnPayload(event)
         ) {
-            this.startExternalDrag(event);
+            const external = this.engine.adapter.getOnExternalDrag()?.(event);
+            if (external) {
+                this.setDrag(
+                    "external",
+                    { kind: "new", tab: external.tab },
+                    external.onDrop,
+                );
+            }
         }
         this.dragEnterCount++;
         this.updateActive(event);
-    };
+    }
 
     /** `dragleave` on the layout root */
-    onDragLeaveRaw = (event: DragEventLike) => {
+    private onDragLeave(event: DragEventLike) {
         this.dragEnterCount = Math.max(0, this.dragEnterCount - 1);
         this.updateActive(event);
-    };
+    }
 
+    /** @internal */
     clearDragMain() {
         this.setPointerOnAllWindows(true);
         for (const manager of this.managers()) {
@@ -672,14 +461,13 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    clearDragLocal() {
+    private clearDragLocal() {
         this.dragEnterCount = 0;
         this.active = false;
         this.clearDragLocalVisuals();
     }
 
-    clearDragLocalVisuals() {
-        this.dragging = false;
+    private clearDragLocalVisuals() {
         this.target = undefined;
         this.setIndicator(this.idleIndicator());
     }
@@ -699,197 +487,72 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    /** whether the page's drag is one this layout takes */
+    /**
+     * whether the page's drag is one this layout takes: its model's, or a tab of another model
+     * whose layout is in this layout's drag group
+     */
     private belongsToDrag(event?: DragEventLike): boolean {
-        const state = DragDropManager.dragState;
-        if (!state) {
+        const state = getDragState();
+        if (
+            !state ||
+            (event && state.source !== "external" && isForeignDrag(event))
+        ) {
             return false;
         }
-        if (event && state.source !== "external" && isForeignDrag(event)) {
-            return false; // not Dockable's drag
-        }
-        if (
-            sameModel(state.mainEngine.adapter.model, this.engine.adapter.model)
-        ) {
-            return true;
-        }
-        return this.isGroupTransfer(state);
-    }
-
-    /** a drag of a tab of another model whose layout is in this layout's drag group */
-    private isGroupTransfer(state: DragState): boolean {
-        const group = this.engine.adapter.getDragGroup();
         return (
-            group !== undefined &&
-            state.source === "internal" &&
-            state.subject.kind === "tab" &&
-            !sameModel(
-                state.mainEngine.adapter.model,
-                this.engine.adapter.model,
-            ) &&
-            group.has(state.mainEngine)
+            !this.commands.fromOtherModel(state) ||
+            (state.source === "internal" &&
+                state.subject.kind === "tab" &&
+                this.engine.adapter.getDragGroup()?.has(state.mainEngine) ===
+                    true)
         );
     }
 
-    onDragEnter = (event: DragEventLike) => {
-        if (!this.belongsToDrag()) {
-            return;
-        }
-        const state = DragDropManager.dragState;
-        if (!state) {
+    /** the pointer entered this layout during a drag it takes */
+    private activate(event: DragEventLike) {
+        const state = getDragState();
+        if (!state || !this.belongsToDrag()) {
             return;
         }
         event.preventDefault();
         this.target = undefined;
-        this.dragging = true;
         this.setPointerOnAllWindows(false);
-
-        const layout = this.engine.layoutId;
-        const settings = resolveLayout(this.state().defaults);
         const showEdges =
             this.engine.adapter.model.get("maximized-tabset", {
-                layoutId: layout,
-            }) === undefined && settings.edgeDock;
+                layoutId: this.engine.layoutId,
+            }) === undefined &&
+            resolveLayout(this.engine.adapter.model.state.defaults).edgeDock;
         const root = this.engine.adapter.getFreshDomRect();
         // the outline starts as a 1x1 rect at the pointer (a view may animate from it)
         this.setIndicator({
-            visible: false,
+            ...this.idleIndicator(),
             rect: rect(event.clientX - root.x, event.clientY - root.y, 1, 1),
-            location: "center",
-            kind: "rect",
             dragging: true,
             dragNodeId: state.dragId,
             showEdges,
-            tabDragSpeed: this.engine.adapter.getTabDragSpeed(),
-            targetNodeId: undefined,
-            targetTabSetId: undefined,
-            index: -1,
-            refused: false,
-            refusedTabSetId: undefined,
-            revealedBorder: undefined,
         });
-    };
-
-    /** the rects the drop resolution reads, from this layout's engine */
-    private geometry(): DropGeometry {
-        const engine = this.engine;
-        return {
-            node: (id) =>
-                engine.adapter.rect("row", id) ??
-                engine.adapter.rect("tabset", id),
-            tabStrip: (id) => engine.adapter.rect("tabstrip", id),
-            content: (id) => engine.adapter.rect("tabsetcontent", id),
-            tabButton: (id) => engine.adapter.rect("tabbutton", id),
-            borderStrip: (id) => engine.adapter.rect("borderheader", id),
-            borderContent: (id) => engine.adapter.rect("bordercontent", id),
-        };
     }
 
-    /** the command a drop at `candidate` runs for the page's drag */
-    private commandFor(
-        state: DragState,
-        candidate: DropCandidate,
-    ): DropCommand {
-        const placement = {
-            to: candidate.target,
-            location: candidate.location,
-            index: candidate.index,
-        };
-        const subject = state.subject;
-        if (subject.kind === "tabset") {
-            return {
-                command: "tabset.move",
-                payload: { tabsetId: subject.tabset.id, ...placement },
-            };
-        }
-        if (subject.kind === "new") {
-            return {
-                command: "tab.add",
-                payload: { ...(subject.tab as TabInit), ...placement },
-            };
-        }
-        if (
-            !sameModel(
-                state.mainEngine.adapter.model,
-                this.engine.adapter.model,
-            )
-        ) {
-            // a drag group transfer: the target adds the tab (with its id when it is free)
-            const tab = subject.tab;
-            const { type: _type, ...fields } = tab;
-            const payload = this.engine.adapter.model.get("node-by", {
-                id: tab.id,
-            })
-                ? { ...fields, id: undefined }
-                : fields;
-            return {
-                command: "tab.add",
-                payload: { ...(payload as TabInit), ...placement },
-            };
-        }
-        return {
-            command: "tab.move",
-            payload: { tabId: subject.tab.id, ...placement },
-        };
-    }
-
-    /** whether the model accepts a command (asked once per candidate during a drag) */
-    private accepts(state: DragState, command: DropCommand): boolean {
-        // the subject is the drag's: within one drag and one state, the placement decides
-        const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
-        if (this.verdictsFor !== state || this.verdictsState !== model.state) {
-            this.verdictsFor = state;
-            this.verdictsState = model.state;
-            this.verdicts = new Map();
-        }
-        const { to, location, index } = command.payload;
-        const key = `${command.command}|${to}|${location}|${index}`;
-        let verdict = this.verdicts.get(key);
-        if (verdict === undefined) {
-            // a tab of another model of the drag group: asked as its transfer will run, with the
-            // same `meta.transfer` (TransferMeta), so a rule on it holds during the hover too
-            const subject = state.subject;
-            const transfer =
-                subject.kind === "tab" &&
-                !sameModel(
-                    state.mainEngine.adapter.model,
-                    this.engine.adapter.model,
-                )
-                    ? {
-                          meta: {
-                              transfer: {
-                                  tabId: subject.tab.id,
-                                  from: state.mainEngine.adapter.model,
-                                  to: this.engine.adapter.model,
-                              },
-                          },
-                      }
-                    : undefined;
-            verdict =
-                command.command === "tab.move"
-                    ? model.can("tab.move", command.payload)
-                    : command.command === "tabset.move"
-                      ? model.can("tabset.move", command.payload)
-                      : model.can("tab.add", command.payload, transfer) &&
-                        // a transfer also closes the tab in its own model: that must be allowed too
-                        (transfer === undefined ||
-                            subject.kind !== "tab" ||
-                            state.mainEngine.adapter.model.can(
-                                "tab.close",
-                                { tabId: subject.tab.id },
-                                transfer,
-                            ));
-            this.verdicts.set(key, verdict);
-        }
-        return verdict;
-    }
-
-    onDragOver = (event: DragEventLike) => {
-        if (!this.belongsToDrag(event) || !this.active) {
+    /** the pointer left this layout during a drag it takes */
+    private deactivate() {
+        if (!this.belongsToDrag()) {
             return;
         }
-        const state = DragDropManager.dragState;
-        if (!state) {
+        this.clearDragLocalVisuals();
+        const external = getDragState()?.source === "external";
+        if (
+            (this.engine.is("main-layout") || external) &&
+            !this.anyDragging()
+        ) {
+            this.clearDragMain();
+            endExternalDragOutside();
+        }
+    }
+
+    /** `dragover` on the layout root */
+    private onDragOver(event: DragEventLike) {
+        const state = getDragState();
+        if (!state || !this.active || !this.belongsToDrag(event)) {
             return;
         }
         const root = this.engine.adapter.getFreshDomRect();
@@ -897,42 +560,25 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const y = event.clientY - root.y;
 
         const revealedBorder = this.borderToReveal(x, y);
-        if (revealedBorder !== this.indicator.revealedBorder) {
-            this.setIndicator({ ...this.indicator, revealedBorder });
-        }
-        const subject = state.subject;
-        const kind: DropSubjectKind =
-            subject.kind === "tab"
-                ? {
-                      kind: "tab",
-                      id: subject.tab.id,
-                      pinned: subject.tab.pinned === true,
-                  }
-                : subject.kind === "tabset"
-                  ? { kind: "tabset", id: subject.tabset.id }
-                  : { kind: "new", pinned: subject.tab.pinned === true };
-        const candidates = dropCandidates(
-            this.state(),
-            this.engine.layoutId,
-            this.geometry(),
-            kind,
+        const model = this.engine.adapter.model;
+        const candidates = dropCandidates({
+            state: model.state,
+            layoutId: this.engine.layoutId,
+            maximized: model.get("maximized-tabset", {
+                layoutId: this.engine.layoutId,
+            }),
+            geometry: this.geometry,
+            subject: state.subject,
             x,
             y,
-            { excludeCenter: this.isExcludeCenter(subject) },
-        );
+        });
         let accepted: DropCandidate | undefined;
         let refused: DropCandidate | undefined;
-        let command: DropCommand | "self" | undefined;
+        let command: DropCommand | undefined;
         for (const candidate of candidates) {
-            if (candidate.self) {
+            command = this.commands.commandFor(state, candidate);
+            if (!command || this.commands.accepts(state, command)) {
                 accepted = candidate;
-                command = "self";
-                break;
-            }
-            const next = this.commandFor(state, candidate);
-            if (this.accepts(state, next)) {
-                accepted = candidate;
-                command = next;
                 break;
             }
             refused ??= candidate;
@@ -945,12 +591,8 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             this.target = undefined;
             this.setIndicator({
                 ...this.indicator,
-                visible: false,
-                targetNodeId: undefined,
-                targetTabSetId: undefined,
-                index: -1,
-                refused: refused !== undefined,
-                refusedTabSetId: refused?.container,
+                ...noTarget(refused),
+                revealedBorder,
             });
             return;
         }
@@ -967,12 +609,13 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             location: accepted.location,
             kind: accepted.kind,
             targetNodeId: accepted.target,
-            targetTabSetId: accepted.container,
+            targetTabsetId: accepted.container,
             index: accepted.index,
             refused: false,
-            refusedTabSetId: undefined,
+            refusedTabsetId: undefined,
+            revealedBorder,
         });
-    };
+    }
 
     /**
      * Ported from FlexLayout's LayoutController.checkForBorderToShow: the auto-hide border (with no
@@ -986,7 +629,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         if (!this.engine.is("main-layout")) {
             return undefined;
         }
-        const state = this.state();
+        const state = this.engine.adapter.model.state;
         const r = this.engine.adapter.rect("row", state.root.id);
         if (!r || r.width === 0 || r.height === 0) {
             return undefined;
@@ -1016,115 +659,37 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         const border = location
             ? state.borders.find((candidate) => candidate.location === location)
             : undefined;
-        if (!location || !border) {
-            return undefined;
-        }
-        const resolved = resolveBorder(state.defaults, border);
-        if (
-            !resolved.show ||
-            !resolved.autoHide ||
-            border.children.length > 0
-        ) {
-            return undefined;
-        }
-        return location;
+        return border &&
+            !borderShown(state.defaults, border, false) &&
+            borderShown(state.defaults, border, true)
+            ? location
+            : undefined;
     }
 
-    onDragLeave = (_event: DragEventLike) => {
-        if (!this.belongsToDrag()) {
-            return;
-        }
-        this.clearDragLocalVisuals();
-        // an external drag's source is outside the page, so no dragend ends it: it ends when it
-        // has left every layout
-        const external = DragDropManager.dragState?.source === "external";
-        if (this.engine.is("main-layout") || external) {
-            const anyDragging = this.managers().some((manager) =>
-                manager.isDragging(),
-            );
-            if (!anyDragging) {
-                this.clearDragMain();
-                if (external && !DragDropManager.isOverAnyZone()) {
-                    this.onDragEnded();
-                }
-            }
-        }
-    };
-
     /** `drop` on the layout root: runs the command of the target found during the hover */
-    onDrop = (event: DragEventLike) => {
-        const state = DragDropManager.dragState;
-        const target = this.target;
-        if (state && this.belongsToDrag(event) && this.active) {
+    private onDrop(event: DragEventLike) {
+        const state = getDragState();
+        if (state && this.active && this.belongsToDrag(event)) {
             event.preventDefault();
-            if (target && target !== "self") {
-                this.runDrop(state, target, event);
+            if (this.target) {
+                this.commands.runDrop(state, this.target, event);
             }
             this.clearDragMain();
-            this.removeLostDragGuard?.();
-            if (
-                !sameModel(
-                    state.mainEngine.adapter.model,
-                    this.engine.adapter.model,
-                )
-            ) {
+            if (this.commands.fromOtherModel(state)) {
                 // a drag from another layout of the group: clear the source's layouts too
                 state.mainEngine.adapter.getDragDropManager().clearDragMain();
             }
-            DragDropManager.setDragState(undefined);
+            setDragState(undefined);
         }
         // whatever the drop was, this layout's hover state is over
         this.clearDragLocal();
-    };
-
-    private runDrop(
-        state: DragState,
-        target: DropCommand,
-        event: DragEventLike,
-    ) {
-        const model = this.engine.adapter.model as unknown as Model<AnyTypes>;
-        if (
-            this.isGroupTransfer(state) &&
-            state.subject.kind === "tab" &&
-            target.command === "tab.add"
-        ) {
-            const group = this.engine.adapter.getDragGroup();
-            group?.transferTab(
-                state.mainEngine,
-                this.engine as unknown as LayoutEngine<AnyTypes>,
-                state.subject.tab.id,
-                target.payload.to,
-                target.payload.location ?? "center",
-                target.payload.index ?? -1,
-            );
-            return;
-        }
-        if (target.command === "tab.add") {
-            const result = model.run("tab.add", target.payload);
-            state.onNewTabDropped?.(
-                result.ok ? result.value.tabId : undefined,
-                event,
-            );
-        } else if (target.command === "tabset.move") {
-            model.run("tabset.move", target.payload);
-        } else {
-            model.run("tab.move", target.payload);
-        }
     }
 
-    /** Hides this layout's outline without ending the drag (the pointer is over a drop zone). */
+    /** @internal hides this layout's outline without ending the drag (the pointer is over a drop zone) */
     hideIndicator() {
-        this.target = undefined;
         if (this.indicator.visible || this.indicator.refused) {
-            this.setIndicator({
-                ...this.indicator,
-                visible: false,
-                targetNodeId: undefined,
-                targetTabSetId: undefined,
-                index: -1,
-                refused: false,
-                refusedTabSetId: undefined,
-            });
+            this.target = undefined;
+            this.setIndicator({ ...this.indicator, ...noTarget() });
         }
     }
 
@@ -1142,129 +707,11 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         element: Element,
         options: DropZoneOptions<T>,
     ): () => void {
-        const zone: DropZone = {
-            element,
-            model,
-            options: options as unknown as DropZoneOptions<AnyTypes>,
-            enterCount: 0,
-            over: false,
-        };
-        DragDropManager.dropZones.add(zone);
-        const accepts = () => {
-            const state = DragDropManager.dragState;
-            return (
-                state !== undefined &&
-                sameModel(state.mainEngine.adapter.model, model) &&
-                (zone.options.accepts?.(state.subject) ?? true)
-            );
-        };
-        const onEnter = (event: Event) => {
-            if (!accepts()) return;
-            // the zone takes the drag: the layouts under or around it must not
-            event.stopPropagation();
-            event.preventDefault();
-            zone.enterCount++;
-            DragDropManager.setZoneOver(zone, true);
-            DragDropManager.hideIndicators(model);
-        };
-        const onOver = (event: Event) => {
-            if (!accepts()) return;
-            event.stopPropagation();
-            event.preventDefault();
-            const dataTransfer = (event as DragEvent).dataTransfer;
-            if (dataTransfer) {
-                dataTransfer.dropEffect = DragDropManager.dragState?.isNewTab()
-                    ? "copy"
-                    : "move";
-            }
-            DragDropManager.setZoneOver(zone, true);
-            DragDropManager.hideIndicators(model);
-        };
-        const onLeave = (event: Event) => {
-            if (!zone.over) return;
-            event.stopPropagation();
-            zone.enterCount = Math.max(0, zone.enterCount - 1);
-            if (zone.enterCount === 0) {
-                DragDropManager.setZoneOver(zone, false);
-                DragDropManager.endExternalDragOutside(model);
-            }
-        };
-        const onDrop = (event: Event) => {
-            const state = DragDropManager.dragState;
-            if (!accepts() || !state) return;
-            event.stopPropagation();
-            event.preventDefault();
-            DragDropManager.setZoneOver(zone, false);
-            zone.options.onDrop(state.subject, event as DragEvent);
-            // the drag is over: the source's dragend (if any) finds nothing left to end
-            state.mainEngine.adapter.getDragDropManager().clearDragMain();
-            DragDropManager.setDragState(undefined);
-        };
-        element.addEventListener("dragenter", onEnter);
-        element.addEventListener("dragover", onOver);
-        element.addEventListener("dragleave", onLeave);
-        element.addEventListener("drop", onDrop);
-        return () => {
-            element.removeEventListener("dragenter", onEnter);
-            element.removeEventListener("dragover", onOver);
-            element.removeEventListener("dragleave", onLeave);
-            element.removeEventListener("drop", onDrop);
-            DragDropManager.dropZones.delete(zone);
-        };
+        return registerDropZone(model, element, options);
     }
 
-    private static isOverAnyZone(): boolean {
-        for (const zone of DragDropManager.dropZones) {
-            if (zone.over) return true;
-        }
-        return false;
-    }
-
-    /** an external drag that leaves a drop zone for no layout and no zone is over */
-    private static endExternalDragOutside(model: object) {
-        const state = DragDropManager.dragState;
-        if (
-            state?.source !== "external" ||
-            state.mainEngine.adapter.model !== model ||
-            DragDropManager.isOverAnyZone()
-        ) {
-            return;
-        }
-        const manager = state.mainEngine.adapter.getDragDropManager();
-        if (manager.managers().some((m) => m.isDragging())) return;
-        manager.onDragEnded();
-    }
-
-    private static setZoneOver(zone: DropZone, over: boolean) {
-        if (zone.over !== over) {
-            zone.over = over;
-            zone.options.onOverChange?.(over);
-        }
-    }
-
-    private static hideIndicators(model: object) {
-        const state = DragDropManager.dragState;
-        if (state?.mainEngine.adapter.model !== model) {
-            return;
-        }
-        for (const manager of state.mainEngine.adapter
-            .getDragDropManager()
-            .managers()) {
-            manager.hideIndicator();
-        }
-    }
-
-    getDragEnterCount() {
-        return this.dragEnterCount;
-    }
-
-    isDragging() {
-        return this.dragging;
-    }
-
-    /** Detaches the lost drag guard. */
+    /** Releases the indicator's listeners. */
     dispose() {
-        this.removeLostDragGuard?.();
         this.listeners.clear();
     }
 }

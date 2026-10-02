@@ -243,7 +243,8 @@ To know whether something is allowed right now (the defaults, the rules and your
 together), ask `model.can("tab.close", { tabId: tab.id })`.
 
 The primitives re-render when the state changes, so reading the model inside the layout is always
-current. Outside it, subscribe (`model.subscribe`, or `useSyncExternalStore` over it).
+current. Outside it, subscribe: `useModelState(selector, { model })` in React, or
+`model.subscribe`.
 
 ## Replacing the layout: `layout.load`
 
@@ -273,7 +274,7 @@ const result = model.dispatch({ command: "layout.load", payload: { layout: JSON.
 ## One model, several layouts
 
 A model holds the **main** layout (`MAIN_LAYOUT`, `"main"`: the root row, the borders, the active
-and maximized tabsets) and one window layout per popout window (`model.state.windows`, each with
+and maximized tabsets) and one window layout per popout window (`model.get("windows")`, each with
 its own root row). The keys that depend on a layout take a `layout` id and default to the main
 one, and `useDockable().layoutId` says which layout a component renders in. Each layout on screen
 has its own engine ([Model and engine](/docs/concepts/model-and-engine)).

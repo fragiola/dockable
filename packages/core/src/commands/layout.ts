@@ -1,71 +1,28 @@
 import {
-    booleanSchema,
-    borderModeSchema,
+    borderDefaultProperties,
     idSchema,
+    layoutSettingProperties,
     nullable,
+    nullableEach,
     object,
-    orientationSchema,
-    sizeSchema,
+    tabDefaultProperties,
+    tabsetDefaultProperties,
 } from "../schema/fragments";
 import { layoutDefs, layoutDocumentSchema } from "../schema/layout";
 import type { JsonSchema } from "../schema/types";
 import { validate } from "../schema/validator";
 import type { Draft } from "../state/draft";
-import { type AnyNode, childrenOf, walkState } from "../state/tree";
-import type { LayoutDefaults } from "../state/types";
-import { defineCommand, ok } from "./define";
-import type { CommandError } from "./types";
+import { walk, walkState } from "../state/tree";
+import { type LayoutDefaults, MAIN_LAYOUT } from "../state/types";
+import { defineCommand, type Failure, invalid, ok } from "./define";
 
-const nullableBoolean = nullable(booleanSchema);
-const nullableSize = nullable(sizeSchema);
-
+/** Each kind's defaults, nullable: null removes a field (or a kind), so the built-in value applies. */
+const builtIn = "the built-in value applies";
 const defaultsPatchSchema = object({
-    tab: nullable(
-        object({
-            enableClose: nullableBoolean,
-            enableDrag: nullableBoolean,
-            enablePopout: nullableBoolean,
-            minWidth: nullableSize,
-            minHeight: nullableSize,
-            maxWidth: nullableSize,
-            maxHeight: nullableSize,
-        }),
-    ),
-    tabset: nullable(
-        object({
-            enableDrop: nullableBoolean,
-            enableDrag: nullableBoolean,
-            enableDivide: nullableBoolean,
-            enableMaximize: nullableBoolean,
-            enableClose: nullableBoolean,
-            deleteWhenEmpty: nullableBoolean,
-            autoSelectTab: nullableBoolean,
-            minWidth: nullableSize,
-            minHeight: nullableSize,
-            maxWidth: nullableSize,
-            maxHeight: nullableSize,
-        }),
-    ),
-    border: nullable(
-        object({
-            size: nullableSize,
-            minSize: nullableSize,
-            maxSize: nullableSize,
-            mode: nullable(borderModeSchema),
-            autoHide: nullableBoolean,
-            enableDrop: nullableBoolean,
-            autoSelectTabWhenOpen: nullableBoolean,
-            autoSelectTabWhenClosed: nullableBoolean,
-        }),
-    ),
-    layout: nullable(
-        object({
-            rootOrientation: nullable(orientationSchema),
-            edgeDock: nullableBoolean,
-            edgeDockMargin: nullableSize,
-            edgeDockLength: nullableSize,
-        }),
-    ),
+    tab: nullable(object(nullableEach(tabDefaultProperties, builtIn))),
+    tabset: nullable(object(nullableEach(tabsetDefaultProperties, builtIn))),
+    border: nullable(object(nullableEach(borderDefaultProperties, builtIn))),
+    layout: nullable(object(nullableEach(layoutSettingProperties, builtIn))),
 });
 
 const KINDS = ["tab", "tabset", "border", "layout"] as const;
@@ -87,15 +44,11 @@ export const layoutConfigure = defineCommand({
     resultSchema: object({}),
     transient: false,
     reduce(payload, { draft }) {
-        const next: Record<string, Record<string, unknown>> = {};
-        const current = draft.getDefaults() as Record<
-            string,
-            Record<string, unknown> | undefined
-        >;
+        const current = draft.getDefaults();
+        const next: { [kind: string]: object | undefined } = {};
         for (const kind of KINDS) {
-            const existing = current[kind];
-            if (existing) {
-                next[kind] = { ...existing };
+            if (current[kind]) {
+                next[kind] = current[kind];
             }
         }
         for (const kind of KINDS) {
@@ -103,12 +56,9 @@ export const layoutConfigure = defineCommand({
             if (patch === undefined) {
                 continue;
             }
-            if (patch === null) {
-                delete next[kind];
-                continue;
-            }
-            const merged: Record<string, unknown> = { ...next[kind] };
-            for (const [key, value] of Object.entries(patch)) {
+            const merged: Record<string, unknown> =
+                patch === null ? {} : { ...next[kind] };
+            for (const [key, value] of Object.entries(patch ?? {})) {
                 if (value === null) {
                     delete merged[key];
                 } else if (value !== undefined) {
@@ -130,18 +80,13 @@ export const layoutConfigure = defineCommand({
 function currentIds(draft: Draft): Set<string> {
     const ids = new Set<string>();
     const visit = (id: string | undefined) => {
-        const node: AnyNode | undefined =
-            id === undefined ? undefined : draft.get(id);
-        if (!node) {
-            return;
-        }
-        ids.add(node.id);
-        for (const child of childrenOf(node)) {
-            visit(child.id);
+        const node = id === undefined ? undefined : draft.get(id);
+        if (node) {
+            walk(node, (visited) => ids.add(visited.id));
         }
     };
     for (const layout of draft.layoutIds()) {
-        if (layout !== "main") {
+        if (layout !== MAIN_LAYOUT) {
             ids.add(layout);
         }
         visit(draft.rootOf(layout));
@@ -189,9 +134,9 @@ export const layoutLoad = defineCommand({
     transient: false,
     reduce(payload, { draft, loadLayout }) {
         const before = currentIds(draft);
-        const built = loadLayout(payload.layout, "/layout");
+        const built = loadLayout(payload.layout);
         if (!built.ok) {
-            return { ok: false, error: built.error };
+            return built;
         }
         const after = new Set<string>();
         walkState(built.state, (node) => after.add(node.id));
@@ -218,7 +163,7 @@ const batchEntrySchema = object(
     ["command", "payload"],
 );
 
-export const batchPayloadSchema = object(
+const batchPayloadSchema = object(
     {
         commands: {
             type: "array",
@@ -250,34 +195,21 @@ export const batch = defineCommand({
         const runAll = (
             commands: readonly { command: string; payload: unknown }[],
             path: string,
-        ): { readonly ok: false; readonly error: CommandError } | undefined => {
+        ): Failure | undefined => {
             for (const [i, entry] of commands.entries()) {
                 const at = `${path}/${i}`;
                 if (entry.command === "batch") {
-                    const issues = validate(
-                        batchPayloadSchema,
-                        entry.payload,
-                        `${at}/payload`,
-                    );
-                    const first = issues[0];
-                    if (first) {
-                        return {
-                            ok: false as const,
-                            error: {
-                                code: "invalid_payload" as const,
-                                message: first.message,
-                                path: first.path,
-                                issues,
-                            },
-                        };
-                    }
                     const nested = entry.payload as {
                         commands: { command: string; payload: unknown }[];
                     };
-                    const failed = runAll(
-                        nested.commands,
-                        `${at}/payload/commands`,
-                    );
+                    const failed =
+                        invalid(
+                            validate(
+                                batchPayloadSchema,
+                                entry.payload,
+                                `${at}/payload`,
+                            ),
+                        ) ?? runAll(nested.commands, `${at}/payload/commands`);
                     if (failed) {
                         return failed;
                     }

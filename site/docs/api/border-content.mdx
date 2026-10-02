@@ -34,7 +34,19 @@ Render it from `Dockable.Borders`'s `renderContent`."
 
 ## State
 
-The border's `BorderState` (see [Dockable.Border](/docs/api/border#state)).
+`BorderContentState`, the border's state (also returned by
+[`useBorder`](/docs/api/hooks#useborder); [Dockable.Border](/docs/api/border#state) adds its
+tab direction, which is the strip's alone):
+
+| field | type | description |
+| --- | --- | --- |
+| `location` | `"top" \| "bottom" \| "left" \| "right"` | the side of the layout the border is on |
+| `orientation` | `"horizontal" \| "vertical"` | the direction its tabs run: `"vertical"` for a left or right border |
+| `open` | `boolean` | a tab is selected, so the border's panel is open |
+| `overlay` | `boolean` | the panel opens over the layout (`mode: "overlay"`) instead of beside it |
+| `empty` | `boolean` | the border has no tabs |
+| `dropTarget` | `boolean` | the current drag would drop into this border (its strip or its open panel) |
+| `dropRefused` | `boolean` | the current drag is over this border, but a drop rule refuses it |
 
 ## Data attributes
 
@@ -49,7 +61,8 @@ The border's `BorderState` (see [Dockable.Border](/docs/api/border#state)).
 - The element: `display: flex` (a row for left and right borders, a column otherwise) or
   `display: none` while closed, `flex-shrink: 0`. On an overlay border also `position: absolute`
   against the layout's edge (`left: 0; top: 0; bottom: 0` for a left border, and so on); a left or
-  right overlay stops above and below the open top and bottom overlays. An overlay is also
+  right overlay stops above and below the open top and bottom overlays
+  (`engine.get("overlay-placement-by", { borderId })`). An overlay is also
   `pointer-events: none`, so presses reach the tab panel positioned over its area; its splitter
   (`Dockable.Splitter` of a border is `pointer-events: auto`) keeps taking them. Hit-testing, not
   cosmetics.

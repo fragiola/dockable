@@ -8,12 +8,11 @@ import {
     MAIN_LAYOUT,
     veto,
 } from "../../src";
-import {
-    ENGINE_ACTION_KEYS,
-    ENGINE_GET_KEYS,
-    ENGINE_IS_KEYS,
-    type EngineGetKey,
-    type EngineGetMap,
+import type {
+    EngineActionKey,
+    EngineGetKey,
+    EngineGetMap,
+    EngineIsKey,
 } from "../../src/engine/verbs";
 import type { NoPayload } from "../../src/state/queries";
 import { recordCommands, twoTabsets } from "./fixture";
@@ -236,7 +235,7 @@ describe("engine.get / is", () => {
         expect(engine.get("tab-panel-dom-id-by", { tabId: "t0" })).not.toBe(
             engine.get("tab-button-dom-id-by", { tabId: "t0" }),
         );
-        expect(engine.get("size-limits-by", { nodeId: "ts0" })).toMatchObject({
+        expect(engine.get("flex-by", { nodeId: "ts0" })).toMatchObject({
             minWidth: expect.any(Number),
             maxWidth: expect.any(Number),
         });
@@ -267,24 +266,106 @@ describe("engine.get / is", () => {
     });
 });
 
+describe("the layout rules", () => {
+    it("flex-by: a row's or a tabset's flex grow (its weight, at least 1) and its min/max", () => {
+        const json = structuredClone(twoTabsets);
+        const [ts0, ts1] = json.root.children ?? [];
+        if (ts0?.type !== "tabset" || ts1?.type !== "tabset") {
+            throw new Error("two tabsets");
+        }
+        ts0.minWidth = 120;
+        ts1.weight = 0.0005;
+        const engine = createLayoutEngine({ model: createModel(json) });
+        engines.push(engine);
+        expect(engine.get("flex-by", { nodeId: "ts0" })).toMatchObject({
+            grow: 50_000,
+            minWidth: 120,
+            maxWidth: 99999,
+        });
+        expect(engine.get("flex-by", { nodeId: "ts1" }).grow).toBe(1);
+        expect(engine.get("flex-by", { nodeId: "row" }).grow).toBe(100_000);
+        expect(engine.get("flex-by", { nodeId: "nope" })).toEqual({
+            grow: 1,
+            minWidth: 0,
+            minHeight: 0,
+            maxWidth: 99999,
+            maxHeight: 99999,
+        });
+    });
+
+    it("tab-tabbable: the selected tab, else the first one when none is selected", () => {
+        const { model, engine } = setup();
+        const tabbable = (tabId: string) =>
+            engine.is("tab-tabbable", { tabId });
+        expect(tabbable("t0")).toBe(true);
+        expect(tabbable("t1")).toBe(false);
+        model.run("tab.select", { tabId: "t1" });
+        expect(tabbable("t0")).toBe(false);
+        expect(tabbable("t1")).toBe(true);
+        const added = model.run("tab.add", {
+            component: "test",
+            label: "b1",
+            to: "left",
+        });
+        const b1 = added.ok ? added.value.tabId : "";
+        model.run("tab.select", { tabId: "b0" });
+        expect(tabbable("b0")).toBe(true);
+        expect(tabbable(b1)).toBe(false);
+        model.run("border.configure", { borderId: "left", open: false });
+        expect(tabbable("b0")).toBe(true);
+        expect(tabbable(b1)).toBe(false);
+        expect(tabbable("nope")).toBe(false);
+    });
+});
+
+const ACTION_KEYS = Object.keys({
+    popout: true,
+    "dock-back": true,
+    "focus-tabset": true,
+    "close-overlay-border": true,
+    "measure-and-position": true,
+} satisfies Record<EngineActionKey, true>);
+
+const GET_INPUTS: {
+    [K in EngineGetKey]: {
+        required: NoPayload extends EngineGetMap[K]["payload"] ? false : true;
+        fields: readonly (keyof EngineGetMap[K]["payload"])[];
+    };
+} = {
+    "layout-path-by": { required: true, fields: ["nodeId"] },
+    "tab-button-dom-id-by": { required: true, fields: ["tabId"] },
+    "tab-panel-dom-id-by": { required: true, fields: ["tabId"] },
+    "flex-by": { required: true, fields: ["nodeId"] },
+    "overlay-placement-by": { required: true, fields: ["borderId"] },
+    "popout-mode-by": { required: true, fields: ["nodeId"] },
+    "splitter-size": { required: false, fields: [] },
+    "owner-document": { required: false, fields: [] },
+    "owner-window": { required: false, fields: [] },
+};
+
+const IS_KEYS = Object.keys({
+    "popout-supported": true,
+    "tab-panel-visible": true,
+    "main-layout": true,
+    "splitter-dragging": true,
+    "border-shown": true,
+    "tab-tabbable": true,
+} satisfies Record<EngineIsKey, true>);
+
 describe("the key lists", () => {
     it("are kebab-case, without a dot: never a command name", () => {
-        const keys = [
-            ...ENGINE_ACTION_KEYS,
-            ...ENGINE_GET_KEYS,
-            ...ENGINE_IS_KEYS,
-        ];
+        const keys = [...ACTION_KEYS, ...Object.keys(GET_INPUTS), ...IS_KEYS];
         for (const key of keys) {
             expect(key).toMatch(/^[a-z]+(-[a-z]+)*$/);
         }
         for (const name of COMMAND_NAMES) {
             expect(name === "batch" || name.includes(".")).toBe(true);
-            expect(ENGINE_ACTION_KEYS).not.toContain(name);
+            expect(ACTION_KEYS).not.toContain(name);
         }
     });
 
     it("cover every action", () => {
-        expect([...ENGINE_ACTION_KEYS].sort()).toEqual([
+        expect([...ACTION_KEYS].sort()).toEqual([
             "close-overlay-border",
             "dock-back",
             "focus-tabset",
@@ -296,26 +377,7 @@ describe("the key lists", () => {
     it("read as a sentence: the key names its result, the payload whose", () => {
         // a get key that takes an id ends in `-by`, its payload is required, and its field
         // completes the key (`tab-panel-dom-id-by { tabId }`); any other key takes nothing
-        const getInputs: {
-            [K in EngineGetKey]: {
-                required: NoPayload extends EngineGetMap[K]["payload"]
-                    ? false
-                    : true;
-                fields: readonly (keyof EngineGetMap[K]["payload"])[];
-            };
-        } = {
-            "layout-path-by": { required: true, fields: ["nodeId"] },
-            "tab-button-dom-id-by": { required: true, fields: ["tabId"] },
-            "tab-panel-dom-id-by": { required: true, fields: ["tabId"] },
-            "size-limits-by": { required: true, fields: ["nodeId"] },
-            "splitter-size": { required: false, fields: [] },
-            "owner-document": { required: false, fields: [] },
-            "owner-window": { required: false, fields: [] },
-        };
-        expect(Object.keys(getInputs).sort()).toEqual(
-            [...ENGINE_GET_KEYS].sort(),
-        );
-        for (const [key, { required, fields }] of Object.entries(getInputs)) {
+        for (const [key, { required, fields }] of Object.entries(GET_INPUTS)) {
             const fieldList: readonly string[] = fields;
             expect(key, key).not.toMatch(/-by-/);
             expect(required, key).toBe(key.endsWith("-by"));
@@ -324,6 +386,6 @@ describe("the key lists", () => {
                 expect(field === "id" || field.endsWith("Id"), key).toBe(true);
             }
         }
-        expect(ENGINE_IS_KEYS).toContain("tab-panel-visible");
+        expect(IS_KEYS).toContain("tab-panel-visible");
     });
 });

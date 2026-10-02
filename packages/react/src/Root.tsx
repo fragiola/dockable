@@ -5,7 +5,7 @@ import {
     type AnyTypes,
     createLayoutEngine,
     type DockableTypes,
-    type IKeyMap,
+    type KeyMap,
     MAIN_LAYOUT,
     type Model,
     matchesKey,
@@ -13,6 +13,7 @@ import {
     type OpenWindow,
     type PopoutCallback,
     resolveKeyMap,
+    type WindowLayout,
 } from "@fragiola/dockable";
 import * as React from "react";
 import {
@@ -22,11 +23,9 @@ import {
     eraseModel,
     LayoutContext,
     ModelContext,
-    type PanelLayer,
-    type PopoutHooks,
 } from "./context";
 import { DragGroupContext } from "./DragGroup";
-import { useDragState } from "./hooks";
+import { useDragState, useIndicator } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -51,7 +50,7 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
      */
     model: Model<T>;
     /** keyboard bindings, merged over `defaultKeyMap` */
-    keyMap?: IKeyMap | undefined;
+    keyMap?: KeyMap | undefined;
     /** true (default) to resize live while dragging a splitter; false to preview and commit on release */
     realtimeResize?: boolean | undefined;
     /** seconds a view may take to animate the drop indicator (exposed as data; default 0.3) */
@@ -60,6 +59,8 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
     popoutURL?: string | undefined;
     /** whether window layouts open as popouts; default: a desktop pointer is present */
     supportsPopout?: boolean | undefined;
+    /** a popout document's title; with none, the host page's title is kept */
+    popoutTitle?: ((layout: WindowLayout<T>) => string | undefined) | undefined;
     /** a popout document is ready, before its content renders */
     onPopoutOpen?: PopoutCallback<T> | undefined;
     /** a popout window is closing (its tabs dock back into the main layout) */
@@ -89,12 +90,13 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
  */
 export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     const {
-        model: typedModel,
+        model: modelProp,
         keyMap,
         realtimeResize,
         tabDragSpeed,
         popoutURL,
         supportsPopout,
+        popoutTitle,
         onPopoutOpen,
         onPopoutClose,
         openWindow,
@@ -103,15 +105,14 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         children,
         ...rest
     } = props;
-    const popoutHooks = React.useRef<PopoutHooks>({});
     const dragGroup = React.useContext(DragGroupContext);
     // DOM ids and window names unique on the page, and the same on the server and the client
     const idScope = `${React.useId().replace(/[^\w-]/g, "")}-`;
-    const typedEngine = React.useMemo(
-        () => createLayoutEngine({ model: typedModel, idScope }),
-        [typedModel, idScope],
+    const engineForModel = React.useMemo(
+        () => createLayoutEngine({ model: modelProp, idScope }),
+        [modelProp, idScope],
     );
-    typedEngine.adapter.setOptions({
+    engineForModel.adapter.setOptions({
         realtimeResize,
         tabDragSpeed,
         onExternalDrag,
@@ -121,30 +122,19 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             supportsPopout,
             mirrorRoot: popoutMirrorRoot,
             openWindow,
-            title: (layout) => popoutHooks.current.title?.(layout.id),
-            onPopoutOpen: (layout, win, doc) => {
-                onPopoutOpen?.(layout, win, doc);
-                popoutHooks.current.onOpen?.(layout.id, win, doc);
-            },
-            onPopoutClose: (layout, win, doc) => {
-                onPopoutClose?.(layout, win, doc);
-                popoutHooks.current.onClose?.(layout.id, win, doc);
-            },
+            title: popoutTitle,
+            onPopoutOpen,
+            onPopoutClose,
         },
     });
     // the parts below work on the erased registry; the typed surface is their props
-    const model = eraseModel(typedModel);
-    const engine = eraseEngine(typedEngine);
+    const model = eraseModel(modelProp);
+    const engine = eraseEngine(engineForModel);
     // leave the group when this root unmounts or its engine is replaced (a new model), so the group
     // never reaches a layout that is gone; the setup re-joins after a StrictMode remount
     React.useEffect(() => dragGroup?.group.join(engine), [dragGroup, engine]);
     const dragState = useDragState();
-    const manager = engine.adapter.getDragDropManager();
-    const refused = React.useSyncExternalStore(
-        manager.subscribe,
-        () => manager.getIndicatorState().refused,
-        () => false,
-    );
+    const refused = useIndicator(engine, (indicator) => indicator.refused);
     const revision = React.useSyncExternalStore(
         engine.adapter.subscribe,
         engine.adapter.getSnapshot,
@@ -179,11 +169,13 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
 
     const resolvedKeyMap = React.useMemo(() => resolveKeyMap(keyMap), [keyMap]);
 
-    // the focusNextTabset/focusPreviousTabset keys move focus between tabsets, from anywhere in
-    // the document (including inside tab content)
-    const { focusNextTabset, focusPreviousTabset } = resolvedKeyMap;
+    // from anywhere in the document (tab content included): the focusNextTabset and
+    // focusPreviousTabset keys move focus between tabsets, else the closeOverlayBorder key closes
+    // an open overlay border; a press elsewhere in the layout closes it too
+    const { focusNextTabset, focusPreviousTabset, closeOverlayBorder } =
+        resolvedKeyMap;
     React.useEffect(() => {
-        if (!rootElement || (!focusNextTabset && !focusPreviousTabset)) {
+        if (!rootElement) {
             return;
         }
         const doc = rootElement.ownerDocument;
@@ -198,26 +190,12 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
                   : undefined;
             if (direction && engine.run("focus-tabset", { direction }).ok) {
                 event.preventDefault();
-            }
-        };
-        doc.addEventListener("keydown", onKeyDown);
-        return () => doc.removeEventListener("keydown", onKeyDown);
-    }, [engine, rootElement, focusNextTabset, focusPreviousTabset]);
-
-    // an open overlay border closes on a press elsewhere in the layout, and on its close key
-    const { closeOverlayBorder } = resolvedKeyMap;
-    React.useEffect(() => {
-        if (!rootElement) {
-            return;
-        }
-        const doc = rootElement.ownerDocument;
-        const onPointerDown = (event: PointerEvent) => {
-            engine.adapter.handleOverlayPointerDown(event);
-        };
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (!event.defaultPrevented) {
+            } else {
                 engine.adapter.handleOverlayKeyDown(event, closeOverlayBorder);
             }
+        };
+        const onPointerDown = (event: PointerEvent) => {
+            engine.adapter.handleOverlayPointerDown(event);
         };
         // capture: splitters and buttons stop the propagation of their presses
         doc.addEventListener("pointerdown", onPointerDown, true);
@@ -226,26 +204,28 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             doc.removeEventListener("pointerdown", onPointerDown, true);
             doc.removeEventListener("keydown", onKeyDown);
         };
-    }, [engine, rootElement, closeOverlayBorder]);
+    }, [
+        engine,
+        rootElement,
+        focusNextTabset,
+        focusPreviousTabset,
+        closeOverlayBorder,
+    ]);
 
-    const [extraLayers, setExtraLayers] = React.useState<
-        ReadonlyMap<string, PanelLayer>
+    const [windowLayers, setWindowLayers] = React.useState<
+        ReadonlyMap<string, HTMLElement>
     >(new Map());
     const setLayer = React.useCallback(
-        (layoutId: string, layer: PanelLayer | null) => {
-            setExtraLayers((prev) => {
-                if (
-                    layer === null
-                        ? !prev.has(layoutId)
-                        : prev.get(layoutId)?.element === layer.element
-                ) {
+        (layoutId: string, element: HTMLElement | null) => {
+            setWindowLayers((prev) => {
+                if ((prev.get(layoutId) ?? null) === element) {
                     return prev;
                 }
                 const next = new Map(prev);
-                if (layer === null) {
+                if (element === null) {
                     next.delete(layoutId);
                 } else {
-                    next.set(layoutId, layer);
+                    next.set(layoutId, element);
                 }
                 return next;
             });
@@ -253,17 +233,13 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         [],
     );
     const layers = React.useMemo(() => {
-        const all = new Map(extraLayers);
+        const all = new Map(windowLayers);
         if (rootElement) {
             // the main layout's panels are positioned in the root itself
-            all.set(MAIN_LAYOUT, {
-                layoutId: MAIN_LAYOUT,
-                element: rootElement,
-                engine,
-            });
+            all.set(MAIN_LAYOUT, rootElement);
         }
         return all;
-    }, [extraLayers, rootElement, engine]);
+    }, [windowLayers, rootElement]);
 
     const context = React.useMemo<DockableContextValue>(
         () => ({
@@ -273,7 +249,6 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             keyMap: resolvedKeyMap,
             layers,
             setLayer,
-            popoutHooks,
         }),
         [engine, model, revision, resolvedKeyMap, layers, setLayer],
     );

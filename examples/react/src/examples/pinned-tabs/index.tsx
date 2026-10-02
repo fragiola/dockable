@@ -30,10 +30,9 @@ import * as styles from "./styles";
 
 // Pinned tabs: kept at the start of the strip by the model, shown as icons, and not closable
 // (`model.can("tab.close", …)` refuses a pinned tab). The styles read `data-pinned` on the tab.
-// Whether a tab offers the pin button is the app's choice: here, `enablePin` in its data.
 
-// Every component carries the tab's icon when pinned, and whether it offers the pin.
-type TabData = { icon?: string; enablePin: boolean };
+// Every component carries the icon its tab shows when pinned.
+type TabData = { icon?: string };
 type Types = {
     tabs: {
         chart: TabData & { kind: ChartKind; seed: number };
@@ -64,7 +63,6 @@ const json: LayoutJson<Types> = {
                         pinned: true,
                         data: {
                             icon: "home",
-                            enablePin: true,
                             kind: "area",
                             seed: 4,
                         },
@@ -73,14 +71,13 @@ const json: LayoutJson<Types> = {
                         component: "table",
                         label: "Mail",
                         pinned: true,
-                        data: { icon: "mail", enablePin: true },
+                        data: { icon: "mail" },
                     },
                     {
                         component: "chart",
                         label: "Calendar",
                         data: {
                             icon: "calendar",
-                            enablePin: true,
                             kind: "bar",
                             seed: 12,
                         },
@@ -88,12 +85,12 @@ const json: LayoutJson<Types> = {
                     {
                         component: "chart",
                         label: "Report.pdf",
-                        data: { enablePin: true, kind: "donut", seed: 8 },
+                        data: { kind: "donut", seed: 8 },
                     },
                     {
                         component: "kpi",
                         label: "Budget.xlsx",
-                        data: { enablePin: true, seed: 15, unit: "$" },
+                        data: { seed: 15, unit: "$" },
                     },
                 ],
             },
@@ -105,7 +102,6 @@ const json: LayoutJson<Types> = {
                         component: "doc",
                         label: "Notes",
                         data: {
-                            enablePin: true,
                             text: "Pin or unpin the selected tab with the pin button in the header.",
                         },
                     },
@@ -113,7 +109,6 @@ const json: LayoutJson<Types> = {
                         component: "doc",
                         label: "Drafts",
                         data: {
-                            enablePin: true,
                             text: "A pinned tab moves to the start of the strip and loses its close button.",
                         },
                     },
@@ -140,19 +135,12 @@ export default function PinnedTabs() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -179,7 +167,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <TabLabel tab={tab} />
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -196,7 +183,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** A tab's content: `tab.data` and the component narrow together. */
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "chart":
@@ -244,13 +230,14 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
             {model.can("tab.close", { tabId: tab.id }) ? (
                 <button
                     type="button"
-                    // the tab is the tab stop; the close button is reached with the mouse
-                    // (the keyboard closes with Ctrl+Delete on the tab)
+                    // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                     tabIndex={-1}
                     aria-label={`Close ${tab.label}`}
                     className={styles.closeButton}
+                    // keeps the press from activating the tabset
+                    onPointerDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
-                        event.stopPropagation(); // not a click on the tab
+                        event.stopPropagation(); // a click on the tab would select it
                         model.run("tab.close", { tabId: tab.id });
                     }}
                 >
@@ -267,7 +254,7 @@ function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
     const selected = model.get("selected-tab-by", {
         tabsetId: tabset.id,
     });
-    if (!selected?.data.enablePin) {
+    if (!selected) {
         return null;
     }
     const pinned = selected.pinned === true;
@@ -290,7 +277,6 @@ function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

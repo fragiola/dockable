@@ -722,6 +722,21 @@ describe("window commands", () => {
         expect(text()).toBe("/ts0/t0[One],/ts0/t1[Two],/ts0/t2[Four]*");
     });
 
+    it("window.close docks into the main layout's default-tabset, never a window's active tabset", () => {
+        const { model, text, window } = withWindow();
+        must(model.run("tab.close", { tabId: "Three" }));
+        const [windowTabset] = model.get("tabsets", { layoutId: window });
+        must(
+            model.run("tabset.activate", { tabsetId: windowTabset?.id ?? "" }),
+        );
+        expect(model.get("active-tabset", { layoutId: window })).toBeDefined();
+        expect(model.get("active-tabset")).toBeUndefined();
+        const target = model.get("default-tabset")?.id;
+        must(model.run("window.close", { windowId: window }));
+        expect(model.get("node-parent-by", { nodeId: "Two" })?.id).toBe(target);
+        expect(text()).toBe("/ts0/t0[One],/ts0/t1[Two],/ts0/t2[Four]*");
+    });
+
     it("window.configure records the rect", () => {
         const { model, window } = withWindow();
         const rect = { x: 1, y: 2, width: 3, height: 4 };
@@ -882,5 +897,43 @@ describe("batch", () => {
         });
         expect(text()).toBe("/ts0/t0[One]*,/ts0/t1[New]");
         expect(events).toEqual(["batch"]);
+    });
+});
+
+describe("key order", () => {
+    it("keeps the defaults' kinds in their canonical order after layout.configure", () => {
+        const model = createModel({
+            ...tabsets(["One"]),
+            defaults: {
+                layout: { edgeDock: false },
+                tab: { enableClose: false },
+            },
+        });
+        must(
+            model.run("layout.configure", {
+                defaults: { tab: { enableDrag: false }, border: { size: 300 } },
+            }),
+        );
+        expect(Object.keys(model.state.defaults)).toEqual([
+            "tab",
+            "layout",
+            "border",
+        ]);
+    });
+
+    it("resolves a tab's settings with pinned between its flags and its size limits", () => {
+        const model = createModel(tabsets(["One"]));
+        expect(
+            Object.keys(model.get("tab-settings-by", { tabId: "One" }) ?? {}),
+        ).toEqual([
+            "enableClose",
+            "enableDrag",
+            "enablePopout",
+            "pinned",
+            "minWidth",
+            "minHeight",
+            "maxWidth",
+            "maxHeight",
+        ]);
     });
 });

@@ -1,21 +1,23 @@
 import type { DockLocation } from "../geometry/dock";
-import type { Rect } from "../geometry/rect";
 import {
     booleanSchema,
     dataSchema,
     describedId,
     idSchema,
     labelSchema,
-    nullable,
+    nullableEach,
     object,
     placementProperties,
     rectSchema,
+    tabBorderSizeProperties,
+    tabDefaultProperties,
     tabFieldProperties,
 } from "../schema/fragments";
+import { isObject } from "../schema/validator";
 import { cloneJson } from "../state/clone";
 import { resolveTab } from "../state/defaults";
 import { type Draft, newRow, newTabset } from "../state/draft";
-import type { TabInit } from "../state/json";
+import { defaultWindowRect, tabNode } from "../state/load";
 import {
     adjustSelectedIndex,
     pinnedRunLength,
@@ -25,46 +27,11 @@ import {
 import { tidy } from "../state/tidy";
 import type { AnyTab } from "../state/tree";
 import { MAIN_LAYOUT } from "../state/types";
-import { defineCommand, fail, ok } from "./define";
+import { defineCommand, type Failure, fail, ok } from "./define";
 import { dropOnBorder, dropOnRow, dropOnTabset } from "./dock";
 import { checkDrop, type DropTarget, resolveTarget } from "./rules";
-import type { CommandError } from "./types";
-
-const tabIdSchema = { ...idSchema, description: "the tab's id" } as const;
 
 const tabIdResult = object({ tabId: describedId("tab") }, ["tabId"]);
-
-/** Removes the keys whose value is undefined (the state holds no undefined fields). */
-export function compact<O extends object>(value: O): O {
-    const out: Record<string, unknown> = {};
-    for (const [key, field] of Object.entries(value)) {
-        if (field !== undefined) {
-            out[key] = field;
-        }
-    }
-    return out as O;
-}
-
-/** A tab node from its init fields, with a generated id when it has none. */
-export function tabFromInit(draft: Draft, init: TabInit): AnyTab {
-    return compact({
-        type: "tab" as const,
-        id: init.id ?? draft.newId("tab"),
-        component: init.component,
-        label: init.label,
-        data: cloneJson(init.data),
-        pinned: init.pinned,
-        enableClose: init.enableClose,
-        enableDrag: init.enableDrag,
-        enablePopout: init.enablePopout,
-        minWidth: init.minWidth,
-        minHeight: init.minHeight,
-        maxWidth: init.maxWidth,
-        maxHeight: init.maxHeight,
-        borderWidth: init.borderWidth,
-        borderHeight: init.borderHeight,
-    });
-}
 
 /** Places a node (a tab or a tabset) at a resolved target. */
 export function place(
@@ -85,26 +52,13 @@ export function place(
     return target.id;
 }
 
-/** The tab `id` in the tree, or a not_found error. */
-export function attachedTab(
-    draft: Draft,
-    id: string,
-    path = "/tabId",
-): AnyTab | CommandError {
+/** The tab `id` in the tree, or why not. */
+function attachedTab(draft: Draft, id: string): AnyTab | Failure {
     const tab = draft.tab(id);
     if (!tab || !draft.isAttached(id)) {
-        return { code: "not_found", message: `no tab "${id}"`, path };
+        return fail("not_found", `no tab "${id}"`, "/tabId");
     }
     return tab;
-}
-
-export function isError(value: object): value is CommandError {
-    return "code" in value && "message" in value && !("type" in value);
-}
-
-/** The rect of the n-th new window when none is given. */
-export function defaultWindowRect(n: number): Rect {
-    return { x: 50 + 50 * n, y: 50 + 50 * n, width: 600, height: 400 };
 }
 
 export const tabAdd = defineCommand({
@@ -133,8 +87,8 @@ export const tabAdd = defineCommand({
     transient: false,
     reduce(payload, { draft, validateData }) {
         const target = resolveTarget(draft, payload.to);
-        if (isError(target)) {
-            return { ok: false, error: target };
+        if ("error" in target) {
+            return target;
         }
         if (payload.id !== undefined && draft.isUsed(payload.id)) {
             return fail(
@@ -143,9 +97,9 @@ export const tabAdd = defineCommand({
                 "/id",
             );
         }
-        const invalid = validateData(payload.component, payload.data, "/data");
+        const invalid = validateData(payload.component, payload.data);
         if (invalid) {
-            return { ok: false, error: invalid };
+            return invalid;
         }
         const location = payload.location ?? "center";
         const refused = checkDrop(
@@ -155,9 +109,11 @@ export const tabAdd = defineCommand({
             location,
         );
         if (refused) {
-            return { ok: false, error: refused };
+            return refused;
         }
-        const tab = draft.create(tabFromInit(draft, payload));
+        const tab = draft.create(
+            tabNode(payload, payload.id ?? draft.newId("tab")),
+        );
         place(
             draft,
             target,
@@ -175,13 +131,13 @@ export const tabSelect = defineCommand({
     name: "tab.select",
     description:
         "Select a tab, making it visible. In a tabset the tabset also becomes the active one; in a border the border's panel opens. Selecting the selected tab changes nothing.",
-    payloadSchema: object({ tabId: tabIdSchema }, ["tabId"]),
+    payloadSchema: object({ tabId: describedId("tab") }, ["tabId"]),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         const parent = draft.parentOf(tab.id);
         const container = parent === undefined ? undefined : draft.get(parent);
@@ -205,13 +161,13 @@ export const tabClose = defineCommand({
     name: "tab.close",
     description:
         "Close a tab and remove it from the layout. Refused for a pinned tab or one whose enableClose is false.",
-    payloadSchema: object({ tabId: tabIdSchema }, ["tabId"]),
+    payloadSchema: object({ tabId: describedId("tab") }, ["tabId"]),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         const resolved = resolveTab(draft.getDefaults(), tab);
         if (resolved.pinned) {
@@ -241,23 +197,23 @@ export const tabMove = defineCommand({
     name: "tab.move",
     description:
         "Move a tab to another place: into a tabset or border at an index (location center), beside a tabset (an edge location splits it), or to an edge of a layout (`to` a root row or a layout id, with an edge location). Refused where the tab or the target does not allow it.",
-    payloadSchema: object({ tabId: tabIdSchema, ...placementProperties }, [
-        "tabId",
-        "to",
-    ]),
+    payloadSchema: object(
+        { tabId: describedId("tab"), ...placementProperties },
+        ["tabId", "to"],
+    ),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         if (!resolveTab(draft.getDefaults(), tab).enableDrag) {
             return fail("refused", `tab "${tab.id}" cannot be moved`, "/tabId");
         }
         const target = resolveTarget(draft, payload.to);
-        if (isError(target)) {
-            return { ok: false, error: target };
+        if ("error" in target) {
+            return target;
         }
         const location = payload.location ?? "center";
         const refused = checkDrop(
@@ -267,7 +223,7 @@ export const tabMove = defineCommand({
             location,
         );
         if (refused) {
-            return { ok: false, error: refused };
+            return refused;
         }
         place(
             draft,
@@ -288,7 +244,7 @@ export const tabSetData = defineCommand({
         "Change some of a tab's data: `data` is a shallow patch, whose top-level keys replace the tab's while the others stay (none is removed). The merged data is validated when the app registered a schema for the tab's component. To switch the component, use `tab.set-component`.",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             data: {
                 type: "object",
                 description:
@@ -301,11 +257,11 @@ export const tabSetData = defineCommand({
     transient: false,
     reduce(payload, { draft, validateData }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         const current = tab.data ?? {};
-        if (!isPlainObject(current)) {
+        if (!isObject(current)) {
             return fail(
                 "invalid_payload",
                 `the data of tab "${tab.id}" is not an object: replace it with tab.set-component`,
@@ -315,9 +271,9 @@ export const tabSetData = defineCommand({
         // only the patch is copied (the kept keys are the state's own); a spread defines own
         // keys, and an undefined value, dropped by the copy, changes nothing
         const data = { ...current, ...cloneJson(payload.data) };
-        const invalid = validateData(tab.component, data, "/data");
+        const invalid = validateData(tab.component, data);
         if (invalid) {
-            return { ok: false, error: invalid };
+            return invalid;
         }
         draft.set(tab.id, "data", data);
         return ok({ tabId: tab.id });
@@ -330,7 +286,7 @@ export const tabSetComponent = defineCommand({
         "Switch a tab to another component (or reset it to its own): `data` is the component's whole new value, validated when the app registered a schema for that component. The tab keeps its id, label and place.",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             component: {
                 type: "string",
                 minLength: 1,
@@ -345,12 +301,12 @@ export const tabSetComponent = defineCommand({
     transient: false,
     reduce(payload, { draft, validateData }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
-        const invalid = validateData(payload.component, payload.data, "/data");
+        const invalid = validateData(payload.component, payload.data);
         if (invalid) {
-            return { ok: false, error: invalid };
+            return invalid;
         }
         draft.set(tab.id, "component", payload.component);
         draft.set(tab.id, "data", cloneJson(payload.data));
@@ -358,18 +314,13 @@ export const tabSetComponent = defineCommand({
     },
 });
 
-/** A plain JSON object (not an array, not null). */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 export const tabPin = defineCommand({
     name: "tab.pin",
     description:
         "Pin (value true) or unpin a tab of a tabset. Pinned tabs sit at the start of the strip, cannot be closed and cannot be dragged out of their tabset.",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             value: { ...booleanSchema, description: "true pins, false unpins" },
         },
         ["tabId", "value"],
@@ -378,8 +329,8 @@ export const tabPin = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         const parent = draft.parentOf(tab.id);
         if ((tab.pinned === true) === payload.value) {
@@ -419,7 +370,7 @@ export const tabPopout = defineCommand({
         "Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts, is pinned or is already in a window.",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             rect: {
                 ...rectSchema,
                 description:
@@ -432,8 +383,8 @@ export const tabPopout = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         if (draft.layoutOf(tab.id) !== MAIN_LAYOUT) {
             return fail(
@@ -474,17 +425,12 @@ export const tabConfigure = defineCommand({
         "Change a tab's label, behaviour flags and size limits. Absent keys are left as they are. A null flag or limit removes the tab's own value so the layout default applies; the label cannot be removed (a tab always has one).",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             label: { ...labelSchema, description: "the tab's new name" },
-            enableClose: nullable(tabFieldProperties.enableClose),
-            enableDrag: nullable(tabFieldProperties.enableDrag),
-            enablePopout: nullable(tabFieldProperties.enablePopout),
-            minWidth: nullable(tabFieldProperties.minWidth),
-            minHeight: nullable(tabFieldProperties.minHeight),
-            maxWidth: nullable(tabFieldProperties.maxWidth),
-            maxHeight: nullable(tabFieldProperties.maxHeight),
-            borderWidth: nullable(tabFieldProperties.borderWidth),
-            borderHeight: nullable(tabFieldProperties.borderHeight),
+            ...nullableEach({
+                ...tabDefaultProperties,
+                ...tabBorderSizeProperties,
+            }),
         },
         ["tabId"],
     ),
@@ -492,8 +438,8 @@ export const tabConfigure = defineCommand({
     transient: false,
     reduce(payload, { draft }) {
         const tab = attachedTab(draft, payload.tabId);
-        if (isError(tab)) {
-            return { ok: false, error: tab };
+        if ("error" in tab) {
+            return tab;
         }
         for (const [key, value] of Object.entries(payload)) {
             if (key !== "tabId" && value !== undefined) {

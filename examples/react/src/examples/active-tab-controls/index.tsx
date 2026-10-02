@@ -6,9 +6,14 @@ import {
     type Model,
     type RowNode,
     type TabNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+import {
+    Dockable,
+    type RowSplitterProps,
+    useModelState,
+} from "@fragiola/dockable-react";
 import {
     ChartArea,
     ChartColumn,
@@ -17,7 +22,7 @@ import {
     Donut,
     Shuffle,
 } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { type ChartKind, ChartPanel } from "../_kit/charts";
 import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
@@ -83,7 +88,7 @@ const KINDS: { kind: ChartKind; label: string; Icon: typeof ChartLine }[] = [
 
 /** The tab the user is looking at: the selected tab of the active tabset (else the first). */
 function currentTab(model: Model<Types>) {
-    const tabset = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const tabset = model.get("default-tabset");
     return tabset
         ? model.get("selected-tab-by", { tabsetId: tabset.id })
         : undefined;
@@ -113,39 +118,37 @@ export default function ActiveTabControls() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "chart" ? (
-                                    <ChartPanel
-                                        // keyed on the kind: a pie and a line are different charts
-                                        key={tab.data.kind}
-                                        kind={tab.data.kind}
-                                        seed={tab.data.seed}
-                                        title={tab.label}
-                                    />
-                                ) : (
-                                    <TablePanel />
-                                )}
+                                <Content tab={tab} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </>
     );
 }
 
-/**
- * The toolbar outside the layout. It re-renders on every commit (`subscribe`) and reads the
- * current tab; a component of its own, so a commit re-renders it, not the layout.
- */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    // keyed on the kind: a pie and a line are different charts
+                    key={tab.data.kind}
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "table":
+            return <TablePanel />;
+    }
+}
+
+/** The toolbar outside the layout: it follows the current tab, and a commit re-renders it, not the layout. */
 function Toolbar({ model }: { model: Model<Types> }) {
-    useSyncExternalStore(model.subscribe, () => model.state);
-    const tab = currentTab(model);
+    const tab = useModelState(() => currentTab(model), { model });
     const chart = tab?.component === "chart" ? tab : undefined;
     return (
         <div className={styles.toolbar}>
@@ -190,7 +193,6 @@ function Toolbar({ model }: { model: Model<Types> }) {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -205,7 +207,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     return <TabSet node={node} />;
 }
 
-/** A tabset: the strip of tabs on top and the measured content area below. */
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -230,7 +231,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

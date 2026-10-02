@@ -28,7 +28,7 @@ Pass the model's registry as the type argument (`<Dockable.Borders<Types>>`): `r
 </Dockable.Root>
 ```
 
-Borders come from the model's state (`model.state.borders`, declared in the layout JSON's `borders`; see [JSON model](/docs/api/json-model)). See the
+Borders come from the model's state (`model.get("borders")`, declared in the layout JSON's `borders`; see [JSON model](/docs/api/json-model)). See the
 [Borders guide](/docs/guides/borders).
 
 ## Props
@@ -56,7 +56,8 @@ A border shows when its resolved `show` is on (`model.get("border-settings-by", 
 reveals it: while a tab is dragged near the edge of the layout that has an empty auto-hide border
 (within `defaults.layout.edgeDockMargin`, away from the edge docking bands), that border appears so it can
 take the drop. It hides again when the drag ends. Borders only render in the main layout, never
-in a popout window.
+in a popout window. The engine decides: `Dockable.Borders` renders the borders
+`engine.is("border-shown", { borderId })` answers `true` for.
 
 ## Data attributes
 

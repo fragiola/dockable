@@ -30,8 +30,6 @@ export interface TabListState {
     dropIndex: number | undefined;
     /** some tabs do not fit, so they are hidden (list them with `Dockable.TabOverflowTrigger`) */
     overflowing: boolean;
-    /** how many tabs are hidden */
-    hiddenCount: number;
 }
 
 export interface TabListProps<T extends DockableTypes = AnyTypes>
@@ -61,12 +59,12 @@ export interface TabListProps<T extends DockableTypes = AnyTypes>
 export function TabList<T extends DockableTypes = AnyTypes>(
     props: TabListProps<T>,
 ) {
-    const tabset = useTabContainer<T>("TabList");
-    const border = tabset.type === "border";
+    const container = useTabContainer<T>("TabList");
+    const border = container.type === "border";
     const {
         children,
         orientation = border &&
-        (tabset.location === "left" || tabset.location === "right")
+        (container.location === "left" || container.location === "right")
             ? "vertical"
             : "horizontal",
         overflow = true,
@@ -74,7 +72,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
     } = props;
     const { keyMap } = useDockableContext("TabList");
     const { engine } = useLayoutContext("TabList");
-    const id = tabset.id;
+    const id = container.id;
     const vertical = orientation === "vertical";
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
@@ -91,26 +89,21 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         },
         [engine, id, border, vertical, overflow],
     );
-    const tabOverflow = useTabOverflow(tabset);
+    const { overflowing } = useTabOverflow(container);
 
-    const keyShortcuts =
-        [
-            toAriaKeyShortcuts(keyMap.focusNextTabset),
-            toAriaKeyShortcuts(keyMap.focusPreviousTabset),
-        ]
-            .filter(Boolean)
-            .join(" ") || undefined;
+    const keyShortcuts = toAriaKeyShortcuts(
+        keyMap.focusNextTabset,
+        keyMap.focusPreviousTabset,
+    );
 
     const drop = useTabSetDropState(engine, id);
-    const dropIndex = drop.strip ? drop.index : undefined;
     const state: TabListState = {
         orientation,
-        dropTarget: drop.strip,
-        dropIndex,
-        overflowing: tabOverflow.overflowing,
-        hiddenCount: tabOverflow.hiddenTabs.length,
+        dropTarget: drop.index !== undefined,
+        dropIndex: drop.index,
+        overflowing,
     };
-    const tabs = tabset.children.map((tab) => (
+    const tabs = container.children.map((tab) => (
         <React.Fragment key={tab.id}>{children(tab)}</React.Fragment>
     ));
     const listContext = React.useMemo(() => ({ orientation }), [orientation]);
@@ -128,7 +121,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
                 ),
                 orientation,
                 "drop-target": state.dropTarget,
-                "drop-index": dropIndex,
+                "drop-index": state.dropIndex,
                 overflowing: state.overflowing,
             }),
             children: tabs,

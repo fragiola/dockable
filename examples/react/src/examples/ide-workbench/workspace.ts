@@ -3,6 +3,7 @@ import {
     type JsonSchema,
     type LayoutJson,
     LayoutValidationError,
+    MAIN_LAYOUT,
     type Model,
     type Node,
     type TabInitOf,
@@ -19,7 +20,6 @@ export interface EditorData {
     dirty?: boolean;
 }
 
-/** What the layout holds: each tab component and the type of its data. */
 export type Types = {
     tabs: {
         editor: EditorData;
@@ -63,6 +63,22 @@ export function editorData(
     return node?.type === "tab" && node.component === "editor"
         ? node.data
         : undefined;
+}
+
+/** The paths of the editors with unsaved changes. */
+export function dirtyPaths(model: Model<Types>): ReadonlySet<string> {
+    const paths = new Set<string>();
+    for (const tab of model.get("all-tabs")) {
+        const data = editorData(tab);
+        if (data?.dirty) paths.add(data.path);
+    }
+    return paths;
+}
+
+/** The path of the editor the user is looking at. */
+export function activePath(model: Model<Types>): string | undefined {
+    return editorData(model.get("selected-tab-by", { layoutId: MAIN_LAYOUT }))
+        ?.path;
 }
 
 export function editorTab(path: string, dirty = false): TabInitOf<Types> {
@@ -143,7 +159,7 @@ export function openFile(model: Model<Types>, path: string) {
         model.run("tab.select", { tabId: id });
         return;
     }
-    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const target = model.get("default-tabset");
     if (target) {
         model.run("tab.add", {
             ...editorTab(path),

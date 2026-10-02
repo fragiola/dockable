@@ -71,7 +71,7 @@ adds the tab to the active tabset.
 
 ```tsx
 const addToActiveTabset = () => {
-    const target = model.get("active-tabset") ?? model.get("tabsets")[0];
+    const target = model.get("default-tabset");
     if (!target) return;
     const added = model.run("tab.add", { ...widgetTab(widget), to: target.id, select: true });
     onAdded(added.ok ? added.value.tabId : undefined);

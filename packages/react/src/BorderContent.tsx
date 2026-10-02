@@ -4,16 +4,15 @@
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import {
     type AnyTypes,
+    type BorderLocation,
     type BorderNode,
     type DockableTypes,
-    type LayoutEngine,
-    type Model,
     OVERLAY_ATTRIBUTE,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { type BorderState, borderAttributes } from "./Border";
+import { borderAttributes } from "./Border";
 import { useDockableContext, useLayoutContext } from "./context";
-import { useBorder } from "./hooks";
+import { useBorder, useMeasurable } from "./hooks";
 import { Splitter } from "./Splitter";
 import {
     type DivPrimitiveProps,
@@ -21,8 +20,26 @@ import {
     useRenderElement,
 } from "./utils/useRender";
 
+/** What a border shows: `Dockable.BorderContent`'s state (`Dockable.Border` adds its tab direction). */
+export interface BorderContentState {
+    /** the side of the layout the border is on */
+    location: BorderLocation;
+    /** the direction its tabs run: `"vertical"` for a left or right border */
+    orientation: "horizontal" | "vertical";
+    /** a tab is selected, so the border's panel is open */
+    open: boolean;
+    /** the panel opens over the layout (`mode: "overlay"`) instead of beside it */
+    overlay: boolean;
+    /** the border has no tabs */
+    empty: boolean;
+    /** the current drag would drop into this border (its strip or its open panel) */
+    dropTarget: boolean;
+    /** the current drag is over this border, but a drop rule refuses it */
+    dropRefused: boolean;
+}
+
 export interface BorderContentProps<T extends DockableTypes = AnyTypes>
-    extends DivPrimitiveProps<BorderState> {
+    extends DivPrimitiveProps<BorderContentState> {
     node: BorderNode<T>;
     /** renders the border's splitter (defaults to `<Dockable.Splitter node={border} />`) */
     renderSplitter?: ((border: BorderNode<T>) => React.ReactNode) | undefined;
@@ -45,12 +62,7 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
     const { engine } = useLayoutContext("BorderContent");
     const { state } = useBorder(node);
     const id = node.id;
-    const areaRef = React.useCallback(
-        (element: HTMLElement | null) => {
-            engine.adapter.registerMeasurable(id, "bordercontent", element);
-        },
-        [engine, id],
-    );
+    const areaRef = useMeasurable(engine, id, "bordercontent");
     const location = node.location;
     // a left or right border: sized by width
     const horizontal = location === "left" || location === "right";
@@ -90,9 +102,12 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
     if (state.overlay) {
         // hit-testing, not cosmetics: the overlay paints over the layout (its z-index is yours),
         // but presses must reach the tab panel under its empty area; its splitter takes them back
-        Object.assign(structural, overlayPosition(model, engine, node), {
-            pointerEvents: "none",
-        });
+        Object.assign(
+            structural,
+            { position: "absolute" },
+            engine.get("overlay-placement-by", { borderId: id }),
+            { pointerEvents: "none" },
+        );
     }
     return useRenderElement("div", rest, {
         state,
@@ -109,46 +124,4 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
         },
         style: structural,
     });
-}
-
-/**
- * An overlay's structural placement over the layout's edge. A left or right overlay stops at the
- * open top and bottom overlays, as FlexLayout's does.
- */
-function overlayPosition<T extends DockableTypes>(
-    model: Model,
-    engine: LayoutEngine,
-    node: BorderNode<T>,
-): React.CSSProperties {
-    const location = node.location;
-    const style: React.CSSProperties = { position: "absolute" };
-    if (location === "top" || location === "bottom") {
-        style.left = 0;
-        style.right = 0;
-        style[location] = 0;
-        return style;
-    }
-    style[location] = 0;
-    style.top = 0;
-    style.bottom = 0;
-    for (const other of model.state.borders) {
-        const resolved = model.get("border-settings-by", {
-            borderId: other.id,
-        });
-        if (
-            resolved &&
-            other.id !== node.id &&
-            resolved.mode === "overlay" &&
-            resolved.show &&
-            other.selected !== -1
-        ) {
-            const inset = resolved.size + engine.get("splitter-size");
-            if (other.location === "top") {
-                style.top = inset;
-            } else if (other.location === "bottom") {
-                style.bottom = inset;
-            }
-        }
-    }
-    return style;
 }

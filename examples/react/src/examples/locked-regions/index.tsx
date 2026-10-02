@@ -114,44 +114,34 @@ function regionOf(tab: TabOf<Types> | TabAddPayload<Types> | undefined) {
 
 /**
  * The drop rule, as middleware. Ids are stable; paths (`/ts0`) change as the layout changes.
- * `ctx.payload` is the payload of `ctx.command`: the fields it names tell which one it is.
+ * `ctx.command` narrows `ctx.payload`.
  */
 const lockedRegions: Middleware<Types> = (ctx, next) => {
-    if (
-        ctx.command !== "tab.move" &&
-        ctx.command !== "tabset.move" &&
-        ctx.command !== "tab.add"
-    ) {
-        return next();
-    }
-    const payload = ctx.payload;
-    if (!("to" in payload)) {
-        return next();
-    }
     // what is placed: an existing tab (tab.move), a new tab (tab.add) or a tabset (tabset.move)
-    const moving =
-        "tabId" in payload
-            ? ctx.get("node-by", { id: payload.tabId })
-            : "component" in payload
-              ? payload
-              : undefined;
-    const tab = moving && "component" in moving ? moving : undefined;
+    let tab: TabOf<Types> | TabAddPayload<Types> | undefined;
+    if (ctx.command === "tab.move") {
+        const moved = ctx.get("node-by", { id: ctx.payload.tabId });
+        tab = moved?.type === "tab" ? moved : undefined;
+    } else if (ctx.command === "tab.add") {
+        tab = ctx.payload;
+    } else if (ctx.command !== "tabset.move") {
+        return next();
+    }
+    const { to, location } = ctx.payload;
     const name = tab ? `"${tab.label}"` : "a tabset";
 
-    if (payload.to === REFERENCE && regionOf(tab) !== REFERENCE) {
+    if (to === REFERENCE && regionOf(tab) !== REFERENCE) {
         return veto(`A middleware vetoed moving ${name} into Reference.`);
     }
     // docking at the layout's edge next to a locked tabset (`to` is the root row, or the layout)
     const target =
-        payload.to === MAIN_LAYOUT
-            ? ctx.state.root
-            : ctx.get("node-by", { id: payload.to });
+        to === MAIN_LAYOUT ? ctx.state.root : ctx.get("node-by", { id: to });
     if (target?.type === "row") {
         const children = target.children;
         const beside =
-            payload.location === "left"
+            location === "left"
                 ? children[0]
-                : payload.location === "right"
+                : location === "right"
                   ? children[children.length - 1]
                   : undefined;
         if (beside && LOCKED.has(beside.id)) {
@@ -183,7 +173,6 @@ export default function LockedRegions() {
                     {notice}
                 </p>
             </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
             <div className={styles.frame}>
                 <Dockable.Root model={model} className={styles.root}>
                     <Dockable.Row<Types>
@@ -194,33 +183,39 @@ export default function LockedRegions() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                {tab.component === "doc" ? (
-                                    <DocPanel tab={tab} onNotice={setNotice} />
-                                ) : (
-                                    <PanelBody title={tab.label}>
-                                        <p className={styles.panelText}>
-                                            Locked in place: this tab cannot be
-                                            dragged, and nothing can be dropped
-                                            into or beside it.
-                                        </p>
-                                    </PanelBody>
-                                )}
+                                <Content tab={tab} onNotice={setNotice} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </>
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
+function Content({
+    tab,
+    onNotice,
+}: {
+    tab: TabOf<Types>;
+    onNotice: (notice: string | undefined) => void;
+}) {
+    switch (tab.component) {
+        case "doc":
+            return <DocPanel tab={tab} onNotice={onNotice} />;
+        case "console":
+            return (
+                <PanelBody title={tab.label}>
+                    <p className={styles.panelText}>
+                        Locked in place: this tab cannot be dragged, and nothing
+                        can be dropped into or beside it.
+                    </p>
+                </PanelBody>
+            );
+    }
+}
+
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -251,7 +246,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}
@@ -346,7 +340,6 @@ function DocPanel({
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

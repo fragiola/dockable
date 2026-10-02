@@ -48,7 +48,10 @@ export function computePaths(
     return paths;
 }
 
-/** The path of a window layout (`n` is its 1-based position in the state's windows). */
+/**
+ * The path of a window layout: `n` is the lowest number free when its window first shows, kept
+ * while it is open.
+ */
 export function windowPath(n: number): string {
     return `/sublayout${n}`;
 }

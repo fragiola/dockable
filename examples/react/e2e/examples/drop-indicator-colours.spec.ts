@@ -16,20 +16,29 @@ test("the indicator takes the target region's colour and the drop's side", async
     // into Inbox: the inbox colour, filled
     await moveDragTo(page, await centre(path(page, "/r0/ts0/content")));
     await expect(indicator).toBeVisible();
-    await expect(indicator).toHaveAttribute("data-region", "inbox");
+    await expect(path(page, "/r0/ts0")).toHaveAttribute("data-drop-target", "");
     await expect(indicator).toHaveAttribute("data-drop-location", "center");
     const inbox = await background(indicator);
 
+    // into Review: the same fill in another region's colour
+    await moveDragTo(page, await centre(path(page, "/r0/ts1/content")));
+    await expect(path(page, "/r0/ts1")).toHaveAttribute("data-drop-target", "");
+    await expect(indicator).toHaveAttribute("data-drop-location", "center");
+    const review = await background(indicator);
+    expect(review).not.toBe(inbox);
+
     // beside Archive, on its left: the archive colour, another fill
-    const archive = await path(page, "/r1/ts0/content").boundingBox();
-    if (!archive) throw new Error("no box");
+    const box = await path(page, "/r1/ts0/content").boundingBox();
+    if (!box) throw new Error("no box");
     await moveDragTo(page, {
-        x: archive.x + 12,
-        y: archive.y + archive.height / 2,
+        x: box.x + 12,
+        y: box.y + box.height / 2,
     });
-    await expect(indicator).toHaveAttribute("data-region", "archive");
+    await expect(path(page, "/r1/ts0")).toHaveAttribute("data-drop-target", "");
     await expect(indicator).toHaveAttribute("data-drop-location", "left");
-    expect(await background(indicator)).not.toBe(inbox);
+    const archive = await background(indicator);
+    expect(archive).not.toBe(inbox);
+    expect(archive).not.toBe(review);
 
     // at the layout's edge: an edge drop, in the edge colour
     const root = await path(page, "/layout").boundingBox();

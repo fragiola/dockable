@@ -9,6 +9,7 @@ import type {
 } from "@fragiola/dockable";
 import * as React from "react";
 import { typedModel, useDockableContext, useLayoutContext } from "./context";
+import { useMeasurable } from "./hooks";
 import { Splitter } from "./Splitter";
 import {
     type DivPrimitiveProps,
@@ -64,12 +65,7 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
     const root = node === undefined;
     const horizontal = engine.adapter.rowOrientation(id) === "horizontal";
 
-    const ref = React.useCallback(
-        (element: HTMLElement | null) => {
-            engine.adapter.registerMeasurable(id, "row", element);
-        },
-        [engine, id],
-    );
+    const ref = useMeasurable(engine, id, "row");
 
     const items: React.ReactNode[] = [];
     for (const [index, child] of row.children.entries()) {
@@ -95,17 +91,16 @@ export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
         // a maximized tabset fills the layout: the rows off its path give up their space
         hidden: model.is("node-hidden-by-maximize", { nodeId: id }),
     };
-    const range = engine.get("size-limits-by", { nodeId: id });
+    const flex = engine.get("flex-by", { nodeId: id });
     const structural: React.CSSProperties = {
         display: state.hidden ? "none" : "flex",
         flexDirection: horizontal ? "row" : "column",
         flexBasis: 0,
-        // NOTE: flex-grow cannot have values < 1 otherwise it will not fill the parent
-        flexGrow: Math.max(1, row.weight * 1000),
-        minWidth: range.minWidth,
-        minHeight: range.minHeight,
-        maxWidth: range.maxWidth,
-        maxHeight: range.maxHeight,
+        flexGrow: flex.grow,
+        minWidth: flex.minWidth,
+        minHeight: flex.minHeight,
+        maxWidth: flex.maxWidth,
+        maxHeight: flex.maxHeight,
         overflow: "hidden",
     };
     if (root) {

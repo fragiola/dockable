@@ -1,10 +1,9 @@
 import { COMMAND_DEFINITIONS } from "../commands/catalogue";
-import type { ReduceContext } from "../commands/define";
+import { fail, invalid, type ReduceContext } from "../commands/define";
 import type {
     BatchStep,
     CommandContext,
     CommandContextGetKey,
-    CommandError,
     CommandEvent,
     CommandInfo,
     CommandListener,
@@ -16,7 +15,7 @@ import type {
     RunOptions,
 } from "../commands/types";
 import type { JsonSchema } from "../schema/types";
-import { validate } from "../schema/validator";
+import { isObject, validate } from "../schema/validator";
 import { Draft } from "./draft";
 import { type CreateId, IdSource } from "./ids";
 import type { LayoutJson } from "./json";
@@ -121,42 +120,6 @@ export interface Model<T extends DockableTypes = AnyTypes> {
     subscribe(listener: CommandListener<T>): () => void;
 }
 
-function error(
-    code: CommandError["code"],
-    message: string,
-    path?: string,
-    issues?: CommandError["issues"],
-): { ok: false; error: CommandError } {
-    const value: {
-        code: CommandError["code"];
-        message: string;
-        path?: string;
-        issues?: CommandError["issues"];
-    } = { code, message };
-    if (path !== undefined) {
-        value.path = path;
-    }
-    if (issues !== undefined) {
-        value.issues = issues;
-    }
-    return { ok: false, error: value };
-}
-
-/**
- * The path of a "cannot run as a transient step" error before it is placed: the flag is not in the
- * payload, so it is `/transient` (the option, or `dispatch`'s key), or a batch step's `/command`.
- */
-const TRANSIENT_PATH = "\u0000transient";
-
-function placeTransientError(
-    result: CommandResult<unknown>,
-    path: string,
-): CommandResult<unknown> {
-    return result.ok || result.error.path !== TRANSIENT_PATH
-        ? result
-        : { ok: false, error: { ...result.error, path } };
-}
-
 function prefixed(
     result: CommandResult<unknown>,
     prefix: string,
@@ -184,13 +147,18 @@ function prefixed(
     };
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
+/** Where a command's errors point: into its payload, and at its transient flag. */
+interface ErrorPaths {
+    readonly payload: string;
+    readonly transient: string;
 }
 
-/** What one top-level execution collects (the steps of a batch). */
+/** One top-level execution: the draft it runs on, and what it collects (the steps of a batch). */
 interface Execution {
-    steps: BatchStep[];
+    readonly draft: Draft;
+    readonly dryRun: boolean;
+    readonly options: RunOptions;
+    readonly steps: BatchStep[];
     /** an exception a reducer threw: rethrown once the chain unwound */
     thrown: { error: unknown } | undefined;
 }
@@ -313,7 +281,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         options: DispatchOptions = {},
     ): CommandResult<unknown> {
         if (!isObject(input)) {
-            return error(
+            return fail(
                 "invalid_payload",
                 "must be an object { command, payload }",
                 "",
@@ -321,24 +289,24 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         }
         const { command, payload, transient } = input;
         if (typeof command !== "string") {
-            return error("invalid_payload", "must be a string", "/command");
+            return fail("invalid_payload", "must be a string", "/command");
         }
         if (!COMMAND_DEFINITIONS.has(command)) {
-            return error(
+            return fail(
                 "unknown_command",
                 `unknown command "${command}"`,
                 "/command",
             );
         }
         if (!isObject(payload)) {
-            return error("invalid_payload", "must be an object", "/payload");
+            return fail("invalid_payload", "must be an object", "/payload");
         }
         if (transient !== undefined && typeof transient !== "boolean") {
-            return error("invalid_payload", "must be a boolean", "/transient");
+            return fail("invalid_payload", "must be a boolean", "/transient");
         }
         for (const key of Object.keys(input)) {
             if (key !== "command" && key !== "payload" && key !== "transient") {
-                return error("invalid_payload", "is not allowed", `/${key}`);
+                return fail("invalid_payload", "is not allowed", `/${key}`);
             }
         }
         return this.enqueueOrExecute(
@@ -363,7 +331,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
             this.queue.push(() => {
                 this.execute(command, payload, options ?? {}, false, prefix);
             });
-            return error(
+            return fail(
                 "queued",
                 `"${command}" was issued while another command was running; it runs after it`,
             );
@@ -396,24 +364,24 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
             this.committed.index,
             ids,
         );
-        const execution: Execution = { steps: [], thrown: undefined };
+        const execution: Execution = {
+            draft,
+            dryRun,
+            options,
+            steps: [],
+            thrown: undefined,
+        };
         if (!dryRun) {
             this.inFlight++;
         }
-        let result: CommandResult<unknown>;
-        let finalPayload = payload;
+        let ran: { result: CommandResult<unknown>; payload: unknown };
         try {
-            result = this.runChain(
+            ran = this.runChain(
+                execution,
                 command,
                 payload,
-                options,
-                draft,
-                dryRun,
+                { payload: prefix, transient: "/transient" },
                 false,
-                execution,
-                (final) => {
-                    finalPayload = final;
-                },
             );
         } finally {
             if (!dryRun) {
@@ -423,10 +391,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         if (execution.thrown) {
             throw execution.thrown.error;
         }
-        result =
-            !result.ok && result.error.path === TRANSIENT_PATH
-                ? placeTransientError(result, "/transient")
-                : prefixed(result, prefix);
+        const { result } = ran;
         if (!result.ok || dryRun) {
             return result;
         }
@@ -436,7 +401,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         this.committed.index = committed.index;
         const event: CommandEvent<T> = {
             command: command as CommandName,
-            payload: finalPayload,
+            payload: ran.payload,
             result: result.value,
             before,
             after: this.committed.state as unknown as LayoutState<T>,
@@ -449,34 +414,40 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
     }
 
     /**
-     * Looks up, validates and runs one command through the middleware chain on `draft`.
-     * `onPayload` receives the payload the reducer ran with (a middleware may have rewritten it).
+     * Looks up, validates and runs one command through the middleware chain on the execution's
+     * draft. Returns its result, its errors placed at `at`, and the payload the reducer ran with (a
+     * middleware may have rewritten it).
      */
     private runChain(
+        execution: Execution,
         command: string,
         payload: unknown,
-        options: RunOptions,
-        draft: Draft,
-        dryRun: boolean,
+        at: ErrorPaths,
         inBatch: boolean,
-        execution: Execution,
-        onPayload: (payload: unknown) => void,
-    ): CommandResult<unknown> {
+    ): { result: CommandResult<unknown>; payload: unknown } {
+        const { draft, dryRun, options } = execution;
         const definition = COMMAND_DEFINITIONS.get(command);
         if (!definition) {
-            return error("unknown_command", `unknown command "${command}"`);
+            return {
+                result: fail("unknown_command", `unknown command "${command}"`),
+                payload,
+            };
         }
-        const issues = validate(definition.payloadSchema, payload);
-        const first = issues[0];
-        if (first) {
-            return error("invalid_payload", first.message, first.path, issues);
+        const failed = invalid(
+            validate(definition.payloadSchema, payload, at.payload),
+        );
+        if (failed) {
+            return { result: failed, payload };
         }
         if (options.transient === true && !definition.transient) {
-            return error(
-                "invalid_payload",
-                `"${command}" cannot run as a transient step`,
-                TRANSIENT_PATH,
-            );
+            return {
+                result: fail(
+                    "invalid_payload",
+                    `"${command}" cannot run as a transient step`,
+                    at.transient,
+                ),
+                payload,
+            };
         }
 
         const validated = payload;
@@ -511,23 +482,11 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
 
         const reduceContext: ReduceContext = {
             draft,
-            validateData: (component, data, path) => {
+            validateData: (component, data) => {
                 const schema = this.dataSchemas?.[component];
-                if (!schema) {
-                    return undefined;
-                }
-                const dataIssues = validate(schema, data, path);
-                const firstIssue = dataIssues[0];
-                return firstIssue
-                    ? {
-                          code: "invalid_payload",
-                          message: firstIssue.message,
-                          path: firstIssue.path,
-                          issues: dataIssues,
-                      }
-                    : undefined;
+                return schema && invalid(validate(schema, data, "/data"));
             },
-            loadLayout: (json, path) => {
+            loadLayout: (json) => {
                 const built = buildState(
                     json,
                     draft.ids,
@@ -536,74 +495,55 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
                         freeze: this.freeze,
                         reserved: (id) => draft.isUsed(id),
                     },
-                    path,
+                    "/layout",
                 );
-                if (built.ok) {
-                    return built;
-                }
-                const firstIssue = built.issues[0];
-                return {
-                    ok: false,
-                    error: {
-                        code: "invalid_payload",
-                        message: firstIssue?.message ?? "invalid layout",
-                        ...(firstIssue ? { path: firstIssue.path } : {}),
-                        issues: built.issues,
-                    },
-                };
+                return built.ok
+                    ? built
+                    : (invalid(built.issues) ??
+                          fail("invalid_payload", "invalid layout"));
             },
             runInBatch: (subCommand, subPayload, path) => {
-                let ranWith: unknown = subPayload;
                 const sub = this.runChain(
+                    execution,
                     subCommand,
                     subPayload,
-                    { ...options },
-                    draft,
-                    dryRun,
-                    true,
-                    execution,
-                    (final) => {
-                        ranWith = final;
+                    {
+                        payload: `${path}/payload`,
+                        transient: `${path}/command`,
                     },
+                    true,
                 );
-                if (!sub.ok) {
-                    if (sub.error.path === TRANSIENT_PATH) {
-                        return placeTransientError(sub, `${path}/command`);
-                    }
-                    return sub.error.code === "unknown_command"
-                        ? error(
+                const { result } = sub;
+                if (!result.ok) {
+                    return result.error.code === "unknown_command"
+                        ? fail(
                               "unknown_command",
-                              sub.error.message,
+                              result.error.message,
                               `${path}/command`,
                           )
-                        : prefixed(sub, `${path}/payload`);
+                        : result;
                 }
                 execution.steps.push({
                     command: subCommand as CommandName,
-                    payload: ranWith,
-                    result: sub.value,
+                    payload: sub.payload,
+                    result: result.value,
                 });
-                return sub;
+                return result;
             },
         };
 
+        let ranWith = payload;
         const core = (): CommandResult<unknown> => {
-            if (context.payload !== validated) {
-                const rewritten = validate(
-                    definition.payloadSchema,
-                    context.payload,
+            const rewritten =
+                context.payload !== validated &&
+                invalid(
+                    validate(definition.payloadSchema, context.payload),
+                    "rewritten by a middleware: ",
                 );
-                const problem = rewritten[0];
-                if (problem) {
-                    return error(
-                        "invalid_payload",
-                        `rewritten by a middleware: ${problem.message}`,
-                        problem.path,
-                        rewritten,
-                    );
-                }
+            if (rewritten) {
+                return rewritten;
             }
-            onPayload(context.payload);
+            ranWith = context.payload;
             try {
                 return definition.reduce(
                     context.payload as never,
@@ -611,10 +551,11 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
                 );
             } catch (thrown) {
                 execution.thrown ??= { error: thrown };
-                return error("refused", "the command failed");
+                return fail("refused", "the command failed");
             }
         };
-        return this.chain(context, core);
+        const result = prefixed(this.chain(context, core), at.payload);
+        return { result, payload: ranWith };
     }
 
     private chain(
@@ -628,7 +569,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
                 return core();
             }
             let called = false;
-            let nextResult: CommandResult<unknown> = error(
+            let nextResult: CommandResult<unknown> = fail(
                 "vetoed",
                 "a middleware returned no result",
             );
@@ -643,7 +584,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
             try {
                 out = middleware(context, next);
             } catch (thrown) {
-                return error(
+                return fail(
                     "middleware_error",
                     thrown instanceof Error ? thrown.message : String(thrown),
                 );

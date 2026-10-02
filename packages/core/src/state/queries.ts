@@ -12,10 +12,17 @@ import {
 } from "./defaults";
 import { deepFreeze } from "./draft";
 import type { LayoutJson } from "./json";
-import { stateToJson } from "./load";
-import { type AnyNode, type AnyState, type NodeIndex, walk } from "./tree";
+import { toLayoutJson } from "./load";
+import {
+    type AnyNode,
+    type AnyState,
+    defaultTabset,
+    type NodeIndex,
+    walk,
+} from "./tree";
 import {
     type AnyTypes,
+    type BorderNode,
     type DockableTypes,
     MAIN_LAYOUT,
     type Node,
@@ -78,6 +85,10 @@ export interface ModelGetMap<T extends DockableTypes = AnyTypes> {
         payload: { id: string };
         result: WindowLayout<T> | undefined;
     };
+    /** the popout windows' layouts, in the order they opened */
+    windows: { payload: NoPayload; result: readonly WindowLayout<T>[] };
+    /** the borders (they belong to the main layout), in the layout's order */
+    borders: { payload: NoPayload; result: readonly BorderNode<T>[] };
     /** every tab of the model: the main layout's, its borders' and the windows', in tree order */
     "all-tabs": { payload: NoPayload; result: TabOf<T>[] };
     /** the tabs of a layout (the main layout's include its borders'), in tree order */
@@ -100,6 +111,14 @@ export interface ModelGetMap<T extends DockableTypes = AnyTypes> {
     };
     /** a layout's active tabset */
     "active-tabset": {
+        payload: { layoutId?: string | undefined };
+        result: TabsetNode<T> | undefined;
+    };
+    /**
+     * the tabset to place into when no target is given: the layout's active tabset, else its first
+     * in tree order (where `window.close` docks a window's tabs, for the main layout)
+     */
+    "default-tabset": {
         payload: { layoutId?: string | undefined };
         result: TabsetNode<T> | undefined;
     };
@@ -217,25 +236,6 @@ function node(source: QuerySource, id: string): Node | undefined {
     return source.index.get(id) as Node | undefined;
 }
 
-function layoutOf(source: QuerySource, id: string): string | undefined {
-    const { index } = source;
-    if (!index.has(id)) {
-        return undefined;
-    }
-    let top = id;
-    for (
-        let parent = index.parent(top);
-        parent !== undefined;
-        parent = index.parent(top)
-    ) {
-        top = parent;
-    }
-    if (index.get(top)?.type === "border") {
-        return MAIN_LAYOUT;
-    }
-    return index.layoutOfRoot(top);
-}
-
 function windowLayout(
     source: QuerySource,
     id: string,
@@ -263,28 +263,21 @@ function tabsetById(
     return found?.type === "tabset" ? found : undefined;
 }
 
-function activeTabset(
+/** The record of a layout that names its active and maximized tabsets. */
+function layoutRecord(
     source: QuerySource,
     layout: string = MAIN_LAYOUT,
-): TabsetNode | undefined {
-    return tabsetById(
-        source,
-        layout === MAIN_LAYOUT
-            ? source.state.active
-            : windowLayout(source, layout)?.active,
-    );
+): { readonly active?: string; readonly maximized?: string } | undefined {
+    return layout === MAIN_LAYOUT ? source.state : windowLayout(source, layout);
 }
 
-function maximizedTabset(
+/** A layout's active or maximized tabset. */
+function layoutTabset(
     source: QuerySource,
-    layout: string = MAIN_LAYOUT,
+    layout: string | undefined,
+    which: "active" | "maximized",
 ): TabsetNode | undefined {
-    return tabsetById(
-        source,
-        layout === MAIN_LAYOUT
-            ? source.state.maximized
-            : windowLayout(source, layout)?.maximized,
-    );
+    return tabsetById(source, layoutRecord(source, layout)?.[which]);
 }
 
 /** The selected tab of a tabset or a border (of `type` only, when given). */
@@ -355,7 +348,7 @@ function selectedTabBy(
     if (borderId !== undefined) {
         return selectedTab(source, borderId, "border");
     }
-    const active = activeTabset(source, layoutId);
+    const active = layoutTabset(source, layoutId, "active");
     return active ? selectedTab(source, active.id, "tabset") : undefined;
 }
 
@@ -367,9 +360,11 @@ const GETTERS: Getters = {
             ? undefined
             : (node(source, parent) as ParentNode | undefined);
     },
-    "layout-id-by": (source, { nodeId }) => layoutOf(source, nodeId),
+    "layout-id-by": (source, { nodeId }) => source.index.layoutOf(nodeId),
     "root-row": (source, { layoutId }) => rootRow(source, layoutId),
     "window-by": (source, { id }) => windowLayout(source, id),
+    windows: (source) => source.state.windows,
+    borders: (source) => source.state.borders,
     "all-tabs": (source) => tabsOf(source),
     tabs: (source, { layoutId }) => tabsOf(source, layoutId ?? MAIN_LAYOUT),
     tabsets: (source, { layoutId }) => {
@@ -385,9 +380,20 @@ const GETTERS: Getters = {
         return tabsets;
     },
     "selected-tab-by": selectedTabBy,
-    "active-tabset": (source, { layoutId }) => activeTabset(source, layoutId),
+    "active-tabset": (source, { layoutId }) =>
+        layoutTabset(source, layoutId, "active"),
+    "default-tabset": (source, { layoutId = MAIN_LAYOUT }) =>
+        tabsetById(
+            source,
+            defaultTabset(
+                source.index,
+                layoutId,
+                rootRow(source, layoutId)?.id,
+                layoutRecord(source, layoutId)?.active,
+            ),
+        ),
     "maximized-tabset": (source, { layoutId }) =>
-        maximizedTabset(source, layoutId),
+        layoutTabset(source, layoutId, "maximized"),
     "tab-settings-by": (source, { tabId }) => {
         const found = node(source, tabId);
         return found?.type === "tab"
@@ -407,8 +413,7 @@ const GETTERS: Getters = {
             : undefined;
     },
     "layout-settings": (source) => resolveLayout(source.state.defaults),
-    "layout-json": (source) =>
-        stateToJson(source.state) as unknown as LayoutJson,
+    "layout-json": (source) => toLayoutJson(source.state),
     commands: () => COMMAND_INFO,
 };
 
@@ -417,9 +422,11 @@ function hiddenByMaximize(source: QuerySource, id: string): boolean {
     if (found?.type !== "tabset" && found?.type !== "row") {
         return false;
     }
-    const layout = layoutOf(source, id);
+    const layout = source.index.layoutOf(id);
     const maximized =
-        layout === undefined ? undefined : maximizedTabset(source, layout);
+        layout === undefined
+            ? undefined
+            : layoutTabset(source, layout, "maximized");
     if (!maximized || maximized.id === id) {
         return false;
     }
@@ -449,17 +456,17 @@ const QUESTIONS: Questions = {
         return found?.type === "tab" && found.pinned === true;
     },
     "tabset-active": (source, { tabsetId }) => {
-        const layout = layoutOf(source, tabsetId);
+        const layout = source.index.layoutOf(tabsetId);
         return (
             layout !== undefined &&
-            activeTabset(source, layout)?.id === tabsetId
+            layoutTabset(source, layout, "active")?.id === tabsetId
         );
     },
     "tabset-maximized": (source, { tabsetId }) => {
-        const layout = layoutOf(source, tabsetId);
+        const layout = source.index.layoutOf(tabsetId);
         return (
             layout !== undefined &&
-            maximizedTabset(source, layout)?.id === tabsetId
+            layoutTabset(source, layout, "maximized")?.id === tabsetId
         );
     },
     "tabset-empty": (source, { tabsetId }) =>
@@ -467,7 +474,7 @@ const QUESTIONS: Questions = {
     "node-hidden-by-maximize": (source, { nodeId }) =>
         hiddenByMaximize(source, nodeId),
     "node-in-window": (source, { nodeId }) => {
-        const layout = layoutOf(source, nodeId);
+        const layout = source.index.layoutOf(nodeId);
         return layout !== undefined && layout !== MAIN_LAYOUT;
     },
     "border-empty": (source, { borderId }) =>

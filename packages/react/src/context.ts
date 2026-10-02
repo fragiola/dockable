@@ -1,18 +1,11 @@
 import type {
     AnyTypes,
     DockableTypes,
-    IKeyMap,
+    KeyMap,
     LayoutEngine,
     Model,
 } from "@fragiola/dockable";
 import * as React from "react";
-
-/** Where the panel containers of one layout are rendered. */
-export interface PanelLayer {
-    layoutId: string;
-    element: HTMLElement;
-    engine: LayoutEngine;
-}
 
 /**
  * The context of a `Dockable.Root`. It holds the model and engines with the registry erased
@@ -25,24 +18,11 @@ export interface DockableContextValue {
     model: Model;
     /** the render revision: changes whenever the layout should re-render */
     revision: number;
-    keyMap: IKeyMap;
-    /** the panel layer of each layout, keyed by layout id */
-    layers: ReadonlyMap<string, PanelLayer>;
-    /** adds (or, with `null`, removes) the panel layer of a layout */
-    setLayer: (layoutId: string, layer: PanelLayer | null) => void;
-    /** the window callbacks `Dockable.Popout` registers with the root */
-    popoutHooks: { current: PopoutHooks };
-}
-
-/** Window callbacks a `Dockable.Popout` contributes, by window layout id. */
-export interface PopoutHooks {
-    title?: ((layoutId: string) => string | undefined) | undefined;
-    onOpen?:
-        | ((layoutId: string, window: Window, document: Document) => void)
-        | undefined;
-    onClose?:
-        | ((layoutId: string, window: Window, document: Document) => void)
-        | undefined;
+    keyMap: KeyMap;
+    /** the element each layout's panels are rendered in, keyed by layout id */
+    layers: ReadonlyMap<string, HTMLElement>;
+    /** sets (or, with `null`, removes) the element a layout's panels are rendered in */
+    setLayer: (layoutId: string, element: HTMLElement | null) => void;
 }
 
 export const DockableContext = React.createContext<DockableContextValue | null>(

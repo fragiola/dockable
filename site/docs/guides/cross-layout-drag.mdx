@@ -89,7 +89,7 @@ const json: LayoutJson<Types> = {
 Two roots with different models exchange tabs when a `Dockable.DragGroup` wraps them:
 
 ```tsx
-<Dockable.DragGroup onTransfer={(transfer) => console.log(transfer.tab, "moved")}>
+<Dockable.DragGroup onTransfer={(transfer) => console.log(transfer.tabId, "moved")}>
     <Dockable.Root model={workspace}>{/* … */}</Dockable.Root>
     <Dockable.Root model={scratch}>{/* … */}</Dockable.Root>
 </Dockable.DragGroup>
@@ -154,7 +154,7 @@ returns the core group:
 ```ts
 const group = useDragGroup();
 const id = group.transfer({
-    tab: "report",
+    tabId: "report",
     from: workspace,
     to: scratch,
     target: "scratch-main", // a tabset, row, border or layout of `to`
@@ -169,13 +169,12 @@ impossible (an unknown tab or target, or a model not in the group).
 ### Undo is yours
 
 Dockable ships no undo/redo: what counts as a step, and what undoing a move between layouts means,
-is your app's decision. The transfer event carries what an undo needs. The
-[`two-layouts`](/examples/two-layouts) example keeps one history for the group, in which undoing a
-transfer moves the tab **back into its old tabset in the first layout, so it disappears from the
-second**, with its content kept:
+is your app's decision. The transfer event carries what an undo needs. One design keeps one
+history for the group, in which undoing a transfer moves the tab **back into its old tabset in the
+first layout, so it disappears from the second**, with its content kept:
 
 ```ts
-// examples/two-layouts/history.ts, abridged
+// a history of the group's transfers, abridged
 connect() {
     return this.group.onTransfer((transfer) => {
         if (this.replaying) return; // our own undo or redo
@@ -184,7 +183,7 @@ connect() {
         if (!from || !to) return;
         this.undoStack.push({
             from: { model: from, tabId: transfer.previousId, tabsetId: transfer.from.tabsetId, index: transfer.from.index },
-            to: { model: to, tabId: transfer.tab, tabsetId: transfer.to.tabsetId, index: transfer.to.index },
+            to: { model: to, tabId: transfer.tabId, tabsetId: transfer.to.tabsetId, index: transfer.to.index },
         });
         this.redoStack = [];
     });
@@ -202,7 +201,7 @@ private move(from: StepEnd, to: StepEnd): string | undefined {
     this.replaying = true;
     try {
         const index = target === to.tabsetId ? to.index : -1;
-        return this.group.transfer({ tab: from.tabId, from: from.model, to: to.model, target, location: "center", index });
+        return this.group.transfer({ tabId: from.tabId, from: from.model, to: to.model, target, location: "center", index });
     } finally {
         this.replaying = false;
     }
@@ -224,7 +223,7 @@ model's `subscribe` (see [Undo and redo](/docs/guides/undo-redo)).
   not reach the content: put the ones the content needs **above** `Dockable.DragGroup`, or inside
   the content itself.
 - **Ids are per model.** A tab keeps its id when the target model has no node with that id;
-  otherwise it gets a generated one. Read the new id from `transfer.tab`, and the old one from
+  otherwise it gets a generated one. Read the new id from `transfer.tabId`, and the old one from
   `transfer.previousId`.
 - **HTML5 drag and drop across windows** needs a desktop browser that supports popouts; where
   popouts are unsupported, windows are docked back and there is nothing to drag between.

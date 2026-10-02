@@ -8,10 +8,11 @@ import {
     createModel,
     type LayoutJson,
     type Model,
+    toLayoutJson,
     veto,
 } from "@fragiola/dockable";
 import { describe, expect, it, vi } from "vitest";
-import { UndoManager } from "../src/examples/_kit/undo";
+import { handleUndoKeys, UndoManager } from "../src/examples/_kit/undo";
 
 type Types = { tabs: { tab: undefined } };
 
@@ -37,11 +38,21 @@ const json: LayoutJson<Types> = {
 const fresh = (layout: LayoutJson<Types> = json) =>
     createModel<Types>(structuredClone(layout));
 
-function model(manager: UndoManager<Types>): Model<Types> {
-    const current = manager.getModel();
-    if (!current) throw new Error("no model");
-    return current;
+/** A fresh model and its manager. */
+function setup(
+    layout: LayoutJson<Types> = json,
+    options?: ConstructorParameters<typeof UndoManager<Types>>[1],
+) {
+    const m = fresh(layout);
+    return { m, undo: new UndoManager(m, options) };
 }
+
+const undoCount = (undo: UndoManager<Types>) =>
+    undo.getSnapshot().undoSteps.length;
+const redoCount = (undo: UndoManager<Types>) =>
+    undo.getSnapshot().redoSteps.length;
+const canUndo = (undo: UndoManager<Types>) => undo.getSnapshot().canUndo;
+const canRedo = (undo: UndoManager<Types>) => undo.getSnapshot().canRedo;
 
 const rename = (m: Model<Types>, name: string) =>
     m.run("tab.configure", { tabId: "t1", label: name });
@@ -53,80 +64,80 @@ const children = (m: Model<Types>, id: string) => {
 
 describe("UndoManager", () => {
     it("records a step per command; undo restores and redo re-applies", () => {
-        const undo = new UndoManager(fresh());
+        const { m, undo } = setup();
 
-        model(undo).run("tab.close", { tabId: "t1" });
-        expect(undo.undoCount).toBe(1);
-        expect(undo.canUndo).toBe(true);
-        expect(model(undo).get("node-by", { id: "t1" })).toBeUndefined();
+        m.run("tab.close", { tabId: "t1" });
+        expect(undoCount(undo)).toBe(1);
+        expect(canUndo(undo)).toBe(true);
+        expect(m.get("node-by", { id: "t1" })).toBeUndefined();
 
         undo.undo();
-        expect(model(undo).get("node-by", { id: "t1" })).not.toBeUndefined();
-        expect(undo.canUndo).toBe(false);
-        expect(undo.canRedo).toBe(true);
-        expect(undo.redoCount).toBe(1);
+        expect(m.get("node-by", { id: "t1" })).not.toBeUndefined();
+        expect(canUndo(undo)).toBe(false);
+        expect(canRedo(undo)).toBe(true);
+        expect(redoCount(undo)).toBe(1);
 
         undo.redo();
-        expect(model(undo).get("node-by", { id: "t1" })).toBeUndefined();
-        expect(undo.canUndo).toBe(true);
-        expect(undo.canRedo).toBe(false);
+        expect(m.get("node-by", { id: "t1" })).toBeUndefined();
+        expect(canUndo(undo)).toBe(true);
+        expect(canRedo(undo)).toBe(false);
     });
 
     it("restores in place: the model stays the same, and keeps recording", () => {
-        const first = fresh();
-        const undo = new UndoManager(first);
-        model(undo).run("tab.close", { tabId: "t1" });
+        const { m, undo } = setup();
+        const state = m.state;
+        m.run("tab.close", { tabId: "t1" });
         undo.undo();
-        expect(undo.getModel()).toBe(first);
+        expect(m.get("layout-json")).toEqual(toLayoutJson(state));
 
-        model(undo).run("tab.close", { tabId: "t2" });
-        expect(undo.undoCount).toBe(1);
+        m.run("tab.close", { tabId: "t2" });
+        expect(undoCount(undo)).toBe(1);
     });
 
     it("ignores tabset.activate by default", () => {
-        const undo = new UndoManager(fresh());
+        const { m, undo } = setup();
 
-        model(undo).run("tabset.activate", { tabsetId: "ts2" });
-        expect(undo.undoCount).toBe(0);
-        expect(undo.canUndo).toBe(false);
+        m.run("tabset.activate", { tabsetId: "ts2" });
+        expect(undoCount(undo)).toBe(0);
+        expect(canUndo(undo)).toBe(false);
     });
 
     it("honors custom ignoreCommands", () => {
-        const undo = new UndoManager(fresh(), {
+        const { m, undo } = setup(json, {
             ignoreCommands: ["tab.configure"],
         });
 
-        rename(model(undo), "renamed");
-        expect(undo.undoCount).toBe(0);
+        rename(m, "renamed");
+        expect(undoCount(undo)).toBe(0);
 
-        model(undo).run("tab.close", { tabId: "t1" });
-        expect(undo.undoCount).toBe(1);
+        m.run("tab.close", { tabId: "t1" });
+        expect(undoCount(undo)).toBe(1);
     });
 
     it("collapses an entire drag gesture into a single undo step", () => {
-        const undo = new UndoManager(fresh());
+        const { m, undo } = setup();
 
-        model(undo).run(
+        m.run(
             "row.resize",
-            { rowId: model(undo).state.root.id, weights: [30, 70] },
+            { rowId: m.state.root.id, weights: [30, 70] },
             { transient: true },
         );
-        model(undo).run(
+        m.run(
             "row.resize",
-            { rowId: model(undo).state.root.id, weights: [20, 80] },
+            { rowId: m.state.root.id, weights: [20, 80] },
             { transient: true },
         );
-        model(undo).run("row.resize", {
-            rowId: model(undo).state.root.id,
+        m.run("row.resize", {
+            rowId: m.state.root.id,
             weights: [20, 80],
         });
-        expect(undo.undoCount).toBe(1);
+        expect(undoCount(undo)).toBe(1);
 
         undo.undo();
-        expect(model(undo).get("node-by", { id: "ts1" })).toMatchObject({
+        expect(m.get("node-by", { id: "ts1" })).toMatchObject({
             weight: 100,
         });
-        expect(model(undo).get("node-by", { id: "ts2" })).toMatchObject({
+        expect(m.get("node-by", { id: "ts2" })).toMatchObject({
             weight: 100,
         });
     });
@@ -161,99 +172,99 @@ describe("UndoManager", () => {
                 ],
             },
         };
-        const undo = new UndoManager(fresh(three));
+        const { m, undo } = setup(three);
 
-        model(undo).run("batch", {
+        m.run("batch", {
             commands: [
                 { command: "tab.close", payload: { tabId: "t1" } },
                 { command: "tab.close", payload: { tabId: "t2" } },
                 { command: "tab.close", payload: { tabId: "t3" } },
             ],
         });
-        expect(undo.undoCount).toBe(1);
-        expect(model(undo).get("node-by", { id: "t1" })).toBeUndefined();
-        expect(model(undo).get("node-by", { id: "t2" })).toBeUndefined();
-        expect(model(undo).get("node-by", { id: "t3" })).toBeUndefined();
+        expect(undoCount(undo)).toBe(1);
+        expect(m.get("node-by", { id: "t1" })).toBeUndefined();
+        expect(m.get("node-by", { id: "t2" })).toBeUndefined();
+        expect(m.get("node-by", { id: "t3" })).toBeUndefined();
 
         undo.undo();
-        expect(undo.canUndo).toBe(false);
-        expect(model(undo).get("node-by", { id: "t1" })).not.toBeUndefined();
-        expect(model(undo).get("node-by", { id: "t2" })).not.toBeUndefined();
-        expect(model(undo).get("node-by", { id: "t3" })).not.toBeUndefined();
+        expect(canUndo(undo)).toBe(false);
+        expect(m.get("node-by", { id: "t1" })).not.toBeUndefined();
+        expect(m.get("node-by", { id: "t2" })).not.toBeUndefined();
+        expect(m.get("node-by", { id: "t3" })).not.toBeUndefined();
     });
 
     it("keeps the pre-gesture layout when an ignored command happens mid-gesture", () => {
-        const undo = new UndoManager(fresh());
-        const row = model(undo).state.root.id;
+        const { m, undo } = setup();
+        const row = m.state.root.id;
 
-        model(undo).run(
+        m.run(
             "row.resize",
             { rowId: row, weights: [30, 70] },
             { transient: true },
         );
-        model(undo).run("tabset.activate", { tabsetId: "ts2" }); // ignored, mid-gesture
-        model(undo).run("row.resize", { rowId: row, weights: [30, 70] });
-        expect(undo.undoCount).toBe(1);
+        m.run("tabset.activate", { tabsetId: "ts2" }); // ignored, mid-gesture
+        m.run("row.resize", { rowId: row, weights: [30, 70] });
+        expect(undoCount(undo)).toBe(1);
 
         undo.undo();
         // back to before the gesture, not to the mid-gesture state
-        expect(model(undo).get("node-by", { id: "ts1" })).toMatchObject({
+        expect(m.get("node-by", { id: "ts1" })).toMatchObject({
             weight: 100,
         });
     });
 
     it("caps the undo buffer at maxBufferSize", () => {
-        const undo = new UndoManager(fresh(), { maxBufferSize: 2 });
+        const { m, undo } = setup(json, { maxBufferSize: 2 });
 
-        rename(model(undo), "a");
-        rename(model(undo), "b");
-        rename(model(undo), "c");
-        expect(undo.undoCount).toBe(2);
+        rename(m, "a");
+        rename(m, "b");
+        rename(m, "c");
+        expect(undoCount(undo)).toBe(2);
     });
 
     it("clears the redo buffer on a new command", () => {
-        const undo = new UndoManager(fresh());
-        rename(model(undo), "a");
+        const { m, undo } = setup();
+        rename(m, "a");
         undo.undo();
-        expect(undo.canRedo).toBe(true);
+        expect(canRedo(undo)).toBe(true);
 
-        rename(model(undo), "b");
-        expect(undo.canRedo).toBe(false);
-        expect(undo.redoCount).toBe(0);
+        rename(m, "b");
+        expect(canRedo(undo)).toBe(false);
+        expect(redoCount(undo)).toBe(0);
     });
 
     it("does not record its own undo and redo, nor a command that changed nothing", () => {
-        const undo = new UndoManager(fresh());
-        model(undo).run("tabset.activate", { tabsetId: "ts1" }); // ignored
-        model(undo).run("tab.select", { tabId: "t1" }); // already selected and active
-        expect(undo.undoCount).toBe(0);
-        model(undo).run("tab.move", { tabId: "t1", to: "ts2" });
+        const { m, undo } = setup();
+        m.run("tabset.activate", { tabsetId: "ts1" }); // ignored
+        m.run("tab.select", { tabId: "t1" }); // already selected and active
+        expect(undoCount(undo)).toBe(0);
+        m.run("tab.move", { tabId: "t1", to: "ts2" });
         undo.undo();
         undo.redo();
-        expect(undo.undoCount).toBe(1);
-        expect(undo.redoCount).toBe(0);
-        expect(children(model(undo), "ts2")).toEqual(["t2", "t1"]);
+        expect(undoCount(undo)).toBe(1);
+        expect(redoCount(undo)).toBe(0);
+        expect(children(m, "ts2")).toEqual(["t2", "t1"]);
     });
 
     it("keeps the step when the model refuses to load it", () => {
-        const undo = new UndoManager(fresh());
-        model(undo).run("tab.close", { tabId: "t1" });
-        const remove = model(undo).use((ctx, next) =>
+        const { m, undo } = setup();
+        m.run("tab.close", { tabId: "t1" });
+        const remove = m.use((ctx, next) =>
             ctx.command === "layout.load" ? veto() : next(),
         );
         undo.undo();
-        expect(undo.undoCount).toBe(1);
-        expect(undo.redoCount).toBe(0);
-        expect(model(undo).get("node-by", { id: "t1" })).toBeUndefined();
+        expect(undoCount(undo)).toBe(1);
+        expect(redoCount(undo)).toBe(0);
+        expect(m.get("node-by", { id: "t1" })).toBeUndefined();
         remove();
         undo.undo();
-        expect(model(undo).get("node-by", { id: "t1" })).not.toBeUndefined();
+        expect(m.get("node-by", { id: "t1" })).not.toBeUndefined();
     });
 
     it("names each step by the command that made it", () => {
-        const undo = new UndoManager(fresh());
-        model(undo).run("tab.close", { tabId: "t1" });
-        model(undo).run("batch", {
+        const { m, undo } = setup();
+        m.run("tab.close", { tabId: "t1" });
+        m.run("batch", {
             commands: [
                 { command: "tab.select", payload: { tabId: "t2" } },
                 { command: "tab.close", payload: { tabId: "t2" } },
@@ -271,95 +282,44 @@ describe("UndoManager", () => {
     });
 
     it("starts no gesture for transient commands that change nothing", () => {
-        const undo = new UndoManager(fresh());
-        const row = model(undo).state.root.id;
-        model(undo).run(
+        const { m, undo } = setup();
+        const row = m.state.root.id;
+        m.run(
             "row.resize",
             { rowId: row, weights: [100, 100] },
             { transient: true },
         );
-        model(undo).run("row.resize", { rowId: row, weights: [100, 100] });
-        expect(undo.undoCount).toBe(0);
-    });
-
-    it("setModel replaces the model and resets the history by default", () => {
-        const undo = new UndoManager(fresh());
-
-        model(undo).run("tab.close", { tabId: "t1" });
-        expect(undo.undoCount).toBe(1);
-
-        const next = fresh();
-        undo.setModel(next);
-        expect(undo.getModel()).toBe(next);
-        expect(undo.undoCount).toBe(0);
-        expect(undo.canUndo).toBe(false);
-        expect(undo.canRedo).toBe(false);
-    });
-
-    it("setModel keeps the history when resetHistory is false", () => {
-        const undo = new UndoManager(fresh());
-
-        model(undo).run("tab.close", { tabId: "t1" });
-        expect(undo.undoCount).toBe(1);
-
-        undo.setModel(fresh(), false);
-        expect(undo.undoCount).toBe(1);
-        expect(undo.canUndo).toBe(true);
-    });
-
-    it("reset clears the history without touching the model", () => {
-        const undo = new UndoManager(fresh());
-
-        model(undo).run("tab.close", { tabId: "t1" });
-        expect(undo.undoCount).toBe(1);
-
-        undo.reset();
-        expect(undo.undoCount).toBe(0);
-        expect(undo.redoCount).toBe(0);
-        expect(model(undo).get("node-by", { id: "t1" })).toBeUndefined();
-    });
-
-    it("starts without a model and accepts one later", () => {
-        const undo = new UndoManager<Types>(null);
-        expect(undo.getSnapshot().model).toBeNull();
-        undo.undo();
-        undo.setModel(fresh());
-        model(undo).run("tab.close", { tabId: "t1" });
-        expect(undo.undoCount).toBe(1);
+        m.run("row.resize", { rowId: row, weights: [100, 100] });
+        expect(undoCount(undo)).toBe(0);
     });
 
     describe("snapshot and subscription", () => {
         it("returns the same snapshot object until something changes", () => {
-            const undo = new UndoManager(fresh());
+            const { m, undo } = setup();
             const first = undo.getSnapshot();
             expect(undo.getSnapshot()).toBe(first);
 
             // an ignored command changes nothing observable
-            model(undo).run("tabset.activate", { tabsetId: "ts2" });
+            m.run("tabset.activate", { tabsetId: "ts2" });
             expect(undo.getSnapshot()).toBe(first);
 
-            model(undo).run("tab.close", { tabId: "t1" });
+            m.run("tab.close", { tabId: "t1" });
             const second = undo.getSnapshot();
             expect(second).not.toBe(first);
-            expect(second).toMatchObject({
-                canUndo: true,
-                undoCount: 1,
-                canRedo: false,
-                redoCount: 0,
-            });
+            expect(second).toMatchObject({ canUndo: true, canRedo: false });
+            expect(second.undoSteps).toHaveLength(1);
             expect(undo.getSnapshot()).toBe(second);
 
             undo.undo();
             expect(undo.getSnapshot()).not.toBe(second);
-            expect(undo.getSnapshot().model).toBe(undo.getModel());
         });
 
         it("notifies subscribers on change and stops after unsubscribe", () => {
-            const undo = new UndoManager(fresh());
+            const { m, undo } = setup();
             const listener = vi.fn();
             const unsubscribe = undo.subscribe(listener);
 
-            model(undo).run("tab.close", { tabId: "t1" });
+            m.run("tab.close", { tabId: "t1" });
             expect(listener).toHaveBeenCalledTimes(1);
             undo.undo();
             expect(listener).toHaveBeenCalledTimes(2);
@@ -368,25 +328,52 @@ describe("UndoManager", () => {
             undo.redo();
             expect(listener).toHaveBeenCalledTimes(2);
         });
+    });
+});
 
-        it("does not notify for a reset that changes nothing", () => {
-            const undo = new UndoManager(fresh());
-            const listener = vi.fn();
-            undo.subscribe(listener);
-            undo.reset();
-            expect(listener).not.toHaveBeenCalled();
+describe("handleUndoKeys", () => {
+    const press = (
+        key: string,
+        modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean },
+        target: EventTarget | null = null,
+    ) => ({
+        key,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        ...modifiers,
+        target,
+        preventDefault: vi.fn(),
+    });
+
+    it("undoes on Ctrl/Cmd+Z and redoes on Shift+Ctrl/Cmd+Z and Ctrl+Y", () => {
+        const { m, undo } = setup();
+        m.run("tab.close", { tabId: "t1" });
+        const z = press("z", { ctrlKey: true });
+        handleUndoKeys(undo, z);
+        expect(z.preventDefault).toHaveBeenCalled();
+        expect(canRedo(undo)).toBe(true);
+        handleUndoKeys(undo, press("Z", { metaKey: true, shiftKey: true }));
+        expect(canUndo(undo)).toBe(true);
+        handleUndoKeys(undo, press("z", { ctrlKey: true }));
+        handleUndoKeys(undo, press("y", { ctrlKey: true }));
+        expect(canRedo(undo)).toBe(false);
+    });
+
+    it("leaves other keys, unmodified keys and text fields alone", () => {
+        const { m, undo } = setup();
+        m.run("tab.close", { tabId: "t1" });
+        const field = Object.assign(new EventTarget(), {
+            closest: () => ({}),
         });
-
-        it("dispose detaches from the model", () => {
-            const undo = new UndoManager(fresh());
-            const current = model(undo);
-            const listener = vi.fn();
-            undo.subscribe(listener);
-            undo.dispose();
-
-            current.run("tab.close", { tabId: "t1" });
-            expect(undo.undoCount).toBe(0);
-            expect(listener).not.toHaveBeenCalled();
-        });
+        for (const event of [
+            press("x", { ctrlKey: true }),
+            press("z", {}),
+            press("z", { ctrlKey: true }, field),
+        ]) {
+            handleUndoKeys(undo, event);
+            expect(event.preventDefault).not.toHaveBeenCalled();
+        }
+        expect(canUndo(undo)).toBe(true);
     });
 });

@@ -24,11 +24,9 @@ const REGIONS: Partial<Record<string, Region>> = {
 };
 
 /** The region of a drop: the layout's edge for an edge drop, else the targeted tabset's. */
-export function regionOf(
-    tabsetId: string | undefined,
-    kind: DropIndicatorState["kind"],
-): Region {
-    if (kind === "edge") return "edge";
+function regionOf(state: DropIndicatorState): Region {
+    if (state.kind === "edge") return "edge";
+    const tabsetId = state.targetTabsetId;
     return (tabsetId !== undefined && REGIONS[tabsetId]) || "other";
 }
 
@@ -56,10 +54,10 @@ const SIDES: Record<DropIndicatorState["location"], string> = {
  * Beside it: lighter, with a thick border on the docking side. At the layout's edge: striped.
  * Panels are portalled into the root after the indicator: `z-20` paints it above them.
  */
-export const dropIndicator = (state: DropIndicatorState, region: Region) =>
+export const dropIndicator = (state: DropIndicatorState) =>
     cn(
-        "z-20 rounded-(--dk-radius) border-2 border-palette-base transition-[left,top,width,height,background-color,border-color]",
-        PALETTES[region],
+        "z-20 rounded-(--dk-radius) border-2 border-palette-base transition-[left,top,width,height,background-color,border-color] duration-(--dk-motion)",
+        PALETTES[regionOf(state)],
         state.kind === "edge"
             ? "[background:repeating-linear-gradient(135deg,color-mix(in_oklab,var(--palette-base)_40%,transparent)_0_8px,color-mix(in_oklab,var(--palette-base)_12%,transparent)_8px_16px)]"
             : state.location === "center"
