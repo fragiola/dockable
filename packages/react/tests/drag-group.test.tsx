@@ -77,9 +77,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 afterEach(() => {
     if (DragDropManager.getDragState()) {
         act(() => {
-            DragDropManager.getDragState()
-                ?.mainEngine.adapter.getDragDropManager()
-                .onDragEnded();
+            DragDropManager.endDrag();
         });
     }
     mounts.clear();

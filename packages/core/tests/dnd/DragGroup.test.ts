@@ -60,7 +60,7 @@ const jsonWith = (prefix: string): LayoutJson => ({
 const engines: LayoutEngine[] = [];
 afterEach(() => {
     if (DragDropManager.getDragState()) {
-        engines[0]?.adapter.getDragDropManager().onDragEnded();
+        DragDropManager.endDrag();
     }
     for (const engine of engines.splice(0)) engine.adapter.dispose();
     document.body.innerHTML = "";

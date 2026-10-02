@@ -560,7 +560,7 @@ export function useDragNode<T extends DockableTypes>(
             );
     };
     const onDragEnd = () => {
-        engine.adapter.getDragDropManager().onDragEnded();
+        DragDropManager.endDrag();
     };
     const ref = React.useCallback((element: HTMLElement | null) => {
         imageRef.current = element;

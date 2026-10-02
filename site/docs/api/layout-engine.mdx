@@ -335,8 +335,8 @@ Static members, for the page:
 | --- | --- |
 | `getDragState()` | the drag in progress, a `DragState`, or `undefined` |
 | `subscribeDrag(listener)` | calls `listener` when a drag starts or ends; returns the unsubscribe function |
-| `startAddDrag(model, event, tab, onDrop?, dragImage?)` | starts dragging a new tab (`tab: TabInitOf<T>`) into the layout of `model` from a consumer element anywhere on the page (a sidebar item, a palette entry). Returns false, starting nothing, when no layout of `model` is attached. A drop runs `tab.add`, then calls `onDrop` (`useDragSource` does) |
-| `endDrag()` | ends the page's drag, if any (a drag source's `dragend`) |
+| `startAddDrag(model, event, tab, onDrop?, dragImage?)` | starts dragging a new tab (`tab: TabInitOf<T>`) into the layout of `model` from a consumer element anywhere on the page (a sidebar item, a palette entry). Call it from the element's `dragstart`, and `endDrag` from its `dragend`. Returns false, starting nothing, when no layout of `model` is attached. A drop runs `tab.add`, then calls `onDrop` (`useDragSource` does) |
+| `endDrag()` | ends the page's drag, if any (a drag source's `dragend`; the lost drag fallback calls it too) |
 | `registerDropZone(model, element, options)` | makes `element` a drop zone for drags of `model`'s layouts (what `engine.adapter.registerDropZone` calls). Returns the unregister function |
 
 Members of a layout's manager (`engine.adapter.getDragDropManager()`):
@@ -345,13 +345,11 @@ Members of a layout's manager (`engine.adapter.getDragDropManager()`):
 | --- | --- |
 | `getIndicatorState()` | the drop indicator of this layout, a `DropIndicatorState` (the same object until it changes; bound) |
 | `subscribe(listener)` | calls `listener` when the indicator changes; returns the unsubscribe function (bound) |
-| `startDrag(event, id, dragImage?)` | starts dragging a tab or a whole tabset of this layout, by id. Call from the source's `dragstart`; `dragImage` is the element the browser snapshots (with none, the browser default) |
-| `startAddDrag(event, tab, onDrop?, dragImage?)` | starts dragging a new tab into this layout from a consumer element. Call from its `dragstart`, and `onDragEnded` from its `dragend` |
-| `onDragEnded()` | ends the drag (called on `dragend` from the drag source, or by the lost drag fallback) |
+| `startDrag(event, id, dragImage?)` | starts dragging a tab or a whole tabset of this layout, by id. Call from the source's `dragstart`, and `DragDropManager.endDrag()` from its `dragend`; `dragImage` is the element the browser snapshots (with none, the browser default) |
 | `attach(element)` | attaches the native drag listeners to a layout root, and the document listeners that end the page's drag; returns the detach function (`adapter.attachRoot` does) |
-| `hideIndicator()` | hides this layout's outline without ending the drag (the pointer is over a drop zone) |
-| `isDragging()` | a drag is over this layout |
-| `dispose()` | detaches the lost drag guard |
+| `dispose()` | releases the indicator's listeners |
+
+Whether a drag is over this layout is `getIndicatorState().dragging`.
 
 ### DragState
 

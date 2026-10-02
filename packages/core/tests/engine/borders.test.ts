@@ -19,7 +19,7 @@ import {
 const engines: LayoutEngine[] = [];
 afterEach(() => {
     if (DragDropManager.getDragState()) {
-        engines[0]?.adapter.getDragDropManager().onDragEnded();
+        DragDropManager.endDrag();
     }
     for (const engine of engines.splice(0)) engine.adapter.dispose();
     document.body.innerHTML = "";
@@ -84,7 +84,7 @@ describe("edge docking bands", () => {
             s.root.dispatchEvent(dragEvent("dragenter", x, y));
             s.root.dispatchEvent(dragEvent("dragover", x, y));
             const indicator = manager.getIndicatorState();
-            manager.onDragEnded();
+            DragDropManager.endDrag();
             return indicator;
         };
         // 6px below the top edge, at its centre: the top band
@@ -121,7 +121,7 @@ describe("edge bands in a short layout", () => {
             s.root.dispatchEvent(dragEvent("dragenter", x + 10, y + 20));
             s.root.dispatchEvent(dragEvent("dragover", x + 10, y + 20));
             const indicator = manager.getIndicatorState();
-            manager.onDragEnded();
+            DragDropManager.endDrag();
             return indicator;
         };
         expect(over(265, 2).kind).not.toBe("edge");
@@ -182,7 +182,7 @@ describe("auto-hide borders during a drag", () => {
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
         s.root.dispatchEvent(dragEvent("dragover", 30, 315));
         expect(manager.getIndicatorState().revealedBorder).toBe("bottom");
-        manager.onDragEnded();
+        DragDropManager.endDrag();
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
     });
 
@@ -214,7 +214,7 @@ describe("auto-hide borders during a drag", () => {
         s.root.dispatchEvent(dragEvent("dragenter", 210, 315));
         s.root.dispatchEvent(dragEvent("dragover", 210, 315)); // the bottom edge's centre
         expect(manager.getIndicatorState().revealedBorder).toBeUndefined();
-        manager.onDragEnded();
+        DragDropManager.endDrag();
 
         const plain = setup(
             withBorders([{ location: "bottom", children: [] }]),
