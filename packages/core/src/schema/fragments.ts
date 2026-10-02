@@ -57,6 +57,13 @@ export const rectSchema = {
 
 type Properties = { readonly [name: string]: JsonSchema };
 
+/** The names of `properties`, typed. */
+export function propertyNames<const P extends Properties>(
+    properties: P,
+): (keyof P & string)[] {
+    return Object.keys(properties) as (keyof P & string)[];
+}
+
 /** A schema that also accepts `null`. */
 type NullableSchema<S> = {
     readonly anyOf: readonly [S, { readonly const: null }];

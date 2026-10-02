@@ -198,6 +198,7 @@ export {
     type TabDefaults,
     type TabNode,
     type TabOf,
+    type TabOwnFields,
     type TabsetDataOf,
     type TabsetDefaults,
     type TabsetNode,

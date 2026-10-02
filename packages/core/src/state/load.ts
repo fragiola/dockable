@@ -1,6 +1,7 @@
 import { type Rect, snap } from "../geometry/rect";
 import {
     borderFieldProperties,
+    propertyNames,
     tabFieldProperties,
     tabsetDefaultProperties,
 } from "../schema/fragments";
@@ -66,19 +67,13 @@ export type BuildResult =
     | { ok: false; issues: ValidationIssue[] };
 
 // the JSON types the schema guarantees (loosely typed: the schema has validated the shape)
-interface TabJsonLike {
-    readonly [key: string]: unknown;
-    readonly id?: string;
-    readonly component: string;
-    readonly label: string;
-}
 interface TabsetJsonLike {
     readonly [key: string]: unknown;
     readonly type: "tabset";
     readonly id?: string;
     readonly weight?: number;
     readonly selected?: number;
-    readonly children?: readonly TabJsonLike[];
+    readonly children?: readonly TabInit[];
 }
 interface RowJsonLike {
     readonly [key: string]: unknown;
@@ -92,7 +87,7 @@ interface BorderJsonLike {
     readonly id?: string;
     readonly location: string;
     readonly selected?: number;
-    readonly children?: readonly TabJsonLike[];
+    readonly children?: readonly TabInit[];
 }
 interface WindowJsonLike {
     readonly id?: string;
@@ -111,17 +106,20 @@ interface LayoutJsonLike {
 }
 
 /** The fields copied from JSON onto a node, by kind (everything else is structural). */
-const TAB_FIELDS = ["data", ...Object.keys(tabFieldProperties)];
+const TAB_FIELDS: readonly (keyof TabInit & string)[] = [
+    "data",
+    ...propertyNames(tabFieldProperties),
+];
 const TABSET_FIELDS = ["data", ...Object.keys(tabsetDefaultProperties)];
 const BORDER_FIELDS = ["data", ...Object.keys(borderFieldProperties)];
 
-function copyFields(
+function copyFields<S extends object>(
     target: Record<string, unknown>,
-    source: object,
-    fields: readonly string[],
+    source: S,
+    fields: readonly (keyof S & string)[],
 ) {
     for (const field of fields) {
-        const value: unknown = Reflect.get(source, field);
+        const value = source[field];
         if (value !== undefined) {
             target[field] = cloneJson(value);
         }
@@ -129,10 +127,7 @@ function copyFields(
 }
 
 /** A tab node from its fields (JSON, `tab.add`): the structural ones, then those it has. */
-export function tabNode(
-    init: Pick<TabInit, "component" | "label">,
-    id: string,
-): AnyTab {
+export function tabNode(init: TabInit, id: string): AnyTab {
     const node: Record<string, unknown> = {
         type: "tab",
         id,
@@ -256,14 +251,14 @@ export function buildState(
         return id;
     };
 
-    const buildTab = (tab: TabJsonLike, at: string): AnyTab => {
+    const buildTab = (tab: TabInit, at: string): AnyTab => {
         const schema = options.dataSchemas?.[tab.component];
         if (schema) {
             issues.push(...validate(schema, tab.data, joinPointer(at, "data")));
         }
         return tabNode(tab, tab.id ?? newId("tab"));
     };
-    const buildTabs = (tabs: readonly TabJsonLike[] | undefined, at: string) =>
+    const buildTabs = (tabs: readonly TabInit[] | undefined, at: string) =>
         (tabs ?? []).map((tab, i) =>
             buildTab(tab, joinPointer(joinPointer(at, "children"), i)),
         );
