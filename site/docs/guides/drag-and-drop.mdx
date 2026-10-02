@@ -62,14 +62,16 @@ Its state (also as attributes):
 | `showEdges` | none | edge docking is available for this drag |
 | `tabDragSpeed` | none | seconds a style may take to animate between targets (`tabDragSpeed` on `Root`, default 0.3) |
 | `refused` | `data-drop-refused` | the pointer is over a target the model refuses |
+| `targetNodeId` | none | the drop target node: a tabset, a row for an edge drop, a border |
+| `targetTabsetId` | none | the tabset (or border) the drop goes into or beside |
 
 The core never animates: the transition is yours, and `tabDragSpeed` only tells you the duration
 the layout was configured with.
 
 Since `className` takes the state, the indicator can say where a tab would land. `location` and
-`kind` give the side and whether the drop is at the layout's edge; which tabset is targeted is that
-tabset's own state (`useTabSet(node).state.dropTarget`, or `data-drop-target` on it). The example
-gives each region its colour and each kind of drop its fill:
+`kind` give the side and whether the drop is at the layout's edge, and `targetTabsetId` the tabset
+the drop goes into or beside (that tabset also has `data-drop-target`). The example gives each
+region its colour and each kind of drop its fill:
 
 <Example id="drop-indicator-colours" />
 

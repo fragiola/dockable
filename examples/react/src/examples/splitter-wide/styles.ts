@@ -1,4 +1,7 @@
-import type { DropIndicatorState } from "@fragiola/dockable-react";
+import type {
+    DropIndicatorState,
+    SplitterState,
+} from "@fragiola/dockable-react";
 import { cn } from "#/lib/cn";
 
 // How splitter-wide looks: one class string per part, read by index.tsx.
@@ -61,12 +64,14 @@ export const tabMarker =
 
 /** 12px thick (`w-3`/`h-3`, the engine measures it): a soft track that darkens on hover and
  * takes the ring colour while dragged. `vertical` is a bar between side-by-side panes. */
-export const splitter = (vertical: boolean) =>
+export const splitter = (state: SplitterState) =>
     cn(
         "group/splitter relative z-10 flex shrink-0 items-center justify-center rounded-full bg-palette-soft outline-none",
         "transition-colors duration-(--dk-motion) hover:bg-palette-line",
         "data-dragging:bg-palette-ring/50 focus-visible:ring-2 focus-visible:ring-palette-ring",
-        vertical ? "w-3 cursor-ew-resize" : "h-3 cursor-ns-resize",
+        state.orientation === "vertical"
+            ? "w-3 cursor-ew-resize"
+            : "h-3 cursor-ns-resize",
     );
 
 /** The bubble with `aria-valuetext`, centred on the bar while it is dragged or focused. */

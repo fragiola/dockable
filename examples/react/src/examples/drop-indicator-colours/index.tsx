@@ -6,12 +6,8 @@ import {
     type RowNode,
     type TabsetNode,
 } from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
-    useTabSet,
-} from "@fragiola/dockable-react";
-import { useEffect, useState } from "react";
+import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+import { useState } from "react";
 import { type ChartKind, ChartPanel, KpiPanel } from "../_kit/charts";
 import * as styles from "./styles";
 
@@ -23,10 +19,8 @@ import * as styles from "./styles";
 //   which side    a drop into the tabset fills the outline, a drop beside it (an edge of the
 //                 tabset) thickens the side it docks to, a drop at the layout's edge is striped
 //
-// The side and the kind of drop are in the indicator's state (`location`, `kind`). Which tabset is
-// targeted is the tabset's own state (`useTabSet(node).state.dropTarget`, also `data-drop-target`
-// on it): each tabset reports it here, and the indicator's class reads it. Workaround (E19 in
-// docs/docs-examples-gaps.md): the indicator's state does not name its target tabset.
+// Both are in the indicator's state, which its class reads: the targeted tabset
+// (`targetTabsetId`), the side (`location`) and the kind of drop (`kind`).
 
 type Types = {
     tabs: {
@@ -116,8 +110,6 @@ const REGIONS: { region: styles.Region; label: string }[] = [
 
 export default function DropIndicatorColours() {
     const [model] = useState(() => createModel<Types>(json));
-    // the tabset a drag would drop into or beside, as the tabsets report it
-    const [target, setTarget] = useState<string | undefined>(undefined);
     return (
         <>
             <div className={styles.legend}>
@@ -142,7 +134,7 @@ export default function DropIndicatorColours() {
                     <Dockable.Row<Types>
                         renderSplitter={(props) => <Splitter {...props} />}
                     >
-                        {(node) => renderNode(node, setTarget)}
+                        {renderNode}
                     </Dockable.Row>
                     <Dockable.Panels<Types>>
                         {(tab) => (
@@ -162,59 +154,29 @@ export default function DropIndicatorColours() {
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    {/* `location` and `kind` come in the state; the region is the one reported */}
-                    <Dockable.DropIndicator
-                        data-region={target}
-                        className={(state) =>
-                            styles.dropIndicator(
-                                state,
-                                styles.regionOf(target, state.kind),
-                            )
-                        }
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </>
     );
 }
 
-type ReportTarget = (
-    update: (current: string | undefined) => string | undefined,
-) => void;
-
 /** A row's child: a tabset, or a nested row rendered by this same function. */
-function renderNode(
-    node: TabsetNode<Types> | RowNode<Types>,
-    report: ReportTarget,
-) {
+function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
             <Dockable.Row
                 node={node}
                 renderSplitter={(props) => <Splitter {...props} />}
             >
-                {(child) => renderNode(child, report)}
+                {renderNode}
             </Dockable.Row>
         );
     }
-    return <TabSet node={node} report={report} />;
+    return <TabSet node={node} />;
 }
 
-/** A tabset that reports when a drag targets it (into it or beside it). */
-function TabSet({
-    node,
-    report,
-}: {
-    node: TabsetNode<Types>;
-    report: ReportTarget;
-}) {
-    const { dropTarget } = useTabSet(node).state;
-    useEffect(() => {
-        // the tabset a drag enters takes over; the one it leaves clears only itself
-        report((current) =>
-            dropTarget ? node.id : current === node.id ? undefined : current,
-        );
-    }, [dropTarget, node.id, report]);
+function TabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
             <div className={styles.strip}>
