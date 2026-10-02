@@ -337,6 +337,41 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     getPopoutManager(): PopoutManager<T>;
 }
 
+interface Axis {
+    readonly size: "width" | "height";
+    readonly start: "Left" | "Top";
+    readonly end: "Right" | "Bottom";
+    readonly gap: "columnGap" | "rowGap";
+}
+
+const HORIZONTAL: Axis = {
+    size: "width",
+    start: "Left",
+    end: "Right",
+    gap: "columnGap",
+};
+const VERTICAL: Axis = {
+    size: "height",
+    start: "Top",
+    end: "Bottom",
+    gap: "rowGap",
+};
+
+function px(value: string | undefined): number {
+    return Number.parseFloat(value ?? "") || 0;
+}
+
+/** a border only counts when drawn (some engines report a width for `none`) */
+function borderWidth(
+    style: CSSStyleDeclaration | undefined,
+    side: Axis["start"] | Axis["end"],
+): number {
+    const kind = style?.[`border${side}Style`];
+    return kind === "none" || kind === "hidden"
+        ? 0
+        : px(style?.[`border${side}Width`]);
+}
+
 function hasSize(rect: Rect | undefined): boolean {
     return !!rect && rect.width > 0 && rect.height > 0;
 }
@@ -439,7 +474,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     >();
     private readonly overflowTriggers = new Map<string, HTMLElement>();
     private readonly naturalTabSizes = new Map<string, number>();
-    private readonly triggerSpace = new Map<string, number>();
+    private readonly reservedSpace = new Map<string, number>();
     private readonly hiddenTabs = new Map<string, readonly string[]>();
     private readonly overflowListeners = new Set<() => void>();
     private healFrame: number | undefined;
@@ -1087,7 +1122,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 this.rects.delete(key);
             }
         }
-        for (const map of [this.naturalTabSizes, this.triggerSpace]) {
+        for (const map of [this.naturalTabSizes, this.reservedSpace]) {
             for (const id of map.keys()) {
                 if (gone(id)) {
                     map.delete(id);
@@ -1264,87 +1299,43 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return true;
     }
 
-    /** measures every registered tab list and decides which tabs it hides; notifies on change */
     private updateTabOverflow() {
         let changed = false;
-        for (const [id, list] of this.tabLists) {
+        for (const [id, { element, vertical }] of this.tabLists) {
             const container = this.model.get("node-by", { id });
             if (container?.type !== "tabset" && container?.type !== "border") {
                 continue; // the container left the model
             }
-            const { element, vertical } = list;
-            const tabs = container.children;
-            const hidden = new Set(this.getHiddenTabs(id));
-            const listRect = this.measureElement(element);
-            const view = element.ownerDocument.defaultView;
-            const style = view?.getComputedStyle(element);
-            const px = (value: string | undefined) =>
-                Number.parseFloat(value ?? "") || 0;
-            // a border only counts when drawn (some engines report a width for `none`)
-            const line = (
-                width: string | undefined,
-                kind: string | undefined,
-            ) => (kind === "none" || kind === "hidden" ? 0 : px(width));
-            const inset = vertical
-                ? px(style?.paddingTop) +
-                  px(style?.paddingBottom) +
-                  line(style?.borderTopWidth, style?.borderTopStyle) +
-                  line(style?.borderBottomWidth, style?.borderBottomStyle)
-                : px(style?.paddingLeft) +
-                  px(style?.paddingRight) +
-                  line(style?.borderLeftWidth, style?.borderLeftStyle) +
-                  line(style?.borderRightWidth, style?.borderRightStyle);
-            const gap = px(vertical ? style?.rowGap : style?.columnGap);
-            const inner = (vertical ? listRect.height : listRect.width) - inset;
+            const axis = vertical ? VERTICAL : HORIZONTAL;
+            const { inner, gap } = this.innerSize(element, axis);
             if (inner <= 0) {
                 continue; // not laid out (hidden, or not measured yet)
             }
+            const tabs = container.children;
+            const hidden = new Set(this.getHiddenTabs(id));
             const sizes = tabs.map((tab) => {
                 const button = this.measurables.get(
                     `tabbutton:${tab.id}`,
                 )?.element;
                 if (button && !hidden.has(tab.id)) {
-                    const r = this.measureElement(button);
-                    const size = vertical ? r.height : r.width;
+                    const size = this.measureElement(button)[axis.size];
                     if (size > 0) {
                         this.naturalTabSizes.set(tab.id, size);
                     }
                 }
                 return this.naturalTabSizes.get(tab.id) ?? 0;
             });
-            // the space the trigger takes while it shows: its size, its margins and the gap before it
             const trigger = this.overflowTriggers.get(id);
-            let taken = 0;
-            if (trigger) {
-                const r = this.measureElement(trigger);
-                const own = view?.getComputedStyle(trigger);
-                const parent = trigger.parentElement;
-                const parentStyle = parent
-                    ? view?.getComputedStyle(parent)
-                    : undefined;
-                const siblings = parent ? parent.children.length > 1 : false;
-                taken =
-                    (vertical ? r.height : r.width) +
-                    (vertical
-                        ? px(own?.marginTop) + px(own?.marginBottom)
-                        : px(own?.marginLeft) + px(own?.marginRight)) +
-                    (siblings
-                        ? px(
-                              vertical
-                                  ? parentStyle?.rowGap
-                                  : parentStyle?.columnGap,
-                          )
-                        : 0);
-                if (taken > 0) {
-                    this.triggerSpace.set(id, taken);
-                }
+            const taken = trigger ? this.triggerSpace(trigger, axis) : 0;
+            if (taken > 0) {
+                this.reservedSpace.set(id, taken);
             }
             const result = computeTabOverflow({
                 available: inner + taken,
                 sizes,
                 gap,
                 selectedIndex: container.selected,
-                reserve: this.triggerSpace.get(id) ?? 0,
+                reserve: this.reservedSpace.get(id) ?? 0,
             });
             const next = result.hidden.map((index) => tabs[index]?.id ?? "");
             changed = this.setHiddenTabs(id, next) || changed;
@@ -1354,6 +1345,40 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 listener();
             }
         }
+    }
+
+    /** a tab list's size inside its padding and borders, and the gap between its tabs */
+    private innerSize(
+        list: HTMLElement,
+        axis: Axis,
+    ): { inner: number; gap: number } {
+        const style = list.ownerDocument.defaultView?.getComputedStyle(list);
+        const inset =
+            px(style?.[`padding${axis.start}`]) +
+            px(style?.[`padding${axis.end}`]) +
+            borderWidth(style, axis.start) +
+            borderWidth(style, axis.end);
+        return {
+            inner: this.measureElement(list)[axis.size] - inset,
+            gap: px(style?.[axis.gap]),
+        };
+    }
+
+    /** the space the trigger takes while it shows: its size, its margins and the gap before it */
+    private triggerSpace(trigger: HTMLElement, axis: Axis): number {
+        const view = trigger.ownerDocument.defaultView;
+        const style = view?.getComputedStyle(trigger);
+        const parent = trigger.parentElement;
+        const gap =
+            parent && parent.children.length > 1
+                ? px(view?.getComputedStyle(parent)[axis.gap])
+                : 0;
+        return (
+            this.measureElement(trigger)[axis.size] +
+            px(style?.[`margin${axis.start}`]) +
+            px(style?.[`margin${axis.end}`]) +
+            gap
+        );
     }
 
     /** Registers (or unregisters) the element a tab's content panel is positioned with. */
