@@ -722,6 +722,21 @@ describe("window commands", () => {
         expect(text()).toBe("/ts0/t0[One],/ts0/t1[Two],/ts0/t2[Four]*");
     });
 
+    it("window.close docks into the main layout's default-tabset, never a window's active tabset", () => {
+        const { model, text, window } = withWindow();
+        must(model.run("tab.close", { tabId: "Three" }));
+        const [windowTabset] = model.get("tabsets", { layoutId: window });
+        must(
+            model.run("tabset.activate", { tabsetId: windowTabset?.id ?? "" }),
+        );
+        expect(model.get("active-tabset", { layoutId: window })).toBeDefined();
+        expect(model.get("active-tabset")).toBeUndefined();
+        const target = model.get("default-tabset")?.id;
+        must(model.run("window.close", { windowId: window }));
+        expect(model.get("node-parent-by", { nodeId: "Two" })?.id).toBe(target);
+        expect(text()).toBe("/ts0/t0[One],/ts0/t1[Two],/ts0/t2[Four]*");
+    });
+
     it("window.configure records the rect", () => {
         const { model, window } = withWindow();
         const rect = { x: 1, y: 2, width: 3, height: 4 };

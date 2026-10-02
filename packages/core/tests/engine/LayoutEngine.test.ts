@@ -169,9 +169,7 @@ describe("LayoutEngine measure pass", () => {
         expect(engine.get("layout-path-by", { nodeId: "ts1" })).toBe("/ts1");
         expect(engine.get("layout-path-by", { nodeId: "t2" })).toBe("/ts1/t0");
         // a tabset's minimum height includes its strip
-        expect(engine.get("size-limits-by", { nodeId: "ts0" }).minHeight).toBe(
-            31,
-        );
+        expect(engine.get("flex-by", { nodeId: "ts0" }).minHeight).toBe(31);
     });
 
     it("forgets the rects of the nodes that leave the model", () => {

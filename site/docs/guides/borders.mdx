@@ -227,7 +227,8 @@ With `autoHide: true` (or `defaults.border.autoHide`), a border **with no tabs**
 so it takes no space. While a tab is dragged near that border's edge of the layout (within
 `edgeDockMargin`, away from the edge docking band in the middle of the edge), the border appears
 so the tab can be dropped into it; it hides again when the drag moves away or ends. Once it has a
-tab, it shows like any border.
+tab, it shows like any border. `engine.is("border-shown", { borderId })` answers whether a border
+shows right now.
 
 ## Edge indicators
 

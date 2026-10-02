@@ -26,6 +26,10 @@ export interface DropIndicatorState {
     tabDragSpeed: number;
     /** the pointer is over a target that a drop rule refused (the outline is hidden) */
     refused: boolean;
+    /** the id of the drop target node (a tabset, a row for edge drops, a border) */
+    targetNodeId: string | undefined;
+    /** the id of the tabset (or border) the drop goes into or beside */
+    targetTabsetId: string | undefined;
 }
 
 export interface DropIndicatorProps
@@ -56,6 +60,8 @@ export function DropIndicator(props: DropIndicatorProps) {
         showEdges: indicator.showEdges,
         tabDragSpeed: indicator.tabDragSpeed,
         refused: indicator.refused,
+        targetNodeId: indicator.targetNodeId,
+        targetTabsetId: indicator.targetTabsetId,
     };
     const { rect } = indicator;
     return useRenderElement("div", rest, {

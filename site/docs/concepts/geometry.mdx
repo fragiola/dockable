@@ -19,6 +19,9 @@ min-width / min-height / max-width / max-height: the node's size limits;
 overflow: hidden;
 ```
 
+The engine computes these: `engine.get("flex-by", { nodeId })` returns the `grow` and the limits a
+row or a tabset is rendered with.
+
 A row with children of weight 60 and 40 splits its space 60/40, minus the splitters. Splitters
 are flex items too: their measured thickness is the engine's splitter size. Dragging a splitter
 runs the `row.resize` command for its row, and the new `flex-grow` values re-flow the row.

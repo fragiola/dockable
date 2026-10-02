@@ -38,6 +38,11 @@ Give it a `z-index`: the panels are portalled into the root after it and would p
 | `showEdges` | `boolean` | edge docking is available for this drag |
 | `tabDragSpeed` | `number` | seconds a style may take to animate between targets |
 | `refused` | `boolean` | the pointer is over a target that a drop rule (or a middleware veto) refused (the outline is hidden) |
+| `targetNodeId` | `string \| undefined` | the id of the drop target node: a tabset, a row for an edge drop, a border |
+| `targetTabsetId` | `string \| undefined` | the id of the tabset (or border) the drop goes into or beside |
+
+The target ids let the outline follow the tabset it targets, for instance its palette:
+`className={(state) => paletteOf(state.targetTabsetId)}`.
 
 ## Data attributes and ARIA
 

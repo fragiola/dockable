@@ -21,6 +21,16 @@ export interface SizeRange {
     readonly maxHeight: number;
 }
 
+/** How a row or a tabset sizes in its row: its flex grow, from its weight, and its range. */
+export interface FlexSizing extends SizeRange {
+    readonly grow: number;
+}
+
+/** The flex grow of a weight: never below 1, or the item would not fill its row. */
+export function flexGrow(weight: number): number {
+    return Math.max(1, weight * 1000);
+}
+
 /** A tabset's range: its own limits narrowed by its tabs', plus its tab strip's height. */
 export function tabsetRange(
     defaults: LayoutDefaults,

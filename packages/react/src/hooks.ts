@@ -64,23 +64,39 @@ export function useDockable<
     };
 }
 
+export interface UseModelStateOptions<
+    T extends DockableTypes = AnyTypes,
+    S = unknown,
+> {
+    /** the model to read; default: the enclosing `Dockable.Root`'s (then the hook needs one) */
+    model?: Model<T> | undefined;
+    /** whether two selections are the same, so the component does not re-render (`Object.is`) */
+    isEqual?: ((a: S, b: S) => boolean) | undefined;
+}
+
 /**
  * A value selected from the model's state, re-rendering the component only when the selection
  * changes (`isEqual`, `Object.is` by default). The selector runs once per state; keep it pure.
+ * Inside a `Dockable.Root` it reads the root's model; pass `model` to read one anywhere.
  *
  * ```ts
  * const count = useModelState<Types, number>((state, model) => model.get("all-tabs").length);
+ * const open = useModelState((_state, model) => model.get("windows").length, { model });
  * ```
  */
 export function useModelState<T extends DockableTypes = AnyTypes, S = unknown>(
     selector: (state: LayoutState<T>, model: Model<T>) => S,
-    isEqual: (a: S, b: S) => boolean = Object.is,
+    options: UseModelStateOptions<T, S> = {},
 ): S {
-    const erased = React.useContext(ModelContext);
-    if (!erased) {
-        throw new Error("useModelState must be used inside Dockable.Root");
+    const { isEqual = Object.is } = options;
+    const context = React.useContext(ModelContext);
+    const model =
+        options.model ?? (context ? typedModel<T>(context) : undefined);
+    if (!model) {
+        throw new Error(
+            "useModelState must be used inside Dockable.Root, or be given a model",
+        );
     }
-    const model = typedModel<T>(erased);
     const latest = React.useRef({ selector, isEqual });
     latest.current = { selector, isEqual };
     // the last selection, and what it was computed from: a new state, model or selector (a closure

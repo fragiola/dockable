@@ -6,8 +6,6 @@ import {
     type AnyTypes,
     type BorderNode,
     type DockableTypes,
-    type LayoutEngine,
-    type Model,
     OVERLAY_ATTRIBUTE,
 } from "@fragiola/dockable";
 import * as React from "react";
@@ -90,9 +88,12 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
     if (state.overlay) {
         // hit-testing, not cosmetics: the overlay paints over the layout (its z-index is yours),
         // but presses must reach the tab panel under its empty area; its splitter takes them back
-        Object.assign(structural, overlayPosition(model, engine, node), {
-            pointerEvents: "none",
-        });
+        Object.assign(
+            structural,
+            { position: "absolute" },
+            engine.get("overlay-placement-by", { borderId: id }),
+            { pointerEvents: "none" },
+        );
     }
     return useRenderElement("div", rest, {
         state,
@@ -109,46 +110,4 @@ export function BorderContent<T extends DockableTypes = AnyTypes>(
         },
         style: structural,
     });
-}
-
-/**
- * An overlay's structural placement over the layout's edge. A left or right overlay stops at the
- * open top and bottom overlays, as FlexLayout's does.
- */
-function overlayPosition<T extends DockableTypes>(
-    model: Model,
-    engine: LayoutEngine,
-    node: BorderNode<T>,
-): React.CSSProperties {
-    const location = node.location;
-    const style: React.CSSProperties = { position: "absolute" };
-    if (location === "top" || location === "bottom") {
-        style.left = 0;
-        style.right = 0;
-        style[location] = 0;
-        return style;
-    }
-    style[location] = 0;
-    style.top = 0;
-    style.bottom = 0;
-    for (const other of model.state.borders) {
-        const resolved = model.get("border-settings-by", {
-            borderId: other.id,
-        });
-        if (
-            resolved &&
-            other.id !== node.id &&
-            resolved.mode === "overlay" &&
-            resolved.show &&
-            other.selected !== -1
-        ) {
-            const inset = resolved.size + engine.get("splitter-size");
-            if (other.location === "top") {
-                style.top = inset;
-            } else if (other.location === "bottom") {
-                style.bottom = inset;
-            }
-        }
-    }
-    return style;
 }

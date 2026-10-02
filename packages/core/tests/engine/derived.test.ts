@@ -55,7 +55,7 @@ function setup(json: LayoutJson = twoTabsets) {
 function read(engine: LayoutEngine) {
     return {
         path: engine.get("layout-path-by", { nodeId: "t2" }),
-        minHeight: engine.get("size-limits-by", { nodeId: "ts0" }).minHeight,
+        minHeight: engine.get("flex-by", { nodeId: "ts0" }).minHeight,
     };
 }
 

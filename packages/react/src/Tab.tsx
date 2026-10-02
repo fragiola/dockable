@@ -82,12 +82,6 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const containerId = container?.id ?? "";
     const isSelected = () => model.is("tab-selected", { tabId: id });
     const selected = isSelected();
-    // keep exactly one tab stop in the tablist even when the tabset has no selected tab
-    const tabbable =
-        selected ||
-        (container?.type !== "row" &&
-            container?.selected === -1 &&
-            container.children[0]?.id === id);
 
     const inBorder = container?.type === "border";
     const select = () => {
@@ -239,7 +233,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
                 tabId: id,
             }),
             "aria-keyshortcuts": keyShortcuts,
-            tabIndex: tabbable ? 0 : -1,
+            tabIndex: engine.is("tab-tabbable", { tabId: id }) ? 0 : -1,
             ...dataAttributes({
                 "layout-path": getTabButtonPath(
                     engine.get("layout-path-by", { nodeId: id }),

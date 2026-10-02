@@ -68,7 +68,7 @@ export function TabSet<T extends DockableTypes = AnyTypes>(
     const { node, children, ...rest } = props;
     const { engine } = useLayoutContext("TabSet");
     const { state, props: tabset } = useTabSet(node);
-    const range = engine.get("size-limits-by", { nodeId: node.id });
+    const flex = engine.get("flex-by", { nodeId: node.id });
 
     const element = useRenderElement("div", rest, {
         state,
@@ -92,12 +92,11 @@ export function TabSet<T extends DockableTypes = AnyTypes>(
             display: state.hidden ? "none" : "flex",
             flexDirection: "column",
             flexBasis: 0,
-            // NOTE: flex-grow cannot have values < 1 otherwise it will not fill the parent
-            flexGrow: Math.max(1, node.weight * 1000),
-            minWidth: range.minWidth,
-            minHeight: range.minHeight,
-            maxWidth: range.maxWidth,
-            maxHeight: range.maxHeight,
+            flexGrow: flex.grow,
+            minWidth: flex.minWidth,
+            minHeight: flex.minHeight,
+            maxWidth: flex.maxWidth,
+            maxHeight: flex.maxHeight,
             overflow: "hidden",
         },
     });

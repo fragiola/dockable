@@ -151,11 +151,14 @@ unknown id reads `undefined`.
 | `"layout-id-by"` | `{ nodeId }` | `string \| undefined` | the layout a node is in: `MAIN_LAYOUT` (borders included) or a window id |
 | `"root-row"` | `{ layoutId? }` | `RowNode<T> \| undefined` | a layout's root row |
 | `"window-by"` | `{ id }` | `WindowLayout<T> \| undefined` | a popout window's layout by its id |
+| `"windows"` | none | `readonly WindowLayout<T>[]` | the popout windows' layouts, in the order they opened (`model.state.windows`) |
+| `"borders"` | none | `readonly BorderNode<T>[]` | the borders, in the layout's order (`model.state.borders`). Borders belong to the main layout, so the key takes no `layoutId` |
 | `"all-tabs"` | none | `TabOf<T>[]` | every tab of the model: the main layout's, its borders' and the windows', in tree order |
 | `"tabs"` | `{ layoutId? }` | `TabOf<T>[]` | the tabs of a layout (the main layout's include its borders'), in tree order |
 | `"tabsets"` | `{ layoutId? }` | `TabsetNode<T>[]` | the tabsets of a layout, in tree order |
 | `"selected-tab-by"` | `{ tabsetId }`, `{ borderId }` or `{ layoutId }` | `TabOf<T> \| undefined` | the tab a tabset shows; the tab a border's open panel shows (none while it is closed); the selected tab of a layout's active tabset. Exactly one of the three, always: `{ layoutId: MAIN_LAYOUT }` for the main layout |
 | `"active-tabset"` | `{ layoutId? }` | `TabsetNode<T> \| undefined` | a layout's active tabset |
+| `"default-tabset"` | `{ layoutId? }` | `TabsetNode<T> \| undefined` | the tabset to place into when no target is given: the layout's active tabset, else its first in tree order (never another layout's). `window.close` docks a window's tabs into the main layout's. A `tab.add` or `tab.move` with `to: <layoutId>` places at the layout's root row instead (a new tabset for `center`); to add into this tabset, pass its id as `to` |
 | `"maximized-tabset"` | `{ layoutId? }` | `TabsetNode<T> \| undefined` | a layout's maximized tabset |
 | `"tab-settings-by"` | `{ tabId }` | `ResolvedTab \| undefined` | a tab's effective settings ([below](#settings)) |
 | `"tabset-settings-by"` | `{ tabsetId }` | `ResolvedTabset \| undefined` | a tabset's effective settings |
@@ -311,13 +314,14 @@ take one: a [drag group](/docs/api/drag-group)'s transfers name their `from` and
 
 `MAIN_LAYOUT` is `"main"`, the id of the main layout: the state's `root`, `active`, `maximized` and
 its borders. A popout window's layout id is its window's id. Every `get` key whose only input is an
-optional `layoutId` (`tabs`, `tabsets`, `root-row`, `active-tabset`, `maximized-tabset`) and every
+optional `layoutId` (`tabs`, `tabsets`, `root-row`, `active-tabset`, `default-tabset`,
+`maximized-tabset`) and every
 primitive that takes a layout id defaults to it, and no node or window may use it as an id.
 
 ```ts
 import { MAIN_LAYOUT } from "@fragiola/dockable";
 
-for (const windowLayout of model.state.windows) {
+for (const windowLayout of model.get("windows")) {
     model.get("tabs", { layoutId: windowLayout.id }); // the tabs of one popout window
 }
 model.get("tabs", { layoutId: MAIN_LAYOUT }); // the main layout's tabs, its borders' included

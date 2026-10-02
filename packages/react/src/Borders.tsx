@@ -2,12 +2,11 @@
 // src/view/BorderTab.tsx and src/view/layout/BorderContainer.tsx (which borders show, the frame's
 // nesting, the content area's size, split and overlay placement); the markup and class names are
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
-import {
-    type AnyTypes,
-    type BorderLocation,
-    type BorderNode,
-    type DockableTypes,
-    MAIN_LAYOUT,
+import type {
+    AnyTypes,
+    BorderLocation,
+    BorderNode,
+    DockableTypes,
 } from "@fragiola/dockable";
 import * as React from "react";
 import { BorderContent } from "./BorderContent";
@@ -51,32 +50,21 @@ export function Borders<T extends DockableTypes = AnyTypes>(
     const { children, renderBar, renderContent, ...rest } = props;
     const { model: erased } = useDockableContext("Borders");
     const model = typedModel<T>(erased);
-    const { engine, layoutId } = useLayoutContext("Borders");
+    const { engine } = useLayoutContext("Borders");
     const manager = engine.adapter.getDragDropManager();
-    const revealed = React.useSyncExternalStore(
+    React.useSyncExternalStore(
         manager.subscribe,
         () => manager.getIndicatorState().revealedBorder,
         () => undefined,
     );
 
     const shown = new Map<BorderLocation, BorderNode<T>>();
-    if (layoutId === MAIN_LAYOUT) {
-        for (const location of LOCATIONS) {
-            const border = model.state.borders.find(
-                (b) => b.location === location,
-            );
-            const resolved = border
-                ? model.get("border-settings-by", { borderId: border.id })
-                : undefined;
-            if (
-                border &&
-                resolved?.show &&
-                (!resolved.autoHide ||
-                    border.children.length > 0 ||
-                    revealed === location)
-            ) {
-                shown.set(location, border);
-            }
+    for (const location of LOCATIONS) {
+        const border = model
+            .get("borders")
+            .find((b) => b.location === location);
+        if (border && engine.is("border-shown", { borderId: border.id })) {
+            shown.set(location, border);
         }
     }
     const strip = (location: BorderLocation) => {

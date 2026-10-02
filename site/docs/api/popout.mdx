@@ -25,7 +25,7 @@ of tabs in that layout are positioned in the window. Pop a tab out with `tab.pop
 </Dockable.Popout>
 ```
 
-A window is state: the model's `state.windows` holds one `WindowLayout<T>` per popout (its `id`,
+A window is state: `model.get("windows")` lists one `WindowLayout<T>` per popout (its `id`,
 its screen `rect`, its `root` row, its `active` and `maximized` tabsets). `tab.popout` and
 `tabset.popout` add one, `window.close` removes one (docking its tabs back into the main layout),
 and `window.configure` records its rect. A saved layout with windows reopens them when it loads.

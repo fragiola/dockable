@@ -198,6 +198,14 @@ export function queries(model: Model<Types>): void {
         model.get("selected-tab-by", { layoutId: MAIN_LAYOUT }),
         model.get("window-by", { id: "w0" })?.root,
     );
+    const defaultName: string | undefined = model.get("default-tabset", {
+        layoutId: "w0",
+    })?.data?.name;
+    const windowIds: string[] = model.get("windows").map((w) => w.id);
+    const locations: string[] = model.get("borders").map((b) => b.location);
+    use(defaultName, windowIds, locations, model.get("default-tabset"));
+    // @ts-expect-error: the windows and the borders are read-only
+    model.get("windows").push(model.get("windows")[0]);
 
     // @ts-expect-error: not a query
     model.get("nope");

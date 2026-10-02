@@ -139,7 +139,7 @@ describe("SplitterController pointer drag", () => {
         // the engine's own: the transient resize's row, and the splitter size's orientation
         expect(keys.filter((key) => key === "node-by")).toHaveLength(2);
         expect(engineGet).not.toHaveBeenCalledWith(
-            "size-limits-by",
+            "flex-by",
             expect.anything(),
         );
         pointer("pointerup", document, 230);
@@ -180,7 +180,7 @@ describe("SplitterController pointer drag", () => {
                 width: 0,
                 height: 0,
             },
-            range: engine.get("size-limits-by", { nodeId: id }),
+            range: engine.get("flex-by", { nodeId: id }),
         }));
         const bounds = splitterBounds(
             children,
@@ -496,7 +496,7 @@ describe("border splitters", () => {
         const engineGet = vi.spyOn(engine, "get");
         pointer("pointermove", document, 282); // 50px wider
         expect(engineGet).not.toHaveBeenCalledWith(
-            "size-limits-by",
+            "flex-by",
             expect.anything(),
         );
         expect(actions.at(-1)).toMatchObject({

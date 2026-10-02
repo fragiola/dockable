@@ -7,7 +7,7 @@ A popout moves a tab into a **native browser window**. The content keeps its sta
 moveable element is re-parented into the new document with `appendChild`, never cloned, and its
 React tree stays where it was.
 
-In the model, a popout is a **window layout**: an entry of `state.windows` (a `WindowLayout`, with
+In the model, a popout is a **window layout**: an entry of `model.get("windows")` (a `WindowLayout`, with
 its `id`, its screen `rect` and its own root row). The core opens one native window per window
 layout while the layout is mounted, and closes a window whose layout is gone.
 
@@ -138,9 +138,9 @@ the new document, analytics).
 ## Closing a popout
 
 When the user closes a popout window, the core runs **`window.close`** for its layout: its tabs
-move back into the main layout's active tabset (its first tabset when none is active), and the
-window layout is removed. The result lists the tabs that moved back. It is a command like any
-other, so a listener sees it and an undo can reverse it.
+move back into the main layout's active tabset (its first tabset when none is active:
+`model.get("default-tabset")`), and the window layout is removed. The result lists the tabs that
+moved back. It is a command like any other, so a listener sees it and an undo can reverse it.
 
 The same command closes a window from code:
 
