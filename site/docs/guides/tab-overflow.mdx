@@ -42,8 +42,13 @@ the tabset (or border) node and returns its tabs typed by the same registry, so 
 `component` in the menu too:
 
 ```tsx
-import type { TabOf, TabsetNode } from "@fragiola/dockable";
-import { Dockable, useDockable, useTabOverflow } from "@fragiola/dockable-react";
+import {
+    Dockable,
+    type TabOf,
+    type TabsetNode,
+    useDockable,
+    useTabOverflow,
+} from "@fragiola/dockable-react";
 
 // an icon-only tab has no name: `altName` names it in the menu
 type Types = { tabs: { file: { altName?: string } } };
@@ -121,7 +126,7 @@ Keep the strip's start padding in every case: a drop before the first tab needs 
 The decision itself is a pure function of the core, for a custom strip:
 
 ```ts
-import { computeTabOverflow } from "@fragiola/dockable";
+import { computeTabOverflow } from "@fragiola/dockable-react";
 
 const { visible, hidden } = computeTabOverflow({
     available: 420, // the strip's inner size

@@ -126,10 +126,11 @@ the other examples comment only what they do differently.
 
 ## Rules (the docs Epic, DD6–DD12)
 
-- **Copyable imports only**: `react`, `@fragiola/dockable`, `@fragiola/dockable-react`,
-  `lucide-react`, Fragiola UI (`#/components/ui/*`, `#/components/atoms/*`, `#/lib/cn`,
-  `#/hooks/*`), and relative files inside `src/examples/`. `#/` is the app's `src/`; `@name` is
-  reserved for packages (site export contract, §6). `tests/examples.test.ts` enforces it.
+- **Copyable imports only**: `react`, `@fragiola/dockable-react` (the core included: an app
+  installs that one package and never imports `@fragiola/dockable`), `lucide-react`, Fragiola UI
+  (`#/components/ui/*`, `#/components/atoms/*`, `#/lib/cn`, `#/hooks/*`), and relative files
+  inside `src/examples/`. `#/` is the app's `src/`; `@name` is reserved for packages (site export
+  contract, §6). `tests/examples.test.ts` enforces it.
 - **Theme-agnostic**: style through palette roles (`bg-palette-base`, …) and the theme tokens
   (`--dk-*`), never fixed colours, so the example works in all five themes.
 - **Through the model**: every change is a command (`model.run("tab.close", { tabId })`, with the

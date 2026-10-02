@@ -10,7 +10,7 @@ import {
     type Model,
     toLayoutJson,
     veto,
-} from "@fragiola/dockable";
+} from "@fragiola/dockable-react";
 import { describe, expect, it, vi } from "vitest";
 import { handleUndoKeys, UndoManager } from "../src/examples/_kit/undo";
 

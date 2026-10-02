@@ -33,7 +33,7 @@ well as a type literal. It satisfies `DockableTypes`; without one, the default i
 Pass the registry to `createModel`, and the layout JSON is checked against it:
 
 ```ts
-import { createModel, type LayoutJson } from "@fragiola/dockable";
+import { createModel, type LayoutJson } from "@fragiola/dockable-react";
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -63,7 +63,7 @@ A tab of the registry is a `TabOf<Types>`: a union with one member per component
 `component`. Checking the component narrows the data:
 
 ```ts
-import type { TabOf } from "@fragiola/dockable";
+import type { TabOf } from "@fragiola/dockable-react";
 
 function title(tab: TabOf<Types>): string {
     switch (tab.component) {
@@ -143,7 +143,7 @@ selected tab of the active tabset on `component`, then writes the chart's new ki
 `TabInitOf<Types>` a new tab (a component and its data), handy for templates:
 
 ```ts
-import type { TabInitOf } from "@fragiola/dockable";
+import type { TabInitOf } from "@fragiola/dockable-react";
 
 const newChart: TabInitOf<Types> = { component: "chart", label: "Chart", data: { series: [] } };
 
@@ -157,7 +157,7 @@ from an AI assistant is untrusted: its `data` may not match what your components
 JSON Schema per component with `dataSchemas`, and the model validates `data` wherever it enters:
 
 ```ts
-import { createModel, type JsonSchema } from "@fragiola/dockable";
+import { createModel, type JsonSchema } from "@fragiola/dockable-react";
 
 // the log has no data, so no schema
 const dataSchemas: { [K in keyof Types["tabs"]]?: JsonSchema } = {

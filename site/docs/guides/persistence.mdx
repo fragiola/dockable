@@ -16,7 +16,7 @@ the *transient* steps of a live gesture (a splitter drag: its last command is no
 debounce, and guard storage access: it can throw (private mode, quota).
 
 ```tsx
-import type { Model } from "@fragiola/dockable";
+import type { Model } from "@fragiola/dockable-react";
 
 const KEY = "my-app:layout";
 
@@ -43,7 +43,7 @@ does not fit, with every problem in `error.issues` (each a `ValidationIssue`: a 
 default layout, and tell the user why if it matters.
 
 ```tsx
-import { createModel, LayoutValidationError, type Model } from "@fragiola/dockable";
+import { createModel, LayoutValidationError, type Model } from "@fragiola/dockable-react";
 
 function loadModel(): Model<Types> {
     try {
@@ -73,7 +73,7 @@ tab's `data` with it, so a stored editor that lost its `path` is reported instea
 editor:
 
 ```ts
-import { createModel, type JsonSchema } from "@fragiola/dockable";
+import { createModel, type JsonSchema } from "@fragiola/dockable-react";
 
 const editor: JsonSchema = {
     type: "object",

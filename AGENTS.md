@@ -12,8 +12,8 @@ This repo is the first of a family (Angular and Vue adapters will follow), so
 | package | name | contains | depends on |
 |---|---|---|---|
 | `packages/core` | `@fragiola/dockable` | the typed model and its command bus, JSON v1 and its JSON Schemas, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | DOM only |
-| `packages/react` | `@fragiola/dockable-react` | composable primitives over the core | peer `react`, `react-dom` (^19) |
-| `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | both packages, `examples/react` |
+| `packages/react` | `@fragiola/dockable-react` | composable primitives over the core, and the whole core re-exported (`export *`): the one package a React app installs and imports from | the core (`workspace:*`, published as the exact version); peer `react`, `react-dom` (^19) |
+| `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | `@fragiola/dockable-react` (the core through it), `examples/react` |
 
 ## Non-negotiable rules
 
@@ -97,7 +97,7 @@ Do not "fix" these.
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit) |
 | `pnpm test` | Vitest: `core` (node), `react` (jsdom), `playground`, `examples-react`, `site` |
 | `pnpm build` | `pnpm -r build` (tsdown for the packages, Vite for the playground) |
-| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are dist-only, runs `publint` and `attw --profile esm-only` on the tarballs, then a smoke test: a scratch Vite + React app outside the workspace installs them, builds and loads its dev server (`scripts/check-package.ts`) |
+| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are dist-only, runs `publint` and `attw --profile esm-only` on the tarballs, checks the React package pins the core's exact version, then a smoke test: a scratch Vite + React app outside the workspace installs the React tarball only (the core comes as its dependency), builds and loads its dev server (`scripts/check-package.ts`) |
 | `pnpm e2e` | Playwright (Chromium) against the playground and the examples app |
 | `pnpm dev` | the playground on <http://localhost:5173>: every example and scenario live, the Inspector, the fixtures (`PLAYGROUND_PORT` moves it) |
 | `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.2, `../www/CONTRACT.md`), self-validated |

@@ -2,11 +2,12 @@
 
 import {
     createModel,
+    Dockable,
     type RowNode,
+    type RowSplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { useState, useSyncExternalStore } from "react";
 import { handleUndoKeys, UndoManager } from "../_kit/undo";
 import { DEFAULT_FILTERS, type Filters, layout, type Types } from "./data";

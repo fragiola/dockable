@@ -2,20 +2,18 @@
 
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     MAIN_LAYOUT,
     type Middleware,
     type RowNode,
+    type RowSplitterProps,
     type TabAddPayload,
     type TabJson,
     type TabOf,
     type TabsetNode,
-    veto,
-} from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
     useDockable,
+    veto,
 } from "@fragiola/dockable-react";
 import { Lock } from "lucide-react";
 import { useState } from "react";

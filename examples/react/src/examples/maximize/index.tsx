@@ -2,15 +2,13 @@
 
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     type Model,
     type RowNode,
+    type RowSplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
     useDockable,
 } from "@fragiola/dockable-react";
 import { Maximize2, Minimize2 } from "lucide-react";

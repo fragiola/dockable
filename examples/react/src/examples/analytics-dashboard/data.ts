@@ -1,4 +1,4 @@
-import type { LayoutJson, TabInitOf, TabOf } from "@fragiola/dockable";
+import type { LayoutJson, TabInitOf, TabOf } from "@fragiola/dockable-react";
 import { series } from "../_kit/charts";
 
 // The dashboard's data (deterministic, so every visit shows the same numbers), its filters,

@@ -41,7 +41,7 @@ tool one to one. Tool names are usually restricted to letters, digits, `_` and `
 go:
 
 ```ts
-import type { CommandInfo, CommandName, JsonSchema } from "@fragiola/dockable";
+import type { CommandInfo, CommandName, JsonSchema } from "@fragiola/dockable-react";
 
 /** The provider-neutral shape: rename the fields to what your API expects. */
 interface ToolDefinition {
@@ -190,7 +190,7 @@ and an input that carries a `meta` key is refused (`invalid_payload` at `/meta`)
 cannot pass itself off as the user.
 
 ```ts
-import type { CommandResult } from "@fragiola/dockable";
+import type { CommandResult } from "@fragiola/dockable-react";
 
 const ASSISTANT = { source: "assistant" } as const;
 
@@ -207,7 +207,7 @@ function runAssistantCall(call: { name: string; input: unknown }): CommandResult
 The middleware reads `ctx.meta` and lets everything else through:
 
 ```ts
-import { type Middleware, veto } from "@fragiola/dockable";
+import { type Middleware, veto } from "@fragiola/dockable-react";
 
 const assistantPolicy: Middleware<Types> = (ctx, next) => {
     if (ctx.meta?.source !== "assistant") return next(); // the user's drags, keys and buttons

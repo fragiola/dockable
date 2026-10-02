@@ -36,7 +36,7 @@ export interface SplitterAria {
 }
 
 /** The drag state of a splitter. */
-export interface SplitterState {
+export interface SplitterControllerState {
     /** true while the splitter is being dragged with the pointer */
     readonly dragging: boolean;
     /**
@@ -51,7 +51,10 @@ const DRAGGING_HOLD_MS = 300;
 /** Pixels a splitter moves per arrow key press. */
 const KEYBOARD_STEP = 10;
 
-const IDLE: SplitterState = { dragging: false, previewOffset: undefined };
+const IDLE: SplitterControllerState = {
+    dragging: false,
+    previewOffset: undefined,
+};
 
 /** Disables (or re-enables) pointer events on iframes, so a drag over one keeps its events. */
 export function enablePointerOnIFrames(
@@ -148,7 +151,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     private readonly engine: LayoutEngine<T>;
     private readonly nodeId: string;
     private readonly index: number;
-    private state: SplitterState = IDLE;
+    private state: SplitterControllerState = IDLE;
     private readonly listeners = new Set<() => void>();
     private element: HTMLElement | null = null;
     private stopDrag: (() => void) | undefined;
@@ -228,7 +231,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     }
 
     /** The current drag state. The same object is returned until it changes. */
-    getState = (): SplitterState => this.state;
+    getState = (): SplitterControllerState => this.state;
 
     /** Calls `listener` when the state changes. Returns the unsubscribe function. */
     subscribe = (listener: () => void): (() => void) => {
@@ -610,7 +613,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         }, DRAGGING_HOLD_MS);
     }
 
-    private setState(state: SplitterState) {
+    private setState(state: SplitterControllerState) {
         if (
             state.dragging === this.state.dragging &&
             state.previewOffset === this.state.previewOffset

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Model } from "@fragiola/dockable";
+import type { Model } from "@fragiola/dockable-react";
 import { Plus, Redo2, Undo2 } from "lucide-react";
 
 import { DropdownMenu } from "#/components/ui/dropdown-menu";

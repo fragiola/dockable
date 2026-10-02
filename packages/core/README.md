@@ -4,8 +4,9 @@ The framework-free core of **Dockable**, a headless layout manager for dockable 
 grouped in tabsets, rows and columns with splitters between them, borders, drag and drop to
 rearrange everything, and popout windows.
 
-**Building a React app? Install [`@fragiola/dockable-react`](https://www.npmjs.com/package/@fragiola/dockable-react)**:
-its primitives render the layout on top of this core.
+**Building a React app? Install [`@fragiola/dockable-react`](https://www.npmjs.com/package/@fragiola/dockable-react)
+instead**: its primitives render the layout, and it re-exports everything in this package, so a
+React app installs and imports that one only.
 
 This package is everything that is not rendering, for any framework:
 

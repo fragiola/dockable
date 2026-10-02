@@ -1,13 +1,11 @@
 import {
     createModel,
-    type LayoutJson,
-    type RowNode,
-    type TabsetNode,
-} from "@fragiola/dockable";
-import {
     Dockable,
     type DropIndicatorState,
+    type LayoutJson,
+    type RowNode,
     type RowSplitterProps,
+    type TabsetNode,
 } from "@fragiola/dockable-react";
 import { useState } from "react";
 import { PanelBody } from "#/examples/_kit/card";

@@ -14,16 +14,24 @@ Documentation, guides and live examples: **<https://fragiola.com/dockable>**.
 ## Install
 
 ```sh
-pnpm add @fragiola/dockable @fragiola/dockable-react
+pnpm add @fragiola/dockable-react
 ```
 
-`react` and `react-dom` **^19** are peer dependencies. Both packages are ESM only.
+This one package is all a React app installs: it re-exports the whole core
+([`@fragiola/dockable`](https://www.npmjs.com/package/@fragiola/dockable): the model, its types,
+the commands), so everything is imported from `@fragiola/dockable-react`. It depends on the core at
+the exact same version. `react` and `react-dom` **^19** are peer dependencies. ESM only.
 
 ## A minimal layout
 
 ```tsx
-import { createModel, type LayoutJson, type RowNode, type TabsetNode } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import {
+    createModel,
+    Dockable,
+    type LayoutJson,
+    type RowNode,
+    type TabsetNode,
+} from "@fragiola/dockable-react";
 import { type ReactNode, useState } from "react";
 
 // what each tab holds: its component and its data

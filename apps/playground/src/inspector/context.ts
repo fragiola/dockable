@@ -1,4 +1,4 @@
-import type { CommandEvent } from "@fragiola/dockable";
+import type { CommandEvent } from "@fragiola/dockable-react";
 import { createContext, useContext, useEffect } from "react";
 
 // How a scenario turns the Inspector on: one call with its model. The shell owns the panel; the

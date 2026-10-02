@@ -1,7 +1,12 @@
 "use client";
 
-import type { ComponentOf, TabOf, TabsetNode } from "@fragiola/dockable";
-import { Dockable, useDockable } from "@fragiola/dockable-react";
+import {
+    type ComponentOf,
+    Dockable,
+    type TabOf,
+    type TabsetNode,
+    useDockable,
+} from "@fragiola/dockable-react";
 import {
     ChartLine,
     ExternalLink,

@@ -21,7 +21,6 @@ import { CATEGORIES } from "../src/examples/meta-types.ts";
 const ALLOWED = [
     /^react$/,
     /^react-dom$/,
-    /^@fragiola\/dockable$/,
     /^@fragiola\/dockable-react$/,
     /^lucide-react$/,
     /^echarts$/,
@@ -242,6 +241,29 @@ const COUNTER_EXAMPLES = [
     "two-layouts",
 ];
 
+describe("the app", () => {
+    // a React app installs one package: the React package brings the core and re-exports it
+    const APP_ROOT = join(import.meta.dirname, "..");
+    const SOURCES = ["src", "tests", "scripts", "e2e"];
+
+    it("depends on @fragiola/dockable-react only", () => {
+        const manifest = readFileSync(join(APP_ROOT, "package.json"), "utf-8");
+        expect(manifest).toContain('"@fragiola/dockable-react"');
+        expect(manifest).not.toContain('"@fragiola/dockable"');
+    });
+
+    it("never imports @fragiola/dockable", () => {
+        const files = SOURCES.flatMap((dir) => walk(join(APP_ROOT, dir)));
+        expect(files.length).toBeGreaterThan(0);
+        for (const file of files.filter((f) => /\.tsx?$/.test(f))) {
+            expect(
+                importsOf(readFileSync(file, "utf-8")),
+                relative(APP_ROOT, file),
+            ).not.toContain("@fragiola/dockable");
+        }
+    });
+});
+
 describe("the kit", () => {
     it("lends the counter card only to the examples about surviving content", () => {
         const users = listExampleSlugs().filter((slug) =>
@@ -266,9 +288,9 @@ describe("the kit", () => {
                 join(EXAMPLES_DIR, "_kit", file),
                 "utf-8",
             );
-            expect(importsOf(source), `_kit/${file}`).not.toContain(
-                "@fragiola/dockable-react",
-            );
+            // the React package also re-exports the core, which _kit may use (undo.ts): the
+            // rule is on the primitives
+            expect(source, `_kit/${file}`).not.toMatch(/\bDockable\./);
         }
     });
 });

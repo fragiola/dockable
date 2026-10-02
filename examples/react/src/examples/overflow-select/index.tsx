@@ -2,15 +2,13 @@
 
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     type RowNode,
+    type RowSplitterProps,
     type TabJson,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
     useDockable,
     useModelState,
     useTabOverflow,
@@ -89,8 +87,7 @@ const json: LayoutJson<Types> = {
                     ),
                     file(
                         "layout.tsx",
-                        'import { createModel } from "@fragiola/dockable";',
-                        'import { Dockable } from "@fragiola/dockable-react";',
+                        'import { createModel, Dockable } from "@fragiola/dockable-react";',
                         'import { useState } from "react";',
                         "",
                         "export function Layout() {",

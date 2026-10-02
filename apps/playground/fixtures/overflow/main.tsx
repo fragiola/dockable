@@ -1,6 +1,7 @@
-import { createModel, type TabsetNode } from "@fragiola/dockable";
 import {
+    createModel,
     Dockable,
+    type TabsetNode,
     useDockable,
     useTabOverflow,
 } from "@fragiola/dockable-react";

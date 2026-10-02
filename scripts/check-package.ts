@@ -4,8 +4,9 @@
 //
 // - its packed `exports` point at `dist` only: no source condition, no `src`;
 // - publint (strict) and attw (`esm-only` profile) pass on the tarball;
-// - the smoke test: a scratch Vite + React app outside the workspace installs the tarballs, builds,
-//   and its dev server serves the entry with every import resolved. A consumer's dev server adds
+// - the smoke test: a scratch Vite + React app outside the workspace installs the React tarball
+//   (the core tarball comes as its dependency) and imports everything from it, builds, and its dev
+//   server serves the entry with every import resolved. A consumer's dev server adds
 //   the `development` condition, which once pointed the published `exports` at sources that are
 //   not in the tarball.
 import { execFileSync, spawn } from "node:child_process";
@@ -59,7 +60,14 @@ function pack(name: string, dir: string): string {
     return filename;
 }
 
-function packedManifest(tarball: string): { name: string; exports?: unknown } {
+interface PackedManifest {
+    name: string;
+    version: string;
+    exports?: unknown;
+    dependencies?: Record<string, string>;
+}
+
+function packedManifest(tarball: string): PackedManifest {
     return JSON.parse(
         execFileSync("tar", ["-xOzf", tarball, "package/package.json"], {
             encoding: "utf8",
@@ -93,8 +101,14 @@ function examplesVersion(name: string): string {
     return version;
 }
 
-const SMOKE_MAIN = `import { createModel, type LayoutJson, type RowNode, type TabsetNode } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+// Everything from the React package, the core included: a React app installs that one only.
+const SMOKE_MAIN = `import {
+    createModel,
+    Dockable,
+    type LayoutJson,
+    type RowNode,
+    type TabsetNode,
+} from "@fragiola/dockable-react";
 import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -140,14 +154,16 @@ if (container) {
 }
 `;
 
-/** A scratch Vite + React app in `dir` that depends on the tarballs. */
+/**
+ * A scratch Vite + React app in `dir` that depends on the React tarball only: the core tarball is
+ * installed as its dependency, never declared by the app.
+ */
 function writeSmokeApp(dir: string, core: string, react: string): void {
     const manifest = {
         name: "dockable-smoke",
         private: true,
         type: "module",
         dependencies: {
-            "@fragiola/dockable": `file:${core}`,
             "@fragiola/dockable-react": `file:${react}`,
             react: examplesVersion("react"),
             "react-dom": examplesVersion("react-dom"),
@@ -271,6 +287,15 @@ async function main() {
         const react = tarballs.get("react");
         if (core === undefined || react === undefined) {
             throw new Error("packages/core and packages/react are expected");
+        }
+        // one core per page (the drag state is page-wide): the React package pins its exact version
+        const coreVersion = packedManifest(core).version;
+        const pinned =
+            packedManifest(react).dependencies?.["@fragiola/dockable"];
+        if (pinned !== coreVersion) {
+            throw new Error(
+                `@fragiola/dockable-react depends on the core at "${pinned}", not at ${coreVersion}`,
+            );
         }
         writeSmokeApp(app, core, react);
         run("pnpm", ["install", "--no-frozen-lockfile"], app);

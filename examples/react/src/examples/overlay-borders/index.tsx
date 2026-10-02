@@ -3,15 +3,13 @@
 import {
     type BorderNode,
     createModel,
+    Dockable,
     type LayoutJson,
     type Model,
     type RowNode,
+    type SplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import {
-    Dockable,
-    type SplitterProps,
     useModelState,
 } from "@fragiola/dockable-react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";

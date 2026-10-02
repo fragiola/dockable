@@ -1,32 +1,33 @@
 ---
 title: Installation
-description: Add the core and the React primitives to a React 19 app.
+description: Add Dockable to a React 19 app with one package, the React primitives, which bring the core with them.
 ---
 
-Dockable is two packages: the framework-agnostic core and the React primitives over it.
+A React app installs one package, `@fragiola/dockable-react`: the primitives, the hooks and the
+whole framework-agnostic core, re-exported.
 
 <Tabs items={["pnpm", "npm", "yarn"]}>
     <Tab value="pnpm">
         ```sh
-        pnpm add @fragiola/dockable @fragiola/dockable-react
+        pnpm add @fragiola/dockable-react
         ```
     </Tab>
     <Tab value="npm">
         ```sh
-        npm install @fragiola/dockable @fragiola/dockable-react
+        npm install @fragiola/dockable-react
         ```
     </Tab>
     <Tab value="yarn">
         ```sh
-        yarn add @fragiola/dockable @fragiola/dockable-react
+        yarn add @fragiola/dockable-react
         ```
     </Tab>
 </Tabs>
 
 <Callout type="warn" title="Not on npm yet">
     The packages are at version `0.0.0` and are not published yet. Until they are, consume them
-    from the [repository](https://github.com/fragiola/dockable) as workspace packages
-    (`"@fragiola/dockable": "workspace:*"`), which is how this site uses them.
+    from the [repository](https://github.com/fragiola/dockable) as a workspace package
+    (`"@fragiola/dockable-react": "workspace:*"`), which is how this site uses it.
 </Callout>
 
 <Callout type="info" title="Stability">
@@ -43,7 +44,8 @@ Dockable is two packages: the framework-agnostic core and the React primitives o
 | ES modules | both packages are ESM only (`"type": "module"`). |
 
 `@fragiola/dockable` has **zero runtime dependencies**. `@fragiola/dockable-react` depends only
-on the core and its React peers.
+on the core, at the exact same version (one copy of the core per page: a drag between layouts and
+windows relies on it), and on its React peers.
 
 The core ships its own types, and is best used with TypeScript in `strict` mode: the layout JSON,
 the command payloads and each tab's data are typed by your registry
@@ -52,16 +54,41 @@ command's payload at runtime either way.
 
 ## What to import from where
 
+Everything comes from `@fragiola/dockable-react`:
+
 ```tsx
-// the model, its types and the other core exports
-import { createModel, type LayoutJson, type TabOf } from "@fragiola/dockable";
-// the primitives (one namespace) and the hooks
-import { Dockable, useDockable, useModelState } from "@fragiola/dockable-react";
+import {
+    // the primitives (one namespace) and the hooks
+    Dockable,
+    useDockable,
+    useModelState,
+    // the core: the model, its types and helpers
+    createModel,
+    type LayoutJson,
+    type TabOf,
+} from "@fragiola/dockable-react";
 ```
 
-The React package does **not** re-export the core. Import the model and its types
-(`createModel`, `Model`, `LayoutJson`, `TabOf`, `TabsetNode`, `RowNode`, `Middleware`, `veto`,
-`MAIN_LAYOUT`, …) from `@fragiola/dockable`.
+The React package re-exports the whole core (`createModel`, `Model`, `LayoutJson`, `TabOf`,
+`TabsetNode`, `RowNode`, `Middleware`, `veto`, `MAIN_LAYOUT`, …), so the pages on
+[the core API](/docs/api/model) apply as they are: in a React app, import those names from
+`@fragiola/dockable-react` too.
+
+## Without React
+
+The core is published on its own as `@fragiola/dockable`, for code that renders nothing: handling
+layout JSON on a server, a script or a test that runs no React, or an adapter for another
+framework.
+
+```sh
+pnpm add @fragiola/dockable
+```
+
+```ts
+import { createModel, type LayoutJson } from "@fragiola/dockable";
+```
+
+A React app never needs it: it comes with `@fragiola/dockable-react`.
 
 ## Server rendering
 

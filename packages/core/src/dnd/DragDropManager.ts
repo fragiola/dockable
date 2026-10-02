@@ -54,7 +54,7 @@ export type DropLocation = DockLocation;
 export type DropKind = "rect" | "edge";
 
 /** What a drop indicator shows. The same object is returned until it changes. */
-export interface DropIndicatorState {
+export interface DropIndicatorSnapshot {
     /** a drop target is under the pointer */
     readonly visible: boolean;
     /** the drop outline, relative to the layout root (1x1 at the pointer when a drag enters) */
@@ -140,7 +140,7 @@ export class DragDropManager {
     private dragEnterCount = 0;
     private active = false;
     private target: DropCommand | undefined;
-    private indicator: DropIndicatorState;
+    private indicator: DropIndicatorSnapshot;
     private readonly listeners = new Set<() => void>();
     private readonly commands: DropCommands;
 
@@ -200,7 +200,7 @@ export class DragDropManager {
     // *********************************************************************************
 
     /** The drop indicator of this layout. The same object is returned until it changes. */
-    getIndicatorState = (): DropIndicatorState => this.indicator;
+    getIndicatorState = (): DropIndicatorSnapshot => this.indicator;
 
     /** Calls `listener` when the indicator changes. Returns the unsubscribe function. */
     subscribe = (listener: () => void): (() => void) => {
@@ -210,7 +210,7 @@ export class DragDropManager {
         };
     };
 
-    private idleIndicator(): DropIndicatorState {
+    private idleIndicator(): DropIndicatorSnapshot {
         return {
             visible: false,
             rect: EMPTY_RECT,
@@ -229,9 +229,9 @@ export class DragDropManager {
         };
     }
 
-    private setIndicator(next: DropIndicatorState) {
+    private setIndicator(next: DropIndicatorSnapshot) {
         const prev = this.indicator;
-        let key: keyof DropIndicatorState;
+        let key: keyof DropIndicatorSnapshot;
         for (key in next) {
             if (
                 key === "rect"
@@ -625,7 +625,7 @@ export class DragDropManager {
     private borderToReveal(
         x: number,
         y: number,
-    ): DropIndicatorState["revealedBorder"] {
+    ): DropIndicatorSnapshot["revealedBorder"] {
         if (!this.engine.is("main-layout")) {
             return undefined;
         }

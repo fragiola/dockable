@@ -1,5 +1,9 @@
-import { type BorderNode, createModel, type Model } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import {
+    type BorderNode,
+    createModel,
+    Dockable,
+    type Model,
+} from "@fragiola/dockable-react";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { layoutFromQuery, type Types } from "../../src/fixture/layouts";

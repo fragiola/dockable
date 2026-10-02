@@ -7,7 +7,7 @@ import type {
     CommandResult,
     LayoutJson,
     ValidationIssue,
-} from "@fragiola/dockable";
+} from "@fragiola/dockable-react";
 import { useId, useState } from "react";
 import { Select } from "#/components/ui/select";
 import { Switch } from "#/components/ui/switch";

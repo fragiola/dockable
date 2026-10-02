@@ -3,14 +3,12 @@
 import {
     type BatchEntry,
     createModel,
+    Dockable,
     type LayoutJson,
     type RowNode,
+    type RowSplitterProps,
     type TabOf,
     type TabsetNode,
-} from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
     useDockable,
 } from "@fragiola/dockable-react";
 import { MonitorDown, MonitorUp, Undo2 } from "lucide-react";

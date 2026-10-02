@@ -13,7 +13,7 @@ import {
     type LayoutState,
     type Model,
     toLayoutJson,
-} from "@fragiola/dockable";
+} from "@fragiola/dockable-react";
 
 /** `meta` of the `layout.load` an undo or a redo runs, so it is not recorded as a step. */
 const UNDO_META = { undo: true } as const;

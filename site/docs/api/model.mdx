@@ -8,6 +8,10 @@ popout window layouts, the layout defaults and each layout's active and maximize
 state is a tree of plain, frozen objects; a command replaces it with a new one. It needs no DOM,
 so layout logic runs and is testable in plain Node.
 
+The core API pages import from `@fragiola/dockable`, the framework-free core. A React app imports
+the same names from `@fragiola/dockable-react`, which re-exports the whole core
+([Installation](/docs/getting-started/installation#what-to-import-from-where)).
+
 ```ts
 import { createModel, type LayoutJson } from "@fragiola/dockable";
 

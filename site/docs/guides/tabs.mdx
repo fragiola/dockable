@@ -35,8 +35,7 @@ The result is a `CommandResult`: `{ ok: true, value: { tabId } }` with the new t
 `{ ok: false, error }` saying why nothing was added.
 
 ```tsx
-import { MAIN_LAYOUT } from "@fragiola/dockable";
-import { useDockable } from "@fragiola/dockable-react";
+import { MAIN_LAYOUT, useDockable } from "@fragiola/dockable-react";
 
 function AddTabButton() {
     const { model } = useDockable<Types>();
@@ -72,8 +71,7 @@ before rendering the button: `model.can` answers whether `run` would succeed, mi
 without changing anything (`model.check` returns what it would return).
 
 ```tsx
-import type { TabOf } from "@fragiola/dockable";
-import { Dockable, useDockable } from "@fragiola/dockable-react";
+import { Dockable, type TabOf, useDockable } from "@fragiola/dockable-react";
 
 function CloseButton({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
@@ -119,7 +117,7 @@ is a middleware. This one vetoes closing a modified editor, asks, and runs the c
 the user agrees, marked by `meta`:
 
 ```ts
-import { veto } from "@fragiola/dockable";
+import { veto } from "@fragiola/dockable-react";
 
 model.use((ctx, next) => {
     // a dry run (`model.can`) passes: the close is offered, and asked about when it runs

@@ -2,17 +2,15 @@
 
 import {
     createModel,
+    Dockable,
     type KeyMap,
     type LayoutJson,
     type RowNode,
+    type RowSplitterProps,
     resolveKeyMap,
     type TabOf,
     type TabsetNode,
     toAriaKeyShortcuts,
-} from "@fragiola/dockable";
-import {
-    Dockable,
-    type RowSplitterProps,
     useDockable,
 } from "@fragiola/dockable-react";
 import { useState } from "react";

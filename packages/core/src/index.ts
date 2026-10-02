@@ -36,7 +36,7 @@ export { veto } from "./commands/types";
 export {
     DRAG_TYPE,
     DragDropManager,
-    type DropIndicatorState,
+    type DropIndicatorSnapshot,
     type DropKind,
     type DropLocation,
     type ExternalDrag,
@@ -131,7 +131,7 @@ export {
     createSplitterController,
     type SplitterAria,
     type SplitterController,
-    type SplitterState,
+    type SplitterControllerState,
 } from "./splitter/SplitterController";
 export {
     BUILT_IN,

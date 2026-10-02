@@ -32,8 +32,7 @@ dispose in an effect. The model never changes: undo and redo change its state, s
 `Dockable.Root` keeps its engine and nothing remounts.
 
 ```tsx
-import { type CommandName, createModel, type LayoutJson } from "@fragiola/dockable";
-import { Dockable } from "@fragiola/dockable-react";
+import { type CommandName, createModel, Dockable, type LayoutJson } from "@fragiola/dockable-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { handleUndoKeys, UndoManager } from "./undo"; // the examples' _kit/undo.ts, copied into your app
 

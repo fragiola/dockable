@@ -2,15 +2,16 @@
 
 import {
     createModel,
+    Dockable,
     type LayoutJson,
     LayoutValidationError,
     type Middleware,
     type Model,
     type RowNode,
+    type RowSplitterProps,
     type TabsetNode,
     veto,
-} from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+} from "@fragiola/dockable-react";
 import { LayoutDashboard, RotateCcw, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import * as styles from "./styles";
