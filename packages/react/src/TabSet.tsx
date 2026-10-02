@@ -18,20 +18,22 @@ import {
 
 export type { TabSetState };
 
-/** The id of the enclosing tabset. */
-export const TabSetContext = React.createContext<string | null>(null);
-
 /** The id of the tab container (a tabset or a border) of the parts inside it: `TabList`, `Tab`. */
 export const TabContainerContext = React.createContext<string | null>(null);
+
+/** The enclosing tab container, of the registry the part's caller declares (`<Dockable.TabList<Types>>`). */
+function useContainerNode<T extends DockableTypes = AnyTypes>(part: string) {
+    const id = React.useContext(TabContainerContext);
+    const { model } = useDockableContext(part);
+    return id === null
+        ? undefined
+        : typedModel<T>(model).get("node-by", { id });
+}
 
 export function useTabContainer<T extends DockableTypes = AnyTypes>(
     part: string,
 ): TabContainer<T> {
-    const id = React.useContext(TabContainerContext);
-    const { model } = useDockableContext(part);
-    // the container of the registry the part's caller declares (`<Dockable.TabList<Types>>`)
-    const container =
-        id === null ? undefined : typedModel<T>(model).get("node-by", { id });
+    const container = useContainerNode<T>(part);
     if (container?.type !== "tabset" && container?.type !== "border") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet or Dockable.Border`,
@@ -41,9 +43,7 @@ export function useTabContainer<T extends DockableTypes = AnyTypes>(
 }
 
 export function useTabSetNode(part: string): TabsetNode {
-    const id = React.useContext(TabSetContext);
-    const { model } = useDockableContext(part);
-    const tabset = id === null ? undefined : model.get("node-by", { id });
+    const tabset = useContainerNode(part);
     if (tabset?.type !== "tabset") {
         throw new Error(
             `Dockable.${part} must be rendered inside Dockable.TabSet`,
@@ -101,10 +101,8 @@ export function TabSet<T extends DockableTypes = AnyTypes>(
         },
     });
     return (
-        <TabSetContext.Provider value={node.id}>
-            <TabContainerContext.Provider value={node.id}>
-                {element}
-            </TabContainerContext.Provider>
-        </TabSetContext.Provider>
+        <TabContainerContext.Provider value={node.id}>
+            {element}
+        </TabContainerContext.Provider>
     );
 }

@@ -263,6 +263,13 @@ export interface UseTabSetResult {
     };
 }
 
+/** @internal makes a tabset its layout's active tabset, unless it already is */
+export function activateTabset(model: Model, tabsetId: string) {
+    if (!model.is("tabset-active", { tabsetId })) {
+        model.run("tabset.activate", { tabsetId });
+    }
+}
+
 function isAuxEvent(event: React.PointerEvent | React.MouseEvent) {
     return (
         event.button !== 0 ||
@@ -281,13 +288,12 @@ export function useTabSet<T extends DockableTypes>(
     node: TabsetNode<T>,
 ): UseTabSetResult {
     const { model } = useDockableContext("useTabSet");
-    const { engine, layoutId } = useLayoutContext("useTabSet");
+    const { engine } = useLayoutContext("useTabSet");
     const id = node.id;
     const drop = useTabSetDropState(engine, id);
-    const active = model.get("active-tabset", { layoutId })?.id === id;
     const state: TabSetState = {
-        active,
-        maximized: model.get("maximized-tabset", { layoutId })?.id === id,
+        active: model.is("tabset-active", { tabsetId: id }),
+        maximized: model.is("tabset-maximized", { tabsetId: id }),
         hidden: model.is("node-hidden-by-maximize", { nodeId: id }),
         empty: node.children.length === 0,
         dropTarget: drop.target,
@@ -297,11 +303,8 @@ export function useTabSet<T extends DockableTypes>(
     };
     const ref = useMeasurable(engine, id, "tabset");
     const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
-        if (
-            !isAuxEvent(event) &&
-            model.get("active-tabset", { layoutId })?.id !== id
-        ) {
-            model.run("tabset.activate", { tabsetId: id });
+        if (!isAuxEvent(event)) {
+            activateTabset(model, id);
         }
     };
     return { state, props: { ref, onPointerDown } };
@@ -523,21 +526,11 @@ export function useDragNode<T extends DockableTypes>(
     const imageRef = React.useRef<HTMLElement | null>(null);
     const dragState = useDragState();
     const id = node.id;
-    const enabled = () => {
-        const current = model.get("node-by", { id });
-        if (current?.type === "tab") {
-            return (
-                model.get("tab-settings-by", { tabId: id })?.enableDrag ?? false
-            );
-        }
-        if (current?.type === "tabset") {
-            return (
-                model.get("tabset-settings-by", { tabsetId: id })?.enableDrag ??
-                false
-            );
-        }
-        return false;
-    };
+    const enabled = () =>
+        (node.type === "tab"
+            ? model.get("tab-settings-by", { tabId: id })
+            : model.get("tabset-settings-by", { tabsetId: id })
+        )?.enableDrag ?? false;
 
     const onDragStart = (event: React.DragEvent<HTMLElement>) => {
         if (!enabled()) {

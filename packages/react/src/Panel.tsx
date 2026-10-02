@@ -18,6 +18,7 @@ import {
     useDockableContext,
 } from "./context";
 import { DragGroupContext } from "./DragGroup";
+import { activateTabset } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -105,7 +106,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const id = node.id;
     const layoutId = model.get("layout-id-by", { nodeId: id }) ?? MAIN_LAYOUT;
     const layer = layers.get(layoutId);
-    const layoutEngine = layer?.engine ?? mainEngine;
+    const layoutEngine = mainEngine.adapter.engineOf(id);
 
     const [panelElement, setPanelElement] = React.useState<HTMLElement | null>(
         null,
@@ -156,11 +157,8 @@ export function Panel<T extends DockableTypes = AnyTypes>(
 
     const onPointerDown = () => {
         const tabset = model.get("node-parent-by", { nodeId: id });
-        if (
-            tabset?.type === "tabset" &&
-            model.get("active-tabset", { layoutId })?.id !== tabset.id
-        ) {
-            model.run("tabset.activate", { tabsetId: tabset.id });
+        if (tabset?.type === "tabset") {
+            activateTabset(model, tabset.id);
         }
     };
 
@@ -191,9 +189,9 @@ export function Panel<T extends DockableTypes = AnyTypes>(
             "aria-keyshortcuts": toAriaKeyShortcuts(focusToggleKey),
             tabIndex: -1,
             ...dataAttributes({
-                "layout-path": mainEngine.adapter
-                    .engineOf(id)
-                    .get("layout-path-by", { nodeId: id }),
+                "layout-path": layoutEngine.get("layout-path-by", {
+                    nodeId: id,
+                }),
                 selected,
                 visible,
             }),
@@ -239,9 +237,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
 
     return (
         <>
-            {layer
-                ? createPortal(panel, layer.element, `panel:${layoutId}`)
-                : null}
+            {layer ? createPortal(panel, layer, `panel:${layoutId}`) : null}
             {dragGroup ? null : createPortal(children, moveable, contentKey)}
         </>
     );

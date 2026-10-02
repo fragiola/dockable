@@ -683,11 +683,7 @@ describe("panels and content", () => {
                     }
                     attached.current.add(sub);
                     sub.adapter.attachRoot(layerHost);
-                    setLayer(window.id, {
-                        layoutId: window.id,
-                        element: layerHost,
-                        engine: sub,
-                    });
+                    setLayer(window.id, layerHost);
                 }
             });
             return null;

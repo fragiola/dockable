@@ -22,7 +22,6 @@ import {
     eraseModel,
     LayoutContext,
     ModelContext,
-    type PanelLayer,
     type PopoutHooks,
 } from "./context";
 import { DragGroupContext } from "./DragGroup";
@@ -89,7 +88,7 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
  */
 export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     const {
-        model: typedModel,
+        model: modelProp,
         keyMap,
         realtimeResize,
         tabDragSpeed,
@@ -107,11 +106,11 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
     const dragGroup = React.useContext(DragGroupContext);
     // DOM ids and window names unique on the page, and the same on the server and the client
     const idScope = `${React.useId().replace(/[^\w-]/g, "")}-`;
-    const typedEngine = React.useMemo(
-        () => createLayoutEngine({ model: typedModel, idScope }),
-        [typedModel, idScope],
+    const engineForModel = React.useMemo(
+        () => createLayoutEngine({ model: modelProp, idScope }),
+        [modelProp, idScope],
     );
-    typedEngine.adapter.setOptions({
+    engineForModel.adapter.setOptions({
         realtimeResize,
         tabDragSpeed,
         onExternalDrag,
@@ -133,8 +132,8 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         },
     });
     // the parts below work on the erased registry; the typed surface is their props
-    const model = eraseModel(typedModel);
-    const engine = eraseEngine(typedEngine);
+    const model = eraseModel(modelProp);
+    const engine = eraseEngine(engineForModel);
     // leave the group when this root unmounts or its engine is replaced (a new model), so the group
     // never reaches a layout that is gone; the setup re-joins after a StrictMode remount
     React.useEffect(() => dragGroup?.group.join(engine), [dragGroup, engine]);
@@ -174,11 +173,13 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
 
     const resolvedKeyMap = React.useMemo(() => resolveKeyMap(keyMap), [keyMap]);
 
-    // the focusNextTabset/focusPreviousTabset keys move focus between tabsets, from anywhere in
-    // the document (including inside tab content)
-    const { focusNextTabset, focusPreviousTabset } = resolvedKeyMap;
+    // from anywhere in the document (tab content included): the focusNextTabset and
+    // focusPreviousTabset keys move focus between tabsets, else the closeOverlayBorder key closes
+    // an open overlay border; a press elsewhere in the layout closes it too
+    const { focusNextTabset, focusPreviousTabset, closeOverlayBorder } =
+        resolvedKeyMap;
     React.useEffect(() => {
-        if (!rootElement || (!focusNextTabset && !focusPreviousTabset)) {
+        if (!rootElement) {
             return;
         }
         const doc = rootElement.ownerDocument;
@@ -193,26 +194,12 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
                   : undefined;
             if (direction && engine.run("focus-tabset", { direction }).ok) {
                 event.preventDefault();
-            }
-        };
-        doc.addEventListener("keydown", onKeyDown);
-        return () => doc.removeEventListener("keydown", onKeyDown);
-    }, [engine, rootElement, focusNextTabset, focusPreviousTabset]);
-
-    // an open overlay border closes on a press elsewhere in the layout, and on its close key
-    const { closeOverlayBorder } = resolvedKeyMap;
-    React.useEffect(() => {
-        if (!rootElement) {
-            return;
-        }
-        const doc = rootElement.ownerDocument;
-        const onPointerDown = (event: PointerEvent) => {
-            engine.adapter.handleOverlayPointerDown(event);
-        };
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (!event.defaultPrevented) {
+            } else {
                 engine.adapter.handleOverlayKeyDown(event, closeOverlayBorder);
             }
+        };
+        const onPointerDown = (event: PointerEvent) => {
+            engine.adapter.handleOverlayPointerDown(event);
         };
         // capture: splitters and buttons stop the propagation of their presses
         doc.addEventListener("pointerdown", onPointerDown, true);
@@ -221,26 +208,28 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             doc.removeEventListener("pointerdown", onPointerDown, true);
             doc.removeEventListener("keydown", onKeyDown);
         };
-    }, [engine, rootElement, closeOverlayBorder]);
+    }, [
+        engine,
+        rootElement,
+        focusNextTabset,
+        focusPreviousTabset,
+        closeOverlayBorder,
+    ]);
 
-    const [extraLayers, setExtraLayers] = React.useState<
-        ReadonlyMap<string, PanelLayer>
+    const [windowLayers, setWindowLayers] = React.useState<
+        ReadonlyMap<string, HTMLElement>
     >(new Map());
     const setLayer = React.useCallback(
-        (layoutId: string, layer: PanelLayer | null) => {
-            setExtraLayers((prev) => {
-                if (
-                    layer === null
-                        ? !prev.has(layoutId)
-                        : prev.get(layoutId)?.element === layer.element
-                ) {
+        (layoutId: string, element: HTMLElement | null) => {
+            setWindowLayers((prev) => {
+                if ((prev.get(layoutId) ?? null) === element) {
                     return prev;
                 }
                 const next = new Map(prev);
-                if (layer === null) {
+                if (element === null) {
                     next.delete(layoutId);
                 } else {
-                    next.set(layoutId, layer);
+                    next.set(layoutId, element);
                 }
                 return next;
             });
@@ -248,17 +237,13 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         [],
     );
     const layers = React.useMemo(() => {
-        const all = new Map(extraLayers);
+        const all = new Map(windowLayers);
         if (rootElement) {
             // the main layout's panels are positioned in the root itself
-            all.set(MAIN_LAYOUT, {
-                layoutId: MAIN_LAYOUT,
-                element: rootElement,
-                engine,
-            });
+            all.set(MAIN_LAYOUT, rootElement);
         }
         return all;
-    }, [extraLayers, rootElement, engine]);
+    }, [windowLayers, rootElement]);
 
     const context = React.useMemo<DockableContextValue>(
         () => ({

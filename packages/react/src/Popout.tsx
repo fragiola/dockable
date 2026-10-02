@@ -134,7 +134,7 @@ function PopoutLayout<T extends DockableTypes>({
             }
             engine.adapter.attachRoot(element);
             // the window's panels are positioned in this element
-            setLayer(layoutId, { layoutId, element, engine });
+            setLayer(layoutId, element);
             return () => {
                 engine.adapter.detachRoot();
                 setLayer(layoutId, null);

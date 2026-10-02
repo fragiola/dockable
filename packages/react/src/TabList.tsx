@@ -61,12 +61,12 @@ export interface TabListProps<T extends DockableTypes = AnyTypes>
 export function TabList<T extends DockableTypes = AnyTypes>(
     props: TabListProps<T>,
 ) {
-    const tabset = useTabContainer<T>("TabList");
-    const border = tabset.type === "border";
+    const container = useTabContainer<T>("TabList");
+    const border = container.type === "border";
     const {
         children,
         orientation = border &&
-        (tabset.location === "left" || tabset.location === "right")
+        (container.location === "left" || container.location === "right")
             ? "vertical"
             : "horizontal",
         overflow = true,
@@ -74,7 +74,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
     } = props;
     const { keyMap } = useDockableContext("TabList");
     const { engine } = useLayoutContext("TabList");
-    const id = tabset.id;
+    const id = container.id;
     const vertical = orientation === "vertical";
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
@@ -91,7 +91,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         },
         [engine, id, border, vertical, overflow],
     );
-    const tabOverflow = useTabOverflow(tabset);
+    const tabOverflow = useTabOverflow(container);
 
     const keyShortcuts =
         [
@@ -109,7 +109,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         overflowing: tabOverflow.overflowing,
         hiddenCount: tabOverflow.hiddenTabs.length,
     };
-    const tabs = tabset.children.map((tab) => (
+    const tabs = container.children.map((tab) => (
         <React.Fragment key={tab.id}>{children(tab)}</React.Fragment>
     ));
     const listContext = React.useMemo(() => ({ orientation }), [orientation]);

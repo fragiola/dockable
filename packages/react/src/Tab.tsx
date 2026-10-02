@@ -119,15 +119,13 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
                   : tabs[tabs.indexOf(self) + to];
         if (next?.hasAttribute("data-overflow-hidden")) {
             // a tab hidden by tab overflow: select it, which brings it into the strip, then focus it
-            const target = model
-                .get("node-parent-by", { nodeId: id })
-                ?.children.find(
-                    (tab) =>
-                        tab.type === "tab" &&
-                        engine.get("tab-button-dom-id-by", {
-                            tabId: tab.id,
-                        }) === next.id,
-                );
+            const target = container?.children.find(
+                (tab) =>
+                    tab.type === "tab" &&
+                    engine.get("tab-button-dom-id-by", {
+                        tabId: tab.id,
+                    }) === next.id,
+            );
             if (target) {
                 model.run("tab.select", { tabId: target.id });
                 self.ownerDocument.defaultView?.requestAnimationFrame(() =>
