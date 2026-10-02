@@ -234,59 +234,26 @@ const json: LayoutJson<Types> = {
 export default function TabOverflow() {
     const [model] = useState(() => createModel<Types>(json));
     return (
-        // The root needs a size. Its row is `position: absolute; inset: 0`, so the gutter around
-        // the layout goes on a wrapper: padding on the root would not move the row.
         <div className={styles.frame}>
             <Dockable.Root model={model} className={styles.root}>
-                {/* The layout's rows and tabsets: the developer owns the recursion. */}
                 <Dockable.Row<Types>
                     renderSplitter={(props) => <Splitter {...props} />}
                 >
                     {renderNode}
                 </Dockable.Row>
-                {/* Every tab's content, positioned by the engine over its tabset. */}
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {tab.component === "terminal" ? (
-                                <LogPanel />
-                            ) : tab.component === "problems" ? (
-                                <ul className={styles.problems}>
-                                    {tab.data.items.map((item) => (
-                                        <li
-                                            key={item.where}
-                                            className={styles.problem}
-                                        >
-                                            <span
-                                                className={styles.problemWhere}
-                                            >
-                                                {item.where}
-                                            </span>
-                                            {item.message}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <pre className={styles.source}>
-                                    {tab.data.text}
-                                </pre>
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -299,6 +266,30 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
         );
     }
     return <TabSet node={node} />;
+}
+
+/** A tab's content: `tab.data` and the component narrow together. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "terminal":
+            return <LogPanel />;
+        case "problems":
+            return (
+                <ul className={styles.problems}>
+                    {tab.data.items.map((item) => (
+                        <li key={item.where} className={styles.problem}>
+                            <span className={styles.problemWhere}>
+                                {item.where}
+                            </span>
+                            {item.message}
+                        </li>
+                    ))}
+                </ul>
+            );
+        case "file":
+        case "output":
+            return <pre className={styles.source}>{tab.data.text}</pre>;
+    }
 }
 
 /** A tabset whose strip overflows as its data says: into a select, or by scrolling. */
@@ -380,7 +371,6 @@ function ScrollingTab({ tab }: { tab: TabOf<Types> }) {
     return <Tab tab={tab} ref={ref} />;
 }
 
-/** A tab: its label, and the active tabset's marker. */
 function Tab({ tab, ref }: { tab: TabOf<Types>; ref?: Ref<HTMLElement> }) {
     return (
         <Dockable.Tab node={tab} ref={ref} className={styles.tab}>
@@ -390,7 +380,6 @@ function Tab({ tab, ref }: { tab: TabOf<Types>; ref?: Ref<HTMLElement> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter

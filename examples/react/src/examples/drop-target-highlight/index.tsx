@@ -4,6 +4,7 @@ import {
     createModel,
     type LayoutJson,
     type RowNode,
+    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import {
@@ -87,7 +88,6 @@ const json: LayoutJson<Types> = {
 export default function DropTargetHighlight() {
     const [model] = useState(() => createModel<Types>(json));
     return (
-        // The root needs a size: the wrapper gives it one, and the gutter around it.
         <div className={styles.frame}>
             <Dockable.Root model={model} className={styles.root}>
                 <Dockable.Row<Types>
@@ -98,21 +98,7 @@ export default function DropTargetHighlight() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            {tab.component === "chart" ? (
-                                <ChartPanel
-                                    kind={tab.data.kind}
-                                    seed={tab.data.seed}
-                                    title={tab.label}
-                                />
-                            ) : tab.component === "kpi" ? (
-                                <KpiPanel
-                                    label={tab.label}
-                                    seed={tab.data.seed}
-                                    unit={tab.data.unit}
-                                />
-                            ) : (
-                                <TablePanel />
-                            )}
+                            <Content tab={tab} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
@@ -122,7 +108,6 @@ export default function DropTargetHighlight() {
     );
 }
 
-/** A row's child: a tabset, or a nested row rendered by this same function. */
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
         return (
@@ -135,6 +120,30 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
         );
     }
     return <TabSet node={node} />;
+}
+
+/** A tab's content: `tab.data` and the component narrow together. */
+function Content({ tab }: { tab: TabOf<Types> }) {
+    switch (tab.component) {
+        case "chart":
+            return (
+                <ChartPanel
+                    kind={tab.data.kind}
+                    seed={tab.data.seed}
+                    title={tab.label}
+                />
+            );
+        case "kpi":
+            return (
+                <KpiPanel
+                    label={tab.label}
+                    seed={tab.data.seed}
+                    unit={tab.data.unit}
+                />
+            );
+        case "table":
+            return <TablePanel />;
+    }
 }
 
 /** A tabset that marks itself while it is a drop target: the part the drop would take, or a caret in its strip. */
@@ -160,7 +169,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 <span className={styles.tabName}>
                                     {tab.label}
                                 </span>
-                                {/* the active tabset's marker */}
                                 <span
                                     aria-hidden="true"
                                     className={styles.tabMarker}
@@ -183,7 +191,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** The bar between two children of a row, with a grip for the themes that show one. */
 function Splitter(props: RowSplitterProps<Types>) {
     return (
         <Dockable.Splitter
