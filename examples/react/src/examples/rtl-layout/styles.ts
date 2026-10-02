@@ -1,8 +1,9 @@
 import type { DropIndicatorState } from "@fragiola/dockable-react";
 import { cn } from "#/lib/cn";
 
-// How overlay-borders looks: one class string per part, read by index.tsx. Colours come from the
-// palette roles and sizes from the theme's --dk-* tokens, so it works in every theme.
+// How rtl-layout looks: one class string per part, read by index.tsx. Every side is logical
+// (`ps-`, `border-e`, `start-`), so the same classes mirror with the page; only the edge arrows
+// need an `rtl:` variant, an icon having no logical form.
 
 export const page = "flex min-h-0 flex-1 flex-col";
 
@@ -11,10 +12,10 @@ export const page = "flex min-h-0 flex-1 flex-col";
 export const toolbar =
     "palette-surface flex flex-wrap items-center gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast";
 
-export const hint = "ms-auto text-sm text-palette-accent/85";
+export const hint = "text-sm text-palette-accent/85";
 
-export const modeButton =
-    "inline-flex h-8 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-3 text-sm text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring";
+export const button =
+    "inline-flex h-8 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-3 text-sm text-palette-contrast outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring aria-pressed:bg-palette-soft";
 
 // ─── layout ───
 
@@ -39,13 +40,13 @@ export const dropIndicator = (state: DropIndicatorState) =>
             : "palette-blue bg-palette-base/20",
     );
 
-/** The band along a layout edge: orange like the edge drop outline, solid while the drop would
- * go there (`data-drop-target`). */
+/** The band along a layout edge, solid while the drop would go there (`data-drop-target`). */
 export const edgeIndicator = cn(
     "palette-orange z-20 flex items-center justify-center rounded-sm bg-palette-base/40 text-palette-contrast",
     "transition-colors duration-(--dk-motion) data-drop-target:bg-palette-base",
 );
 
+/** The start arrow points left, the end one right: in RTL, both turn round. */
 export const edgeArrow = "size-3 rtl:-scale-x-100";
 
 // ─── tabs ───
@@ -60,7 +61,7 @@ export const tabList =
     "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-(--dk-strip-padding) pt-[calc(var(--dk-strip-padding)/2)]";
 
 export const tab = cn(
-    "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
+    "relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
     "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
     "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
     "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
@@ -69,15 +70,10 @@ export const tab = cn(
 
 export const tabName = "truncate";
 
-/** The active tabset's marker: `in-data-active:` reads the enclosing TabSet's data-active,
- * `group-data-selected/tab:` this tab's. */
-export const tabMarker =
-    "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]";
-
 // ─── borders ───
 
-/** A border's strip: `--dk-tab-height` thick, on the floor's colour, with a line on the layout's
- * side. `data-orientation` is the direction its tabs run, `data-location` the side it is on. */
+/** A border's strip, with a line on the layout's side: `border-e` on the start border is the
+ * side facing the layout in both directions. */
 export const border = cn(
     "palette-surface shrink-0 bg-palette-base text-palette-contrast",
     "data-[orientation=vertical]:w-(--dk-tab-height) data-[orientation=horizontal]:h-(--dk-tab-height)",
@@ -85,7 +81,6 @@ export const border = cn(
     "data-drop-target:bg-palette-soft",
 );
 
-/** A column in a side border. */
 export const borderTabList =
     "flex min-h-0 min-w-0 flex-1 gap-(--dk-tab-gap) p-1 data-[orientation=vertical]:flex-col";
 
@@ -94,15 +89,13 @@ export const borderTab = cn(
     "font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
     "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
     "data-selected:bg-palette-soft data-selected:text-palette-contrast data-dragging:opacity-40",
-    // a side border's labels turn with `writing-mode`; a start border that
-    // reads "up" (`data-tab-direction`) turns them half a turn more
+    // a side border's labels turn with `writing-mode` (reading down); a start border that reads
+    // "up" (`data-tab-direction`, on the left) turns them half a turn more
     "in-data-[orientation=vertical]:[writing-mode:vertical-rl] in-data-[orientation=vertical]:px-1 in-data-[orientation=vertical]:py-2",
     "in-data-[tab-direction=up]:rotate-180",
 );
 
-/** An overlay paints over the layout, so it gets a stacking order (above the tabsets and their
- * splitters), a shadow, and a line on the side facing the layout: in themes whose splitters are
- * transparent, and on a dark floor where a shadow does not show, the line is where it ends. */
+/** An overlay paints over the layout: a stacking order, a shadow and a line facing the layout. */
 export const borderContent = cn(
     "data-overlay:z-30 data-overlay:shadow-xl data-overlay:border-palette-line",
     "data-overlay:data-[location=start]:border-e data-overlay:data-[location=end]:border-s",
@@ -114,12 +107,10 @@ export const borderContent = cn(
 /** `--dk-splitter-size` thick (the engine measures it), with a wider grab area (`::after`). */
 export const splitter = cn(
     "group/splitter relative z-10 flex shrink-0 items-center justify-center bg-(--dk-splitter-bg) outline-none",
-    // an overlay border's splitter lies over the layout, not a gutter: it gets the
-    // surface underneath, with the theme's splitter colour layered on top
     "in-data-overlay:bg-palette-base in-data-overlay:bg-[image:linear-gradient(var(--dk-splitter-bg),var(--dk-splitter-bg))]",
     "after:absolute after:transition-colors after:duration-(--dk-motion)",
     "hover:after:bg-palette-ring/30 data-dragging:after:bg-palette-ring/60 focus-visible:after:bg-palette-ring/60",
-    // side by side: a vertical bar
+    // side by side: a vertical bar, its grab area centred from the start side
     "data-[orientation=vertical]:w-(--dk-splitter-size) data-[orientation=vertical]:cursor-ew-resize",
     "data-[orientation=vertical]:after:inset-y-0 data-[orientation=vertical]:after:start-1/2",
     "data-[orientation=vertical]:after:w-(--dk-splitter-grab) data-[orientation=vertical]:after:-translate-x-1/2",
