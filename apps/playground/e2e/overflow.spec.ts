@@ -51,7 +51,7 @@ test("narrowing hides tabs one by one, down to the trigger and the selected tab"
 test("a tab picked from the menu is selected and brought into the strip", async ({
     page,
 }) => {
-    await open(page, 380);
+    await open(page, 372);
     const hidden = await hiddenCount(page);
     expect(hidden).toBeGreaterThan(0);
     await findPath(page, "/ts0/button/overflow").click();

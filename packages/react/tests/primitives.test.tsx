@@ -564,6 +564,16 @@ describe("interaction", () => {
             transient: false,
         });
     });
+
+    it("announces the splitter's new value after one arrow key", () => {
+        render(<Layout model={fresh()} />);
+        const splitter = mustPath("/s0");
+        const value = () => Number(splitter.getAttribute("aria-valuenow"));
+        expect(value()).toBe(50);
+        fireEvent.keyDown(splitter, { key: "ArrowRight" });
+        expect(value()).toBeGreaterThan(50);
+        expect(splitter).toHaveAttribute("aria-valuetext", `${value()}%`);
+    });
 });
 
 describe("panels and content", () => {

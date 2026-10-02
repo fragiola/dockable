@@ -13,10 +13,9 @@ test("a wide splitter shows its aria-valuenow while resized", async ({
     const before = Number(await splitter.getAttribute("aria-valuenow"));
     await splitter.focus();
     await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
-    await expect
-        .poll(async () => Number(await splitter.getAttribute("aria-valuenow")))
-        .toBeGreaterThan(before);
+    expect(
+        Number(await splitter.getAttribute("aria-valuenow")),
+    ).toBeGreaterThan(before);
 
     // the readout shows the same value the separator announces
     const readout = splitter.getByTestId("splitter-readout");

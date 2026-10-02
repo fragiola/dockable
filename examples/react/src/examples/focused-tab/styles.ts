@@ -34,10 +34,8 @@ export const tabset =
 export const strip =
     "flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line";
 
-/** The start padding is load-bearing: a tab flush with the tabset's edge could not take a drop
- * before it (that edge is the tabset's side drop). */
 export const tabList =
-    "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]";
+    "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-(--dk-strip-padding) pt-[calc(var(--dk-strip-padding)/2)]";
 
 /** A tab does not know whether its tabset is active: `in-data-active:` reads the enclosing
  * TabSet's data-active (`:where([data-active]) &`), so the focused tab is

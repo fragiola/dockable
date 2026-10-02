@@ -116,6 +116,24 @@ test.describe("three tabs", () => {
         await checkTab(page, "/ts1", 0, true, "Three");
     });
 
+    test("tab before a first tab flush with the tabset's start", async ({
+        page,
+    }) => {
+        const first = await waitForBox(findTabButton(page, "/ts0", 0), "tb0");
+        const tabset = await waitForBox(findPath(page, "/ts0"), "/ts0");
+        expect(first.x).toBe(tabset.x);
+
+        await drag(
+            page,
+            findTabButton(page, "/ts1", 0),
+            findTabButton(page, "/ts0", 0),
+            Location.LEFT,
+        );
+        await expect(findAllTabSets(page)).toHaveCount(2);
+        await checkTab(page, "/ts0", 0, true, "Two");
+        await checkTab(page, "/ts0", 1, false, "One");
+    });
+
     test("tab to tab center", async ({ page }) => {
         await drag(
             page,
