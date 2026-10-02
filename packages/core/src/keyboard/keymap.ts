@@ -46,21 +46,27 @@ export const defaultKeyMap: Readonly<KeyMap> = {
     closeOverlayBorder: "Escape",
 };
 
-/** the modifier/key fields shared by native and framework keyboard events */
+/**
+ * the modifier/key fields shared by native and framework keyboard events. `key` may be missing:
+ * browser autofill and scripts dispatch keydown events without one
+ */
 export interface KeyEventLike {
-    key: string;
+    key?: string | undefined;
     ctrlKey: boolean;
     shiftKey: boolean;
     altKey: boolean;
     metaKey: boolean;
 }
 
-/** true when `event` is exactly the key combination `spec` (a disabled binding never matches) */
+/**
+ * true when `event` is exactly the key combination `spec` (a disabled binding, or an event with
+ * no key, never matches)
+ */
 export function matchesKey(
     event: KeyEventLike,
     spec: string | undefined,
 ): boolean {
-    if (!spec) {
+    if (!spec || typeof event.key !== "string") {
         return false;
     }
     const parts = spec.split("+");

@@ -564,6 +564,38 @@ describe("interaction", () => {
             transient: false,
         });
     });
+
+    it("ignores a keydown that carries no key (caplin/FlexLayout#529)", () => {
+        // browser autofill and scripts send keydown events with no key; the document listener
+        // (tabset focus keys, closing an overlay border) must let them through
+        const errors: unknown[] = [];
+        const onError = (event: ErrorEvent) => {
+            errors.push(event.error);
+            event.preventDefault();
+        };
+        window.addEventListener("error", onError);
+        try {
+            const model = fresh();
+            const commands = recordCommands(model);
+            render(
+                <Layout
+                    model={model}
+                    keyMap={{ focusNextTabset: "Ctrl+ArrowRight" }}
+                />,
+            );
+            for (const target of [
+                document.body,
+                mustPath("/ts0/tb0"),
+                screen.getByTestId("input-t0"),
+            ]) {
+                target.dispatchEvent(new Event("keydown", { bubbles: true }));
+            }
+            expect(errors).toEqual([]);
+            expect(commands).toEqual([]);
+        } finally {
+            window.removeEventListener("error", onError);
+        }
+    });
 });
 
 describe("panels and content", () => {

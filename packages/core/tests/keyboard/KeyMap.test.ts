@@ -64,6 +64,23 @@ describe("matchesKey", () => {
         ).toBe(false);
         expect(matchesKey(keyEvent("Escape"), "")).toBe(false);
     });
+
+    it("never matches an event with no key, and does not throw (caplin/FlexLayout#529)", () => {
+        // browser autofill and scripts dispatch keydown events that carry no key
+        const noKey = {
+            ctrlKey: false,
+            shiftKey: false,
+            altKey: false,
+            metaKey: false,
+        };
+        expect(matchesKey(noKey, "Escape")).toBe(false);
+        expect(matchesKey({ ...noKey, ctrlKey: true }, "Ctrl+Delete")).toBe(
+            false,
+        );
+        expect(
+            matchesKey(new Event("keydown") as unknown as KeyEventLike, "F2"),
+        ).toBe(false);
+    });
 });
 
 describe("resolveKeyMap", () => {
