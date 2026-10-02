@@ -65,7 +65,6 @@ export {
     type MeasurableKind,
     type MeasureFunction,
     MOVEABLE_ATTRIBUTE,
-    MOVEABLES_HOME_ATTRIBUTE,
     type MoveableOptions,
     OVERLAY_ATTRIBUTE,
 } from "./engine/LayoutEngine";
@@ -92,28 +91,19 @@ export type { Rect } from "./geometry/rect";
 export * from "./keyboard/keymap";
 export * from "./overflow/tabOverflow";
 export {
-    computePaths,
     DROP_INDICATOR_PATH,
     getSplitterPath,
     getTabButtonId,
     getTabButtonPath,
     getTabPanelId,
     getTabStripPath,
-    windowPath,
 } from "./paths";
 export {
-    ADOPTED_STYLES_ATTRIBUTE,
-    isDesktop,
-    mirrorRootAttributes,
     type OpenWindow,
     POPOUT_ATTRIBUTE,
     type PopoutCallback,
     PopoutManager,
     type PopoutOptions,
-    STYLE_LOAD_TIMEOUT_MS,
-    STYLE_POLL_INTERVAL_MS,
-    StyleMirror,
-    WINDOW_RECT_POLL_INTERVAL_MS,
 } from "./popout/PopoutManager";
 export type { FromSchema } from "./schema/from-schema";
 export { layoutSchema } from "./schema/layout";
@@ -126,11 +116,9 @@ export type {
 export type { SizeRange } from "./split/split";
 export {
     createSplitterController,
-    enablePointerOnIFrames,
     type SplitterAria,
     SplitterController,
     type SplitterState,
-    startDrag,
 } from "./splitter/SplitterController";
 export {
     BUILT_IN,

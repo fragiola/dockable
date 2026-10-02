@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-    ADOPTED_STYLES_ATTRIBUTE,
     createLayoutEngine,
     createModel,
     type LayoutEngine,
@@ -9,9 +8,12 @@ import {
     MAIN_LAYOUT,
     POPOUT_ATTRIBUTE,
     type PopoutOptions,
+} from "../../src";
+import {
+    ADOPTED_STYLES_ATTRIBUTE,
     StyleMirror,
     WINDOW_RECT_POLL_INTERVAL_MS,
-} from "../../src";
+} from "../../src/popout/PopoutManager";
 
 const json: LayoutJson = {
     version: 1,

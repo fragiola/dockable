@@ -222,7 +222,7 @@ windows never remounts its content.
 | `releaseMoveable(tabId, panel?, options?)` | parks the moveable element in the hidden moveables home when its panel goes away, so the content's DOM (and the framework state rendered into it) is never destroyed by unmounting a panel. A later `attachMoveable` moves the same element into a new panel |
 | `takeMoveable(tabId)` | hands a tab's moveable element over to another model (a [drag group](/docs/guides/cross-layout-drag) transfer) and forgets it; `undefined` if there is none |
 | `adoptMoveable(tabId, element)` | adopts another model's moveable element for a tab (the other side of a transfer), so its content keeps its state |
-| `getMoveablesHome()` | the hidden element moveables are parked in (main layout only), marked with `MOVEABLES_HOME_ATTRIBUTE` |
+| `getMoveablesHome()` | the hidden element moveables are parked in (main layout only), marked `data-dockable-moveables-home` |
 
 `MoveableOptions` (how a panel hosts its content, a view option rather than layout state; the
 `scrollable` and `remountInWindow` props of [Dockable.Panel](/docs/api/panel)):
@@ -280,8 +280,6 @@ selectors work across frameworks. See [Layout paths](/docs/concepts/layout-paths
 
 | export | description |
 | --- | --- |
-| `computePaths(root, prefix?, borders?)` | the path of every node of a layout, as a `Map` from node id: rows `/r<i>`, tabsets `/ts<i>` and tabs `/t<i>` by their index in their parent, under `prefix`; borders `/border/<location>` with their tabs below |
-| `windowPath(n)` | the path prefix of a window layout: `/sublayout<n>` |
 | `getTabButtonPath(tabPath)` | a tab button's path: its panel path with the last segment renamed (`/ts0/t1` gives `/ts0/tb1`) |
 | `getTabStripPath(tabsetPath)` | a tabset's tab strip path (`/ts0/tabstrip`) |
 | `getSplitterPath(nodePath, index)` | the path of the splitter before child `index` (1-based) of a row or border (`/s0` is between the root row's first two children) |
@@ -294,7 +292,6 @@ selectors work across frameworks. See [Layout paths](/docs/concepts/layout-paths
 | export | value | marks |
 | --- | --- | --- |
 | `MOVEABLE_ATTRIBUTE` | `"data-dockable-moveable"` | the element hosting a tab's content |
-| `MOVEABLES_HOME_ATTRIBUTE` | `"data-dockable-moveables-home"` | the hidden element that parks moveables whose panel is gone |
 | `OVERLAY_ATTRIBUTE` | `"data-dockable-overlay"` | an element that belongs to an open overlay border (its wrapper, splitter, toolbar): a press on it does not close the overlay |
 | `POPOUT_ATTRIBUTE` | `"data-dockable-popout"` | a popout window's content root |
 
@@ -438,13 +435,6 @@ realtime resize, it exposes the bounded preview offset instead, and commits on r
 | --- | --- | --- |
 | `dragging` | `boolean` | true while the splitter is being dragged with the pointer |
 | `previewOffset` | `number \| undefined` | while an outline (non-realtime) drag is in progress: how far, in px along the splitter's axis, the splitter would move if released now (bounded). `undefined` otherwise |
-
-Two helpers are exported with it:
-
-| export | description |
-| --- | --- |
-| `startDrag(doc, event, captureElement, drag, dragEnd, dragCancel)` | starts a pointer drag: captures the pointer (so `pointerup`/`pointercancel` fire even if the pointer leaves the window) and calls `drag(x, y)` on each move of that pointer until release (`dragEnd`) or cancel (`dragCancel`). Returns a function that stops listening without calling either |
-| `enablePointerOnIFrames(enable, document)` | disables (or re-enables) pointer events on the iframes and webviews of a document, so a drag over one keeps its events |
 
 ## Keyboard
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-    computePaths,
     createModel,
     DROP_INDICATOR_PATH,
     getSplitterPath,
@@ -8,8 +7,8 @@ import {
     getTabButtonPath,
     getTabPanelId,
     getTabStripPath,
-    windowPath,
 } from "../src";
+import { computePaths, windowPath } from "../src/paths";
 
 // the three-tabs layout from FlexLayout's demo, with the last tabset nested in a column
 const model = createModel({
