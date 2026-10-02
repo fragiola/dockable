@@ -338,18 +338,14 @@ export const tabSetData = defineCommand({
                     "/data",
                 );
             }
-            // an undefined value is no change (a patch never removes a key)
-            const data: Record<string, unknown> = { ...current };
-            for (const [key, value] of Object.entries(payload.data)) {
-                if (value !== undefined) {
-                    data[key] = value;
-                }
-            }
+            // only the patch is copied (the kept keys are the state's own); a spread defines own
+            // keys, and an undefined value, dropped by the copy, changes nothing
+            const data = { ...current, ...cloneJson(payload.data) };
             const invalid = validateData(tab.component, data, "/data");
             if (invalid) {
                 return { ok: false, error: invalid };
             }
-            draft.set(tab.id, "data", cloneJson(data));
+            draft.set(tab.id, "data", data);
             return ok({ tabId: tab.id });
         }
         const invalid = validateData(payload.component, payload.data, "/data");

@@ -100,13 +100,13 @@ import { createModel, type FromSchema } from "@fragiola/dockable";
 
 const logSchema = {
     type: "object",
-    properties: { name: { type: "string", minLength: 1 } },
-    required: ["name"],
+    properties: { maxLines: { type: "integer", minimum: 1 } },
+    required: ["maxLines"],
     additionalProperties: false,
 } as const;
 
 type Types = {
-    tabs: { log: FromSchema<typeof logSchema> }; // { name: string }
+    tabs: { log: FromSchema<typeof logSchema> }; // { maxLines: number }
 };
 
 const model = createModel<Types>(json, {

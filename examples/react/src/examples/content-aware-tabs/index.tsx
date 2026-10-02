@@ -208,7 +208,7 @@ function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
         if (status === data.status) {
             return;
         }
-        // `tab.set-data` patches the data; the result is checked against the monitor's type
+        // `tab.set-data` patches the data: the keys it passes change, the others stay
         model.run("tab.set-data", {
             tabId: tab.id,
             data: {

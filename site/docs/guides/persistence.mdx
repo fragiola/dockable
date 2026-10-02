@@ -77,8 +77,8 @@ import { createModel, type JsonSchema } from "@fragiola/dockable";
 
 const editor: JsonSchema = {
     type: "object",
-    properties: { name: { type: "string" }, path: { type: "string" } },
-    required: ["name", "path"],
+    properties: { path: { type: "string" }, dirty: { type: "boolean" } },
+    required: ["path"],
 };
 
 const model = createModel<Types>(json, { dataSchemas: { editor } });

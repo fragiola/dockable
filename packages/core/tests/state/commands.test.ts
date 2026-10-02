@@ -192,6 +192,50 @@ describe("tab commands", () => {
         });
     });
 
+    it("tab.set-data keeps a JSON `__proto__` key an own key, never a prototype", () => {
+        const model = createModel(tabsets(["One"]), {
+            dataSchemas: {
+                editor: {
+                    type: "object",
+                    properties: { path: { type: "string" } },
+                    required: ["path"],
+                    additionalProperties: false,
+                },
+            },
+        });
+        const { tabId } = must(
+            model.run("tab.add", {
+                component: "editor",
+                label: "a.ts",
+                data: { path: "/a" },
+                to: "ts0",
+            }),
+        );
+        // untrusted input: the key is data, refused by the schema like any unknown key
+        expect(
+            model.dispatch(
+                JSON.parse(
+                    `{"command":"tab.set-data","payload":{"tabId":"${tabId}","data":{"__proto__":{"path":"/x"}}}}`,
+                ),
+            ),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/payload/data/__proto__" },
+        });
+        // without a schema it is kept as an own key: nothing is inherited
+        must(
+            model.dispatch(
+                JSON.parse(
+                    '{"command":"tab.set-data","payload":{"tabId":"One","data":{"__proto__":{"seed":1}}}}',
+                ),
+            ),
+        );
+        const node = model.get("node-by", { id: "One" });
+        const data = node?.type === "tab" ? node.data : undefined;
+        expect(Object.getPrototypeOf(data)).toBe(Object.prototype);
+        expect(Object.keys(data ?? {})).toEqual(["__proto__"]);
+    });
+
     it("tab.set-data with a component switches it and replaces the data", () => {
         const { model } = setup(tabsets(["One"]));
         must(

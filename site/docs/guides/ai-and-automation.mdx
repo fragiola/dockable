@@ -120,8 +120,8 @@ const model = createModel<Types>(json, {
     dataSchemas: {
         note: {
             type: "object",
-            properties: { name: { type: "string", minLength: 1 }, text: { type: "string" } },
-            required: ["name", "text"],
+            properties: { text: { type: "string" } },
+            required: ["text"],
             additionalProperties: false,
         },
     },

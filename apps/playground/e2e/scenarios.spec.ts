@@ -54,7 +54,7 @@ test("logs each command a button runs, and the model JSON follows", async ({
 
     await inspector(page).getByRole("button", { name: "Model" }).click();
     await expect(inspector(page).getByTestId("model-json")).toContainText(
-        '"name": "New 1*"',
+        '"label": "New 1*"',
     );
 
     await inspector(page).getByRole("button", { name: "Commands" }).click();
