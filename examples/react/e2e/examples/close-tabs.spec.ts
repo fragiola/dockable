@@ -19,9 +19,14 @@ test("tabs close by button and middle click; empty tabsets show a hint", async (
     await tab("Home").click({ button: "middle" });
     await expect(tab("Home")).toHaveCount(1);
 
-    // the Inbox tabset keeps itself when empty (enableDeleteWhenEmpty: false)
+    // the Inbox tabset keeps itself when empty (enableDeleteWhenEmpty: false); closing a tab of
+    // an inactive tabset leaves the active tabset as it was
     const inbox = path(page, "/r1/ts0");
+    await tab("Home").click();
+    await expect(path(page, "/ts0")).toHaveAttribute("data-active", "");
     await tab("Inbox").getByRole("button", { name: "Close Inbox" }).click();
+    await expect(path(page, "/ts0")).toHaveAttribute("data-active", "");
+    await expect(inbox).not.toHaveAttribute("data-active", "");
     await expect(inbox).toHaveAttribute("data-empty", "");
     await expect(inbox).toContainText("Nothing open");
 

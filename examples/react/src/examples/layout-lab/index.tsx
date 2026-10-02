@@ -263,6 +263,10 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 tabIndex={-1}
                                 aria-label={`Close ${tab.label}`}
                                 className={styles.tabClose}
+                                // keeps the press from activating the tabset
+                                onPointerDown={(event) =>
+                                    event.stopPropagation()
+                                }
                                 onClick={(event) => {
                                     event.stopPropagation(); // a click on the tab would select it
                                     model.run("tab.close", { tabId: tab.id });

@@ -81,12 +81,10 @@ const layout: LayoutJson<Types> = {
                     {
                         component: "runbook",
                         label: "Runbook",
-                        data: { region: "incident" },
                     },
                     {
                         component: "timeline",
                         label: "Timeline",
-                        data: { region: "incident" },
                     },
                 ],
             },

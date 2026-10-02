@@ -27,10 +27,8 @@ A primitive renders a `div` by default. `render` replaces the element, Base UI s
 ```
 
 The function form must spread `props` (they carry the ref, the ARIA, the `data-*`, the handlers
-and the structural style). `props.ref` is typed `Ref<HTMLElement>`, so TypeScript accepts it on
-elements whose DOM type is `HTMLElement` (`section`, `article`, `nav`, `header`, …); for a
-`button` or a `div` it needs a cast (`ref={props.ref as Ref<HTMLButtonElement>}`), or use the
-element form (`render={<button type="button" />}`).
+and the structural style). `props.ref` is a callback ref, so it fits any element's `ref`:
+`render={(props) => <button {...props} />}` needs no cast.
 
 ## `className` and `style`: a value or a function of the state
 

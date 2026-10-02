@@ -8,7 +8,11 @@ import {
     type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
-import { Dockable, type RowSplitterProps } from "@fragiola/dockable-react";
+import {
+    Dockable,
+    type RowSplitterProps,
+    useDockable,
+} from "@fragiola/dockable-react";
 import { MonitorDown, MonitorUp, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { ChartPanel } from "../_kit/charts";
@@ -227,36 +231,30 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
     );
 }
 
-/** Sends the whole tabset to a window; in a window, brings it back. */
+/**
+ * In the main layout, sends the whole tabset to a window; in a window, brings its selected tab
+ * back to the main screen.
+ */
 function ScreenButton({ tabset }: { tabset: TabsetNode<Types> }) {
+    const { model } = useDockable<Types>();
     const name = tabset.data?.name ?? "panel";
-    return (
+    return model.is("node-in-window", { nodeId: tabset.id }) ? (
+        <Dockable.PopoutTrigger
+            aria-label="Back to the main screen"
+            data-testid="back"
+            className={styles.screenButton}
+        >
+            <MonitorDown aria-hidden className={styles.actionIcon} />
+        </Dockable.PopoutTrigger>
+    ) : (
         <Dockable.PopoutTrigger
             target="tabset"
+            aria-label={`Move ${name} to another screen`}
+            data-testid="move-tabset"
             className={styles.screenButton}
-            render={(props, state) =>
-                state.mode === "dock" ? (
-                    <button
-                        {...props}
-                        aria-label="Back to the main screen"
-                        data-testid="back"
-                    >
-                        <MonitorDown
-                            aria-hidden
-                            className={styles.actionIcon}
-                        />
-                    </button>
-                ) : (
-                    <button
-                        {...props}
-                        aria-label={`Move ${name} to another screen`}
-                        data-testid="move-tabset"
-                    >
-                        <MonitorUp aria-hidden className={styles.actionIcon} />
-                    </button>
-                )
-            }
-        />
+        >
+            <MonitorUp aria-hidden className={styles.actionIcon} />
+        </Dockable.PopoutTrigger>
     );
 }
 

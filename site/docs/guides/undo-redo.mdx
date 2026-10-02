@@ -26,7 +26,9 @@ redoSteps }`. Copy it, and change it to fit your app.
 ## Wiring it to React
 
 The manager is a small external store: `subscribe` and `getSnapshot` are bound, so they go
-straight into `useSyncExternalStore`. The model never changes: undo and redo change its state, so
+straight into `useSyncExternalStore`. Create it once, beside the model (`useState`): it subscribes
+to the model in its constructor and listens for the model's whole life, so there is nothing to
+dispose in an effect. The model never changes: undo and redo change its state, so
 `Dockable.Root` keeps its engine and nothing remounts.
 
 ```tsx

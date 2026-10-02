@@ -81,6 +81,8 @@ function WorkbenchTab({
                         aria-label={`Close ${tab.label}`}
                         data-testid="close-tab"
                         className={styles.closeButton}
+                        // keeps the press from activating the tabset
+                        onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
                             event.stopPropagation(); // a click on the tab would select it
                             close();

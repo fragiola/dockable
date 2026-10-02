@@ -115,7 +115,8 @@ the other examples comment only what they do differently.
   indicator's `transitionDuration` in `drag-and-drop`, which reads the layout's drag speed), what
   renders when. Elsewhere the indicator moves at the theme's pace (`duration-(--dk-motion)`).
 - **Content that fits the story.** Tabs show the kit's charts (`ChartPanel`: line, bar, area,
-  pie, donut), KPIs (`KpiPanel`), tables and logs, typed in the registry (`chart: { name, kind }`).
+  pie, donut), KPIs (`KpiPanel`), tables and logs, typed in the registry (`chart: { kind }`; the
+  name is the tab's `label`).
   The counter card (`Card`) is for the few examples whose point is content that survives a move
   (`tests/examples.test.ts` lists them).
 - **Accessible names inline**: `aria-label="Resize"` on each splitter (through `renderSplitter`),
