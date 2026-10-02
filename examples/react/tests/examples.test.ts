@@ -240,7 +240,6 @@ const COUNTER_EXAMPLES = [
     "popout",
     "popout-drag",
     "two-layouts",
-    "unstyled",
 ];
 
 describe("the kit", () => {

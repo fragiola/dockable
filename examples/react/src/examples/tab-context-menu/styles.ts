@@ -11,10 +11,6 @@ export const frame = "flex min-h-0 flex-1 flex-col p-(--dk-gap)";
 export const root =
     "palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast";
 
-/** A popped-out tab's window, dressed like the root. */
-export const popout =
-    "palette-surface min-h-0 flex-1 bg-palette-base font-(family-name:--dk-font) text-palette-contrast";
-
 /** Panels sit in a layer above the tabsets, whose overflow cannot clip them: the panel repeats
  * the tabset's inner radius on its corners. */
 export const panel =

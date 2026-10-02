@@ -6,9 +6,7 @@ const pane = (page: Page, name: "workspace" | "scratch") =>
 const tabs = (page: Page, name: "workspace" | "scratch") =>
     pane(page, name).getByRole("tab");
 
-test("a tab moves to the other layout with its state, and undo brings it back", async ({
-    page,
-}) => {
+test("a tab moves to the other layout with its state", async ({ page }) => {
     await openExample(page, "two-layouts");
     // give "Chart" some state
     await tabs(page, "workspace").filter({ hasText: "Chart" }).click();
@@ -35,31 +33,4 @@ test("a tab moves to the other layout with its state, and undo brings it back", 
     });
     await expect(moved.getByTestId("counter")).toHaveText("Count: 2");
     await expect(moved.getByTestId("notes")).toHaveValue("kept");
-    await expect(
-        page.getByTestId("stage").getByTestId("last-move"),
-    ).toContainText("Chart: Workspace");
-
-    // undo: back where it came from (and gone from Scratch), content kept
-    await page
-        .getByTestId("stage")
-        .getByRole("button", { name: "Undo" })
-        .click();
-    await expect(tabs(page, "workspace")).toHaveText([
-        "Report",
-        "Chart",
-        "Data",
-    ]);
-    await expect(tabs(page, "scratch")).toHaveText(["Ideas"]);
-    const back = pane(page, "workspace").getByRole("tabpanel", {
-        name: "Chart",
-    });
-    await expect(back.getByTestId("counter")).toHaveText("Count: 2");
-
-    // redo: into Scratch again
-    await page
-        .getByTestId("stage")
-        .getByRole("button", { name: "Redo" })
-        .click();
-    await expect(tabs(page, "scratch")).toHaveText(["Ideas", "Chart"]);
-    await expect(tabs(page, "workspace")).toHaveText(["Report", "Data"]);
 });

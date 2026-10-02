@@ -12,19 +12,14 @@ import {
     useDockable,
 } from "@fragiola/dockable-react";
 import { Plus } from "lucide-react";
-import {
-    type ReactNode,
-    useEffect,
-    useState,
-    useSyncExternalStore,
-} from "react";
+import { useState } from "react";
 import { DropdownMenu } from "#/components/ui/dropdown-menu";
 import { type Kind, renderFactory, TEMPLATES, type Types } from "./factory";
 import * as styles from "./styles";
 
 // Tabs whose `component` field selects their content (see factory.tsx). Content renders on
 // demand (`renderOnDemand` on `Dockable.Panels`, on by default): a tab's content mounts the first
-// time it is shown and then stays mounted. The toolbar counts the mounted contents.
+// time it is shown and then stays mounted.
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -71,65 +66,27 @@ const KINDS: { kind: Kind; title: string }[] = [
 
 export default function ComponentFactory() {
     const [model] = useState(() => createModel<Types>(json));
-    const [mounted, setMounted] = useState<ReadonlySet<string>>(new Set());
-    const [onMount] = useState(
-        () => (id: string) =>
-            setMounted((set) => (set.has(id) ? set : new Set(set).add(id))),
-    );
-    // this component is outside Dockable.Root: it follows the model through `subscribe`
-    const total = useSyncExternalStore(
-        model.subscribe,
-        () => model.get("all-tabs").length,
-    );
     return (
-        <>
-            <div className={styles.toolbar}>
-                <p
-                    role="status"
-                    data-testid="mounted"
-                    className={styles.status}
+        <div className={styles.frame}>
+            <Dockable.Root model={model} className={styles.root}>
+                <Dockable.Row<Types>
+                    renderSplitter={(props) => <Splitter {...props} />}
                 >
-                    {`Content mounted for ${mounted.size} of ${total} tabs`}
-                </p>
-            </div>
-            {/* The root needs a size: the wrapper gives it one, and the gutter around it. */}
-            <div className={styles.frame}>
-                <Dockable.Root model={model} className={styles.root}>
-                    <Dockable.Row<Types>
-                        renderSplitter={(props) => <Splitter {...props} />}
-                    >
-                        {renderNode}
-                    </Dockable.Row>
-                    {/* `renderOnDemand` is on by default: a tab's content mounts the first time
+                    {renderNode}
+                </Dockable.Row>
+                {/* `renderOnDemand` is on by default: a tab's content mounts the first time
                         it is shown */}
-                    <Dockable.Panels<Types>>
-                        {(tab) => (
-                            <Dockable.Panel node={tab} className={styles.panel}>
-                                <Mounted id={tab.id} onMount={onMount}>
-                                    {renderFactory(tab)}
-                                </Mounted>
-                            </Dockable.Panel>
-                        )}
-                    </Dockable.Panels>
-                    <Dockable.DropIndicator className={styles.dropIndicator} />
-                </Dockable.Root>
-            </div>
-        </>
+                <Dockable.Panels<Types>>
+                    {(tab) => (
+                        <Dockable.Panel node={tab} className={styles.panel}>
+                            {renderFactory(tab)}
+                        </Dockable.Panel>
+                    )}
+                </Dockable.Panels>
+                <Dockable.DropIndicator className={styles.dropIndicator} />
+            </Dockable.Root>
+        </div>
     );
-}
-
-/** Reports once, when the content first mounts. */
-function Mounted({
-    id,
-    onMount,
-    children,
-}: {
-    id: string;
-    onMount: (id: string) => void;
-    children: ReactNode;
-}) {
-    useEffect(() => onMount(id), [id, onMount]);
-    return children;
 }
 
 /** A row's child: a tabset, or a nested row rendered by this same function. */

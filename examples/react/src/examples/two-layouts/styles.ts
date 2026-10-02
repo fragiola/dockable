@@ -3,28 +3,6 @@ import { cn } from "#/lib/cn";
 
 // How two-layouts looks: one class string per part, read by index.tsx. Both layouts share them.
 
-export const page = "flex min-h-0 flex-1 flex-col";
-
-// ─── history bar ───
-
-export const toolbar =
-    "palette-surface flex flex-wrap items-center gap-2 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast";
-
-export const button = cn(
-    "inline-flex h-8 items-center gap-1.5 rounded-md border border-palette-line bg-palette-base px-3 text-sm text-palette-contrast",
-    "outline-none hover:bg-palette-soft focus-visible:ring-2 focus-visible:ring-palette-ring",
-    "disabled:pointer-events-none disabled:opacity-50",
-);
-
-export const buttonIcon = "size-4";
-
-export const lastMove =
-    "ms-2 flex items-center gap-1.5 text-sm text-palette-accent/85";
-
-export const lastMoveIcon = "size-3.5";
-
-export const undoCount = "ms-auto text-xs text-palette-accent/85";
-
 // ─── panes ───
 
 export const panes = "flex min-h-0 flex-1 divide-x divide-palette-line";
