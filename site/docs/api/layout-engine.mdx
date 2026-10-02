@@ -407,7 +407,7 @@ realtime resize, it exposes the bounded preview offset instead, and commits on r
 | `onKeyDown(event)` | arrow keys move the splitter by 10px. Call from the splitter's `keydown` (bound) |
 | `getState()` | the current `SplitterState` (the same object until it changes; bound) |
 | `subscribe(listener)` | calls `listener` when the state changes; returns the unsubscribe function (bound) |
-| `getAria()` | the `SplitterAria` values, computed from the current geometry |
+| `getAria()` | the `SplitterAria` values, read from the model (a row's weights, a border's size) |
 | `isHorizontal()` | true when the splitter sits between side by side children (it moves along x; bound) |
 | `isHidden()` | true when the splitter must not render: row splitters hide while a tabset is maximized |
 | `dispose()` | stops any drag in progress and releases every listener and timer |

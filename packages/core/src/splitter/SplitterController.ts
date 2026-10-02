@@ -296,7 +296,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         };
     }
 
-    /** The ARIA values, computed from the current geometry. */
+    /** The ARIA values, read from the model: a row's weights, or a border's size. */
     getAria(): SplitterAria {
         const horizontal = this.isHorizontal();
         const aria: SplitterAria = {
@@ -318,22 +318,13 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             aria.valueText = `${aria.valueNow}px`;
             return aria;
         }
-        const rowRect = target && this.engine.adapter.rect("row", target.id);
-        const prev = target?.children[this.index - 1];
-        const prevRect = prev && this.rect(prev);
-        const extent = rowRect
-            ? horizontal
-                ? rowRect.width
-                : rowRect.height
-            : 0;
-        if (rowRect && prevRect && extent > 0) {
-            aria.valueNow = Math.round(
-                ((horizontal
-                    ? prevRect.x + prevRect.width - rowRect.x
-                    : prevRect.y + prevRect.height - rowRect.y) /
-                    extent) *
-                    100,
-            );
+        const weights = target?.children.map((child) => child.weight) ?? [];
+        const total = weights.reduce((sum, weight) => sum + weight, 0);
+        if (total > 0 && this.index > 0 && this.index < weights.length) {
+            const before = weights
+                .slice(0, this.index)
+                .reduce((sum, weight) => sum + weight, 0);
+            aria.valueNow = Math.round((before / total) * 100);
             aria.valueMin = 0;
             aria.valueMax = 100;
             aria.valueText = `${aria.valueNow}%`;

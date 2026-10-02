@@ -30,10 +30,7 @@ test("the splitter resizes by mouse and keyboard, both ways", async ({
     const value = Number(await horizontal.getAttribute("aria-valuenow"));
     await horizontal.focus();
     await page.keyboard.press("ArrowUp");
-    await page.keyboard.press("ArrowUp");
-    await expect
-        .poll(async () =>
-            Number(await horizontal.getAttribute("aria-valuenow")),
-        )
-        .not.toBe(value);
+    expect(Number(await horizontal.getAttribute("aria-valuenow"))).toBeLessThan(
+        value,
+    );
 });

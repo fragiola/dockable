@@ -375,11 +375,27 @@ describe("SplitterController ARIA", () => {
         const { controller } = setup();
         expect(controller.getAria()).toEqual({
             orientation: "vertical",
-            valueNow: 49,
+            valueNow: 50,
             valueMin: 0,
             valueMax: 100,
-            valueText: "49%",
+            valueText: "50%",
         });
+    });
+
+    it("reports a row splitter's new value right after one arrow key, before any re-measure", () => {
+        const { controller } = setup();
+        key(controller, "ArrowRight");
+        // 206px of 392: the weights the key committed, not the rects measured before it
+        expect(controller.getAria()).toMatchObject({
+            valueNow: 53,
+            valueText: "53%",
+        });
+    });
+
+    it("reports a row splitter's value without any measured geometry", () => {
+        engine = createLayoutEngine({ model: freshModel() });
+        controller = createSplitterController(engine, "row", 1);
+        expect(controller.getAria().valueNow).toBe(50);
     });
 
     it("reports a border splitter in px with min and max", () => {
