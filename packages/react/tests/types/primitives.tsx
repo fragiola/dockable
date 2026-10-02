@@ -233,7 +233,7 @@ const other = createModel<Other>();
 
 export function Group() {
     const group = useDragGroup();
-    group.transfer({ tab: "a", from: model, to: other, target: "main" });
+    group.transfer({ tabId: "a", from: model, to: other, target: "main" });
     group.onTransfer((transfer) => {
         const intoOther: boolean = transfer.to.model === other;
         const fromMain: boolean = transfer.from.model === model;

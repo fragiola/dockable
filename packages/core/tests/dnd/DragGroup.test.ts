@@ -187,7 +187,7 @@ describe("dragging between two models", () => {
 
         expect(transfers).toHaveLength(1);
         expect(transfers[0]).toMatchObject({
-            tab: "a0",
+            tabId: "a0",
             previousId: "a0",
             from: { model: a.model, tabsetId: "ts0", index: 0 },
             to: { model: b.model, tabsetId: "ts1", index: 1 },
@@ -309,7 +309,7 @@ describe("dragging between two models", () => {
         group.onTransfer((transfer) => transfers.push(transfer));
         dragBetween(a, "x0", b);
         expect(ids(a.model, "ts0")).toEqual(["x1"]);
-        const added = transfers[0]?.tab;
+        const added = transfers[0]?.tabId;
         expect(added).toBeDefined();
         expect(added).not.toBe("x0");
         expect(ids(b.model, "ts1")).toEqual(["x2", added]);
@@ -337,7 +337,7 @@ describe("DragGroup.transfer (from code)", () => {
 
         expect(
             group.transfer({
-                tab: "a1",
+                tabId: "a1",
                 from: a.model,
                 to: b.model,
                 target: "ts0",
@@ -349,7 +349,7 @@ describe("DragGroup.transfer (from code)", () => {
         const from = transfers[0]?.from;
         if (!from?.tabsetId) throw new Error("no from");
         group.transfer({
-            tab: "a1",
+            tabId: "a1",
             from: b.model,
             to: a.model,
             target: from.tabsetId,
@@ -365,7 +365,7 @@ describe("DragGroup.transfer (from code)", () => {
         const outside = layout("c");
         expect(
             group.transfer({
-                tab: "a0",
+                tabId: "a0",
                 from: a.model,
                 to: outside.model,
                 target: "ts0",
@@ -373,7 +373,7 @@ describe("DragGroup.transfer (from code)", () => {
         ).toBeUndefined();
         expect(
             group.transfer({
-                tab: "nope",
+                tabId: "nope",
                 from: a.model,
                 to: a.model,
                 target: "ts0",

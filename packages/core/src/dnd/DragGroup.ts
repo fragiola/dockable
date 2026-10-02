@@ -19,7 +19,7 @@ export interface TransferEnd {
 /** A tab that moved from one model to another. */
 export interface Transfer {
     /** the tab's id in the target model (its old id, unless that was taken there) */
-    tab: string;
+    tabId: string;
     /** its id in the source model */
     previousId: string;
     /** its fields, as it left the source model */
@@ -42,7 +42,7 @@ export type TransferMeta = {
 /** What `transfer` takes. */
 export interface TransferRequest {
     /** the tab's id in `from` */
-    tab: string;
+    tabId: string;
     from: ModelHandle;
     to: ModelHandle;
     /** a tabset, row, border or layout of `to` */
@@ -169,7 +169,7 @@ export class DragGroup {
         if (!source || !target) {
             return undefined;
         }
-        return this.transferTab(source, target, request.tab, {
+        return this.transferTab(source, target, request.tabId, {
             to: request.target,
             location: request.location ?? "center",
             index: request.index ?? -1,
@@ -215,7 +215,7 @@ export class DragGroup {
             return undefined;
         }
         const transfer: Transfer = {
-            tab: addedId,
+            tabId: addedId,
             previousId: tabId,
             init: plan.init,
             from: origin,

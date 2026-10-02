@@ -188,10 +188,10 @@ export function useTabSetDropState<T extends DockableTypes>(
         manager.subscribe,
         () => {
             const indicator = manager.getIndicatorState();
-            if (indicator.refused && indicator.refusedTabSetId === tabsetId) {
+            if (indicator.refused && indicator.refusedTabsetId === tabsetId) {
                 return "refused";
             }
-            if (indicator.visible && indicator.targetTabSetId === tabsetId) {
+            if (indicator.visible && indicator.targetTabsetId === tabsetId) {
                 // a strip drop targets the tabset itself, at an index
                 const strip =
                     indicator.location === "center" &&

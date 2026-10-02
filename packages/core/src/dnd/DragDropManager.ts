@@ -73,13 +73,13 @@ export interface DropIndicatorState {
     /** the id of the drop target node (a tabset, a row for edge drops, a border) */
     readonly targetNodeId: string | undefined;
     /** the id of the tabset (or border) the drop goes into or beside */
-    readonly targetTabSetId: string | undefined;
+    readonly targetTabsetId: string | undefined;
     /** the insertion index in the target's tab strip, or -1 for a drop on the content area */
     readonly index: number;
     /** the pointer is over a target that refuses the drop (a rule of the layout, a middleware) */
     readonly refused: boolean;
     /** the id of the tabset (or border) that refused the drop, when it was one */
-    readonly refusedTabSetId: string | undefined;
+    readonly refusedTabsetId: string | undefined;
     /** an auto-hide border with no tabs that the drag reveals (main layout only) */
     readonly revealedBorder: Exclude<DropLocation, "center"> | undefined;
 }
@@ -92,7 +92,7 @@ export type DragEventLike = Pick<
 
 /** Called after an add or external drag was dropped: the new tab's id, or undefined when refused. */
 export type NewTabDropped = (
-    tab: string | undefined,
+    tabId: string | undefined,
     event: DragEventLike,
 ) => void;
 
@@ -196,10 +196,10 @@ function noTarget(refused?: DropCandidate) {
     return {
         visible: false,
         targetNodeId: undefined,
-        targetTabSetId: undefined,
+        targetTabsetId: undefined,
         index: -1,
         refused: refused !== undefined,
-        refusedTabSetId: refused?.container,
+        refusedTabsetId: refused?.container,
     };
 }
 
@@ -359,10 +359,10 @@ export class DragDropManager {
             showEdges: false,
             tabDragSpeed: this.engine.adapter.getTabDragSpeed(),
             targetNodeId: undefined,
-            targetTabSetId: undefined,
+            targetTabsetId: undefined,
             index: -1,
             refused: false,
-            refusedTabSetId: undefined,
+            refusedTabsetId: undefined,
             revealedBorder: undefined,
         };
     }
@@ -827,10 +827,10 @@ export class DragDropManager {
             location: accepted.location,
             kind: accepted.kind,
             targetNodeId: accepted.target,
-            targetTabSetId: accepted.container,
+            targetTabsetId: accepted.container,
             index: accepted.index,
             refused: false,
-            refusedTabSetId: undefined,
+            refusedTabsetId: undefined,
             revealedBorder,
         });
     }

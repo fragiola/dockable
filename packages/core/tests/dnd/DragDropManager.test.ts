@@ -849,7 +849,7 @@ describe("drop target state", () => {
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: true,
             targetNodeId: "ts1",
-            targetTabSetId: "ts1",
+            targetTabsetId: "ts1",
             index: -1,
             refused: false,
         });
@@ -859,7 +859,7 @@ describe("drop target state", () => {
         const s = setup();
         dragOverAt(s, "t2", 72, 35);
         expect(s.manager.getIndicatorState()).toMatchObject({
-            targetTabSetId: "ts0",
+            targetTabsetId: "ts0",
             location: "center",
             index: 1,
         });
@@ -871,19 +871,19 @@ describe("drop target state", () => {
         expect(s.manager.getIndicatorState()).toMatchObject({
             kind: "edge",
             targetNodeId: "row",
-            targetTabSetId: undefined,
+            targetTabsetId: undefined,
         });
     });
 
     it("moves with the pointer and clears when the drag ends", () => {
         const s = setup();
         dragOverAt(s, "t0", 312, 185);
-        expect(s.manager.getIndicatorState().targetTabSetId).toBe("ts1");
+        expect(s.manager.getIndicatorState().targetTabsetId).toBe("ts1");
         s.root.dispatchEvent(dragEvent("dragover", 100, 185));
-        expect(s.manager.getIndicatorState().targetTabSetId).toBe("ts0");
+        expect(s.manager.getIndicatorState().targetTabsetId).toBe("ts0");
         DragDropManager.endDrag();
         expect(s.manager.getIndicatorState()).toMatchObject({
-            targetTabSetId: undefined,
+            targetTabsetId: undefined,
             targetNodeId: undefined,
             refused: false,
         });
@@ -908,14 +908,14 @@ describe("refused drops", () => {
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: false,
             refused: true,
-            refusedTabSetId: "ts1",
-            targetTabSetId: undefined,
+            refusedTabsetId: "ts1",
+            targetTabsetId: undefined,
         });
         s.root.dispatchEvent(dragEvent("dragover", 100, 185));
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: true,
             refused: false,
-            refusedTabSetId: undefined,
+            refusedTabsetId: undefined,
         });
     });
 
@@ -972,7 +972,7 @@ describe("refused drops", () => {
         expect(s.manager.getIndicatorState()).toMatchObject({
             visible: false,
             refused: true,
-            refusedTabSetId: "ts1",
+            refusedTabsetId: "ts1",
         });
     });
 

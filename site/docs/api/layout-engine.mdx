@@ -376,7 +376,7 @@ The drag in progress; there is one for the page, shared by every window of a mod
 | `DropLocation` | where a drop goes relative to its target: `"center"`, `"top"`, `"bottom"`, `"left"` or `"right"` |
 | `DropZoneOptions<T>` | `accepts?(drag: DragSubject<T>)`, `onDrop(drag, event: DragEventLike)` (nothing is moved: run the command you want) and `onOverChange?(over: boolean)` |
 | `ExternalDrag<T>` | what `onExternalDrag` returns to accept a foreign drag: `tab` (a `TabInitOf<T>`, the tab the drop creates) and `onDrop?` (a `NewTabDropped`) |
-| `NewTabDropped` | `(tab: string \| undefined, event: DragEventLike) => void`: called after an add or external drag was dropped, with the new tab's id, or undefined when refused |
+| `NewTabDropped` | `(tabId: string \| undefined, event: DragEventLike) => void`: called after an add or external drag was dropped, with the new tab's id, or undefined when refused |
 | `OnExternalDrag<T>` | `(event: DragEventLike) => ExternalDrag<T> \| undefined`: decides whether a drag that did not start in a layout (files, links, text, another library's element) can drop into it. It is called when the drag enters a layout, when only `event.dataTransfer.types` is readable. See [External drag](/docs/guides/external-drag) |
 
 `DropIndicatorState`, what a drop indicator shows (the same object until it changes; the React
@@ -393,10 +393,10 @@ The drag in progress; there is one for the page, shared by every window of a mod
 | `showEdges` | `boolean` | edge docking is enabled (and no tabset is maximized): edge affordances may be shown |
 | `tabDragSpeed` | `number` | seconds a view may take to animate the outline between targets (the core never animates) |
 | `targetNodeId` | `string \| undefined` | the id of the drop target node (a tabset, a row for edge drops, a border) |
-| `targetTabSetId` | `string \| undefined` | the id of the tabset (or border) the drop goes into or beside |
+| `targetTabsetId` | `string \| undefined` | the id of the tabset (or border) the drop goes into or beside |
 | `index` | `number` | the insertion index in the target's tab strip, or -1 for a drop on the content area |
 | `refused` | `boolean` | the pointer is over a target that refuses the drop (a rule of the layout, a middleware) |
-| `refusedTabSetId` | `string \| undefined` | the id of the tabset (or border) that refused the drop, when it was one |
+| `refusedTabsetId` | `string \| undefined` | the id of the tabset (or border) that refused the drop, when it was one |
 | `revealedBorder` | `"top" \| "bottom" \| "left" \| "right" \| undefined` | an auto-hide border with no tabs that the drag reveals (main layout only) |
 
 ## Splitters

@@ -162,7 +162,7 @@ describe("Dockable.DragGroup", () => {
         );
         expect(onTransfer).toHaveBeenCalledWith(
             expect.objectContaining({
-                tab: "a0",
+                tabId: "a0",
                 previousId: "a0",
                 from: expect.objectContaining({ model: a }),
                 to: expect.objectContaining({ model: b }),
@@ -225,7 +225,7 @@ describe("Dockable.DragGroup", () => {
         let moved: string | undefined;
         act(() => {
             moved = group?.transfer({
-                tab: "a1",
+                tabId: "a1",
                 from: a,
                 to: b,
                 target: "ts0",
@@ -237,7 +237,7 @@ describe("Dockable.DragGroup", () => {
         await act(tick);
         act(() => {
             group?.transfer({
-                tab: "a1",
+                tabId: "a1",
                 from: b,
                 to: a,
                 target: "ts0",
@@ -293,7 +293,7 @@ describe("Dockable.DragGroup", () => {
         expect(group?.engineOf(b)).toBeUndefined();
         expect(
             group?.transfer({
-                tab: "a0",
+                tabId: "a0",
                 from: a,
                 to: b,
                 target: "ts0",

@@ -34,7 +34,7 @@ See [Drag across windows and layouts](/docs/guides/cross-layout-drag) and the
 
 | field | type | description |
 | --- | --- | --- |
-| `tab` | `string` | the tab's id in the target model (its old id, unless that was taken there: then a generated one) |
+| `tabId` | `string` | the tab's id in the target model (its old id, unless that was taken there: then a generated one) |
 | `previousId` | `string` | its id in the source model |
 | `init` | `TabInit` | its fields, as it left the source model (`component`, `data`, flags, sizes) |
 | `from` | `TransferEnd` | where it was |
@@ -65,7 +65,7 @@ const modelOf = (handle: ModelHandle) => [workspace, scratch].find((model) => mo
   are asked first with `model.can`: a veto on either side refuses the drop and changes nothing.
 - Both commands carry `meta.transfer` (`TransferMeta`, below), so a middleware or a listener can
   tell a transfer from a plain add or close.
-- When the tab's id is taken in the target, the new tab gets a generated id (`transfer.tab`).
+- When the tab's id is taken in the target, the new tab gets a generated id (`transfer.tabId`).
   The new tab adopts the old one's moveable element, so its content moves with it.
 - The group renders every tab's content in one place (directly under it), so moving a tab between
   roots keeps its component state. Without a `DragGroup`, panels render their content themselves.
@@ -108,7 +108,7 @@ const group = useDragGroup();
 useEffect(() => group.onTransfer((transfer) => record(transfer)), [group]);
 
 // move a tab back, as an undo would
-const moved = group.transfer({ tab: last.tab, from: scratch, to: workspace, target: "tabset-1" });
+const moved = group.transfer({ tabId: last.tabId, from: scratch, to: workspace, target: "tabset-1" });
 ```
 
 | member | description |
@@ -121,7 +121,7 @@ const moved = group.transfer({ tab: last.tab, from: scratch, to: workspace, targ
 
 | field | type | description |
 | --- | --- | --- |
-| `tab` | `string` | the tab's id in `from` |
+| `tabId` | `string` | the tab's id in `from` |
 | `from` | `ModelHandle` | the source model |
 | `to` | `ModelHandle` | the target model |
 | `target` | `string` | a tabset, row, border or layout id of `to` |
