@@ -107,8 +107,7 @@ the other examples comment only what they do differently.
 - **Classes are complete literals.** Tailwind finds a class by reading the source, so
   `` `palette-${tone}` `` is never generated: map a value to a full class instead
   (`{ ok: "palette-green", … }[tone]`).
-- **A class that does a job beyond looks keeps a short comment** in `styles.ts`: the tab list's
-  start padding (a tab flush with the edge cannot take a drop before it), the panel's bottom radius
+- **A class that does a job beyond looks keeps a short comment** in `styles.ts`: the panel's bottom radius
   (panels sit above the tabsets, which cannot clip them), the drop indicator's `z-20` (panels are
   portalled after it), the splitter's `::after` grab area, `in-data-active:` on the active marker.
   What is not a class stays in the `.tsx`: `aria-*`, `data-*`, structural `style` props (the

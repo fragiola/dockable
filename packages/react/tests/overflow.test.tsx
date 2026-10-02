@@ -171,6 +171,35 @@ describe("tab overflow", () => {
         expect(path("/ts0/tb3")).not.toHaveAttribute("data-overflow-hidden");
     });
 
+    it("switches tabs at the overflow boundary under StrictMode without an update loop (caplin/FlexLayout#498)", () => {
+        const error = vi.spyOn(console, "error");
+        const model = load();
+        let commits = 0;
+        render(
+            <React.StrictMode>
+                <React.Profiler id="layout" onRender={() => commits++}>
+                    <OverflowLayout model={model} />
+                </React.Profiler>
+            </React.StrictMode>,
+        );
+        // every switch moves a tab across the boundary (3 of 4 fit), back and forth
+        for (const id of ["d", "a", "c", "d", "b", "d", "a"]) {
+            const before = commits;
+            act(() => {
+                model.run("tab.select", { tabId: id });
+            });
+            expect(
+                commits - before,
+                `commits selecting ${id}`,
+            ).toBeLessThanOrEqual(4);
+            expect(path(`/ts0/tb${"abcd".indexOf(id)}`)).not.toHaveAttribute(
+                "data-overflow-hidden",
+            );
+        }
+        expect(error).not.toHaveBeenCalled();
+        error.mockRestore();
+    });
+
     it("renders no trigger, and no data-overflowing, when every tab fits", () => {
         const model = load();
         render(<OverflowLayout model={model} />);

@@ -157,7 +157,8 @@ model.run("border.resize", { borderId: "border_left", size: 280 });
 A splitter is focusable (`tabIndex={0}`). The arrow keys along its axis move it by 10px:
 Left/Right for a vertical bar, Up/Down for a horizontal one; each press runs one `row.resize` (or
 `border.resize`). Its ARIA value is the position
-within the row (0–100) with an `aria-valuetext` like `"40%"`. It has no name of its own: give it
+within the row (0–100, as measured, to a tenth) with an `aria-valuetext` like `"40.5%"`, current
+after each press. It has no name of its own: give it
 an `aria-label` in `renderSplitter` (see [Accessible names](/docs/getting-started/accessible-names)).
 
 ## Disabling resizing

@@ -308,7 +308,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
             <div className="flex min-h-(--dk-tab-height) items-stretch border-b border-palette-line">
                 <Dockable.TabList<Types>
                     aria-label="Tabs"
-                    className="flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]"
+                    className="flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-(--dk-strip-padding) pt-[calc(var(--dk-strip-padding)/2)]"
                 >
                     {(tab) => (
                         <Dockable.Tab

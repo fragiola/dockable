@@ -55,12 +55,17 @@ export interface KeyEventLike {
     metaKey: boolean;
 }
 
-/** true when `event` is exactly the key combination `spec` (a disabled binding never matches) */
+/**
+ * true when `event` is exactly the key combination `spec` (a disabled binding, or an event with
+ * no key, never matches)
+ */
 export function matchesKey(
     event: KeyEventLike,
     spec: string | undefined,
 ): boolean {
-    if (!spec) {
+    // typed as a string, yet browser autofill and scripts dispatch keydown events with no key
+    // (caplin/FlexLayout#529)
+    if (!spec || typeof event.key !== "string") {
         return false;
     }
     const parts = spec.split("+");

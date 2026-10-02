@@ -191,6 +191,7 @@ state that changes it, its id is not.
 | `registerOverflowTrigger(containerId, element)` | registers (or, with `null`, unregisters) the overflow trigger of a tab container: the space it takes is reserved in the strip (`Dockable.TabOverflowTrigger` does) |
 | `registerTabPanel(tabId, element)` | registers (or, with `null`, unregisters) the element a tab's content panel is positioned with |
 | `registerSplitter(element, isHorizontal)` | registers a splitter element and returns its remover. Its thickness (width while `isHorizontal()`, height otherwise) becomes the splitter size of every layout of the model. The orientation is read at every measure pass, since a row can flip it |
+| `subscribeGeometry(listener)` | calls `listener` after a measure pass changed a measured rect of this layout; returns its remover. A splitter re-reads its ARIA value with it |
 | `getRegistrations()` | the registered elements (`measurables`, `tabPanels`, `splitters`), read-only, for tests and debugging |
 
 ### Derived view data
@@ -316,7 +317,8 @@ command through `model.run`.
 
 Every Dockable drag sets `DRAG_TYPE` (`"application/x-dockable"`) on its data transfer, and the
 manager claims only the events that carry it: another library's drag passes through, or goes to
-`onExternalDrag`. Every `drop` and `dragend` in the document ends the page's drag.
+`onExternalDrag`. Every `drop` and `dragend` in the document ends the page's drag, even one whose
+propagation your content stops: the manager listens in the capture phase.
 
 ### DragDropManager
 
@@ -406,8 +408,8 @@ realtime resize, it exposes the bounded preview offset instead, and commits on r
 | `onPointerDown(event)` | starts a pointer drag. Call from the splitter's `pointerdown` (bound) |
 | `onKeyDown(event)` | arrow keys move the splitter by 10px. Call from the splitter's `keydown` (bound) |
 | `getState()` | the current `SplitterControllerState` (the same object until it changes; bound) |
-| `subscribe(listener)` | calls `listener` when the state changes; returns the unsubscribe function (bound) |
-| `getAria()` | the `SplitterAria` values, computed from the current geometry |
+| `subscribe(listener)` | calls `listener` when the state or the ARIA values change; returns the unsubscribe function (bound) |
+| `getAria()` | the `SplitterAria` values: a row splitter's measured position in its row, a border splitter's size. The same object until they change; `subscribe` hears when a measure changes them (bound) |
 | `isHorizontal()` | true when the splitter sits between side by side children (it moves along x; bound) |
 | `isHidden()` | true when the splitter must not render: row splitters hide while a tabset is maximized |
 | `dispose()` | stops any drag in progress and releases every listener and timer |
@@ -417,10 +419,10 @@ realtime resize, it exposes the bounded preview offset instead, and commits on r
 | field | type | description |
 | --- | --- | --- |
 | `orientation` | `"horizontal" \| "vertical"` | the separator's orientation: `"vertical"` for a splitter between side by side children |
-| `valueNow` | `number \| undefined` | row splitters: the 0-100 position within the row; border splitters: the border size in px |
+| `valueNow` | `number \| undefined` | row splitters: the 0-100 position within the row, to a tenth; border splitters: the border size in px |
 | `valueMin` | `number \| undefined` | the smallest value |
 | `valueMax` | `number \| undefined` | the largest value |
-| `valueText` | `string \| undefined` | the formatted value (`"40%"` or `"200px"`), announced in preference to the raw number |
+| `valueText` | `string \| undefined` | the formatted value (`"40.5%"` or `"200px"`), announced in preference to the raw number |
 
 `SplitterControllerState`, the drag state of a splitter:
 
@@ -450,7 +452,7 @@ case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disable
 | --- | --- |
 | `defaultKeyMap` | the default bindings above, exported so applications can display or re-register them |
 | `resolveKeyMap(keyMap)` | merges the configured bindings over the defaults; a binding passed as an explicit `undefined` disables that shortcut |
-| `matchesKey(event, spec)` | true when `event` is exactly the key combination `spec` (a disabled binding never matches) |
+| `matchesKey(event, spec)` | true when `event` is exactly the key combination `spec` (a disabled binding, or an event with no `key`, never matches) |
 | `hasModifier(event)` | true when any modifier key is held (the fixed ARIA pattern keys, arrows on tabs and splitters, only apply unmodified) |
 | `toAriaKeyShortcuts(...specs)` | the `aria-keyshortcuts` value of bindings: the set ones, space separated, `Ctrl` spelled `Control`; `undefined` when none is set |
 | `KeyEventLike` | the fields shared by native and framework keyboard events: `key`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |

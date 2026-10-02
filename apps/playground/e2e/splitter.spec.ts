@@ -69,16 +69,29 @@ test.describe("splitter", () => {
         );
 
         await splitter.focus();
-        for (let i = 0; i < 5; i++) {
-            await page.keyboard.press("ArrowLeft");
-        }
-        const after = await waitForBox(findPath(page, "/ts0"), "/ts0");
-        expect(after.width).toBeLessThan(before.width - 30);
+        await page.keyboard.press("ArrowLeft");
         await expect
-            .poll(async () =>
-                Number(await splitter.getAttribute("aria-valuenow")),
+            .poll(
+                async () => (await findPath(page, "/ts0").boundingBox())?.width,
             )
-            .toBeLessThan(valueBefore);
+            .toBeLessThan(before.width - 5);
+        expect(
+            Number(await splitter.getAttribute("aria-valuenow")),
+        ).toBeLessThan(valueBefore);
+    });
+
+    test("announces where a min width holds the splitter, not the weights", async ({
+        page,
+    }) => {
+        await open(page, "min_width");
+        const row = await waitForBox(findPath(page, "/row"), "/row");
+        const first = await waitForBox(findPath(page, "/ts0"), "/ts0");
+        expect(first.width).toBeCloseTo(300, 0);
+        const position = ((first.x + first.width - row.x) / row.width) * 100;
+        await expect(findPath(page, "/s0")).toHaveAttribute(
+            "aria-valuenow",
+            String(Math.round(position * 10) / 10),
+        );
     });
 
     test("realtime row drag keeps weights finite", async ({ page }) => {

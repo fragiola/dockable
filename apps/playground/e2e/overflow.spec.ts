@@ -51,7 +51,7 @@ test("narrowing hides tabs one by one, down to the trigger and the selected tab"
 test("a tab picked from the menu is selected and brought into the strip", async ({
     page,
 }) => {
-    await open(page, 380);
+    await open(page, 372);
     const hidden = await hiddenCount(page);
     expect(hidden).toBeGreaterThan(0);
     await findPath(page, "/ts0/button/overflow").click();
@@ -82,4 +82,49 @@ test("a drop into a strip with hidden tabs lands between the visible ones", asyn
     await expect
         .poll(async () => (await tabs(page).allTextContents()).slice(0, 3))
         .toEqual(["Alpha", "Other", "Bravo"]);
+});
+
+/** the hidden count once it holds across two frames, or -1 while it still changes */
+const settledHiddenCount = (page: Page) =>
+    page.evaluate(async () => {
+        const read = () =>
+            document.querySelectorAll(
+                '[data-layout-path="/ts0/tabstrip"] [data-overflow-hidden]',
+            ).length;
+        const before = read();
+        await new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        );
+        return read() === before ? before : -1;
+    });
+
+test("switching tabs at the overflow boundary settles, with no update loop (caplin/FlexLayout#498, caplin/FlexLayout#517)", async ({
+    page,
+}) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+        if (message.type() === "error") errors.push(message.text());
+    });
+    await open(page, 1600);
+    // widths around the boundaries: no tab hidden, the first one hidden, several, all but one
+    for (const width of [900, 640, 480, 360]) {
+        await page.setViewportSize({ width, height: 600 });
+        await expect
+            .poll(() => settledHiddenCount(page))
+            .toBeGreaterThanOrEqual(0);
+        // the last visible tab, then a hidden one from the menu: each moves the boundary
+        const visible = findPath(page, "/ts0/tabstrip").locator(
+            '[role="tab"]:not([data-overflow-hidden])',
+        );
+        await visible.last().click();
+        if ((await hiddenCount(page)) > 0) {
+            await findPath(page, "/ts0/button/overflow").click();
+            await page.getByRole("menuitem").first().click();
+        }
+        await expect
+            .poll(() => settledHiddenCount(page), `settled at ${width}px`)
+            .toBeGreaterThanOrEqual(0);
+    }
+    expect(errors).toEqual([]);
 });

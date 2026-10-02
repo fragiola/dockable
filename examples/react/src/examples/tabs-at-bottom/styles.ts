@@ -58,10 +58,8 @@ export const strip = (bottom: boolean) =>
         bottom ? "border-t" : "border-b",
     );
 
-/** The start padding is load-bearing: a tab flush with the tabset's edge could not take a drop
- * before it (that edge is the tabset's side drop). */
 export const tabList =
-    "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-[max(0.25rem,var(--dk-strip-padding))] pt-[calc(var(--dk-strip-padding)/2)]";
+    "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-(--dk-strip-padding) pt-[calc(var(--dk-strip-padding)/2)]";
 
 /** Below the content, the tabs hang from the strip's rule. */
 export const tab = (bottom: boolean) =>

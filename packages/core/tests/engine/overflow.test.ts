@@ -128,6 +128,40 @@ describe("tab overflow in the engine", () => {
         expect(s.engine.adapter.getHiddenTabs("ts0")).toEqual(["t2", "t3"]);
     });
 
+    it("settles in a few passes, at every width, with a trigger whose width grows with the hidden count (caplin/FlexLayout#517)", () => {
+        // a "+N" trigger wider than any fixed hysteresis: 30px plus 25px per hidden tab, and not
+        // laid out (0px) while nothing is hidden. The strip is the list plus the trigger
+        for (let strip = 60; strip <= 400; strip += 5) {
+            const s = setup();
+            const trigger = s.el();
+            s.engine.adapter.registerOverflowTrigger(s.ts0, trigger);
+            const listener = vi.fn();
+            s.engine.adapter.subscribeOverflow(listener);
+            /** one browser layout and engine pass; returns the hidden tabs after it */
+            const pass = () => {
+                const hidden = s.engine.adapter.getHiddenTabs("ts0").length;
+                const width = hidden === 0 ? 0 : 30 + 25 * hidden;
+                s.layout(Math.max(0, strip - width)); // the list shrinks to nothing, no further
+                s.rects.set(trigger, 10 + strip - width, 20, width, 30);
+                s.engine.run("measure-and-position");
+                return s.engine.adapter.getHiddenTabs("ts0").join();
+            };
+            let previous = pass();
+            let passes = 1;
+            for (let next = pass(); next !== previous; next = pass()) {
+                previous = next;
+                passes++;
+                expect(passes, `passes at ${strip}px`).toBeLessThanOrEqual(5);
+            }
+            // a fixpoint: another pass changes nothing and notifies nobody
+            const notified = listener.mock.calls.length;
+            expect(pass(), `stable at ${strip}px`).toBe(previous);
+            expect(listener).toHaveBeenCalledTimes(notified);
+            for (const engine of engines.splice(0)) engine.adapter.dispose();
+            document.body.innerHTML = "";
+        }
+    });
+
     it("keeps the selected tab in the strip", () => {
         const s = setup();
         s.engine.adapter.model.run("tab.select", { tabId: "t3" });

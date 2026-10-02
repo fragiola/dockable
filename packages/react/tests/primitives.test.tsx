@@ -17,6 +17,7 @@ import {
 import { useDockableContext } from "../src/context";
 import {
     Layout,
+    type LayoutProps,
     mounts,
     recordCommands,
     renderNode,
@@ -564,6 +565,65 @@ describe("interaction", () => {
             transient: false,
         });
     });
+
+    it("announces the splitter's new value after one arrow key", () => {
+        // a 200px row whose tabsets share it by their flex-grow, as a browser lays them out
+        const grow = (p: string) => Number(path(p)?.style.flexGrow ?? 1) || 1;
+        vi.spyOn(
+            HTMLElement.prototype,
+            "getBoundingClientRect",
+        ).mockImplementation(function (this: HTMLElement) {
+            const first = (200 * grow("/ts0")) / (grow("/ts0") + grow("/ts1"));
+            const p = this.getAttribute("data-layout-path");
+            const [x, width] =
+                p === "/ts0"
+                    ? [0, first]
+                    : p === "/ts1"
+                      ? [first, 200 - first]
+                      : p === "/s0"
+                        ? [first, 0]
+                        : [0, 200];
+            return DOMRect.fromRect({ x, y: 0, width, height: 100 });
+        });
+        render(<Layout model={fresh()} />);
+        const splitter = mustPath("/s0");
+        expect(splitter).toHaveAttribute("aria-valuenow", "50");
+        fireEvent.keyDown(splitter, { key: "ArrowRight" });
+        expect(splitter).toHaveAttribute("aria-valuenow", "55");
+        expect(splitter).toHaveAttribute("aria-valuetext", "55%");
+    });
+
+    it("ignores a keydown that carries no key (caplin/FlexLayout#529)", () => {
+        // browser autofill and scripts send keydown events with no key; the document listener
+        // (tabset focus keys, closing an overlay border) must let them through
+        const errors: unknown[] = [];
+        const onError = (event: ErrorEvent) => {
+            errors.push(event.error);
+            event.preventDefault();
+        };
+        window.addEventListener("error", onError);
+        try {
+            const model = fresh();
+            const commands = recordCommands(model);
+            render(
+                <Layout
+                    model={model}
+                    keyMap={{ focusNextTabset: "Ctrl+ArrowRight" }}
+                />,
+            );
+            for (const target of [
+                document.body,
+                mustPath("/ts0/tb0"),
+                screen.getByTestId("input-t0"),
+            ]) {
+                target.dispatchEvent(new Event("keydown", { bubbles: true }));
+            }
+            expect(errors).toEqual([]);
+            expect(commands).toEqual([]);
+        } finally {
+            window.removeEventListener("error", onError);
+        }
+    });
 });
 
 describe("panels and content", () => {
@@ -753,6 +813,49 @@ describe("StrictMode", () => {
             document.querySelectorAll(`[${MOVEABLE_ATTRIBUTE}]`),
         ).toHaveLength(2);
         expect(screen.getAllByTestId(/^content-/)).toHaveLength(2);
+    });
+
+    it("keeps the model's listeners at one set, whatever props change (caplin/FlexLayout#504)", () => {
+        const model = fresh();
+        let listeners = 0;
+        let calls = 0;
+        const subscribe = model.subscribe;
+        model.subscribe = (listener) => {
+            listeners++;
+            const unsubscribe = subscribe((event) => {
+                calls++;
+                listener(event);
+            });
+            return () => {
+                listeners--;
+                unsubscribe();
+            };
+        };
+        const app = (props: Partial<LayoutProps>) => (
+            <React.StrictMode>
+                <Layout model={model} {...props} />
+            </React.StrictMode>
+        );
+        const { rerender, unmount } = render(app({}));
+        const mounted = listeners;
+        expect(mounted).toBeGreaterThan(0);
+        // every prop the Root passes on to its engine, as new values
+        for (const [i, props] of [
+            { keyMap: { closeTab: "Ctrl+W" } },
+            { realtimeResize: false, tabDragSpeed: 0.1 },
+            { onExternalDrag: () => undefined, popoutURL: "popout.html" },
+            { keyMap: { closeTab: "Ctrl+W" }, onExternalDrag: () => undefined },
+        ].entries()) {
+            rerender(app(props));
+            expect(listeners, `after re-render ${i}`).toBe(mounted);
+        }
+        // a command reaches each listener once
+        act(() => {
+            model.run("tab.select", { tabId: "t1" });
+        });
+        expect(calls).toBe(mounted);
+        unmount();
+        expect(listeners).toBe(0);
     });
 });
 

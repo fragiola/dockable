@@ -164,6 +164,29 @@ test.describe("files dragged in from the OS", () => {
         );
     });
 
+    test("leaves no drop outline behind after a drop from outside the layout (caplin/FlexLayout#390)", async ({
+        page,
+    }) => {
+        const outline = findPath(page, "/outline");
+        await dropFile(page, "file");
+        await checkTab(page, "/ts1", 1, true, "report.csv");
+        await expect(outline).toBeHidden();
+        await expect(outline).not.toHaveAttribute("data-dragging");
+        // and after a drag source's drop
+        await drag(
+            page,
+            chart(page),
+            findPath(page, "/ts0/t0"),
+            Location.CENTER,
+        );
+        await checkTab(page, "/ts0", 1, true, "Chart 1");
+        await expect(outline).toBeHidden();
+        await expect(outline).not.toHaveAttribute("data-dragging");
+        await expect(findPath(page, "/layout")).not.toHaveAttribute(
+            "data-dragging",
+        );
+    });
+
     test("a drag onExternalDrag declines (plain text) adds nothing", async ({
         page,
     }) => {

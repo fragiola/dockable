@@ -11,8 +11,8 @@ test("save, reset and restore bring the layout back", async ({ page }) => {
 
     // change the layout: resize from the keyboard, select another tab
     await path(page, "/s0").focus();
-    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight");
-    await expect.poll(value).toBeGreaterThan(initial);
+    await page.keyboard.press("ArrowRight");
+    expect(await value()).toBeGreaterThan(initial);
     await path(page, "/ts0/tb1").click();
     // the JSON panel shows model.get("layout-json"): the whole layout, ids and weights included
     const json = page.getByTestId("layout-json");

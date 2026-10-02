@@ -126,6 +126,45 @@ if (!result.ok) console.log(result.error.code, result.error.message); // "vetoed
 A rule the layout itself enforces (a flag, a pinned tab) comes back as `refused`; a middleware
 veto as `vetoed`. More on middleware in [the command bus](/docs/api/command-bus).
 
+### Keeping the main layout filled
+
+The main layout always keeps a tabset, but nothing keeps a tab in it: drag every tab into a border
+or a popout and the main area is an empty tabset. That is by design, since some apps want it. If
+yours does not, veto the move that would empty it. A middleware can call `next()` first and look
+at the result: after `next()`, `ctx.get` reads the layout as the command left it, and a veto
+returned then commits nothing.
+
+```ts
+import { type Middleware, type Node, veto } from "@fragiola/dockable-react";
+
+/** whether a row or a tabset holds a tab, at any depth */
+const holdsTabs = (node: Node<Types> | undefined): boolean =>
+    node?.type === "tabset"
+        ? node.children.length > 0
+        : node?.type === "row"
+          ? node.children.some(holdsTabs)
+          : false;
+
+const moves = new Set(["tab.move", "tabset.move", "tab.popout", "tabset.popout"]);
+
+const keepMainFilled: Middleware<Types> = (ctx, next) => {
+    if (!moves.has(ctx.command)) return next();
+    const root = { id: ctx.state.root.id };
+    const before = holdsTabs(ctx.get("node-by", root));
+    const result = next();
+    // the main layout as the move left it: a veto now commits nothing
+    return result.ok && before && !holdsTabs(ctx.get("node-by", root))
+        ? veto("The main layout keeps at least one tab")
+        : result;
+};
+
+model.use(keepMainFilled);
+```
+
+The drag asks the same rule, so a border refuses the last tab of the main layout while it hovers,
+and `model.can("tab.move", { tabId, to: "border_left" })` answers false for it. Closing the last
+tab is not a move, so it still works; add `"tab.close"` to the set to keep that one too.
+
 ## Feedback for a refused target
 
 Over a target that a rule refuses, the outline hides, the browser shows its "not allowed" cursor,

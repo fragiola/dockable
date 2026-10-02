@@ -9,10 +9,15 @@
 // - a drop is refused exactly when the model refuses the command it would run (`model.can`), so a
 //   middleware veto refuses a drop; there is no `onAllowDrop`;
 // - only drags that carry Dockable's MIME type are claimed (other libraries' drags pass through),
-//   and every `drop` and `dragend` in the document ends the page's drag state;
+//   and every `drop` and `dragend` in the document ends the page's drag state, from the capture
+//   phase (a drop the layout still has to run, once its dispatch is over), so content that stops
+//   their propagation cannot leave a drag behind (caplin/FlexLayout#527);
 // - "add" drags (a consumer element dragged in) and external drags (a foreign drag accepted by
-//   `onExternalDrag`) drop through `tab.add`;
+//   `onExternalDrag`) drop through `tab.add`; a native drag that starts in a layout's own content
+//   is the content's, never offered to `onExternalDrag` (caplin/FlexLayout#350, #497);
 // - drop zones: consumer elements that take a layout drag and hand it to the consumer.
+
+import { elementOf } from "../dom/nodes";
 import {
     type DropCandidate,
     type DropGeometry,
@@ -20,6 +25,7 @@ import {
 } from "../drop/resolve";
 import type { LayoutEngine } from "../engine/LayoutEngine";
 import type { MeasurableKind } from "../engine/measure";
+import { MOVEABLE_ATTRIBUTE } from "../engine/moveables";
 import type { DockLocation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect, rect, rectEquals } from "../geometry/rect";
 import { enablePointerOnIFrames } from "../splitter/SplitterController";
@@ -96,7 +102,8 @@ export interface ExternalDrag<T extends DockableTypes = AnyTypes> {
 /**
  * Decides whether a drag that did not start in a layout (files, links, text, another library's
  * element) can be dropped into it: return the tab to create, or undefined to ignore the drag. It is
- * called when the drag enters a layout, when only `event.dataTransfer.types` is readable.
+ * called when the drag enters a layout, when only `event.dataTransfer.types` is readable. A native
+ * drag that starts in the content of one of the model's layouts is the content's: it is not asked.
  */
 export type OnExternalDrag<T extends DockableTypes = AnyTypes> = (
     event: DragEventLike,
@@ -139,6 +146,8 @@ export class DragDropManager {
     private readonly geometry: DropGeometry;
     private dragEnterCount = 0;
     private active = false;
+    /** the page's current native drag started in this layout's content (a moveable element) */
+    private contentDrag = false;
     private target: DropCommand | undefined;
     private indicator: DropIndicatorSnapshot;
     private readonly listeners = new Set<() => void>();
@@ -257,11 +266,13 @@ export class DragDropManager {
         subject: DragSubject,
         onDrop?: NewTabDropped,
     ) {
+        // a fresh start for every layout of the model, popouts included: a drop a layout never saw
+        // must not leave it "active" (caplin/FlexLayout#527)
+        this.clearDragMain();
         setDragState(
             new DragState(this.engine.adapter.main, source, subject, onDrop),
             this.engine.get("owner-document"),
         );
-        this.dragEnterCount = 0;
     }
 
     /** @internal */
@@ -339,13 +350,62 @@ export class DragDropManager {
         element.addEventListener("dragleave", onDragLeave);
         element.addEventListener("dragover", onDragOver);
         element.addEventListener("drop", onDrop);
-        // after the targets handled it (bubble phase on the document): whatever received the drop,
-        // the drag is over
+        // whatever received the drop, the drag is over. In the capture phase, so content that stops
+        // the event's propagation (an editor taking a text or file drop) cannot keep it from the
+        // layout (caplin/FlexLayout#527)
+        const view = doc.defaultView;
         const onDocumentEnd = () => {
+            this.contentDrag = false;
             this.clearDragLocal();
             endDrag();
         };
-        doc.addEventListener("dragend", onDocumentEnd);
+        // where each native drag starts: one from this layout's own content (selected text, a list
+        // item of the app's own drag and drop) is the content's, not an external drag
+        const onDocumentDragStart = (event: DragEvent) => {
+            const moveable = elementOf(event.target)?.closest(
+                `[${MOVEABLE_ATTRIBUTE}]`,
+            );
+            this.contentDrag = !!moveable && element.contains(moveable);
+        };
+        // a drag cancelled at its start sends no dragend: forget it once it is seen cancelled, or
+        // else on the next press or pointer move with no button held (a native drag sends none)
+        const onDocumentDragStarted = (event: DragEvent) => {
+            if (event.defaultPrevented) {
+                this.contentDrag = false;
+            }
+        };
+        const onDocumentPointer = (event: PointerEvent) => {
+            if (
+                this.contentDrag &&
+                (event.type === "pointerdown" || event.buttons === 0)
+            ) {
+                this.contentDrag = false;
+            }
+        };
+        const onDocumentDrop = (event: DragEvent) => {
+            this.contentDrag = false;
+            const state = getDragState();
+            if (!state || !this.active || !this.belongsToDrag(event)) {
+                // a drop this layout does not run: only its hover state is left to clear
+                this.clearDragLocal();
+                return;
+            }
+            // the drop is still to be run, by the root or a drop zone, which end the drag. Content
+            // that stops the drop's propagation keeps it from both, and a drag from outside the page
+            // sends no dragend: a drag still in place once the event is dispatched is over
+            view?.setTimeout(() => {
+                if (getDragState() === state) {
+                    this.clearDragMain();
+                    endDrag();
+                }
+            }, 0);
+        };
+        doc.addEventListener("dragstart", onDocumentDragStart, true);
+        doc.addEventListener("dragstart", onDocumentDragStarted);
+        doc.addEventListener("pointerdown", onDocumentPointer, true);
+        doc.addEventListener("pointermove", onDocumentPointer, true);
+        doc.addEventListener("dragend", onDocumentEnd, true);
+        doc.addEventListener("drop", onDocumentDrop, true);
         doc.addEventListener("drop", onDocumentEnd);
         const model = this.engine.adapter.model;
         const main = this.engine.adapter.main === this.engine;
@@ -366,7 +426,12 @@ export class DragDropManager {
             element.removeEventListener("dragleave", onDragLeave);
             element.removeEventListener("dragover", onDragOver);
             element.removeEventListener("drop", onDrop);
-            doc.removeEventListener("dragend", onDocumentEnd);
+            doc.removeEventListener("dragstart", onDocumentDragStart, true);
+            doc.removeEventListener("dragstart", onDocumentDragStarted);
+            doc.removeEventListener("pointerdown", onDocumentPointer, true);
+            doc.removeEventListener("pointermove", onDocumentPointer, true);
+            doc.removeEventListener("dragend", onDocumentEnd, true);
+            doc.removeEventListener("drop", onDocumentDrop, true);
             doc.removeEventListener("drop", onDocumentEnd);
             this.clearDragLocal();
         };
@@ -428,11 +493,13 @@ export class DragDropManager {
             endDrag();
         }
         // ask onExternalDrag once per entry into this layout: dragenter also bubbles from every
-        // child the pointer crosses, which the enter count already tracks
+        // child the pointer crosses, which the enter count already tracks. A drag that started in
+        // the content of a layout of this model is not external (caplin/FlexLayout#350, #497)
         if (
             !getDragState() &&
             this.dragEnterCount === 0 &&
-            !hasOwnPayload(event)
+            !hasOwnPayload(event) &&
+            !this.managers().some((manager) => manager.contentDrag)
         ) {
             const external = this.engine.adapter.getOnExternalDrag()?.(event);
             if (external) {

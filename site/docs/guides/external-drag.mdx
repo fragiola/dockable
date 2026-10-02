@@ -131,6 +131,11 @@ error result, never a broken layout. With no files at hand, "Open sample files" 
 Read the payload (`files`, `getData("text/uri-list")`, …) in `onDrop`: during the drag the browser
 hides it. An external drag ends when it leaves every layout; the next one asks again.
 
+A native drag that starts **inside the layout's own content** is never offered to
+`onExternalDrag`: selected text, or the items of two lists in a tab that use their own drag and
+drop. It stays your content's, so even a handler that accepts everything does not turn it into a
+tab, and a layout nested in a tab of another layout keeps the drags that start in it.
+
 Dockable's own drags carry the MIME type `DRAG_TYPE` (`"application/x-dockable"`) on the data
 transfer, and the layout claims only drags that carry it; every other drag is offered to
 `onExternalDrag`, or ignored. Another library's drop target can tell a Dockable drag apart the

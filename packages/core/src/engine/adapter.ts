@@ -99,6 +99,8 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
         element: HTMLElement,
         isHorizontal: () => boolean,
     ): () => void;
+    /** calls `listener` after a measure pass changed a measured rect of this layout; returns its remover */
+    subscribeGeometry(listener: () => void): () => void;
     /** the registered elements (tests and debugging) */
     getRegistrations(): {
         measurables: ReadonlyMap<
