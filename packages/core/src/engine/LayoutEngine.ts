@@ -448,8 +448,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private paths = new Map<string, string>();
     private orientations = new Map<string, Orientation>();
     private ranges = new Map<string, SizeRange>();
+    private derivedRoot: AnyRow | undefined;
     private rangesSplitterSize = 0;
-    private stripsDirty = true;
+    private rangesDirty = true;
 
     constructor(options: LayoutEngineOptions<T>) {
         this.model = options.model;
@@ -815,38 +816,26 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     private derived() {
         const state = this.state();
-        const stateChanged = state !== this.derivedFor;
-        if (
-            !stateChanged &&
-            !this.stripsDirty &&
-            this.rangesSplitterSize === this.shared.splitterSize
-        ) {
+        if (state === this.derivedFor) {
             return;
         }
         const root = this.rootRow(state);
         if (!root) {
             return;
         }
-        const rootOrientation = resolveLayout(state.defaults).rootOrientation;
-        if (stateChanged) {
-            this.derivedFor = state;
-            this.paths = this.isMainLayout()
-                ? computePaths(root, "", state.borders)
-                : computePaths(
-                      root,
-                      windowPath(this.windowNumber(state, this.layoutId)),
-                  );
-            this.orientations = rowOrientations(root, rootOrientation);
-        }
-        this.stripsDirty = false;
-        this.rangesSplitterSize = this.shared.splitterSize;
-        this.ranges = sizeRanges(
-            state.defaults,
+        this.derivedFor = state;
+        this.derivedRoot = root;
+        this.paths = this.isMainLayout()
+            ? computePaths(root, "", state.borders)
+            : computePaths(
+                  root,
+                  windowPath(this.windowNumber(state, this.layoutId)),
+              );
+        this.orientations = rowOrientations(
             root,
-            rootOrientation,
-            this.shared.splitterSize,
-            (id) => this.rects.get(`tabstrip:${id}`)?.height ?? 0,
+            resolveLayout(state.defaults).rootOrientation,
         );
+        this.rangesDirty = true;
     }
 
     private rootRow(state: AnyState): AnyRow | undefined {
@@ -865,6 +854,24 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     /** The size range of a row or tabset of this layout (its flex min/max). */
     private minMax(id: string): SizeRange {
         this.derived();
+        const state = this.derivedFor;
+        const root = this.derivedRoot;
+        if (
+            state &&
+            root &&
+            (this.rangesDirty ||
+                this.rangesSplitterSize !== this.shared.splitterSize)
+        ) {
+            this.rangesDirty = false;
+            this.rangesSplitterSize = this.shared.splitterSize;
+            this.ranges = sizeRanges(
+                state.defaults,
+                root,
+                resolveLayout(state.defaults).rootOrientation,
+                this.shared.splitterSize,
+                (id) => this.rects.get(`tabstrip:${id}`)?.height ?? 0,
+            );
+        }
         return (
             this.ranges.get(id) ?? {
                 minWidth: 0,
@@ -1424,7 +1431,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 (!previous ||
                     Math.round(previous.height) !== Math.round(rect.height))
             ) {
-                this.stripsDirty = true;
+                this.rangesDirty = true;
             }
         }
         return changed;

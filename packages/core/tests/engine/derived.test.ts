@@ -45,6 +45,7 @@ function setup(json: LayoutJson = twoTabsets) {
     const dom = mountTwoTabsets(engine, rects);
     engine.run("measure-and-position");
     engine.adapter.prepare();
+    engine.get("size-limits-by", { nodeId: "row" });
     vi.mocked(computePaths).mockClear();
     vi.mocked(sizeRanges).mockClear();
     return { model, rects, engine, ...dom };
@@ -58,6 +59,17 @@ function read(engine: LayoutEngine) {
 }
 
 describe("LayoutEngine derived view data", () => {
+    it("computes no size range for a row's orientation (a splitter drag reads it)", () => {
+        const { model, engine } = setup();
+        model.run(
+            "row.resize",
+            { rowId: "row", weights: [30, 70] },
+            { transient: true },
+        );
+        expect(engine.adapter.rowOrientation("row")).toBe("horizontal");
+        expect(sizeRanges).not.toHaveBeenCalled();
+    });
+
     it("does no work on a read when nothing changed", () => {
         const { engine } = setup();
         for (let i = 0; i < 5; i++) {
