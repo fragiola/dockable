@@ -20,7 +20,7 @@ import { cn } from "#/lib/cn";
 // sizes, and a maximize button on every tabset (text arrows: this app has no icon package). For geometry (splitter limits, nested weights,
 // maximize), a crowded strip, and hot reload with many panels mounted.
 
-type Types = { tabs: { body: { name: string } } };
+type Types = { tabs: { body: undefined } };
 
 const TABS_PER_TABSET = 8;
 
@@ -36,7 +36,7 @@ function tabset(weight = 1): TabsetJson<Types> {
         minHeight: 60,
         children: Array.from({ length: TABS_PER_TABSET }, (_, i) => ({
             component: "body",
-            data: { name: `T${n}.${i + 1}` },
+            label: `T${n}.${i + 1}`,
         })),
     };
 }
@@ -118,7 +118,7 @@ export default function Stress() {
                             node={tab}
                             className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
                         >
-                            <PanelBody title={tab.data.name}>
+                            <PanelBody title={tab.label}>
                                 <TabPlace id={tab.id} />
                             </PanelBody>
                         </Dockable.Panel>
@@ -191,7 +191,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
                             )}
                         >
-                            <span className="truncate">{tab.data.name}</span>
+                            <span className="truncate">{tab.label}</span>
                             <span
                                 aria-hidden="true"
                                 className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"

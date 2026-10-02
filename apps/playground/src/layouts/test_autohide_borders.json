@@ -15,15 +15,11 @@
                 "children": [
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "One"
-                        }
+                        "label": "One"
                     },
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "Two"
-                        }
+                        "label": "Two"
                     }
                 ]
             },
@@ -33,9 +29,7 @@
                 "children": [
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "Three"
-                        }
+                        "label": "Three"
                     }
                 ]
             }
@@ -47,9 +41,7 @@
             "children": [
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "left1"
-                    }
+                    "label": "left1"
                 }
             ]
         },

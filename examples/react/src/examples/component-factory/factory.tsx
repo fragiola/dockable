@@ -13,20 +13,16 @@ import * as styles from "./styles";
 // component's data, so every renderer reads its own data with no cast.
 
 export interface ChartData {
-    name: string;
     kind: "line" | "bar" | "area";
     seed: number;
 }
 export interface TableData {
-    name: string;
     status?: string;
 }
 export interface MarkdownData {
-    name: string;
     text: string;
 }
 export interface ContactFormData {
-    name: string;
     /** the form's initial values */
     values: { name: string; email: string };
 }
@@ -147,7 +143,7 @@ export function renderFactory<K extends Kind>(tab: TabOfKind<K>): ReactNode {
         create(tab)
     ) : (
         // a stored layout may name a component this build does not know
-        <PanelBody title={tab.data.name}>
+        <PanelBody title={tab.label}>
             <p className={styles.unknownComponent}>
                 {`No component named "${tab.component}".`}
             </p>
@@ -159,18 +155,20 @@ export function renderFactory<K extends Kind>(tab: TabOfKind<K>): ReactNode {
 export const TEMPLATES: { [K in Kind]: TabInit<K, Types["tabs"][K]> } = {
     chart: {
         component: "chart",
-        data: { name: "Chart", kind: "bar", seed: 23 },
+        label: "Chart",
+        data: { kind: "bar", seed: 23 },
     },
-    table: { component: "table", data: { name: "Orders" } },
+    table: { component: "table", label: "Orders", data: {} },
     markdown: {
         component: "markdown",
+        label: "Notes.md",
         data: {
-            name: "Notes.md",
             text: "# Notes\nCreated from the Add menu.\n- component: markdown\n- data: { text }",
         },
     },
     form: {
         component: "form",
-        data: { name: "Contact", values: { name: "", email: "" } },
+        label: "Contact",
+        data: { values: { name: "", email: "" } },
     },
 };

@@ -30,9 +30,7 @@ function renderBar(border: BorderNode<Types>) {
     return (
         <Dockable.Border node={border} tabDirection={border.data?.tabDirection}>
             <Dockable.TabList<Types> aria-label={`${border.location} border`}>
-                {(tab) => (
-                    <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
-                )}
+                {(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}
             </Dockable.TabList>
         </Dockable.Border>
     );

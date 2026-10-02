@@ -19,9 +19,9 @@ import * as styles from "./styles";
 // What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
-        chart: { name: string };
-        table: { name: string };
-        log: { name: string };
+        chart: undefined;
+        table: undefined;
+        log: undefined;
     };
 };
 
@@ -33,8 +33,8 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 children: [
-                    { component: "chart", data: { name: "Revenue" } },
-                    { component: "table", data: { name: "Orders" } },
+                    { component: "chart", label: "Revenue" },
+                    { component: "table", label: "Orders" },
                 ],
             },
         ],
@@ -65,7 +65,7 @@ export default function AddTabs() {
         count.current += 1;
         const tab = {
             component: kind.component,
-            data: { name: `${kind.name} ${count.current}` },
+            label: `${kind.name} ${count.current}`,
         };
         if (target === "active") {
             // the active tabset, or the first one when none is active yet
@@ -158,7 +158,7 @@ export default function AddTabs() {
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "chart":
-            return <ChartPanel seed={tab.data.name.length * 7} />;
+            return <ChartPanel seed={tab.label.length * 7} />;
         case "table":
             return <TablePanel />;
         case "log":
@@ -192,9 +192,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

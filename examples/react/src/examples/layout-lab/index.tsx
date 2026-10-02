@@ -94,10 +94,8 @@ export default function LayoutLab() {
         // a chart, of the next kind each time
         model.run("tab.add", {
             component: "chart",
-            data: {
-                name: `Chart ${added}`,
-                kind: CHART_KINDS[added % CHART_KINDS.length] ?? "line",
-            },
+            label: `Chart ${added}`,
+            data: { kind: CHART_KINDS[added % CHART_KINDS.length] ?? "line" },
             to: target.id,
         });
     };
@@ -188,13 +186,13 @@ export default function LayoutLab() {
                                     {tab.component === "chart" ? (
                                         <ChartPanel
                                             kind={tab.data.kind}
-                                            seed={tab.data.name.length}
-                                            title={tab.data.name}
+                                            seed={tab.label.length}
+                                            title={tab.label}
                                         />
                                     ) : tab.component === "log" ? (
                                         <LogPanel />
                                     ) : (
-                                        <PanelBody title={tab.data.name}>
+                                        <PanelBody title={tab.label}>
                                             <p className={styles.cardText}>
                                                 {tab.data.text ??
                                                     "A card: its name and text come from its data."}
@@ -246,15 +244,13 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* a close button: one more command to watch in the log */}
                             <button
                                 type="button"
                                 tabIndex={-1}
                                 draggable={false}
-                                aria-label={`Close ${tab.data.name}`}
+                                aria-label={`Close ${tab.label}`}
                                 onPointerDown={(event) =>
                                     event.stopPropagation()
                                 }
@@ -293,7 +289,7 @@ function Border({ node }: { node: BorderNode<Types> }) {
             >
                 {(tab) => (
                     <Dockable.Tab node={tab} className={styles.borderTab}>
-                        {tab.data.name}
+                        {tab.label}
                     </Dockable.Tab>
                 )}
             </Dockable.TabList>

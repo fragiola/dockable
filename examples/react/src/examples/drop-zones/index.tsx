@@ -29,10 +29,10 @@ import * as styles from "./styles";
 
 type Types = {
     tabs: {
-        table: { name: string };
-        note: { name: string; text: string };
-        chart: { name: string; seed: number };
-        kpi: { name: string; seed: number };
+        table: undefined;
+        note: { text: string };
+        chart: { seed: number };
+        kpi: { seed: number };
     };
 };
 
@@ -46,19 +46,19 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { component: "table", data: { name: "Inbox" } },
+                    { component: "table", label: "Inbox" },
                     {
                         component: "note",
+                        label: "Drafts",
                         data: {
-                            name: "Drafts",
                             text: "Reply to Grace about the pending order, and send Alan his invoice.",
                         },
                     },
                     // cannot be closed: the trash does not take it
                     {
                         component: "note",
+                        label: "Pinned note",
                         data: {
-                            name: "Pinned note",
                             text: "This tab cannot be closed: the trash does not take it.",
                         },
                         enableClose: false,
@@ -71,9 +71,10 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Calendar", seed: 11 },
+                        label: "Calendar",
+                        data: { seed: 11 },
                     },
-                    { component: "kpi", data: { name: "Contacts", seed: 6 } },
+                    { component: "kpi", label: "Contacts", data: { seed: 6 } },
                 ],
             },
         ],
@@ -146,7 +147,7 @@ export default function DropZones() {
                     onDrop={(tab) =>
                         report(
                             model.run("tab.close", { tabId: tab.id }).ok,
-                            `Closed ${tab.data.name}`,
+                            `Closed ${tab.label}`,
                         )
                     }
                 />
@@ -167,7 +168,7 @@ export default function DropZones() {
                                 to: root.id,
                                 location: "right",
                             }).ok,
-                            `Moved ${tab.data.name} to the right`,
+                            `Moved ${tab.label} to the right`,
                         );
                     }}
                 />
@@ -183,7 +184,7 @@ export default function DropZones() {
                     onDrop={(tab) =>
                         report(
                             model.run("tab.popout", { tabId: tab.id }).ok,
-                            `Popped out ${tab.data.name}`,
+                            `Popped out ${tab.label}`,
                         )
                     }
                 />
@@ -245,20 +246,16 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             return <TablePanel />;
         case "note":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <p className={styles.panelText}>{tab.data.text}</p>
                 </PanelBody>
             );
         case "chart":
             return (
-                <ChartPanel
-                    kind="bar"
-                    seed={tab.data.seed}
-                    title={tab.data.name}
-                />
+                <ChartPanel kind="bar" seed={tab.data.seed} title={tab.label} />
             );
         case "kpi":
-            return <KpiPanel label={tab.data.name} seed={tab.data.seed} />;
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
     }
 }
 
@@ -288,9 +285,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

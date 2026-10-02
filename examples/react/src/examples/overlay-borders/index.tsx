@@ -25,11 +25,11 @@ import * as styles from "./styles";
 // What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
-        kpi: { name: string; seed: number };
-        doc: { name: string; text: string };
-        chart: { name: string; kind: ChartKind };
-        table: { name: string };
-        log: { name: string };
+        kpi: { seed: number };
+        doc: { text: string };
+        chart: { kind: ChartKind };
+        table: undefined;
+        log: undefined;
     };
 };
 
@@ -41,11 +41,11 @@ const json: LayoutJson<Types> = {
             location: "left",
             mode: "overlay",
             children: [
-                { component: "kpi", data: { name: "Inbox", seed: 17 } },
+                { component: "kpi", label: "Inbox", data: { seed: 17 } },
                 {
                     component: "doc",
+                    label: "Drafts",
                     data: {
-                        name: "Drafts",
                         text: "Hi team, the release notes are attached. Let me know before Friday if anything is missing.",
                     },
                 },
@@ -55,7 +55,7 @@ const json: LayoutJson<Types> = {
             location: "bottom",
             mode: "overlay",
             size: 180,
-            children: [{ component: "log", data: { name: "Console" } }],
+            children: [{ component: "log", label: "Console" }],
         },
         {
             location: "right",
@@ -72,21 +72,22 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "doc",
+                        label: "Message",
                         data: {
-                            name: "Message",
                             text: "The left and bottom borders open over this layout without resizing it. Press elsewhere in the layout, or Escape, to close them.",
                         },
                     },
                     {
                         component: "chart",
-                        data: { name: "Calendar", kind: "bar" },
+                        label: "Calendar",
+                        data: { kind: "bar" },
                     },
                 ],
             },
             {
                 type: "tabset",
                 weight: 40,
-                children: [{ component: "table", data: { name: "Contacts" } }],
+                children: [{ component: "table", label: "Contacts" }],
             },
         ],
     },
@@ -155,18 +156,18 @@ export default function OverlayBorders() {
                             <Dockable.Panel node={tab} className={styles.panel}>
                                 {tab.component === "kpi" ? (
                                     <KpiPanel
-                                        label={tab.data.name}
+                                        label={tab.label}
                                         seed={tab.data.seed}
                                     />
                                 ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.data.name}>
+                                    <PanelBody title={tab.label}>
                                         <p>{tab.data.text}</p>
                                     </PanelBody>
                                 ) : tab.component === "chart" ? (
                                     <ChartPanel
                                         kind={tab.data.kind}
-                                        seed={tab.data.name.length}
-                                        title={tab.data.name}
+                                        seed={tab.label.length}
+                                        title={tab.label}
                                     />
                                 ) : tab.component === "table" ? (
                                     <TablePanel />
@@ -258,9 +259,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
@@ -285,7 +284,7 @@ function Border({ node }: { node: BorderNode<Types> }) {
             >
                 {(tab) => (
                     <Dockable.Tab node={tab} className={styles.borderTab}>
-                        {tab.data.name}
+                        {tab.label}
                     </Dockable.Tab>
                 )}
             </Dockable.TabList>

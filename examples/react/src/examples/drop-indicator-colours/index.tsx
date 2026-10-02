@@ -30,8 +30,8 @@ import * as styles from "./styles";
 
 type Types = {
     tabs: {
-        chart: { name: string; kind: ChartKind };
-        kpi: { name: string; seed: number };
+        chart: { kind: ChartKind };
+        kpi: { seed: number };
     };
 };
 
@@ -50,11 +50,13 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "kpi",
-                                data: { name: "Signups", seed: 5 },
+                                label: "Signups",
+                                data: { seed: 5 },
                             },
                             {
                                 component: "chart",
-                                data: { name: "Leads", kind: "line" },
+                                label: "Leads",
+                                data: { kind: "line" },
                             },
                         ],
                     },
@@ -64,7 +66,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "chart",
-                                data: { name: "Pipeline", kind: "bar" },
+                                label: "Pipeline",
+                                data: { kind: "bar" },
                             },
                         ],
                     },
@@ -80,7 +83,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "chart",
-                                data: { name: "Q1 share", kind: "donut" },
+                                label: "Q1 share",
+                                data: { kind: "donut" },
                             },
                         ],
                     },
@@ -90,7 +94,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "kpi",
-                                data: { name: "Churn", seed: 14 },
+                                label: "Churn",
+                                data: { seed: 14 },
                             },
                         ],
                     },
@@ -145,12 +150,12 @@ export default function DropIndicatorColours() {
                                 {tab.component === "chart" ? (
                                     <ChartPanel
                                         kind={tab.data.kind}
-                                        seed={tab.data.name.length}
-                                        title={tab.data.name}
+                                        seed={tab.label.length}
+                                        title={tab.label}
                                     />
                                 ) : (
                                     <KpiPanel
-                                        label={tab.data.name}
+                                        label={tab.label}
                                         seed={tab.data.seed}
                                     />
                                 )}
@@ -222,9 +227,7 @@ function TabSet({
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}

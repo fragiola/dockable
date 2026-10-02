@@ -35,14 +35,12 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 55,
                 children: [
-                    {
-                        ...TEMPLATES.chart,
-                        data: { ...TEMPLATES.chart.data, name: "Revenue" },
-                    },
+                    { ...TEMPLATES.chart, label: "Revenue" },
                     TEMPLATES.table,
                     {
                         component: "table",
-                        data: { name: "Pending", status: "Pending" },
+                        label: "Pending",
+                        data: { status: "Pending" },
                     },
                 ],
             },
@@ -52,8 +50,8 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "markdown",
+                        label: "README.md",
                         data: {
-                            name: "README.md",
                             text: "# Component factory\nEach tab names a component and carries its data.\n- chart, table, markdown, form\n- add more with the + menu",
                         },
                     },
@@ -165,9 +163,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

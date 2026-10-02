@@ -24,8 +24,8 @@ import * as styles from "./styles";
 
 type Types = {
     tabs: {
-        chart: { name: string; kind: "line" | "bar" | "area" | "donut" };
-        table: { name: string };
+        chart: { kind: "line" | "bar" | "area" | "donut" };
+        table: undefined;
     };
 };
 
@@ -41,14 +41,16 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Overview", kind: "area" },
+                        label: "Overview",
+                        data: { kind: "area" },
                         pinned: true,
                     },
                     {
                         component: "chart",
-                        data: { name: "Revenue", kind: "bar" },
+                        label: "Revenue",
+                        data: { kind: "bar" },
                     },
-                    { component: "table", data: { name: "Orders" } },
+                    { component: "table", label: "Orders" },
                 ],
             },
             {
@@ -59,11 +61,13 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Share", kind: "donut" },
+                        label: "Share",
+                        data: { kind: "donut" },
                     },
                     {
                         component: "chart",
-                        data: { name: "Traffic", kind: "line" },
+                        label: "Traffic",
+                        data: { kind: "line" },
                     },
                 ],
             },
@@ -96,8 +100,8 @@ export default function RemoteControl() {
                                 {tab.component === "chart" ? (
                                     <ChartPanel
                                         kind={tab.data.kind}
-                                        seed={tab.data.name.length}
-                                        title={tab.data.name}
+                                        seed={tab.label.length}
+                                        title={tab.label}
                                     />
                                 ) : (
                                     <TablePanel />
@@ -178,7 +182,7 @@ function RemotePanel({ model }: { model: Model<Types> }) {
                                     )
                                 }
                             >
-                                {child.data.name}
+                                {child.label}
                             </button>
                         ))}
                     </div>
@@ -188,7 +192,7 @@ function RemotePanel({ model }: { model: Model<Types> }) {
                 <>
                     <section className={styles.section}>
                         <h2 className={styles.heading}>
-                            {`Tab: ${tab.data.name}`}
+                            {`Tab: ${tab.label}`}
                         </h2>
                         {tabsets
                             .filter((other) => other.id !== tabset.id)
@@ -276,7 +280,7 @@ function RemotePanel({ model }: { model: Model<Types> }) {
                             // an edge of a tabset splits it: the new tab gets a tabset of its own
                             dryRun={model.check("tab.add", {
                                 component: "table",
-                                data: { name: "New table" },
+                                label: "New table",
                                 to: tabset.id,
                                 location: "right",
                             })}
@@ -285,9 +289,7 @@ function RemotePanel({ model }: { model: Model<Types> }) {
                                     "tab.add",
                                     model.run("tab.add", {
                                         component: "table",
-                                        data: {
-                                            name: `Table ${model.get("all-tabs").length + 1}`,
-                                        },
+                                        label: `Table ${model.get("all-tabs").length + 1}`,
                                         to: tabset.id,
                                         location: "right",
                                         select: true,
@@ -374,9 +376,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}

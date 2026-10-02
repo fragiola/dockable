@@ -29,15 +29,9 @@ function Layout({ model, testId }: { model: Model<Types>; testId: string }) {
     );
 }
 
-/** the name a transferred tab left with (its data, as the source model held it) */
+/** the name a transferred tab left with (its label, as the source model held it) */
 function nameOf(transfer: Transfer): string {
-    const data = transfer.init.data;
-    return typeof data === "object" &&
-        data !== null &&
-        "name" in data &&
-        typeof data.name === "string"
-        ? data.name
-        : "?";
+    return transfer.init.label;
 }
 
 function App() {

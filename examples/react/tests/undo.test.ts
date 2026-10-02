@@ -13,7 +13,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { UndoManager } from "../src/examples/_kit/undo";
 
-type Types = { tabs: { tab: { name: string } } };
+type Types = { tabs: { tab: undefined } };
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -23,16 +23,12 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 id: "ts1",
-                children: [
-                    { id: "t1", component: "tab", data: { name: "Tab One" } },
-                ],
+                children: [{ id: "t1", component: "tab", label: "Tab One" }],
             },
             {
                 type: "tabset",
                 id: "ts2",
-                children: [
-                    { id: "t2", component: "tab", data: { name: "Tab Two" } },
-                ],
+                children: [{ id: "t2", component: "tab", label: "Tab Two" }],
             },
         ],
     },
@@ -48,7 +44,7 @@ function model(manager: UndoManager<Types>): Model<Types> {
 }
 
 const rename = (m: Model<Types>, name: string) =>
-    m.run("tab.update", { tabId: "t1", component: "tab", data: { name } });
+    m.run("tab.configure", { tabId: "t1", label: name });
 
 const children = (m: Model<Types>, id: string) => {
     const node = m.get("node-by", { id });
@@ -97,7 +93,7 @@ describe("UndoManager", () => {
 
     it("honors custom ignoreCommands", () => {
         const undo = new UndoManager(fresh(), {
-            ignoreCommands: ["tab.update"],
+            ignoreCommands: ["tab.configure"],
         });
 
         rename(model(undo), "renamed");
@@ -148,17 +144,17 @@ describe("UndoManager", () => {
                             {
                                 id: "t1",
                                 component: "tab",
-                                data: { name: "One" },
+                                label: "One",
                             },
                             {
                                 id: "t2",
                                 component: "tab",
-                                data: { name: "Two" },
+                                label: "Two",
                             },
                             {
                                 id: "t3",
                                 component: "tab",
-                                data: { name: "Three" },
+                                label: "Three",
                             },
                         ],
                     },

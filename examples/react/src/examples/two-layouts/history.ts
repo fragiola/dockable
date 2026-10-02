@@ -28,17 +28,11 @@ export interface Step<T extends DockableTypes> {
 }
 
 /**
- * A transferred tab's name, from its `data.name`. A transfer carries the tab as it left its model,
- * with untyped data (the group can join models of any registry), so the name is read with checks.
+ * A transferred tab's name: its label. A transfer carries the tab as it left its model; its data
+ * is untyped (the group can join models of any registry), but every tab has a label.
  */
-function nameOf(init: { readonly data?: unknown }): string {
-    const data = init.data;
-    return typeof data === "object" &&
-        data !== null &&
-        "name" in data &&
-        typeof data.name === "string"
-        ? data.name
-        : "";
+function nameOf(init: { readonly label: string }): string {
+    return init.label;
 }
 
 /** Where to put a tab back: its old tabset if it still exists, else the model's first tabset. */

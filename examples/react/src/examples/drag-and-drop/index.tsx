@@ -20,13 +20,13 @@ import * as styles from "./styles";
 // `tabDragSpeed`. During a drag the edge indicators (Dockable.EdgeIndicator) mark the four bands
 // where a drop docks to an edge.
 
-// What the layout holds: one component per kind of content, each named in its data.
+// What the layout holds: one component per kind of content, each named by its label.
 type Types = {
     tabs: {
-        chart: { name: string; kind: ChartKind; seed: number };
-        kpi: { name: string; seed: number };
-        table: { name: string };
-        log: { name: string };
+        chart: { kind: ChartKind; seed: number };
+        kpi: { seed: number };
+        table: undefined;
+        log: undefined;
     };
 };
 
@@ -41,12 +41,14 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Drag me", kind: "area", seed: 4 },
+                        label: "Drag me",
+                        data: { kind: "area", seed: 4 },
                     },
-                    { component: "kpi", data: { name: "Or me", seed: 15 } },
+                    { component: "kpi", label: "Or me", data: { seed: 15 } },
                     {
                         component: "chart",
-                        data: { name: "Me too", kind: "donut", seed: 9 },
+                        label: "Me too",
+                        data: { kind: "donut", seed: 9 },
                     },
                 ],
             },
@@ -56,15 +58,11 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         type: "tabset",
-                        children: [
-                            { component: "table", data: { name: "Inbox" } },
-                        ],
+                        children: [{ component: "table", label: "Inbox" }],
                     },
                     {
                         type: "tabset",
-                        children: [
-                            { component: "log", data: { name: "Outbox" } },
-                        ],
+                        children: [{ component: "log", label: "Outbox" }],
                     },
                 ],
             },
@@ -110,11 +108,11 @@ export default function DragAndDrop() {
                                 <ChartPanel
                                     kind={tab.data.kind}
                                     seed={tab.data.seed}
-                                    title={tab.data.name}
+                                    title={tab.label}
                                 />
                             ) : tab.component === "kpi" ? (
                                 <KpiPanel
-                                    label={tab.data.name}
+                                    label={tab.label}
                                     seed={tab.data.seed}
                                 />
                             ) : tab.component === "table" ? (
@@ -190,9 +188,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

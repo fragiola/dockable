@@ -65,7 +65,7 @@ export default function HelloLayout() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name} />
+                            <Card name={tab.label} />
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>

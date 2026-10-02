@@ -10,7 +10,7 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
     const [count, setCount] = useState(0);
     return (
         <div data-testid="content">
-            <p>{tab.data.name}</p>
+            <p>{tab.label}</p>
             <button
                 type="button"
                 data-testid="counter"
@@ -18,7 +18,7 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
             >
                 {`Count: ${count}`}
             </button>
-            <input data-testid="input" aria-label={`${tab.data.name} notes`} />
+            <input data-testid="input" aria-label={`${tab.label} notes`} />
         </div>
     );
 }

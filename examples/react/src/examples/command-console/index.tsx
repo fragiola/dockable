@@ -18,7 +18,7 @@ import * as styles from "./styles";
 // (`model.dispatch`), shows its result or its structured error, and logs every change
 // (`model.subscribe`).
 
-type Types = { tabs: { note: { name: string; text: string } } };
+type Types = { tabs: { note: { text: string } } };
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -33,16 +33,16 @@ const json: LayoutJson<Types> = {
                     {
                         id: "readme",
                         component: "note",
+                        label: "Readme",
                         data: {
-                            name: "Readme",
                             text: "Run a command from the console: select, move or add a tab.",
                         },
                     },
                     {
                         id: "todo",
                         component: "note",
+                        label: "Todo",
                         data: {
-                            name: "Todo",
                             text: "Every change the console makes goes through the same bus as a drag.",
                         },
                     },
@@ -56,8 +56,8 @@ const json: LayoutJson<Types> = {
                     {
                         id: "ideas",
                         component: "note",
+                        label: "Ideas",
                         data: {
-                            name: "Ideas",
                             text: "Hand the commands to an assistant as tools.",
                         },
                     },
@@ -82,7 +82,7 @@ export default function CommandConsoleExample() {
                     <Dockable.Panels<Types>>
                         {(tab) => (
                             <Dockable.Panel node={tab} className={styles.panel}>
-                                <PanelBody title={tab.data.name}>
+                                <PanelBody title={tab.label}>
                                     <p className={styles.panelText}>
                                         {tab.data.text}
                                     </p>
@@ -134,9 +134,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

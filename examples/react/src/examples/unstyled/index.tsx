@@ -13,8 +13,8 @@ import { Switch } from "#/components/ui/switch";
 import { Card } from "../_kit/card";
 import * as styles from "./styles";
 
-// What the layout holds: one component, named in its data.
-type Types = { tabs: { card: { name: string } } };
+// What the layout holds: one component, named by its label.
+type Types = { tabs: { card: undefined } };
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -25,8 +25,8 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { component: "card", data: { name: "Welcome" } },
-                    { component: "card", data: { name: "Notes" } },
+                    { component: "card", label: "Welcome" },
+                    { component: "card", label: "Notes" },
                 ],
             },
             {
@@ -35,15 +35,11 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         type: "tabset",
-                        children: [
-                            { component: "card", data: { name: "Inspector" } },
-                        ],
+                        children: [{ component: "card", label: "Inspector" }],
                     },
                     {
                         type: "tabset",
-                        children: [
-                            { component: "card", data: { name: "Output" } },
-                        ],
+                        children: [{ component: "card", label: "Output" }],
                     },
                 ],
             },
@@ -138,7 +134,7 @@ export default function UnstyledExample() {
                                 className={styles.panel(styled)}
                             >
                                 {styled ? (
-                                    <Card name={tab.data.name} />
+                                    <Card name={tab.label} />
                                 ) : (
                                     <PlainContent tab={tab} />
                                 )}
@@ -178,7 +174,7 @@ function TabSet({
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab(styled)}>
                             <span className={styles.tabName(styled)}>
-                                {tab.data.name}
+                                {tab.label}
                             </span>
                             {/* the active tabset's marker, with the styles */}
                             {styled ? (
@@ -219,7 +215,7 @@ function PlainContent({ tab }: { tab: TabOf<Types> }) {
     const [count, setCount] = useState(0);
     return (
         <div>
-            <h2>{tab.data.name}</h2>
+            <h2>{tab.label}</h2>
             <button type="button" onClick={() => setCount((c) => c + 1)}>
                 {`Count: ${count}`}
             </button>

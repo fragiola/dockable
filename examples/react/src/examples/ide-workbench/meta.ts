@@ -11,7 +11,7 @@ export default {
         "typed data",
         "tab.add",
         "tab.select",
-        "tab.update",
+        "tab.set-data",
         "model.use veto",
         "model.subscribe",
         "toJSON",

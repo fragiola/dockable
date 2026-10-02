@@ -5,7 +5,6 @@ import {
     type LayoutJson,
     type RowNode,
     type TabJson,
-    type TabOf,
     type TabsetNode,
 } from "@fragiola/dockable";
 import {
@@ -24,25 +23,21 @@ import * as styles from "./styles";
 // while tabs are hidden) is the trigger of a Fragiola Select listing just those. Picking one
 // selects it, which brings it into the strip; another tab goes to the select in its place.
 
-// What the layout holds: an editor's tabs, named in their data. A file carries its text, the
-// terminal is a log, and Problems lists what is wrong where. `altName` names a tab in the select
-// when it has no name of its own (an icon-only tab).
+// What the layout holds: an editor's tabs, each named by its label. A file carries its text, the
+// terminal is a log, and Problems lists what is wrong where.
 type Types = {
     tabs: {
-        file: { name: string; altName?: string; source: string };
-        terminal: { name: string; altName?: string };
-        problems: {
-            name: string;
-            altName?: string;
-            items: { where: string; message: string }[];
-        };
+        file: { source: string };
+        terminal: undefined;
+        problems: { items: { where: string; message: string }[] };
     };
 };
 
 /** A file tab, its text given line by line. */
 const file = (name: string, ...lines: string[]): TabJson<Types> => ({
     component: "file",
-    data: { name, source: lines.join("\n") },
+    label: name,
+    data: { source: lines.join("\n") },
 });
 
 const json: LayoutJson<Types> = {
@@ -115,11 +110,11 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 35,
                 children: [
-                    { component: "terminal", data: { name: "Terminal" } },
+                    { component: "terminal", label: "Terminal" },
                     {
                         component: "problems",
+                        label: "Problems",
                         data: {
-                            name: "Problems",
                             items: [
                                 {
                                     where: "layout.tsx 6:51",
@@ -212,8 +207,6 @@ function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
 function TabSet({ node }: { node: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
     const { hiddenTabs } = useTabOverflow(node);
-    // a tab with no name (an icon-only tab) is named by its altName in the menu
-    const label = (tab: TabOf<Types>) => tab.data.name || tab.data.altName;
 
     return (
         <Dockable.TabSet node={node} className={styles.tabset}>
@@ -224,9 +217,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
@@ -258,7 +249,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     <Select.Content>
                         {hiddenTabs.map((tab) => (
                             <Select.Item key={tab.id} value={tab.id}>
-                                {label(tab)}
+                                {tab.label}
                             </Select.Item>
                         ))}
                     </Select.Content>

@@ -13,9 +13,8 @@ import { FILES, fileName } from "./files";
 // The workbench's state outside the layout: file contents ("disk" and unsaved buffers), the
 // layout JSON with its save/restore, and how a file becomes a tab.
 
-/** What an editor tab keeps in its `data`: its name, the file, and whether it has unsaved changes. */
+/** What an editor tab keeps in its `data`: the file, and whether it has unsaved changes. */
 export interface EditorData {
-    name: string;
     path: string;
     dirty?: boolean;
 }
@@ -24,9 +23,9 @@ export interface EditorData {
 export type Types = {
     tabs: {
         editor: EditorData;
-        explorer: { name: string };
-        terminal: { name: string };
-        problems: { name: string };
+        explorer: undefined;
+        terminal: undefined;
+        problems: undefined;
     };
 };
 
@@ -70,7 +69,8 @@ export function editorTab(path: string, dirty = false): TabInitOf<Types> {
     return {
         id: tabId(path),
         component: "editor",
-        data: { name: fileName(path), path, dirty },
+        label: fileName(path),
+        data: { path, dirty },
     };
 }
 
@@ -89,7 +89,7 @@ export const defaultLayout: LayoutJson<Types> = {
                 {
                     id: "explorer",
                     component: "explorer",
-                    data: { name: "Explorer" },
+                    label: "Explorer",
                     enableClose: false,
                     enableDrag: false,
                 },
@@ -103,13 +103,13 @@ export const defaultLayout: LayoutJson<Types> = {
                 {
                     id: "terminal",
                     component: "terminal",
-                    data: { name: "Terminal" },
+                    label: "Terminal",
                     enableClose: false,
                 },
                 {
                     id: "problems",
                     component: "problems",
-                    data: { name: "Problems" },
+                    label: "Problems",
                     enableClose: false,
                 },
             ],
@@ -156,31 +156,22 @@ export function openFile(model: Model<Types>, path: string) {
 // ── Save and restore ────────────────────────────────────────────────────────
 
 // v3: the layout is JSON v1 (`model.get("layout-json")`); a v2 layout was FlexLayout's format
-const STORAGE_KEY = "dockable-docs:ide-workbench:layout:v3";
-
-const NAMED: JsonSchema = {
-    type: "object",
-    properties: { name: { type: "string" } },
-    required: ["name"],
-};
+const STORAGE_KEY = "dockable-docs:ide-workbench:layout:v4";
 
 /**
- * Each component's data schema: loading (and `tab.add`, `tab.update`) validates `data` with it, so
- * a stored layout whose editor lost its `path` is reported instead of crashing the editor.
+ * The editor's data schema: loading (and `tab.add`, `tab.set-data`) validates `data` with it, so
+ * a stored layout whose editor lost its `path` is reported instead of crashing the editor. The
+ * other components have no data, so no schema.
  */
-const dataSchemas: { [K in keyof Types["tabs"]]: JsonSchema } = {
+const dataSchemas: { editor: JsonSchema } = {
     editor: {
         type: "object",
         properties: {
-            name: { type: "string" },
             path: { type: "string", minLength: 1 },
             dirty: { type: "boolean" },
         },
-        required: ["name", "path"],
+        required: ["path"],
     },
-    explorer: NAMED,
-    terminal: NAMED,
-    problems: NAMED,
 };
 
 /** Why the stored layout was not restored: a message and, per problem, its JSON path. */

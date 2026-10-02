@@ -27,16 +27,12 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 weight: 60,
-                children: [
-                    { component: "revenue", data: { name: "Revenue chart" } },
-                ],
+                children: [{ component: "revenue", label: "Revenue chart" }],
             },
             {
                 type: "tabset",
                 weight: 40,
-                children: [
-                    { component: "orders", data: { name: "Orders table" } },
-                ],
+                children: [{ component: "orders", label: "Orders table" }],
             },
         ],
     },
@@ -48,9 +44,7 @@ export default function WidgetSidebar() {
     // the new tab's id, or undefined when the add was refused
     const onAdded = (id: string | undefined) => {
         const tab = id === undefined ? undefined : model.get("node-by", { id });
-        setStatus(
-            tab?.type === "tab" ? `Added ${tab.data.name}` : "Nothing added",
-        );
+        setStatus(tab?.type === "tab" ? `Added ${tab.label}` : "Nothing added");
     };
 
     return (
@@ -135,7 +129,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                     />
                                 ) : null}
                                 <span className={styles.tabName}>
-                                    {tab.data.name}
+                                    {tab.label}
                                 </span>
                                 {/* the active tabset's marker */}
                                 <span

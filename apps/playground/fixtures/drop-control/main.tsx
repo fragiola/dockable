@@ -60,7 +60,7 @@ function App() {
                 onDrop={(drag) => {
                     if (drag.kind !== "tab") return;
                     model.run("tab.close", { tabId: drag.tab.id });
-                    setLastDrop(`trash:${drag.tab.data.name}`);
+                    setLastDrop(`trash:${drag.tab.label}`);
                 }}
                 data-testid="trash"
                 style={{ width: 120, border: "1px dashed #999" }}

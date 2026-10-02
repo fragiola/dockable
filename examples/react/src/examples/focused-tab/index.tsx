@@ -17,11 +17,11 @@ import * as styles from "./styles";
 // What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
-        doc: { name: string; text: string };
-        chart: { name: string; seed: number };
-        kpi: { name: string; seed: number };
-        table: { name: string };
-        log: { name: string };
+        doc: { text: string };
+        chart: { seed: number };
+        kpi: { seed: number };
+        table: undefined;
+        log: undefined;
     };
 };
 
@@ -39,14 +39,15 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "doc",
+                        label: "Editor",
                         data: {
-                            name: "Editor",
                             text: "Revenue grew in every region this quarter, led by the new self-serve plan. The chart in Preview follows the figures as they are edited.",
                         },
                     },
                     {
                         component: "chart",
-                        data: { name: "Preview", seed: 5 },
+                        label: "Preview",
+                        data: { seed: 5 },
                     },
                 ],
             },
@@ -59,12 +60,12 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "doc",
+                                label: "Outline",
                                 data: {
-                                    name: "Outline",
                                     text: "Summary · Revenue · Customers · Outlook",
                                 },
                             },
-                            { component: "table", data: { name: "Search" } },
+                            { component: "table", label: "Search" },
                         ],
                     },
                     {
@@ -72,9 +73,10 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "kpi",
-                                data: { name: "Problems", seed: 13 },
+                                label: "Problems",
+                                data: { seed: 13 },
                             },
-                            { component: "log", data: { name: "Output" } },
+                            { component: "log", label: "Output" },
                         ],
                     },
                 ],
@@ -131,7 +133,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "doc":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <p className={styles.panelText}>{tab.data.text}</p>
                 </PanelBody>
             );
@@ -140,11 +142,11 @@ function Content({ tab }: { tab: TabOf<Types> }) {
                 <ChartPanel
                     kind="line"
                     seed={tab.data.seed}
-                    title={tab.data.name}
+                    title={tab.label}
                 />
             );
         case "kpi":
-            return <KpiPanel label={tab.data.name} seed={tab.data.seed} />;
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
         case "table":
             return <TablePanel />;
         case "log":
@@ -171,9 +173,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

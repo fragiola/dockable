@@ -23,7 +23,7 @@ function App() {
     /** the name of a tab the model holds, for the report */
     const nameOf = (id: string | undefined) => {
         const tab = id === undefined ? undefined : model.get("node-by", { id });
-        return tab?.type === "tab" ? tab.data.name : "?";
+        return tab?.type === "tab" ? tab.label : "?";
     };
 
     const onExternalDrag = (
@@ -33,14 +33,13 @@ function App() {
             return undefined;
         }
         return {
-            tab: { component: "testing", data: { name: "File" } },
+            tab: { component: "testing", label: "File" },
             onDrop: (tab, dropEvent) => {
                 const file = dropEvent.dataTransfer?.files[0];
                 if (tab && file) {
-                    model.run("tab.update", {
+                    model.run("tab.configure", {
                         tabId: tab,
-                        component: "testing",
-                        data: { name: file.name },
+                        label: file.name,
                     });
                 }
                 setLastDrop(tab ? `file:${file?.name ?? "?"}` : "vetoed");
@@ -57,7 +56,7 @@ function App() {
                     data-testid="source-chart"
                     tab={() => ({
                         component: "testing",
-                        data: { name: `Chart ${++count.current}` },
+                        label: `Chart ${++count.current}`,
                     })}
                     onDrop={(tab) =>
                         setLastDrop(tab ? `added:${nameOf(tab)}` : "vetoed")
@@ -69,7 +68,7 @@ function App() {
                     model={model}
                     render={<li />}
                     data-testid="source-table"
-                    tab={{ component: "testing", data: { name: "Table" } }}
+                    tab={{ component: "testing", label: "Table" }}
                     onDrop={(tab) =>
                         setLastDrop(tab ? `added:${nameOf(tab)}` : "vetoed")
                     }

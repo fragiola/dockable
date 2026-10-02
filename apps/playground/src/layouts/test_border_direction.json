@@ -10,9 +10,7 @@
                 "children": [
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "One"
-                        }
+                        "label": "One"
                     }
                 ]
             }
@@ -24,21 +22,15 @@
             "children": [
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "left1"
-                    }
+                    "label": "left1"
                 },
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "left2"
-                    }
+                    "label": "left2"
                 },
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "left3"
-                    }
+                    "label": "left3"
                 }
             ]
         },
@@ -47,15 +39,11 @@
             "children": [
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "right1"
-                    }
+                    "label": "right1"
                 },
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "right2"
-                    }
+                    "label": "right2"
                 }
             ]
         }

@@ -23,10 +23,10 @@ import * as styles from "./styles";
 
 type Types = {
     tabs: {
-        keys: { name: string };
-        doc: { name: string; text: string };
-        table: { name: string };
-        log: { name: string };
+        keys: undefined;
+        doc: { text: string };
+        table: undefined;
+        log: undefined;
     };
     // a tabset's name is its tab list's accessible name (the TabSet below reads `data.name`)
     tabset: { name: string };
@@ -43,18 +43,18 @@ const json: LayoutJson<Types> = {
                 data: { name: "Documents" },
                 weight: 55,
                 children: [
-                    { component: "keys", data: { name: "Keys" } },
+                    { component: "keys", label: "Keys" },
                     {
                         component: "doc",
+                        label: "Readme",
                         data: {
-                            name: "Readme",
                             text: "Every part of the layout is reachable without a mouse: the tab strips, the splitters and each tab's content. The Keys tab lists them all.",
                         },
                     },
                     {
                         component: "doc",
+                        label: "License",
                         data: {
-                            name: "License",
                             text: "MIT. Permission is hereby granted, free of charge, to any person obtaining a copy of this software, to deal in the software without restriction.",
                         },
                         enableClose: false,
@@ -66,8 +66,8 @@ const json: LayoutJson<Types> = {
                 data: { name: "Tools" },
                 weight: 45,
                 children: [
-                    { component: "table", data: { name: "Search" } },
-                    { component: "log", data: { name: "History" } },
+                    { component: "table", label: "Search" },
+                    { component: "log", label: "History" },
                 ],
             },
         ],
@@ -110,7 +110,7 @@ export default function Keyboard() {
                                 {tab.component === "keys" ? (
                                     <KeysPanel />
                                 ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.data.name}>
+                                    <PanelBody title={tab.label}>
                                         <p>{tab.data.text}</p>
                                     </PanelBody>
                                 ) : tab.component === "table" ? (
@@ -187,7 +187,7 @@ function KeyboardTab({ tab }: { tab: TabOf<Types> }) {
             <Tooltip.Trigger
                 render={
                     <Dockable.Tab node={tab} className={styles.tab}>
-                        <span className={styles.tabName}>{tab.data.name}</span>
+                        <span className={styles.tabName}>{tab.label}</span>
                         {/* the active tabset's marker */}
                         <span aria-hidden="true" className={styles.tabMarker} />
                     </Dockable.Tab>

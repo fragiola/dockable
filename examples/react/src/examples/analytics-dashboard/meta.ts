@@ -10,7 +10,7 @@ export default {
         "component factory",
         "typed data",
         "tab.add",
-        "tab.update",
+        "tab.set-data",
         "tabset.maximize",
         "PopoutTrigger",
         "UndoManager",

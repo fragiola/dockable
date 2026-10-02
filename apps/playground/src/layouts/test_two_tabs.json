@@ -15,9 +15,7 @@
                 "children": [
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "One"
-                        }
+                        "label": "One"
                     }
                 ]
             },
@@ -28,9 +26,7 @@
                 "children": [
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "Two"
-                        }
+                        "label": "Two"
                     }
                 ]
             }

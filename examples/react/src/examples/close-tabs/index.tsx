@@ -22,11 +22,11 @@ import * as styles from "./styles";
 // What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
-        chart: { name: string; kind: ChartKind; seed: number };
-        kpi: { name: string; seed: number };
-        doc: { name: string; text: string };
-        table: { name: string };
-        log: { name: string };
+        chart: { kind: ChartKind; seed: number };
+        kpi: { seed: number };
+        doc: { text: string };
+        table: undefined;
+        log: undefined;
     };
 };
 
@@ -42,17 +42,19 @@ const json: LayoutJson<Types> = {
                     // this one has no close button, and ignores middle-click and Ctrl+Delete
                     {
                         component: "chart",
-                        data: { name: "Home", kind: "area", seed: 3 },
+                        label: "Home",
+                        data: { kind: "area", seed: 3 },
                         enableClose: false,
                     },
                     {
                         component: "chart",
-                        data: { name: "Report", kind: "bar", seed: 17 },
+                        label: "Report",
+                        data: { kind: "bar", seed: 17 },
                     },
                     {
                         component: "doc",
+                        label: "Draft",
                         data: {
-                            name: "Draft",
                             text: "Q3 planning: ship the billing page, then the team settings. Close this tab when the plan is agreed.",
                         },
                     },
@@ -66,17 +68,16 @@ const json: LayoutJson<Types> = {
                         type: "tabset",
                         // an empty tabset stays, and shows a hint, instead of disappearing
                         deleteWhenEmpty: false,
-                        children: [
-                            { component: "table", data: { name: "Inbox" } },
-                        ],
+                        children: [{ component: "table", label: "Inbox" }],
                     },
                     {
                         type: "tabset",
                         children: [
-                            { component: "log", data: { name: "Logs" } },
+                            { component: "log", label: "Logs" },
                             {
                                 component: "kpi",
-                                data: { name: "Metrics", seed: 21 },
+                                label: "Metrics",
+                                data: { seed: 21 },
                             },
                         ],
                     },
@@ -138,14 +139,14 @@ function Content({ tab }: { tab: TabOf<Types> }) {
                 <ChartPanel
                     kind={tab.data.kind}
                     seed={tab.data.seed}
-                    title={tab.data.name}
+                    title={tab.label}
                 />
             );
         case "kpi":
-            return <KpiPanel label={tab.data.name} seed={tab.data.seed} />;
+            return <KpiPanel label={tab.label} seed={tab.data.seed} />;
         case "doc":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <p className={styles.panelText}>{tab.data.text}</p>
                 </PanelBody>
             );
@@ -210,14 +211,14 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
                 }
             }}
         >
-            <span className={styles.tabName}>{tab.data.name}</span>
+            <span className={styles.tabName}>{tab.label}</span>
             {closeable ? (
                 <button
                     type="button"
                     // the keyboard closes with Ctrl+Delete on the tab itself (the keyMap's
                     // closeTab), so the button is left out of the tab order
                     tabIndex={-1}
-                    aria-label={`Close ${tab.data.name}`}
+                    aria-label={`Close ${tab.label}`}
                     className={styles.closeButton}
                     // keep the press from selecting the tab or starting a drag
                     onPointerDown={(event) => event.stopPropagation()}

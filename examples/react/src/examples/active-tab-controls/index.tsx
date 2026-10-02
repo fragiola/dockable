@@ -24,15 +24,15 @@ import * as styles from "./styles";
 
 // A toolbar outside the layout acts on the tab the user is looking at: the selected tab of the
 // active tabset. Click another tabset and the toolbar follows it. What it changes (the chart's
-// kind, its data) is the tab's typed data, written with `tab.update`: the chart re-renders from
+// kind, its data) is the tab's typed data, patched with `tab.set-data`: the chart re-renders from
 // it, and it would be saved with the layout. A table tab has nothing to drive: the toolbar says so.
 
-type ChartData = { name: string; kind: ChartKind; seed: number };
+type ChartData = { kind: ChartKind; seed: number };
 
 type Types = {
     tabs: {
         chart: ChartData;
-        table: { name: string };
+        table: undefined;
     };
 };
 
@@ -47,9 +47,10 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Revenue", kind: "bar", seed: 3 },
+                        label: "Revenue",
+                        data: { kind: "bar", seed: 3 },
                     },
-                    { component: "table", data: { name: "Orders" } },
+                    { component: "table", label: "Orders" },
                 ],
             },
             {
@@ -58,11 +59,13 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Share", kind: "donut", seed: 5 },
+                        label: "Share",
+                        data: { kind: "donut", seed: 5 },
                     },
                     {
                         component: "chart",
-                        data: { name: "Traffic", kind: "line", seed: 9 },
+                        label: "Traffic",
+                        data: { kind: "line", seed: 9 },
                     },
                 ],
             },
@@ -86,17 +89,13 @@ function currentTab(model: Model<Types>) {
         : undefined;
 }
 
-/** Rewrites a chart tab's data (`tab.update` takes the whole new value). */
+/** Changes some keys of a chart tab's data (`tab.set-data` keeps the others). */
 function updateChart(
     model: Model<Types>,
     tab: TabNode<"chart", ChartData>,
     change: Partial<ChartData>,
 ) {
-    model.run("tab.update", {
-        tabId: tab.id,
-        component: "chart",
-        data: { ...tab.data, ...change },
-    });
+    model.run("tab.set-data", { tabId: tab.id, data: change });
 }
 
 export default function ActiveTabControls() {
@@ -120,7 +119,7 @@ export default function ActiveTabControls() {
                                         key={tab.data.kind}
                                         kind={tab.data.kind}
                                         seed={tab.data.seed}
-                                        title={tab.data.name}
+                                        title={tab.label}
                                     />
                                 ) : (
                                     <TablePanel />
@@ -152,8 +151,8 @@ function Toolbar({ model }: { model: Model<Types> }) {
         <div className={styles.toolbar}>
             <p role="status" data-testid="target" className={styles.target}>
                 {chart
-                    ? `Editing ${chart.data.name}`
-                    : `${tab?.data.name ?? "No tab"}: not a chart`}
+                    ? `Editing ${chart.label}`
+                    : `${tab?.label ?? "No tab"}: not a chart`}
             </p>
             <fieldset
                 aria-label="Chart kind"
@@ -217,9 +216,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}

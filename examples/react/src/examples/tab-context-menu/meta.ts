@@ -12,7 +12,7 @@ export default {
         "model.can",
         "batch",
         "tab.close",
-        "tab.update",
+        "tab.configure",
         "tab.pin",
         "tabset.maximize",
         "tab.popout",

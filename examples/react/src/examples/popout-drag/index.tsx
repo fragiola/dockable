@@ -21,10 +21,10 @@ import * as styles from "./styles";
 // another; each window draws its own outline (a DropIndicator inside Dockable.Popout, below).
 // The content element moves with the tab, so the counter and the notes keep their values.
 
-// What the layout holds: one tab component, named in its data.
-type Types = { tabs: { card: { name: string } } };
+// What the layout holds: one tab component, named by its label.
+type Types = { tabs: { card: undefined } };
 
-const card = (name: string) => ({ component: "card" as const, data: { name } });
+const card = (name: string) => ({ component: "card" as const, label: name });
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -73,7 +73,7 @@ export default function PopoutDrag() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name}>
+                            <Card name={tab.label}>
                                 <p className={styles.panelHint}>
                                     Pop this tab out, then drag tabs into its
                                     window, and back into this one.
@@ -134,9 +134,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

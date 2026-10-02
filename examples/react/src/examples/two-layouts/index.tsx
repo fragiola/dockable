@@ -22,11 +22,11 @@ import * as styles from "./styles";
 // other. Each model's middleware sees its side (a `tab.add` in the target, a `tab.close` in the
 // source, both marked `meta.transfer`), and either can refuse. The tab's content moves with it.
 
-// What both layouts hold: one tab component, named in its data. A transferred tab keeps its
+// What both layouts hold: one tab component, named by its label. A transferred tab keeps its label,
 // component and data, so the two models share the registry.
-type Types = { tabs: { card: { name: string } } };
+type Types = { tabs: { card: undefined } };
 
-const card = (name: string) => ({ component: "card" as const, data: { name } });
+const card = (name: string) => ({ component: "card" as const, label: name });
 
 const workspace: LayoutJson<Types> = {
     version: 1,
@@ -86,7 +86,7 @@ export default function TwoLayouts() {
                                             node={tab}
                                             className={styles.panel}
                                         >
-                                            <Card name={tab.data.name} />
+                                            <Card name={tab.label} />
                                         </Dockable.Panel>
                                     )}
                                 </Dockable.Panels>
@@ -118,7 +118,7 @@ export default function TwoLayouts() {
                                             node={tab}
                                             className={styles.panel}
                                         >
-                                            <Card name={tab.data.name} />
+                                            <Card name={tab.label} />
                                         </Dockable.Panel>
                                     )}
                                 </Dockable.Panels>
@@ -240,9 +240,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

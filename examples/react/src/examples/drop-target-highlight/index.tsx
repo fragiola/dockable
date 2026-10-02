@@ -21,12 +21,12 @@ import * as styles from "./styles";
 // `data-drop-location` (center, top, bottom, left, right); a drop into its tab strip also gives the
 // insertion index. The styles read only those.
 
-// What the layout holds: one component per kind of content, each named in its data.
+// What the layout holds: one component per kind of content, each named by its label.
 type Types = {
     tabs: {
-        chart: { name: string; kind: ChartKind; seed: number };
-        kpi: { name: string; seed: number; unit?: string };
-        table: { name: string };
+        chart: { kind: ChartKind; seed: number };
+        kpi: { seed: number; unit?: string };
+        table: undefined;
     };
 };
 
@@ -41,12 +41,14 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Alpha", kind: "line", seed: 3 },
+                        label: "Alpha",
+                        data: { kind: "line", seed: 3 },
                     },
-                    { component: "kpi", data: { name: "Beta", seed: 11 } },
+                    { component: "kpi", label: "Beta", data: { seed: 11 } },
                     {
                         component: "chart",
-                        data: { name: "Gamma", kind: "pie", seed: 17 },
+                        label: "Gamma",
+                        data: { kind: "pie", seed: 17 },
                     },
                 ],
             },
@@ -59,9 +61,10 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "chart",
-                                data: { name: "Delta", kind: "bar", seed: 8 },
+                                label: "Delta",
+                                data: { kind: "bar", seed: 8 },
                             },
-                            { component: "table", data: { name: "Epsilon" } },
+                            { component: "table", label: "Epsilon" },
                         ],
                     },
                     {
@@ -69,7 +72,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "kpi",
-                                data: { name: "Zeta", seed: 25, unit: "$" },
+                                label: "Zeta",
+                                data: { seed: 25, unit: "$" },
                             },
                         ],
                     },
@@ -97,11 +101,11 @@ export default function DropTargetHighlight() {
                                 <ChartPanel
                                     kind={tab.data.kind}
                                     seed={tab.data.seed}
-                                    title={tab.data.name}
+                                    title={tab.label}
                                 />
                             ) : tab.component === "kpi" ? (
                                 <KpiPanel
-                                    label={tab.data.name}
+                                    label={tab.label}
                                     seed={tab.data.seed}
                                     unit={tab.data.unit}
                                 />
@@ -157,7 +161,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 className={styles.tab(before, after)}
                             >
                                 <span className={styles.tabName}>
-                                    {tab.data.name}
+                                    {tab.label}
                                 </span>
                                 {/* the active tabset's marker */}
                                 <span

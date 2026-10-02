@@ -9,7 +9,7 @@ export default {
     features: [
         "active-tabset",
         "selected-tab-by",
-        "tab.update",
+        "tab.set-data",
         "typed data",
         "model.subscribe",
         "Chart",
