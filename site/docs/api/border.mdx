@@ -37,7 +37,8 @@ against the tab buttons' measured boxes, so any styling works.
 
 ## State
 
-`BorderState` (also returned by [`useBorder`](/docs/api/hooks#useborder)):
+`BorderState`: the border's [`BorderContentState`](/docs/api/border-content#state) (also
+returned by [`useBorder`](/docs/api/hooks#useborder)), plus its tab direction:
 
 | field | type | description |
 | --- | --- | --- |
@@ -46,9 +47,9 @@ against the tab buttons' measured boxes, so any styling works.
 | `open` | `boolean` | a tab is selected, so the border's panel is open (`model.is("border-open", { borderId })`) |
 | `overlay` | `boolean` | the panel opens over the layout (`model.is("border-overlay", { borderId })`) instead of beside it |
 | `empty` | `boolean` | the border has no tabs |
-| `tabDirection` | `"up" \| "down" \| undefined` | a left border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"`; `undefined` on the other sides |
 | `dropTarget` | `boolean` | the current drag would drop into this border (its strip or its open panel) |
 | `dropRefused` | `boolean` | the current drag is over this border, but a drop rule refuses it |
+| `tabDirection` | `"up" \| "down" \| undefined` | a left border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"`; `undefined` on the other sides. Only the strip has it |
 
 ## Data attributes and ARIA
 

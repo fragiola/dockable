@@ -4,12 +4,13 @@
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import {
     type AnyTypes,
+    type BorderLocation,
     type BorderNode,
     type DockableTypes,
     OVERLAY_ATTRIBUTE,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { type BorderState, borderAttributes } from "./Border";
+import { borderAttributes } from "./Border";
 import { useDockableContext, useLayoutContext } from "./context";
 import { useBorder } from "./hooks";
 import { Splitter } from "./Splitter";
@@ -19,8 +20,26 @@ import {
     useRenderElement,
 } from "./utils/useRender";
 
+/** What a border shows: `Dockable.BorderContent`'s state (`Dockable.Border` adds its tab direction). */
+export interface BorderContentState {
+    /** the side of the layout the border is on */
+    location: BorderLocation;
+    /** the direction its tabs run: `"vertical"` for a left or right border */
+    orientation: "horizontal" | "vertical";
+    /** a tab is selected, so the border's panel is open */
+    open: boolean;
+    /** the panel opens over the layout (`mode: "overlay"`) instead of beside it */
+    overlay: boolean;
+    /** the border has no tabs */
+    empty: boolean;
+    /** the current drag would drop into this border (its strip or its open panel) */
+    dropTarget: boolean;
+    /** the current drag is over this border, but a drop rule refuses it */
+    dropRefused: boolean;
+}
+
 export interface BorderContentProps<T extends DockableTypes = AnyTypes>
-    extends DivPrimitiveProps<BorderState> {
+    extends DivPrimitiveProps<BorderContentState> {
     node: BorderNode<T>;
     /** renders the border's splitter (defaults to `<Dockable.Splitter node={border} />`) */
     renderSplitter?: ((border: BorderNode<T>) => React.ReactNode) | undefined;

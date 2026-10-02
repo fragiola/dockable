@@ -175,19 +175,13 @@ The drop fields re-render the tabset only when its own answer changes, not on ev
 
 "The lower layer of `Dockable.Border`: its state, and the props for its strip."
 
-`useBorder<T>(node: BorderNode<T>, options?: UseBorderOptions): UseBorderResult`
-
-`UseBorderOptions`:
-
-| field | type | description |
-| --- | --- | --- |
-| `tabDirection` | `"up" \| "down" \| undefined` | a left border's tab direction; default `"up"`. Reported as `state.tabDirection` (undefined for the other borders) |
+`useBorder<T>(node: BorderNode<T>): UseBorderResult`
 
 `UseBorderResult`:
 
 | field | type | description |
 | --- | --- | --- |
-| `state` | `BorderState` | see [Dockable.Border](/docs/api/border#state) |
+| `state` | `BorderContentState` | see [Dockable.BorderContent](/docs/api/border-content#state); `Dockable.Border` adds its `tabDirection` |
 | `props` | `{ ref }` | `ref` measures the element as the border's tab header (its strip) |
 
 A custom strip must also provide the border to `Dockable.TabList`, which only `Dockable.Border`
@@ -365,6 +359,6 @@ undo) or listens to transfers. It must be called inside `Dockable.DragGroup`. Se
 ## Types
 
 Also exported: `TabSetState`, `DragProps`, `UseDockableResult`, `UseTabSetResult`,
-`UseBorderOptions`, `UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`,
+`UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`,
 `UseSplitterState`, `UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`,
 `UseDropZoneOptions` and `UseDropZoneResult`.

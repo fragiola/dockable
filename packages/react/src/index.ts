@@ -1,5 +1,8 @@
 export type { BorderProps, BorderState } from "./Border";
-export type { BorderContentProps } from "./BorderContent";
+export type {
+    BorderContentProps,
+    BorderContentState,
+} from "./BorderContent";
 export type { BordersProps, BordersState } from "./Borders";
 export { type DragGroupProps, useDragGroup } from "./DragGroup";
 export type { DragSourceProps, DragSourceState } from "./DragSource";
@@ -13,7 +16,6 @@ export type {
 export {
     type DragProps,
     type TabSetState,
-    type UseBorderOptions,
     type UseBorderResult,
     type UseDockableResult,
     type UseDragNodeResult,

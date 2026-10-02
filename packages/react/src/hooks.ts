@@ -24,6 +24,7 @@ import {
     type TabsetNode,
 } from "@fragiola/dockable";
 import * as React from "react";
+import type { BorderContentState } from "./BorderContent";
 import {
     ModelContext,
     typedEngine,
@@ -297,33 +298,9 @@ export function useTabSet<T extends DockableTypes>(
     return { state, props: { ref, onPointerDown } };
 }
 
-export interface BorderState {
-    /** the side of the layout the border is on */
-    location: "top" | "bottom" | "left" | "right";
-    /** the direction its tabs run: `"vertical"` for a left or right border */
-    orientation: "horizontal" | "vertical";
-    /** a tab is selected, so the border's panel is open */
-    open: boolean;
-    /** the panel opens over the layout (`mode: "overlay"`) instead of beside it */
-    overlay: boolean;
-    /** the border has no tabs */
-    empty: boolean;
-    /** a left border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"` */
-    tabDirection: "up" | "down" | undefined;
-    /** the current drag would drop into this border (its strip or its open panel) */
-    dropTarget: boolean;
-    /** the current drag is over this border, but a drop rule refuses it */
-    dropRefused: boolean;
-}
-
-export interface UseBorderOptions {
-    /** a left border's tab direction; default `"up"` */
-    tabDirection?: "up" | "down" | undefined;
-}
-
 export interface UseBorderResult {
     /** what the border shows as `data-*` */
-    state: BorderState;
+    state: BorderContentState;
     /** what goes on the border's strip */
     props: {
         /** callback ref (measured as the border's tab header) */
@@ -334,7 +311,6 @@ export interface UseBorderResult {
 /** The lower layer of `Dockable.Border`: its state, and the props for its strip. */
 export function useBorder<T extends DockableTypes>(
     node: BorderNode<T>,
-    options: UseBorderOptions = {},
 ): UseBorderResult {
     const { model } = useDockableContext("useBorder");
     const { engine } = useLayoutContext("useBorder");
@@ -342,14 +318,12 @@ export function useBorder<T extends DockableTypes>(
     const drop = useTabSetDropState(engine, id);
     const location = node.location;
     const vertical = location === "left" || location === "right";
-    const state: BorderState = {
+    const state: BorderContentState = {
         location,
         orientation: vertical ? "vertical" : "horizontal",
         open: node.selected !== -1,
         overlay: model.is("border-overlay", { borderId: id }),
         empty: node.children.length === 0,
-        tabDirection:
-            location === "left" ? (options.tabDirection ?? "up") : undefined,
         dropTarget: drop.target,
         dropRefused: drop.refused,
     };
