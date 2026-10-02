@@ -107,37 +107,3 @@ export type EngineIsKey = keyof EngineIsMap;
 
 /** The payload of `engine.is(K)`. */
 export type EngineIsPayload<K extends EngineIsKey> = EngineIsMap[K];
-
-/** Every key of `engine.run`, for documentation coverage. */
-export const ENGINE_ACTION_KEYS = Object.freeze(
-    Object.keys({
-        popout: true,
-        "dock-back": true,
-        "focus-tabset": true,
-        "close-overlay-border": true,
-        "measure-and-position": true,
-    } satisfies Record<EngineActionKey, true>) as EngineActionKey[],
-);
-
-/** Every key of `engine.get`, for documentation coverage. */
-export const ENGINE_GET_KEYS = Object.freeze(
-    Object.keys({
-        "layout-path-by": true,
-        "tab-button-dom-id-by": true,
-        "tab-panel-dom-id-by": true,
-        "size-limits-by": true,
-        "splitter-size": true,
-        "owner-document": true,
-        "owner-window": true,
-    } satisfies Record<EngineGetKey, true>) as EngineGetKey[],
-);
-
-/** Every key of `engine.is`, for documentation coverage. */
-export const ENGINE_IS_KEYS = Object.freeze(
-    Object.keys({
-        "popout-supported": true,
-        "tab-panel-visible": true,
-        "main-layout": true,
-        "splitter-dragging": true,
-    } satisfies Record<EngineIsKey, true>) as EngineIsKey[],
-);

@@ -342,6 +342,13 @@ function borderWidth(
         : px(style?.[`border${side}Width`]);
 }
 
+/** The handler a verb's table holds for `key`, if it is one of its own keys. */
+function handlerOf<F>(table: object, key: string): F | undefined {
+    return Object.hasOwn(table, key)
+        ? (table as Record<string, F>)[key]
+        : undefined;
+}
+
 function hasSize(rect: Rect | undefined): boolean {
     return !!rect && rect.width > 0 && rect.height > 0;
 }
@@ -517,9 +524,10 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         key: K,
         ...payload: QueryArgs<EngineGetPayload<K>>
     ): EngineGetResult<K> {
-        const getter = Object.hasOwn(this.getters, key)
-            ? (this.getters[key] as (payload: unknown) => unknown)
-            : undefined;
+        const getter = handlerOf<(payload: unknown) => unknown>(
+            this.getters,
+            key,
+        );
         return getter?.(payload[0] ?? {}) as EngineGetResult<K>;
     }
 
@@ -528,9 +536,10 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         key: K,
         ...payload: QueryArgs<EngineIsPayload<K>>
     ): boolean {
-        const question = Object.hasOwn(this.questions, key)
-            ? (this.questions[key] as (payload: unknown) => boolean)
-            : undefined;
+        const question = handlerOf<(payload: unknown) => boolean>(
+            this.questions,
+            key,
+        );
         return question?.(payload[0] ?? {}) ?? false;
     }
 
@@ -539,12 +548,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         payload: unknown,
         dryRun: boolean,
     ): CommandResult<unknown> {
-        const handler = Object.hasOwn(this.actions, action)
-            ? (this.actions[action as EngineActionKey] as (
-                  payload: unknown,
-                  dryRun: boolean,
-              ) => CommandResult<unknown>)
-            : undefined;
+        const handler = handlerOf<
+            (payload: unknown, dryRun: boolean) => CommandResult<unknown>
+        >(this.actions, action);
         if (!handler) {
             return {
                 ok: false,
