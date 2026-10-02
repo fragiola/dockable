@@ -1,6 +1,6 @@
 import { createModel, type LayoutJson } from "@fragiola/dockable";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Dockable, useDockable, useModelState } from "../src";
 import { Layout, renderNode, type Types, twoTabsets } from "./layout";
 
@@ -49,7 +49,7 @@ describe("useModelState", () => {
         function Names() {
             const names = useModelState<Types, string[]>(
                 (_state, m) => m.get("all-tabs").map((tab) => tab.label),
-                (a, b) => a.join() === b.join(),
+                { isEqual: (a, b) => a.join() === b.join() },
             );
             seen.push(names);
             return null;
@@ -73,6 +73,41 @@ describe("useModelState", () => {
 });
 
 describe("useModelState, selectors and contexts", () => {
+    it("reads a given model outside Dockable.Root, re-rendering only when its answer changes", async () => {
+        const model = freshModel();
+        const renders: number[] = [];
+        function TabCount() {
+            const count = useModelState(
+                (_state, m) => m.get("all-tabs").length,
+                { model },
+            );
+            renders.push(count);
+            return <output data-testid="outside">{count}</output>;
+        }
+        render(<TabCount />);
+        expect(screen.getByTestId("outside")).toHaveTextContent("3");
+        expect(renders).toEqual([3]);
+        await act(async () => {
+            model.run("tab.select", { tabId: "t1" });
+        });
+        expect(renders).toEqual([3]);
+        await act(async () => {
+            model.run("tab.close", { tabId: "t2" });
+        });
+        expect(screen.getByTestId("outside")).toHaveTextContent("2");
+        expect(renders).toEqual([3, 2]);
+    });
+
+    it("needs a Dockable.Root or a model", () => {
+        function Orphan() {
+            useModelState((_state, m) => m.get("all-tabs").length);
+            return null;
+        }
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        expect(() => render(<Orphan />)).toThrow(/Dockable.Root/);
+        vi.restoreAllMocks();
+    });
+
     it("selects again when the selector changes, with no commit", async () => {
         const model = freshModel();
         function Name({ id }: { id: string }) {

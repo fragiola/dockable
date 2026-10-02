@@ -21,6 +21,7 @@ export {
     type UseDragSourceResult,
     type UseDropZoneOptions,
     type UseDropZoneResult,
+    type UseModelStateOptions,
     type UseSplitterResult,
     type UseSplitterState,
     type UseTabOverflowResult,

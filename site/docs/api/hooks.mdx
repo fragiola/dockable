@@ -53,7 +53,8 @@ element's `ownerDocument`. Which object to go to for what:
 ## useModelState
 
 "A value selected from the model's state, re-rendering the component only when the selection
-changes (`isEqual`, `Object.is` by default). The selector runs once per state; keep it pure."
+changes (`isEqual`, `Object.is` by default). The selector runs once per state; keep it pure.
+Inside a `Dockable.Root` it reads the root's model; pass `model` to read one anywhere."
 
 ```tsx
 import { useModelState } from "@fragiola/dockable-react";
@@ -64,7 +65,21 @@ function TabCount() {
 }
 ```
 
-`useModelState<T, S>(selector: (state: LayoutState<T>, model: Model<T>) => S, isEqual?: (a: S, b: S) => boolean): S`
+`useModelState<T, S>(selector: (state: LayoutState<T>, model: Model<T>) => S, options?: UseModelStateOptions<T, S>): S`
+
+`UseModelStateOptions<T, S>`:
+
+| option | type | description |
+| --- | --- | --- |
+| `model` | `Model<T>` | the model to read; default: the enclosing `Dockable.Root`'s. With it, the hook works anywhere: a toolbar, a sidebar or a status bar beside the root |
+| `isEqual` | `(a: S, b: S) => boolean` | whether two selections are the same, so the component does not re-render (default `Object.is`) |
+
+```tsx
+function OpenWindows({ model }: { model: Model<Types> }) {
+    const count = useModelState((_state, m) => m.get("windows").length, { model });
+    return <output>{count} windows</output>;
+}
+```
 
 It is `useSyncExternalStore` over `model.subscribe`, so:
 
@@ -77,8 +92,9 @@ It is `useSyncExternalStore` over `model.subscribe`, so:
   previous state, so an unchanged node is the same object. A selector that builds a new array or
   object each time needs an `isEqual` that compares contents, or it re-renders on every change of
   the layout;
-- it reads the model from its own context, which changes only when the root gets another model,
-  so it does not make the component re-render with every render of the layout.
+- inside a root, it reads the model from its own context, which changes only when the root gets
+  another model, so it does not make the component re-render with every render of the layout.
+  Outside one, it needs `model`; without either it throws.
 
 A realtime splitter drag commits on every move (transient `row.resize` runs), so a selector should
 stay cheap. Use it for anything that shows layout state outside the parts: a status bar, a list
@@ -126,8 +142,8 @@ function MyTabSet({ node, children }: { node: TabsetNode<Types>; children: React
 }
 ```
 
-A custom tabset must still apply the structural flex sizing `Dockable.TabSet` sets (flex-grow
-from `node.weight`, the min/max sizes from `engine.get("size-limits-by", { nodeId: node.id })`,
+A custom tabset must still apply the structural flex sizing `Dockable.TabSet` sets (flex-grow and
+the min/max sizes from `engine.get("flex-by", { nodeId: node.id })`,
 `display: none` when `state.hidden`), and provide the tabset to `TabList`/`TabSetContent`, which
 only `Dockable.TabSet` does. Prefer `Dockable.TabSet` with `render` unless you need something it
 cannot express. Reading `state` alone is fine too: `useTabSet(node).state.dropIndex` places an
