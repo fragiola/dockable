@@ -100,9 +100,16 @@ export function resolveTab(
     defaults: LayoutDefaults,
     tab: TabLike,
 ): ResolvedTab {
+    const { minWidth, minHeight, maxWidth, maxHeight, ...flags } = resolve<
+        Required<TabDefaults>
+    >(tab, defaults.tab, BUILT_IN.tab);
     return {
-        ...resolve<Required<TabDefaults>>(tab, defaults.tab, BUILT_IN.tab),
+        ...flags,
         pinned: tab.pinned === true,
+        minWidth,
+        minHeight,
+        maxWidth,
+        maxHeight,
     };
 }
 

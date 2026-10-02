@@ -562,6 +562,40 @@ describe("batch", () => {
         });
     });
 
+    it("points any unknown_command failure of a step at its command", () => {
+        const model = model2();
+        model.use((ctx, next) =>
+            ctx.command === "tab.select"
+                ? {
+                      ok: false,
+                      error: {
+                          code: "unknown_command",
+                          message: "gone",
+                          path: "/tabId",
+                      },
+                  }
+                : next(),
+        );
+        expect(
+            model.run("batch", {
+                commands: [
+                    { command: "tab.select", payload: { tabId: "One" } },
+                ],
+            }),
+        ).toEqual({
+            ok: false,
+            error: {
+                code: "unknown_command",
+                message: "gone",
+                path: "/commands/0/command",
+            },
+        });
+        expect(model.run("tab.select", { tabId: "One" })).toMatchObject({
+            ok: false,
+            error: { code: "unknown_command", path: "/tabId" },
+        });
+    });
+
     it("emits one event that lists its commands, flattened", () => {
         const model = model2();
         const events: CommandEvent[] = [];

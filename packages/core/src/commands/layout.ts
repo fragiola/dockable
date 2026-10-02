@@ -44,9 +44,13 @@ export const layoutConfigure = defineCommand({
     resultSchema: object({}),
     transient: false,
     reduce(payload, { draft }) {
-        const next: { [kind: string]: object | undefined } = {
-            ...draft.getDefaults(),
-        };
+        const current = draft.getDefaults();
+        const next: { [kind: string]: object | undefined } = {};
+        for (const kind of KINDS) {
+            if (current[kind]) {
+                next[kind] = current[kind];
+            }
+        }
         for (const kind of KINDS) {
             const patch = payload.defaults[kind];
             if (patch === undefined) {

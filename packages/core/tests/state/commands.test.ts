@@ -884,3 +884,41 @@ describe("batch", () => {
         expect(events).toEqual(["batch"]);
     });
 });
+
+describe("key order", () => {
+    it("keeps the defaults' kinds in their canonical order after layout.configure", () => {
+        const model = createModel({
+            ...tabsets(["One"]),
+            defaults: {
+                layout: { edgeDock: false },
+                tab: { enableClose: false },
+            },
+        });
+        must(
+            model.run("layout.configure", {
+                defaults: { tab: { enableDrag: false }, border: { size: 300 } },
+            }),
+        );
+        expect(Object.keys(model.state.defaults)).toEqual([
+            "tab",
+            "layout",
+            "border",
+        ]);
+    });
+
+    it("resolves a tab's settings with pinned between its flags and its size limits", () => {
+        const model = createModel(tabsets(["One"]));
+        expect(
+            Object.keys(model.get("tab-settings-by", { tabId: "One" }) ?? {}),
+        ).toEqual([
+            "enableClose",
+            "enableDrag",
+            "enablePopout",
+            "pinned",
+            "minWidth",
+            "minHeight",
+            "maxWidth",
+            "maxHeight",
+        ]);
+    });
+});

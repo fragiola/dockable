@@ -147,10 +147,9 @@ function prefixed(
     };
 }
 
-/** Where a command's errors point: into its payload, at its name and at its transient flag. */
+/** Where a command's errors point: into its payload, and at its transient flag. */
 interface ErrorPaths {
     readonly payload: string;
-    readonly command?: string;
     readonly transient: string;
 }
 
@@ -430,11 +429,7 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
         const definition = COMMAND_DEFINITIONS.get(command);
         if (!definition) {
             return {
-                result: fail(
-                    "unknown_command",
-                    `unknown command "${command}"`,
-                    at.command,
-                ),
+                result: fail("unknown_command", `unknown command "${command}"`),
                 payload,
             };
         }
@@ -514,19 +509,26 @@ class LayoutModel<T extends DockableTypes> implements Model<T> {
                     subPayload,
                     {
                         payload: `${path}/payload`,
-                        command: `${path}/command`,
                         transient: `${path}/command`,
                     },
                     true,
                 );
-                if (sub.result.ok) {
-                    execution.steps.push({
-                        command: subCommand as CommandName,
-                        payload: sub.payload,
-                        result: sub.result.value,
-                    });
+                const { result } = sub;
+                if (!result.ok) {
+                    return result.error.code === "unknown_command"
+                        ? fail(
+                              "unknown_command",
+                              result.error.message,
+                              `${path}/command`,
+                          )
+                        : result;
                 }
-                return sub.result;
+                execution.steps.push({
+                    command: subCommand as CommandName,
+                    payload: sub.payload,
+                    result: result.value,
+                });
+                return result;
             },
         };
 
