@@ -11,11 +11,7 @@ import type {
     CommandEvent,
     CommandResult,
 } from "../commands/types";
-import {
-    DragDropManager,
-    type DropZoneOptions,
-    type OnExternalDrag,
-} from "../dnd/DragDropManager";
+import { DragDropManager, type OnExternalDrag } from "../dnd/DragDropManager";
 import type { DragGroup } from "../dnd/DragGroup";
 import {
     type EdgeBand,
@@ -78,10 +74,6 @@ export type MeasureFunction = (element: HTMLElement) => Rect;
 
 export interface LayoutEngineOptions<T extends DockableTypes = AnyTypes> {
     model: Model<T>;
-    /** the layout this engine drives; defaults to the main layout */
-    layoutId?: string | undefined;
-    /** the main layout's engine, for the engines of popout windows */
-    main?: LayoutEngine<T> | undefined;
     /** injectable element measurement (tests pass fixed rects) */
     measure?: MeasureFunction | undefined;
     /** true (default) to resize live while a splitter is dragged; false to preview and commit on release */
@@ -168,8 +160,6 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     subscribe(listener: () => void): () => void;
     /** the render revision: a number that changes whenever adapters should re-render */
     getSnapshot(): number;
-    /** asks adapters to re-render */
-    redraw(): void;
     /**
      * prepares the layout for rendering: the `data-layout-path` of every node and the size ranges
      * rows and tabsets are rendered with. Call before rendering the layout
@@ -187,8 +177,6 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     detachRoot(): void;
     /** detaches and forgets everything; the engine must not be used afterwards */
     dispose(): void;
-    /** the attached root element */
-    getLayoutRef(): HTMLElement | null;
 
     /** registers (or, with `null`, unregisters) an element whose geometry the engine measures */
     registerMeasurable(
@@ -228,11 +216,6 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
         element: HTMLElement,
         isHorizontal: () => boolean,
     ): () => void;
-    /**
-     * makes `element` a drop zone for this model's drags: a drop the zone accepts calls
-     * `options.onDrop` instead of moving anything. Returns its remover
-     */
-    registerDropZone(element: Element, options: DropZoneOptions<T>): () => void;
     /** the registered elements (tests and debugging) */
     getRegistrations(): {
         measurables: ReadonlyMap<
@@ -245,23 +228,12 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
 
     /** a measured rect of a node of this layout, relative to the layout root */
     rect(kind: MeasurableKind, id: string): Rect | undefined;
-    /** measures every registered element; returns true on change */
-    syncLayoutMetrics(): boolean;
-    /**
-     * positions the tab panels over their container's content area and shows only the visible
-     * ones (structural style only)
-     */
-    positionTabPanels(): void;
-    /** re-measures the layout root; a changed size re-renders */
-    updateRect(): void;
     /** an element's rect relative to the layout root */
     rectInLayout(element: HTMLElement): Rect;
     /** the layout root's rect in viewport coordinates (cached for a measure pass) */
     getDomRect(): Rect;
     /** the layout root's rect in viewport coordinates, measured now */
     getFreshDomRect(): Rect;
-    /** a layout-relative rect in screen coordinates (for opening popout windows) */
-    getScreenRect(rect: Rect): Rect;
     /**
      * the edge drop bands of this layout's root row, relative to the layout root: where a drop
      * docks to an edge, and where an edge indicator goes. Empty when edge docking is off
@@ -295,8 +267,6 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     takeMoveable(tabId: string): HTMLElement | undefined;
     /** adopts another model's moveable element for a tab (a drag group transfer) */
     adoptMoveable(tabId: string, element: HTMLElement | undefined): void;
-    /** the hidden element moveables are parked in (main layout only) */
-    getMoveablesHome(): HTMLElement | null;
     /**
      * whether a tab's content should be rendered: once rendered it stays rendered; before that,
      * when its content area has a size and it is selected (or `renderOnDemand` is off)
@@ -445,8 +415,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private readonly main: LayoutEngine<T>;
     private readonly shared: SharedView;
     private readonly measureElement: MeasureFunction;
-    private realtimeResize: boolean;
-    private tabDragSpeed: number;
+    private realtimeResize = true;
+    private tabDragSpeed = 0.3;
     private onExternalDragHandler: OnExternalDrag<T> | undefined;
     private dragGroup: DragGroup | undefined;
     private leaveDragGroup: (() => void) | undefined;
@@ -487,12 +457,16 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private rangesSplitterSize = 0;
     private rangesDirty = true;
 
-    constructor(options: LayoutEngineOptions<T>) {
+    constructor(
+        options: LayoutEngineOptions<T>,
+        main?: LayoutEngine<T>,
+        layoutId = MAIN_LAYOUT,
+    ) {
         this.model = options.model;
-        this.layoutId = options.layoutId ?? MAIN_LAYOUT;
-        this.main = options.main ?? this;
-        this.shared = this.main === this ? new SharedView() : this.main.shared;
-        if (this.main === this) {
+        this.layoutId = layoutId;
+        this.main = main ?? this;
+        this.shared = main ? main.shared : new SharedView();
+        if (!main) {
             this.shared.idScope = options.idScope ?? `d${++scopes}-`;
         }
         // the verbs can be passed around detached: `const { run } = engine`
@@ -502,15 +476,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.get = this.get.bind(this);
         this.is = this.is.bind(this);
         this.measureElement = options.measure ?? defaultMeasure;
-        this.realtimeResize = options.realtimeResize ?? true;
-        this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
-        this.onExternalDragHandler = options.onExternalDrag;
         this.dragDropManager = new DragDropManager<T>(this);
-        this.setDragGroup(options.dragGroup);
-        if (this.main === this) {
-            this.popoutManager = new PopoutManager<T>(this);
-            this.popoutManager.setOptions(options.popout ?? {});
-        }
+        this.popoutManager = main ? undefined : new PopoutManager<T>(this);
+        this.setOptions(options);
     }
 
     /** what only an adapter calls: see {@link LayoutEngineAdapter} */
@@ -645,85 +613,50 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             get idScope() {
                 return engine.idScope;
             },
-            engineOf: (id: string) => this.engineOf(id),
-            createPopoutEngine: (layoutId: string) =>
-                this.createPopoutEngine(layoutId),
-            setOptions: (options: LayoutEngineSettings<T>) =>
-                this.setOptions(options),
-            subscribe: (listener: () => void) => this.subscribe(listener),
+            engineOf: (id) => this.engineOf(id),
+            createPopoutEngine: (layoutId) => this.createPopoutEngine(layoutId),
+            setOptions: (options) => this.setOptions(options),
+            subscribe: (listener) => this.subscribe(listener),
             getSnapshot: () => this.getSnapshot(),
-            redraw: () => this.redraw(),
             prepare: () => this.prepare(),
-            rowOrientation: (rowId: string) => this.rowOrientation(rowId),
-            attachRoot: (element: HTMLElement) => this.attachRoot(element),
+            rowOrientation: (rowId) => this.rowOrientation(rowId),
+            attachRoot: (element) => this.attachRoot(element),
             detachRoot: () => this.detachRoot(),
             dispose: () => this.dispose(),
-            getLayoutRef: () => this.getLayoutRef(),
-            registerMeasurable: (
-                id: string,
-                kind: MeasurableKind,
-                element: HTMLElement | null,
-            ) => this.registerMeasurable(id, kind, element),
-            registerTabList: (
-                containerId: string,
-                element: HTMLElement | null,
-                vertical?: boolean,
-            ) => this.registerTabList(containerId, element, vertical),
-            registerOverflowTrigger: (
-                containerId: string,
-                element: HTMLElement | null,
-            ) => this.registerOverflowTrigger(containerId, element),
-            getHiddenTabs: (containerId: string) =>
-                this.getHiddenTabs(containerId),
-            subscribeOverflow: (listener: () => void) =>
-                this.subscribeOverflow(listener),
-            registerTabPanel: (tabId: string, element: HTMLElement | null) =>
+            registerMeasurable: (id, kind, element) =>
+                this.registerMeasurable(id, kind, element),
+            registerTabList: (containerId, element, vertical) =>
+                this.registerTabList(containerId, element, vertical),
+            registerOverflowTrigger: (containerId, element) =>
+                this.registerOverflowTrigger(containerId, element),
+            getHiddenTabs: (containerId) => this.getHiddenTabs(containerId),
+            subscribeOverflow: (listener) => this.subscribeOverflow(listener),
+            registerTabPanel: (tabId, element) =>
                 this.registerTabPanel(tabId, element),
-            registerSplitter: (
-                element: HTMLElement,
-                isHorizontal: () => boolean,
-            ) => this.registerSplitter(element, isHorizontal),
-            registerDropZone: (element: Element, options: DropZoneOptions<T>) =>
-                this.registerDropZone(element, options),
+            registerSplitter: (element, isHorizontal) =>
+                this.registerSplitter(element, isHorizontal),
             getRegistrations: () => this.getRegistrations(),
-            rect: (kind: MeasurableKind, id: string) => this.rect(kind, id),
-            syncLayoutMetrics: () => this.syncLayoutMetrics(),
-            positionTabPanels: () => this.positionTabPanels(),
-            updateRect: () => this.updateRect(),
-            rectInLayout: (element: HTMLElement) => this.rectInLayout(element),
+            rect: (kind, id) => this.rect(kind, id),
+            rectInLayout: (element) => this.rectInLayout(element),
             getDomRect: () => this.getDomRect(),
             getFreshDomRect: () => this.getFreshDomRect(),
-            getScreenRect: (rect: Rect) => this.getScreenRect(rect),
             edgeBands: () => this.edgeBands(),
-            getMoveableElement: (tabId: string) =>
-                this.getMoveableElement(tabId),
-            attachMoveable: (
-                tabId: string,
-                panel: HTMLElement,
-                options?: MoveableOptions,
-            ) => this.attachMoveable(tabId, panel, options),
-            releaseMoveable: (
-                tabId: string,
-                panel?: HTMLElement,
-                options?: MoveableOptions,
-            ) => this.releaseMoveable(tabId, panel, options),
-            takeMoveable: (tabId: string) => this.takeMoveable(tabId),
-            adoptMoveable: (tabId: string, element: HTMLElement | undefined) =>
+            getMoveableElement: (tabId) => this.getMoveableElement(tabId),
+            attachMoveable: (tabId, panel, options) =>
+                this.attachMoveable(tabId, panel, options),
+            releaseMoveable: (tabId, panel, options) =>
+                this.releaseMoveable(tabId, panel, options),
+            takeMoveable: (tabId) => this.takeMoveable(tabId),
+            adoptMoveable: (tabId, element) =>
                 this.adoptMoveable(tabId, element),
-            getMoveablesHome: () => this.getMoveablesHome(),
-            shouldRender: (tabId: string, renderOnDemand?: boolean) =>
+            shouldRender: (tabId, renderOnDemand) =>
                 this.shouldRender(tabId, renderOnDemand),
-            handleOverlayPointerDown: (event: {
-                target: EventTarget | null;
-                clientX: number;
-                clientY: number;
-            }) => this.handleOverlayPointerDown(event),
-            handleOverlayKeyDown: (
-                event: KeyEventLike & { preventDefault(): void },
-                key: string | undefined,
-            ) => this.handleOverlayKeyDown(event, key),
+            handleOverlayPointerDown: (event) =>
+                this.handleOverlayPointerDown(event),
+            handleOverlayKeyDown: (event, key) =>
+                this.handleOverlayKeyDown(event, key),
             isRealtimeResize: () => this.isRealtimeResize(),
-            setSplitterDragging: (dragging: boolean) =>
+            setSplitterDragging: (dragging) =>
                 this.setSplitterDragging(dragging),
             getDragDropManager: () => this.getDragDropManager(),
             getDragGroup: () => this.getDragGroup(),
@@ -733,21 +666,18 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         };
     }
 
-    /** the engine of a popout window's layout (it shares this main engine's view state) */
     private createPopoutEngine(layoutId: string): LayoutEngine<T> {
-        return new LayoutEngine<T>({
-            model: this.model,
+        return new LayoutEngine<T>(
+            { model: this.model, measure: this.measureElement },
+            this,
             layoutId,
-            main: this,
-            measure: this.measureElement,
-        });
+        );
     }
 
     // *********************************************************************************
     // Adapter contract
     // *********************************************************************************
 
-    /** Updates the options an adapter passes on every render. */
     private setOptions(options: LayoutEngineSettings<T>) {
         this.setDragGroup(options.dragGroup);
         this.popoutManager?.setOptions(options.popout ?? {});
@@ -758,7 +688,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** Joins (or leaves) a drag group. Only the main engine joins: popouts share its model. */
     private setDragGroup(group: DragGroup | undefined) {
-        if (this.main !== this || group === this.dragGroup) {
+        if (!this.isMainLayout() || group === this.dragGroup) {
             return;
         }
         this.leaveDragGroup?.();
@@ -768,29 +698,14 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         );
     }
 
-    /** The drag group this layout exchanges tabs in (the main engine's), if any. */
     private getDragGroup(): DragGroup | undefined {
         return this.main.dragGroup;
     }
 
-    /** The handler that accepts foreign drags (set on the main engine). */
     private getOnExternalDrag(): OnExternalDrag<T> | undefined {
         return this.main.onExternalDragHandler;
     }
 
-    /**
-     * Makes `element` a drop zone for this model's drags: while a drag the zone accepts is over it,
-     * the layouts show no outline, and a drop calls `options.onDrop` instead of moving anything.
-     * Returns the function that unregisters it.
-     */
-    private registerDropZone(
-        element: Element,
-        options: DropZoneOptions<T>,
-    ): () => void {
-        return DragDropManager.registerDropZone(this.model, element, options);
-    }
-
-    /** Calls `listener` when adapters should re-render. Returns the unsubscribe function. */
     private readonly subscribe = (listener: () => void): (() => void) => {
         this.shared.listeners.add(listener);
         return () => {
@@ -798,13 +713,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         };
     };
 
-    /** The render revision: a number that changes whenever adapters should re-render. */
     private readonly getSnapshot = (): number => this.shared.revision;
 
-    /**
-     * Prepares the layout for rendering: the `data-layout-path` of every node and the size ranges
-     * rows and tabsets are rendered with. Call before rendering the layout.
-     */
     private prepare() {
         this.cachedLayoutDomRect = undefined;
         this.derived();
@@ -843,7 +753,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return getTabPanelId(tabId, this.shared.idScope);
     }
 
-    /** the page-unique scope of this layout's DOM ids and window names */
     private get idScope(): string {
         return this.shared.idScope;
     }
@@ -933,11 +842,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return this.model.state as unknown as AnyState;
     }
 
-    /**
-     * Attaches the layout's root element: the containing block the panels are positioned in.
-     * Starts observing it and the window it lives in. Idempotent; attaching another element
-     * detaches the previous one first.
-     */
     private attachRoot(element: HTMLElement) {
         if (this.layoutRef === element && this.teardown.length > 0) {
             return;
@@ -1020,7 +924,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    /** Detaches the root element and releases every observer and listener. */
     private detachRoot() {
         this.cancelHeal();
         while (this.teardown.length > 0) {
@@ -1030,7 +933,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.cachedLayoutDomRect = undefined;
     }
 
-    /** Detaches and forgets everything. The engine must not be used afterwards. */
     private dispose() {
         this.setDragGroup(undefined);
         this.detachRoot();
@@ -1046,7 +948,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.tabLists.clear();
         this.overflowTriggers.clear();
         this.overflowListeners.clear();
-        if (this.main === this) {
+        if (this.isMainLayout()) {
             this.shared.listeners.clear();
         }
     }
@@ -1131,7 +1033,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    /** the engine of the layout a node is in (a popout's, or this main one) */
     private engineOf(id: string): LayoutEngine<T> {
         const layout = this.model.get("layout-id-by", { nodeId: id });
         if (layout === undefined || layout === MAIN_LAYOUT) {
@@ -1269,11 +1170,9 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    /** The ids of a tab container's tabs hidden by tab overflow (the same array until it changes). */
     private readonly getHiddenTabs = (containerId: string): readonly string[] =>
         this.hiddenTabs.get(containerId) ?? NO_TABS;
 
-    /** Calls `listener` when a container's hidden tabs change. Returns the unsubscribe function. */
     private readonly subscribeOverflow = (
         listener: () => void,
     ): (() => void) => {
@@ -1381,7 +1280,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         );
     }
 
-    /** Registers (or unregisters) the element a tab's content panel is positioned with. */
     private registerTabPanel(tabId: string, element: HTMLElement | null) {
         if (element) {
             this.tabPanels.set(tabId, element);
@@ -1407,7 +1305,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         };
     }
 
-    /** @internal the registered elements (tests and debugging) */
     private getRegistrations() {
         return {
             measurables: this.measurables,
@@ -1420,7 +1317,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     // Measure and position
     // *********************************************************************************
 
-    /** A measured rect of a node of this layout, relative to the layout root. */
     private rect(kind: MeasurableKind, id: string): Rect | undefined {
         return this.rects.get(`${kind}:${id}`);
     }
@@ -1604,19 +1500,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     // Moveable elements and rendering
     // *********************************************************************************
 
-    /**
-     * The element that hosts a tab's content: `<div data-dockable-moveable>` in the main layout's
-     * document, created on first use and kept (by tab id) for as long as the tab exists, so moving
-     * a tab, or loading a layout that keeps its id, never remounts its content.
-     */
     private getMoveableElement(tabId: string): HTMLElement {
         const shared = this.shared;
         let element = shared.moveables.get(tabId);
         if (!element) {
             const doc =
-                this.main.currentDocument ??
-                this.main.layoutRef?.ownerDocument ??
-                this.layoutRef?.ownerDocument;
+                this.main.currentDocument ?? this.layoutRef?.ownerDocument;
             if (!doc) {
                 throw new Error(
                     "LayoutEngine.getMoveableElement: attach a root element first",
@@ -1631,7 +1520,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return element;
     }
 
-    /** @internal hands a tab's moveable element over (a drag group transfer); undefined if none */
     private takeMoveable(tabId: string): HTMLElement | undefined {
         const element = this.shared.moveables.get(tabId);
         this.shared.moveables.delete(tabId);
@@ -1639,7 +1527,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return element;
     }
 
-    /** @internal adopts another model's moveable element for a tab (a drag group transfer) */
     private adoptMoveable(tabId: string, element: HTMLElement | undefined) {
         if (element) {
             this.shared.moveables.set(tabId, element);
@@ -1647,10 +1534,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    /**
-     * Moves the tab's moveable element into `panel` (its current panel). The same element is
-     * re-parented, never cloned, so content state survives moves between panels and documents.
-     */
     private attachMoveable(
         tabId: string,
         panel: HTMLElement,
@@ -1696,11 +1579,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    /**
-     * Parks the tab's moveable element in the hidden moveables home when its panel goes away, so
-     * the content's DOM (and the framework state rendered into it) is never destroyed by
-     * unmounting a panel. A later {@link attachMoveable} moves the same element into a new panel.
-     */
     private releaseMoveable(
         tabId: string,
         panel?: HTMLElement,
@@ -1723,16 +1601,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         }
     }
 
-    /** the hidden element moveables are parked in (main layout only) */
-    private getMoveablesHome(): HTMLElement | null {
-        return this.shared.moveablesHome;
-    }
-
-    /**
-     * Whether a tab's content should be rendered: once rendered it stays rendered (its state is
-     * kept); before that, when its container's content area has a size and it is selected (or
-     * `renderOnDemand` is off). Marks it rendered.
-     */
     private shouldRender(tabId: string, renderOnDemand = true): boolean {
         const shared = this.shared;
         if (shared.rendered.has(tabId)) {
@@ -1806,12 +1674,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return result;
     }
 
-    /**
-     * Ported from FlexLayout's LayoutController.onOverlayBorderPointerDown. Call it on every
-     * `pointerdown` of the document (capture phase). A press in the main layout's area (not on a
-     * border strip) outside an open overlay panel closes that panel. Presses inside an overlay
-     * (anything marked `data-dockable-overlay`) keep it open. Returns true when a panel closed.
-     */
     private handleOverlayPointerDown(event: {
         target: EventTarget | null;
         clientX: number;
@@ -1842,12 +1704,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return closed;
     }
 
-    /**
-     * Ported from FlexLayout's LayoutController.onOverlayBorderKeyDown. Call it on every `keydown`
-     * with the close key: with focus in an open overlay panel or on its tab button, the key closes
-     * the panel and focus goes to the tab button. Returns true (and prevents the default) when a
-     * panel closed.
-     */
     private handleOverlayKeyDown(
         event: KeyEventLike & { preventDefault(): void },
         key: string | undefined,
@@ -1868,7 +1724,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 if (!this.closeOverlayBorder(border.id).ok) {
                     return false; // a middleware keeps it open: the key is not ours
                 }
-                button?.focus();
                 event.preventDefault();
                 return true;
             }
@@ -1879,7 +1734,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     /**
      * Moves focus to the selected tab button of the next/previous tabset in this layout
      * (wrapping), starting from the tabset containing focus and falling back to the active one;
-     * the target becomes the active tabset. Returns true when focus moved.
+     * the target becomes the active tabset. Refused when focus is not in this layout.
      */
     private focusAdjacentTabset(
         delta: number,
@@ -1970,20 +1825,14 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.shared.splitterDragging = dragging;
     }
 
-    /** the drag-and-drop state machine of this layout */
     private getDragDropManager(): DragDropManager<T> {
         return this.dragDropManager;
     }
 
-    /** seconds a view may take to animate the drop outline */
     private getTabDragSpeed(): number {
         return this.main.tabDragSpeed;
     }
 
-    /**
-     * The edge drop bands of this layout's root row, relative to the layout root: where a drop docks
-     * to an edge, and where an edge indicator goes. Empty when edge docking is off.
-     */
     private edgeBands(): EdgeBand[] {
         const settings = resolveLayout(this.state().defaults);
         const root = this.rootRow(this.state());
@@ -2002,7 +1851,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     // Popouts
     // *********************************************************************************
 
-    /** the popout windows of the model (owned by the main engine) */
     private getPopoutManager(): PopoutManager<T> {
         const manager = this.main.popoutManager;
         if (!manager) {
@@ -2125,18 +1973,15 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     // Geometry
     // *********************************************************************************
 
-    /** an element's rect relative to the layout root */
     private rectInLayout(element: HTMLElement): Rect {
         return relativeTo(this.measureElement(element), this.getDomRect());
     }
 
-    /** the layout root's rect in viewport coordinates, measured now (not the per-pass cache) */
     private getFreshDomRect(): Rect {
         this.cachedLayoutDomRect = undefined;
         return this.getDomRect();
     }
 
-    /** the layout root's rect in viewport coordinates */
     private getDomRect(): Rect {
         if (this.cachedLayoutDomRect !== undefined) {
             return this.cachedLayoutDomRect;
@@ -2192,10 +2037,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     private isMainLayout(): boolean {
         return this.main === this;
-    }
-
-    private getLayoutRef(): HTMLElement | null {
-        return this.layoutRef;
     }
 
     private getCurrentDocument(): Document | undefined {

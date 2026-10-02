@@ -965,7 +965,7 @@ describe("drop zones", () => {
         );
         const onDrop = vi.fn();
         const onOverChange = vi.fn();
-        const unregister = s.engine.adapter.registerDropZone(element, {
+        const unregister = DragDropManager.registerDropZone(s.model, element, {
             onDrop,
             onOverChange,
             ...options,

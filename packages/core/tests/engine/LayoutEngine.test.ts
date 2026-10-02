@@ -56,7 +56,7 @@ describe("LayoutEngine measure pass", () => {
     it("measures registered elements relative to the root, into the engine (never the model)", () => {
         const { model, engine } = setup();
         const before = model.state;
-        expect(engine.adapter.syncLayoutMetrics()).toBe(true);
+        engine.run("measure-and-position");
         expect(engine.adapter.rect("row", "row")).toEqual({
             x: 0,
             y: 0,
@@ -108,18 +108,24 @@ describe("LayoutEngine measure pass", () => {
 
     it("counts only rounded changes", () => {
         const { rects, engine, ts0 } = setup();
-        engine.adapter.syncLayoutMetrics();
-        expect(engine.adapter.syncLayoutMetrics()).toBe(false);
+        engine.run("measure-and-position");
         rects.set(ts0, 10.2, 20.2, 196.3, 300.1); // sub-pixel jitter
-        expect(engine.adapter.syncLayoutMetrics()).toBe(false);
+        engine.run("measure-and-position");
+        expect(engine.adapter.rect("tabset", "ts0")).toEqual({
+            x: 0,
+            y: 0,
+            width: 196,
+            height: 300,
+        });
         rects.set(ts0, 10, 20, 180, 300);
-        expect(engine.adapter.syncLayoutMetrics()).toBe(true);
+        engine.run("measure-and-position");
+        expect(engine.adapter.rect("tabset", "ts0")?.width).toBe(180);
     });
 
     it("skips elements that are not connected", () => {
         const { engine, ts0 } = setup();
         ts0.remove();
-        engine.adapter.syncLayoutMetrics();
+        engine.run("measure-and-position");
         expect(engine.adapter.rect("tabset", "ts0")).toBeUndefined();
     });
 
@@ -283,9 +289,7 @@ describe("LayoutEngine moveable elements", () => {
         const { engine } = setup();
         const element = engine.adapter.getMoveableElement("t0");
         expect(element.hasAttribute(MOVEABLE_ATTRIBUTE)).toBe(true);
-        expect(element.ownerDocument).toBe(
-            engine.adapter.getLayoutRef()?.ownerDocument,
-        );
+        expect(element.ownerDocument).toBe(engine.get("owner-document"));
         expect(engine.adapter.getMoveableElement("t0")).toBe(element);
         expect(styleKeys(element).sort()).toEqual(["height", "width"]);
     });

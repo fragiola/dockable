@@ -58,7 +58,7 @@ export {
 } from "./dnd/DragGroup";
 export {
     createLayoutEngine,
-    LayoutEngine,
+    type LayoutEngine,
     type LayoutEngineAdapter,
     type LayoutEngineOptions,
     type LayoutEngineSettings,
@@ -140,7 +140,7 @@ export {
     createSplitterController,
     enablePointerOnIFrames,
     type SplitterAria,
-    SplitterController,
+    type SplitterController,
     type SplitterState,
     startDrag,
 } from "./splitter/SplitterController";
