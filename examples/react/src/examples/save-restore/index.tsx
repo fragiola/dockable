@@ -19,14 +19,14 @@ import { TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
 // versioned: a layout saved with an older registry (its "card" tabs) is not restored
-const STORAGE_KEY = "dockable-example:save-restore:v2";
+const STORAGE_KEY = "dockable-example:save-restore:v3";
 
-// What the layout holds: the live JSON, short documents and a table, each named in its data.
+// What the layout holds: the live JSON, short documents and a table, each named by its label.
 type Types = {
     tabs: {
-        json: { name: string };
-        doc: { name: string; text: string };
-        table: { name: string };
+        json: undefined;
+        doc: { text: string };
+        table: undefined;
     };
 };
 
@@ -43,16 +43,16 @@ const defaultJson: LayoutJson<Types> = {
                     {
                         id: "welcome",
                         component: "doc",
+                        label: "Welcome",
                         data: {
-                            name: "Welcome",
                             text: "Move tabs or drag a splitter, then save. Reset brings back the default layout; Restore loads the saved one.",
                         },
                     },
                     {
                         id: "notes",
                         component: "doc",
+                        label: "Notes",
                         data: {
-                            name: "Notes",
                             text: "The tabs have explicit ids: a reset or a restore keeps every tab whose id survives, content and all.",
                         },
                     },
@@ -65,12 +65,12 @@ const defaultJson: LayoutJson<Types> = {
                     {
                         id: "json",
                         component: "json",
-                        data: { name: "Layout JSON" },
+                        label: "Layout JSON",
                     },
                     {
                         id: "inspector",
                         component: "table",
-                        data: { name: "Inspector" },
+                        label: "Inspector",
                     },
                 ],
             },
@@ -184,7 +184,7 @@ export default function SaveRestore() {
                                 {tab.component === "json" ? (
                                     <JsonPanel />
                                 ) : tab.component === "doc" ? (
-                                    <PanelBody title={tab.data.name}>
+                                    <PanelBody title={tab.label}>
                                         <p>{tab.data.text}</p>
                                     </PanelBody>
                                 ) : (
@@ -246,9 +246,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

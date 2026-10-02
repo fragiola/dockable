@@ -30,7 +30,6 @@ import * as styles from "./styles";
 
 /** What a service tab keeps in its `data`; `status` and `alerts` are written by its panel. */
 export interface ServiceData {
-    name: string;
     service: ServiceId;
     status?: Level;
     alerts?: number;
@@ -38,16 +37,15 @@ export interface ServiceData {
 
 /** What an incident tab keeps in its `data`: the region it belongs to (and may not leave). */
 export interface IncidentData {
-    name: string;
     region: "incident";
 }
 
 /** What the console holds: each tab component and the type of its data. */
 export type Types = {
     tabs: {
-        overview: { name: string };
+        overview: undefined;
         service: ServiceData;
-        events: { name: string };
+        events: undefined;
         runbook: IncidentData;
         timeline: IncidentData;
     };
@@ -63,7 +61,7 @@ function useSimulation(simulation: Simulation) {
 
 /**
  * One service, live. When its alert level changes it writes the level into its TAB's data
- * (the `tab.update` command); the tab reads it back and recolours. Only on a change, not on
+ * (the `tab.set-data` command); the tab reads it back and recolours. Only on a change, not on
  * every sample, so the model sees a handful of commands, not one a second.
  */
 export function ServicePanel({
@@ -81,10 +79,9 @@ export function ServicePanel({
 
     useEffect(() => {
         if (config.status !== state.level || config.alerts !== state.alerts) {
-            model.run("tab.update", {
+            model.run("tab.set-data", {
                 tabId: tab.id,
-                component: "service",
-                data: { ...config, status: state.level, alerts: state.alerts },
+                data: { status: state.level, alerts: state.alerts },
             });
         }
     }, [model, tab.id, config, state.level, state.alerts]);

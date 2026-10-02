@@ -26,6 +26,7 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
     "tab.add": {
         valid: {
             component: "chart",
+            label: "chart",
             data: { series: [] },
             to: "ts0",
             location: "left",
@@ -34,7 +35,12 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
             pinned: false,
             minWidth: 10,
         },
-        invalid: { component: "chart", to: "ts0", location: "middle" },
+        invalid: {
+            component: "chart",
+            label: "chart",
+            to: "ts0",
+            location: "middle",
+        },
         path: "/location",
         result: { tabId: "tab-1" },
     },
@@ -56,7 +62,13 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
         path: "/index",
         result: { tabId: "t" },
     },
-    "tab.update": {
+    "tab.set-data": {
+        valid: { tabId: "t", data: { series: [1] } },
+        invalid: { tabId: "t", data: [1] },
+        path: "/data",
+        result: { tabId: "t" },
+    },
+    "tab.set-component": {
         valid: { tabId: "t", component: "chart", data: { series: [1] } },
         invalid: { tabId: "t", data: {} },
         path: "/component",
@@ -181,7 +193,10 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
                 root: {
                     type: "row",
                     children: [
-                        { type: "tabset", children: [{ component: "x" }] },
+                        {
+                            type: "tabset",
+                            children: [{ component: "x", label: "x" }],
+                        },
                     ],
                 },
             },
@@ -268,6 +283,7 @@ describe("command schemas", () => {
                                     type: "tab",
                                     id: "t",
                                     component: "c",
+                                    label: "c",
                                     data: 1,
                                     pinned: true,
                                     borderWidth: 20,

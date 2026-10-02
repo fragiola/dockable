@@ -329,15 +329,21 @@ describe("Dockable.Popout", () => {
                         children: [
                             {
                                 component: "test",
+                                label: "A",
                                 data: { name: "A" },
                                 enablePopout: true,
                             },
                             {
                                 component: "test",
+                                label: "B",
                                 data: { name: "B" },
                                 enablePopout: false,
                             },
-                            { component: "test", data: { name: "C" } },
+                            {
+                                component: "test",
+                                label: "C",
+                                data: { name: "C" },
+                            },
                         ],
                     },
                 ],

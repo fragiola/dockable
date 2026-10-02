@@ -20,15 +20,15 @@ the result and the state. Nothing needs a DOM, a React tree or an engine:
 import { createModel, type LayoutJson } from "@fragiola/dockable";
 import { expect, it } from "vitest";
 
-type Types = { tabs: { note: { name: string } } };
+type Types = { tabs: { note: undefined } };
 
 const json: LayoutJson<Types> = {
     version: 1,
     root: {
         type: "row",
         children: [
-            { type: "tabset", id: "left", children: [{ id: "notes", component: "note", data: { name: "Notes" } }] },
-            { type: "tabset", id: "right", children: [{ id: "todo", component: "note", data: { name: "Todo" } }] },
+            { type: "tabset", id: "left", children: [{ id: "notes", component: "note", label: "Notes" }] },
+            { type: "tabset", id: "right", children: [{ id: "todo", component: "note", label: "Todo" }] },
         ],
     },
 };

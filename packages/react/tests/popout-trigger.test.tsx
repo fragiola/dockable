@@ -19,10 +19,16 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 id: "ts0",
                 children: [
-                    { id: "a", component: "test", data: { name: "A" } },
+                    {
+                        id: "a",
+                        component: "test",
+                        label: "A",
+                        data: { name: "A" },
+                    },
                     {
                         id: "b",
                         component: "test",
+                        label: "B",
                         data: { name: "B" },
                         enablePopout: false,
                     },

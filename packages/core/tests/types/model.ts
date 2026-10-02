@@ -45,6 +45,7 @@ export function narrowing(tab: TabOf<Types>): string {
 export function commands(model: Model<Types>): void {
     const added = model.run("tab.add", {
         component: "chart",
+        label: "Sales",
         data: { name: "Sales", series: [] },
         to: "ts0",
     });
@@ -53,18 +54,19 @@ export function commands(model: Model<Types>): void {
         use(id);
     }
     // a component without data needs none
-    model.run("tab.add", { component: "empty", to: "ts0" });
+    model.run("tab.add", { component: "empty", label: "empty", to: "ts0" });
 
     model.run("tab.add", {
         component: "chart",
+        label: "x",
         // @ts-expect-error: the chart's data has no path
         data: { name: "x", path: "x" },
         to: "ts0",
     });
     // @ts-expect-error: the chart needs its data
-    model.run("tab.add", { component: "chart", to: "ts0" });
+    model.run("tab.add", { component: "chart", label: "chart", to: "ts0" });
     // @ts-expect-error: not a component of the registry
-    model.run("tab.add", { component: "table", data: {}, to: "ts0" });
+    model.run("tab.add", { component: "table", label: "t", to: "ts0" });
     // @ts-expect-error: not a command
     model.run("tab.nope", { tabId: "x" });
     // @ts-expect-error: tab.close takes `tabId`, not `nodeId`
@@ -76,17 +78,54 @@ export function commands(model: Model<Types>): void {
         const window: string = popped.value.windowId;
         use(window);
     }
-    model.run("tab.update", {
+    // tab.set-component: a component and its whole data
+    model.run("tab.set-component", {
         tabId: "t",
         component: "editor",
-        // @ts-expect-error: tab.update checks the data against the component
+        // @ts-expect-error: the data is checked against the component
         data: { name: "x", series: [] },
     });
-    model.run("tab.update", {
+    model.run("tab.set-component", {
         tabId: "t",
         component: "editor",
         data: { name: "a", path: "/a", dirty: true },
     });
+    model.run("tab.set-component", {
+        tabId: "t",
+        component: "editor",
+        // @ts-expect-error: a switch takes the whole data, not a patch
+        data: { dirty: true },
+    });
+    // @ts-expect-error: a component that needs data needs it in a switch
+    model.run("tab.set-component", { tabId: "t", component: "chart" });
+    model.run("tab.set-component", { tabId: "t", component: "empty" });
+    // tab.set-data: a patch, some keys of a component's data
+    model.run("tab.set-data", { tabId: "t", data: { dirty: true } });
+    model.run("tab.set-data", { tabId: "t", data: { series: ["a"] } });
+    model.run("tab.set-data", {
+        tabId: "t",
+        // @ts-expect-error: no component has this key
+        data: { nope: 1 },
+    });
+    model.run("tab.set-data", {
+        tabId: "t",
+        // @ts-expect-error: a key keeps its type
+        data: { dirty: "yes" },
+    });
+    // @ts-expect-error: a patch is an object
+    model.run("tab.set-data", { tabId: "t", data: "x" });
+    model.run("tab.set-data", {
+        tabId: "t",
+        // @ts-expect-error: a patch takes no component (tab.set-component switches it)
+        component: "editor",
+        data: { dirty: true },
+    });
+    // tab.configure renames; a label cannot be removed
+    model.run("tab.configure", { tabId: "t", label: "New name" });
+    // @ts-expect-error: a tab always has a label
+    model.run("tab.configure", { tabId: "t", label: null });
+    // @ts-expect-error: a tab is created with its label
+    model.run("tab.add", { component: "empty", to: "ts0" });
     // @ts-expect-error: maximize takes an explicit value, it is not a toggle
     model.run("tabset.maximize", { tabsetId: "ts0" });
 
@@ -97,7 +136,11 @@ export function commands(model: Model<Types>): void {
     use(allowed);
     // @ts-expect-error: can answers a boolean; the reason is check's
     use(model.can("tab.close", { tabId: "x" }).ok);
-    const checked = model.check("tab.add", { component: "empty", to: "ts0" });
+    const checked = model.check("tab.add", {
+        component: "empty",
+        label: "empty",
+        to: "ts0",
+    });
     if (checked.ok) {
         const id: string = checked.value.tabId;
         use(id);
@@ -256,6 +299,7 @@ export function json(): void {
                     children: [
                         {
                             component: "editor",
+                            label: "a",
                             data: { name: "a", path: "/a", dirty: false },
                         },
                     ],
@@ -270,14 +314,21 @@ export function json(): void {
             children: [
                 {
                     type: "tabset",
-                    // @ts-expect-error: the editor's data is checked in JSON too
-                    children: [{ component: "editor", data: { series: [] } }],
+                    children: [
+                        {
+                            // @ts-expect-error: the editor's data is checked in JSON too
+                            component: "editor",
+                            label: "editor",
+                            data: { series: [] },
+                        },
+                    ],
                 },
             ],
         },
     });
     const init: TabInitOf<Types> = {
         component: "chart",
+        label: "c",
         data: { name: "c", series: ["a"] },
     };
     use(init);

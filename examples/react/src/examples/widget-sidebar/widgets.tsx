@@ -15,11 +15,11 @@ import { LogPanel, TablePanel } from "../_kit/data";
 /** What the layout holds: each widget component and the type of its data. */
 export type Types = {
     tabs: {
-        revenue: { name: string };
-        channels: { name: string };
-        orders: { name: string };
-        log: { name: string };
-        share: { name: string };
+        revenue: undefined;
+        channels: undefined;
+        orders: undefined;
+        log: undefined;
+        share: undefined;
     };
 };
 
@@ -66,7 +66,7 @@ export const WIDGETS: Widget[] = [
 
 /** The tab a widget becomes. No id: the model gives each new tab its own, so a widget can be added twice. */
 export function widgetTab(widget: Widget): TabInitOf<Types> {
-    return { component: widget.component, data: { name: widget.title } };
+    return { component: widget.component, label: widget.title };
 }
 
 export function iconOf(tab: TabOf<Types>): LucideIcon | undefined {

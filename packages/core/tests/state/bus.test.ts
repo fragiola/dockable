@@ -15,8 +15,12 @@ describe("results", () => {
     it("uses up no generated id in a dry run", () => {
         const model = model2();
         const to = model.get("tabsets")[0]?.id ?? "";
-        const asked = model.check("tab.add", { component: "x", to });
-        const added = model.run("tab.add", { component: "x", to });
+        const asked = model.check("tab.add", {
+            component: "x",
+            label: "x",
+            to,
+        });
+        const added = model.run("tab.add", { component: "x", label: "x", to });
         expect(asked.ok && added.ok && asked.value.tabId).toBe(
             added.ok ? added.value.tabId : "",
         );
@@ -349,7 +353,12 @@ describe("middleware", () => {
                 commands: [
                     {
                         command: "tab.add",
-                        payload: { id: "n", component: "x", to: "ts0" },
+                        payload: {
+                            id: "n",
+                            component: "x",
+                            label: "x",
+                            to: "ts0",
+                        },
                     },
                     { command: "tab.select", payload: { tabId: "n" } },
                 ],
@@ -738,7 +747,8 @@ describe("state", () => {
             "tab.select",
             "tab.close",
             "tab.move",
-            "tab.update",
+            "tab.set-data",
+            "tab.set-component",
             "tab.pin",
             "tab.popout",
             "tab.configure",
@@ -786,6 +796,7 @@ describe("a middleware typed by the registry", () => {
         expect(
             model.run("tab.add", {
                 component: "note",
+                label: "note",
                 data: { text: "hi" },
                 to: "main",
             }).ok,
@@ -827,7 +838,9 @@ describe("review regressions", () => {
                     {
                         type: "tabset",
                         id: "ts0",
-                        children: [{ id: "a", component: "x", data }],
+                        children: [
+                            { id: "a", component: "x", label: "x", data },
+                        ],
                     },
                 ],
             },
@@ -846,19 +859,14 @@ describe("review regressions", () => {
             model.run("tab.add", {
                 id: "b",
                 component: "x",
+                label: "x",
                 data: added,
                 to: "ts0",
             }),
         );
         expect(Object.isFrozen(added)).toBe(false);
         const updated = { name: "Uno" };
-        must(
-            model.run("tab.update", {
-                tabId: "a",
-                component: "x",
-                data: updated,
-            }),
-        );
+        must(model.run("tab.set-data", { tabId: "a", data: updated }));
         updated.name = "changed";
         expect(model.get("node-by", { id: "a" })).toMatchObject({
             data: { name: "Uno" },
@@ -870,6 +878,7 @@ describe("review regressions", () => {
             unfrozen.run("tab.add", {
                 id: "s",
                 component: "x",
+                label: "x",
                 data: shared,
                 to: "ts0",
             }),
@@ -913,6 +922,7 @@ describe("review regressions", () => {
         expect(
             model.run("tab.add", {
                 component: "x",
+                label: "x",
                 pinned: true,
                 to: "border_left",
             }),

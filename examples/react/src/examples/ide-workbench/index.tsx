@@ -94,9 +94,10 @@ export default function IdeWorkbench() {
     };
 
     // answer the first pending question
-    const pendingData = pending[0]
-        ? editorData(model.get("node-by", { id: pending[0] }))
+    const pendingNode = pending[0]
+        ? model.get("node-by", { id: pending[0] })
         : undefined;
+    const pendingData = editorData(pendingNode);
     const answer = (choice: "save" | "discard" | "cancel") => {
         const id = pending[0];
         setPending((ids) => ids.slice(1));
@@ -237,7 +238,7 @@ export default function IdeWorkbench() {
                     <AlertDialog.Content>
                         <AlertDialog.Header>
                             <AlertDialog.Title>
-                                {`Save changes to ${pendingData?.name ?? ""}?`}
+                                {`Save changes to ${pendingNode?.type === "tab" ? pendingNode.label : ""}?`}
                             </AlertDialog.Title>
                             <AlertDialog.Description>
                                 Your changes will be lost if you close the file
@@ -322,7 +323,7 @@ function Border({ node }: { node: BorderNode<Types> }) {
                         <Dockable.Tab
                             node={tab}
                             // an icon-only tab is named by its tab's name
-                            aria-label={side ? tab.data.name : undefined}
+                            aria-label={side ? tab.label : undefined}
                             // upright and centred in a side bar
                             className={styles.borderTab(side)}
                         >
@@ -335,13 +336,13 @@ function Border({ node }: { node: BorderNode<Types> }) {
                                         {icon}
                                     </Tooltip.Trigger>
                                     <Tooltip.Content>
-                                        {tab.data.name}
+                                        {tab.label}
                                     </Tooltip.Content>
                                 </Tooltip.Root>
                             ) : (
                                 <>
                                     {icon}
-                                    {tab.data.name}
+                                    {tab.label}
                                 </>
                             )}
                         </Dockable.Tab>

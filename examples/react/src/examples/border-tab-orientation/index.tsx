@@ -33,12 +33,12 @@ import * as styles from "./styles";
 // report: its outline, a search through it, bookmarks, notes and the alerts behind its figures.
 type Types = {
     tabs: {
-        outline: { name: string; headings: string[] };
-        search: { name: string; query: string; results: string[] };
-        bookmarks: { name: string; pages: string[] };
-        notes: { name: string; text: string };
-        alerts: { name: string };
-        document: { name: string; summary: string; kind: ChartKind };
+        outline: { headings: string[] };
+        search: { query: string; results: string[] };
+        bookmarks: { pages: string[] };
+        notes: { text: string };
+        alerts: undefined;
+        document: { summary: string; kind: ChartKind };
     };
 };
 
@@ -52,15 +52,15 @@ const json: LayoutJson<Types> = {
             children: [
                 {
                     component: "outline",
+                    label: "Outline",
                     data: {
-                        name: "Outline",
                         headings: ["Summary", "Revenue", "Orders", "Outlook"],
                     },
                 },
                 {
                     component: "search",
+                    label: "Search",
                     data: {
-                        name: "Search",
                         query: "revenue",
                         results: [
                             "Summary: revenue grew for a third month",
@@ -71,10 +71,8 @@ const json: LayoutJson<Types> = {
                 },
                 {
                     component: "bookmarks",
-                    data: {
-                        name: "Bookmarks",
-                        pages: ["Revenue by month", "Refunded orders"],
-                    },
+                    label: "Bookmarks",
+                    data: { pages: ["Revenue by month", "Refunded orders"] },
                 },
             ],
         },
@@ -83,12 +81,12 @@ const json: LayoutJson<Types> = {
             children: [
                 {
                     component: "notes",
+                    label: "Notes",
                     data: {
-                        name: "Notes",
                         text: "Check the June figures against the payment provider before sharing.",
                     },
                 },
-                { component: "alerts", data: { name: "Alerts" } },
+                { component: "alerts", label: "Alerts" },
             ],
         },
     ],
@@ -100,8 +98,8 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "document",
+                        label: "Document",
                         data: {
-                            name: "Document",
                             summary:
                                 "Revenue grew for a third month in a row, led by search and direct traffic. Refunds stayed under two percent of orders.",
                             kind: "bar",
@@ -194,7 +192,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "outline":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <ol className={styles.list}>
                         {tab.data.headings.map((heading) => (
                             <li key={heading}>{heading}</li>
@@ -204,7 +202,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             );
         case "search":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <p className={styles.query}>{`“${tab.data.query}”`}</p>
                     <ul className={styles.list}>
                         {tab.data.results.map((result) => (
@@ -215,7 +213,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             );
         case "bookmarks":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <ul className={styles.list}>
                         {tab.data.pages.map((page) => (
                             <li key={page}>{page}</li>
@@ -225,7 +223,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             );
         case "notes":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <p className={styles.text}>{tab.data.text}</p>
                 </PanelBody>
             );
@@ -233,7 +231,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             return <LogPanel />;
         case "document":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <p className={styles.text}>{tab.data.summary}</p>
                     <ChartPanel
                         kind={tab.data.kind}
@@ -271,9 +269,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
@@ -327,7 +323,7 @@ function Label({ tab }: { tab: TabOf<Types> }) {
             {Icon ? (
                 <Icon aria-hidden="true" className={styles.labelIcon} />
             ) : null}
-            {tab.data.name}
+            {tab.label}
         </>
     );
 }

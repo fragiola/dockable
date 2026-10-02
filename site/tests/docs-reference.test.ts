@@ -332,7 +332,7 @@ describe("the core reference", () => {
         const sources = ["tab", "tabset", "row", "border", "window", "layout"]
             .map((file) => read(join(CORE_SRC, `commands/${file}.ts`)))
             .join("\n");
-        const declared = [...sources.matchAll(/^ {4}name: "([\w.]+)",/gm)].map(
+        const declared = [...sources.matchAll(/^ {4}name: "([\w.-]+)",/gm)].map(
             (match) => match[1],
         );
         expect(new Set(commands.map((info) => info.name))).toEqual(

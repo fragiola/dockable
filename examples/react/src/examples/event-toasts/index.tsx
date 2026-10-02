@@ -33,8 +33,8 @@ import { type Toast, Toaster, useToasts } from "./toasts";
 
 type Types = {
     tabs: {
-        chart: { name: string; kind: ChartKind };
-        kpi: { name: string; seed: number };
+        chart: { kind: ChartKind };
+        kpi: { seed: number };
     };
 };
 
@@ -49,11 +49,13 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Revenue", kind: "bar" },
+                        label: "Revenue",
+                        data: { kind: "bar" },
                     },
                     {
                         component: "chart",
-                        data: { name: "Traffic", kind: "area" },
+                        label: "Traffic",
+                        data: { kind: "area" },
                     },
                 ],
             },
@@ -66,11 +68,13 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "kpi",
-                                data: { name: "Orders", seed: 3 },
+                                label: "Orders",
+                                data: { seed: 3 },
                             },
                             {
                                 component: "kpi",
-                                data: { name: "Refunds", seed: 12 },
+                                label: "Refunds",
+                                data: { seed: 12 },
                             },
                         ],
                     },
@@ -79,7 +83,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "chart",
-                                data: { name: "Share", kind: "donut" },
+                                label: "Share",
+                                data: { kind: "donut" },
                             },
                         ],
                     },
@@ -210,7 +215,7 @@ function describe(
 
 function tabName(model: Model<Types>, tabId: string) {
     const node = model.get("node-by", { id: tabId });
-    return node?.type === "tab" ? node.data.name : undefined;
+    return node?.type === "tab" ? node.label : undefined;
 }
 
 export default function EventToasts() {
@@ -228,7 +233,7 @@ export default function EventToasts() {
         const remember = () => {
             for (const tab of model.get("all-tabs")) {
                 seen.set(tab.id, {
-                    name: tab.data.name,
+                    name: tab.label,
                     tabsetId: model.get("node-parent-by", { nodeId: tab.id })
                         ?.id,
                 });
@@ -251,7 +256,8 @@ export default function EventToasts() {
         setAdded((count) => count + 1);
         model.run("tab.add", {
             component: "chart",
-            data: { name: `Chart ${added + 1}`, kind: "line" },
+            label: `Chart ${added + 1}`,
+            data: { kind: "line" },
             to: tabset.id,
             select: true,
         });
@@ -302,12 +308,12 @@ export default function EventToasts() {
                                 {tab.component === "chart" ? (
                                     <ChartPanel
                                         kind={tab.data.kind}
-                                        seed={tab.data.name.length}
-                                        title={tab.data.name}
+                                        seed={tab.label.length}
+                                        title={tab.label}
                                     />
                                 ) : (
                                     <KpiPanel
-                                        label={tab.data.name}
+                                        label={tab.label}
                                         seed={tab.data.seed}
                                     />
                                 )}
@@ -393,12 +399,12 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
     return (
         <Dockable.Tab node={tab} className={styles.tab}>
-            <span className={styles.tabName}>{tab.data.name}</span>
+            <span className={styles.tabName}>{tab.label}</span>
             <button
                 type="button"
                 // the keyboard closes with Ctrl+Delete on the tab itself
                 tabIndex={-1}
-                aria-label={`Close ${tab.data.name}`}
+                aria-label={`Close ${tab.label}`}
                 className={styles.closeButton}
                 // keep the press from selecting the tab or starting a drag
                 onPointerDown={(event) => event.stopPropagation()}

@@ -17,7 +17,7 @@ import { useInspector } from "../../inspector/context";
 // (`model.get("commands")`, what an assistant would get as tools) listed below them. The Inspector is
 // on: each click is one entry in its log (name, payload, result), and the model JSON follows.
 
-type Types = { tabs: { card: { name: string } } };
+type Types = { tabs: { card: undefined } };
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -28,8 +28,8 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { component: "card", data: { name: "One" } },
-                    { component: "card", data: { name: "Two" } },
+                    { component: "card", label: "One" },
+                    { component: "card", label: "Two" },
                 ],
             },
             {
@@ -38,15 +38,11 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         type: "tabset",
-                        children: [
-                            { component: "card", data: { name: "Three" } },
-                        ],
+                        children: [{ component: "card", label: "Three" }],
                     },
                     {
                         type: "tabset",
-                        children: [
-                            { component: "card", data: { name: "Four" } },
-                        ],
+                        children: [{ component: "card", label: "Four" }],
                     },
                 ],
             },
@@ -75,7 +71,7 @@ export default function CommandsScenario() {
         added.current += 1;
         return {
             component: "card" as const,
-            data: { name: `New ${added.current}` },
+            label: `New ${added.current}`,
         };
     };
 
@@ -156,10 +152,9 @@ export default function CommandsScenario() {
                       })
                     : undefined;
                 if (!tab) return undefined;
-                return model.run("tab.update", {
+                return model.run("tab.configure", {
                     tabId: tab.id,
-                    component: tab.component,
-                    data: { ...tab.data, name: `${tab.data.name}*` },
+                    label: `${tab.label}*`,
                 });
             },
         ],
@@ -253,7 +248,7 @@ export default function CommandsScenario() {
                                 node={tab}
                                 className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
                             >
-                                <Card name={tab.data.name} />
+                                <Card name={tab.label} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -325,7 +320,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
                             )}
                         >
-                            <span className="truncate">{tab.data.name}</span>
+                            <span className="truncate">{tab.label}</span>
                             <span
                                 aria-hidden="true"
                                 className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"

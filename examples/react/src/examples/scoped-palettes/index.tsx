@@ -44,10 +44,10 @@ const DEFAULT_PALETTE = "palette-raised";
 // What the layout holds: each tab component's data, and the tabsets' data (their palette).
 type Types = {
     tabs: {
-        chart: { name: string; kind: ChartKind };
-        kpi: { name: string; seed: number };
-        note: { name: string; text: string };
-        log: { name: string };
+        chart: { kind: ChartKind };
+        kpi: { seed: number };
+        note: { text: string };
+        log: undefined;
     };
     tabset: { palette: string };
 };
@@ -64,12 +64,13 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Trend", kind: "area" },
+                        label: "Trend",
+                        data: { kind: "area" },
                     },
                     {
                         component: "note",
+                        label: "Notes",
                         data: {
-                            name: "Notes",
                             text: "Pick a palette from the tabset's menu: the tabs, this panel and its charts take its colours.",
                         },
                     },
@@ -82,16 +83,15 @@ const json: LayoutJson<Types> = {
                     {
                         type: "tabset",
                         data: { palette: "palette-orange" },
-                        children: [
-                            { component: "log", data: { name: "Alerts" } },
-                        ],
+                        children: [{ component: "log", label: "Alerts" }],
                     },
                     {
                         type: "tabset",
                         children: [
                             {
                                 component: "kpi",
-                                data: { name: "Plain", seed: 6 },
+                                label: "Plain",
+                                data: { seed: 6 },
                             },
                         ],
                     },
@@ -161,9 +161,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
@@ -250,12 +248,12 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             ) : tab.component === "kpi" ? (
                 <KpiPanel
                     key={palette}
-                    label={tab.data.name}
+                    label={tab.label}
                     seed={tab.data.seed}
                     className={styles.chart}
                 />
             ) : tab.component === "note" ? (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <p>{tab.data.text}</p>
                 </PanelBody>
             ) : (

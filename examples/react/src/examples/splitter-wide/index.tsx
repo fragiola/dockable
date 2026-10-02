@@ -22,13 +22,10 @@ import * as styles from "./styles";
 // A writing app's panes: the library's word count, the draft, its outline and the comments.
 type Types = {
     tabs: {
-        stats: { name: string; label: string; seed: number };
-        draft: { name: string; paragraphs: string[] };
-        outline: { name: string; headings: string[] };
-        comments: {
-            name: string;
-            comments: { author: string; text: string }[];
-        };
+        stats: { caption: string; seed: number };
+        draft: { paragraphs: string[] };
+        outline: { headings: string[] };
+        comments: { comments: { author: string; text: string }[] };
     };
 };
 
@@ -43,11 +40,8 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "stats",
-                        data: {
-                            name: "Library",
-                            label: "Words written",
-                            seed: 13,
-                        },
+                        label: "Library",
+                        data: { caption: "Words written", seed: 13 },
                     },
                 ],
             },
@@ -61,8 +55,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "draft",
+                                label: "Draft",
                                 data: {
-                                    name: "Draft",
                                     paragraphs: [
                                         "The harbour was quiet the morning the ferry did not come. Nobody said so at first; the gulls said it for them.",
                                         "By noon the café had run out of bread, and the conversation had moved from the weather to the mainland, and from the mainland to whoever had last seen the captain.",
@@ -71,8 +65,8 @@ const json: LayoutJson<Types> = {
                             },
                             {
                                 component: "outline",
+                                label: "Outline",
                                 data: {
-                                    name: "Outline",
                                     headings: [
                                         "The missing ferry",
                                         "The café at noon",
@@ -89,8 +83,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "comments",
+                                label: "Comments",
                                 data: {
-                                    name: "Comments",
                                     comments: [
                                         {
                                             author: "Ada",
@@ -148,10 +142,10 @@ export default function SplitterWide() {
 function Content({ tab }: { tab: TabOf<Types> }) {
     switch (tab.component) {
         case "stats":
-            return <KpiPanel label={tab.data.label} seed={tab.data.seed} />;
+            return <KpiPanel label={tab.data.caption} seed={tab.data.seed} />;
         case "draft":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     {tab.data.paragraphs.map((paragraph) => (
                         <p key={paragraph} className={styles.paragraph}>
                             {paragraph}
@@ -161,7 +155,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             );
         case "outline":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <ol className={styles.outline}>
                         {tab.data.headings.map((heading) => (
                             <li key={heading}>{heading}</li>
@@ -171,7 +165,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             );
         case "comments":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <ul className={styles.comments}>
                         {tab.data.comments.map((comment) => (
                             <li key={comment.text}>
@@ -213,9 +207,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

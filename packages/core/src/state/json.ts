@@ -21,6 +21,8 @@ export type TabInit<K extends string = string, D = unknown> = {
     /** generated when missing */
     id?: string;
     component: K;
+    /** the tab's name (the app renders it; the packages never do) */
+    label: string;
     pinned?: boolean;
     enableClose?: boolean;
     enableDrag?: boolean;

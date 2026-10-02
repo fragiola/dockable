@@ -20,12 +20,13 @@ const fourTabs: LayoutJson = {
                 children: ["t0", "t1", "t2", "t3"].map((id) => ({
                     id,
                     component: "test",
+                    label: "test",
                 })),
             },
             {
                 type: "tabset",
                 id: "ts1",
-                children: [{ id: "t4", component: "test" }],
+                children: [{ id: "t4", component: "test", label: "test" }],
             },
         ],
     },

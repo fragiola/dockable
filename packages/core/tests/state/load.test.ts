@@ -93,8 +93,8 @@ describe("loading JSON v1", () => {
                     {
                         type: "tabset",
                         children: [
-                            { component: "x" },
-                            { id: "tab-1", component: "x" },
+                            { component: "x", label: "x" },
+                            { id: "tab-1", component: "x", label: "x" },
                         ],
                     },
                 ],
@@ -113,7 +113,11 @@ describe("loading JSON v1", () => {
         const model = createModel(tabsets(["One"]), {
             createId: (kind) => `${kind}:${++n}`,
         });
-        const added = model.run("tab.add", { component: "x", to: "ts0" });
+        const added = model.run("tab.add", {
+            component: "x",
+            label: "x",
+            to: "ts0",
+        });
         expect(added).toEqual({ ok: true, value: { tabId: "tab:1" } });
     });
 
@@ -236,11 +240,11 @@ describe("validating JSON v1", () => {
                         type: "tabset",
                         weight: -1,
                         children: [
-                            { component: "" },
-                            { id: 4, component: "x" },
+                            { component: "", label: "Tab" },
+                            { id: 4, component: "x", label: "x" },
                         ],
                     },
-                    { type: "tab", component: "x" },
+                    { type: "tab", component: "x", label: "x" },
                 ],
             },
             borders: [{ location: "middle" }],
@@ -269,6 +273,40 @@ describe("validating JSON v1", () => {
         );
     });
 
+    it("requires a string label on every tab, and keeps it in layout-json", () => {
+        const issues = issuesOf({
+            version: 1,
+            root: {
+                type: "row",
+                children: [
+                    {
+                        type: "tabset",
+                        children: [
+                            { component: "x" },
+                            { component: "x", label: 1 },
+                        ],
+                    },
+                ],
+            },
+        });
+        expect(issues).toEqual([
+            {
+                path: "/root/children/0/children/0/label",
+                message: "is required",
+            },
+            {
+                path: "/root/children/0/children/1/label",
+                message: "must be a string",
+            },
+        ]);
+        const { model } = setup(tabsets(["One", "Two"]));
+        const json = model.get("layout-json");
+        expect(JSON.stringify(json)).toContain('"label":"Two"');
+        expect(createModel(json).get("node-by", { id: "Two" })).toMatchObject({
+            label: "Two",
+        });
+    });
+
     it("requires version 1", () => {
         expect(issuesOf({ version: 2, root: { type: "row" } })).toEqual([
             { path: "/version", message: "must be 1" },
@@ -288,7 +326,7 @@ describe("validating JSON v1", () => {
                     {
                         type: "tabset",
                         id: "x",
-                        children: [{ id: "x", component: "c" }],
+                        children: [{ id: "x", component: "c", label: "c" }],
                     },
                 ],
             },
@@ -346,7 +384,13 @@ describe("validating JSON v1", () => {
                 children: [
                     {
                         type: "tabset" as const,
-                        children: [{ component: "editor", data: { path: 3 } }],
+                        children: [
+                            {
+                                component: "editor",
+                                label: "editor",
+                                data: { path: 3 },
+                            },
+                        ],
                     },
                 ],
             },

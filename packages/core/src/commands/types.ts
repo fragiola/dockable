@@ -46,14 +46,36 @@ export type TabsetMovePayload = { tabsetId: string } & Omit<
     "select"
 >;
 
-/** The payload of `tab.update`: a component and its whole data. */
-export type TabUpdatePayload<T extends DockableTypes> = {
+/** A shallow patch of data `D`: some of its top-level keys (any keys when `D` is not typed). */
+type PatchOf<D> = unknown extends D
+    ? Record<string, unknown>
+    : D extends object
+      ? Partial<D>
+      : never;
+
+/** A shallow patch of a tab's data in the registry `T`: some top-level keys of one component's data. */
+export type DataPatchOf<T extends DockableTypes> = {
+    [K in ComponentOf<T>]: PatchOf<TabDataOf<T, K>>;
+}[ComponentOf<T>];
+
+/** The payload of `tab.set-data`: a shallow patch of the tab's data. */
+export type TabSetDataPayload<T extends DockableTypes> = {
+    tabId: string;
+    data: DataPatchOf<T>;
+};
+
+/** The payload of `tab.set-component`: a component and its whole data. */
+export type TabSetComponentPayload<T extends DockableTypes> = {
     [K in ComponentOf<T>]: { tabId: string; component: K } & DataField<
         TabDataOf<T, K>
     >;
 }[ComponentOf<T>];
 
-export type TabConfigurePayload = { tabId: string } & Nullable<{
+export type TabConfigurePayload = {
+    tabId: string;
+    /** the tab's new name (a tab always has one: it cannot be removed) */
+    label?: string;
+} & Nullable<{
     enableClose: boolean;
     enableDrag: boolean;
     enablePopout: boolean;
@@ -157,7 +179,14 @@ export interface CommandMap<T extends DockableTypes = AnyTypes> {
     "tab.select": { payload: { tabId: string }; result: { tabId: string } };
     "tab.close": { payload: { tabId: string }; result: { tabId: string } };
     "tab.move": { payload: TabMovePayload; result: { tabId: string } };
-    "tab.update": { payload: TabUpdatePayload<T>; result: { tabId: string } };
+    "tab.set-data": {
+        payload: TabSetDataPayload<T>;
+        result: { tabId: string };
+    };
+    "tab.set-component": {
+        payload: TabSetComponentPayload<T>;
+        result: { tabId: string };
+    };
     "tab.pin": {
         payload: { tabId: string; value: boolean };
         result: { tabId: string };

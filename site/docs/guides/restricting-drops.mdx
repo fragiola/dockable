@@ -33,7 +33,7 @@ Set them per node in the JSON, or for every node of a kind through the layout's 
     "id": "console",
     "enableDrop": false,
     "enableDivide": false,
-    "children": [{ "component": "console", "data": { "name": "Console" }, "enableDrag": false }]
+    "children": [{ "component": "console", "label": "Console", "enableDrag": false }]
 }
 ```
 
@@ -59,7 +59,7 @@ row, with an edge `location`; code may also pass a layout id such as `MAIN_LAYOU
 import { createModel, type Middleware, type TabAddPayload, type TabOf, veto } from "@fragiola/dockable";
 
 type Types = {
-    tabs: { doc: { name: string; group: "tools" | "docs" }; console: { name: string } };
+    tabs: { doc: { group: "tools" | "docs" }; console: undefined };
     tabset: { kind: "tools" | "docs" };
 };
 

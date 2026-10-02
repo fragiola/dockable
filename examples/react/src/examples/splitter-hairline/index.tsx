@@ -15,9 +15,9 @@ import * as styles from "./styles";
 // An editor's panes: a file tree, two source files and a terminal.
 type Types = {
     tabs: {
-        files: { name: string; files: string[] };
-        source: { name: string; code: string };
-        terminal: { name: string };
+        files: { files: string[] };
+        source: { code: string };
+        terminal: undefined;
     };
 };
 
@@ -32,8 +32,8 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "files",
+                        label: "Explorer",
                         data: {
-                            name: "Explorer",
                             files: [
                                 "src/main.ts",
                                 "src/utils.ts",
@@ -55,8 +55,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "source",
+                                label: "main.ts",
                                 data: {
-                                    name: "main.ts",
                                     code: [
                                         'import { formatTotal } from "./utils";',
                                         "",
@@ -67,8 +67,8 @@ const json: LayoutJson<Types> = {
                             },
                             {
                                 component: "source",
+                                label: "utils.ts",
                                 data: {
-                                    name: "utils.ts",
                                     code: [
                                         "export function formatTotal(orders: Order[]) {",
                                         "    const total = orders.reduce((sum, o) => sum + o.amount, 0);",
@@ -85,7 +85,7 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "terminal",
-                                data: { name: "Terminal" },
+                                label: "Terminal",
                             },
                         ],
                     },
@@ -110,7 +110,7 @@ export default function SplitterHairline() {
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
                             {tab.component === "files" ? (
-                                <PanelBody title={tab.data.name}>
+                                <PanelBody title={tab.label}>
                                     <ul className={styles.fileList}>
                                         {tab.data.files.map((file) => (
                                             <li key={file}>{file}</li>
@@ -164,9 +164,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

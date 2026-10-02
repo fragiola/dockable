@@ -10,9 +10,7 @@
                 "children": [
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "One"
-                        }
+                        "label": "One"
                     }
                 ]
             },
@@ -23,9 +21,7 @@
                 "children": [
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "Two"
-                        }
+                        "label": "Two"
                     }
                 ]
             },
@@ -35,9 +31,7 @@
                 "children": [
                     {
                         "component": "testing",
-                        "data": {
-                            "name": "Three"
-                        }
+                        "label": "Three"
                     }
                 ]
             }
@@ -49,9 +43,7 @@
             "children": [
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "top1"
-                    }
+                    "label": "top1"
                 }
             ]
         },
@@ -60,9 +52,7 @@
             "children": [
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "bottom1"
-                    }
+                    "label": "bottom1"
                 }
             ]
         },
@@ -72,15 +62,11 @@
             "children": [
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "left1"
-                    }
+                    "label": "left1"
                 },
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "left2"
-                    }
+                    "label": "left2"
                 }
             ]
         },
@@ -89,9 +75,7 @@
             "children": [
                 {
                     "component": "testing",
-                    "data": {
-                        "name": "right1"
-                    }
+                    "label": "right1"
                 }
             ]
         }

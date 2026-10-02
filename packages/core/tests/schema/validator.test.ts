@@ -119,6 +119,24 @@ describe("the schema validator", () => {
         ).toEqual([{ path: "", message: "must match exactly one shape" }]);
     });
 
+    it("reads own keys only: an inherited name is neither a property nor a required key", () => {
+        const schema: JsonSchema = {
+            type: "object",
+            properties: { path: { type: "string" } },
+            required: ["path"],
+            additionalProperties: false,
+        };
+        expect(
+            validate(schema, JSON.parse('{"__proto__":{"path":"/x"}}')),
+        ).toEqual([
+            { path: "/path", message: "is required" },
+            { path: "/__proto__", message: "is not allowed" },
+        ]);
+        expect(
+            validate({ type: "object", required: ["toString"] }, {}),
+        ).toEqual([{ path: "/toString", message: "is required" }]);
+    });
+
     it("treats an undefined property as absent", () => {
         expect(
             validate(

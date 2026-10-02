@@ -23,14 +23,14 @@ const json: LayoutJson = {
                 type: "tabset",
                 id: "ts0",
                 children: [
-                    { id: "a", component: "x" },
-                    { id: "b", component: "x" },
+                    { id: "a", component: "x", label: "x" },
+                    { id: "b", component: "x", label: "x" },
                 ],
             },
             {
                 type: "tabset",
                 id: "ts1",
-                children: [{ id: "c", component: "x" }],
+                children: [{ id: "c", component: "x", label: "x" }],
             },
         ],
     },

@@ -30,14 +30,14 @@ const popoutURL = `${import.meta.env.BASE_URL}popout.html`;
 export default function AnalyticsDashboard() {
     // The UndoManager records a step per command (`model.subscribe`); undo and redo load the saved
     // JSON back into the same model (`layout.load`), which keeps every panel's content mounted.
-    // A KPI writing its status (`tab.update`) is not a layout change, so it records no undo step.
+    // A KPI writing its status (`tab.set-data`) is not a layout change, so it records no undo step.
     const [{ model, undo }] = useState(() => {
         const model = createModel<Types>(layout);
         const undo = new UndoManager(model, {
             ignoreCommands: [
                 "tabset.activate",
                 "window.configure",
-                "tab.update",
+                "tab.set-data",
             ],
         });
         return { model, undo };

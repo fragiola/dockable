@@ -64,8 +64,18 @@ export const twoTabsets: LayoutJson = {
                 id: "ts0",
                 weight: 50,
                 children: [
-                    { id: "t0", component: "test", data: { name: "One" } },
-                    { id: "t1", component: "test", data: { name: "Two" } },
+                    {
+                        id: "t0",
+                        component: "test",
+                        label: "One",
+                        data: { name: "One" },
+                    },
+                    {
+                        id: "t1",
+                        component: "test",
+                        label: "Two",
+                        data: { name: "Two" },
+                    },
                 ],
             },
             {
@@ -73,7 +83,12 @@ export const twoTabsets: LayoutJson = {
                 id: "ts1",
                 weight: 50,
                 children: [
-                    { id: "t2", component: "test", data: { name: "Three" } },
+                    {
+                        id: "t2",
+                        component: "test",
+                        label: "Three",
+                        data: { name: "Three" },
+                    },
                 ],
             },
         ],

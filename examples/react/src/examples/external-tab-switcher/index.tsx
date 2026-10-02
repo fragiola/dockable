@@ -19,12 +19,12 @@ import * as styles from "./styles";
 
 // Controls outside the layout drive what is inside it. The switcher above the layout selects a
 // tab (`tab.select`) and follows the selection made by clicking a tab; the stepper changes the
-// counter of the tab the user is looking at (`tab.update`). Both go through the model only.
+// counter of the tab the user is looking at (`tab.set-data`). Both go through the model only.
 //
 // The count lives in the tab's typed data, not in the tab's React state: that is what lets code
 // outside the layout read and change it, and it moves with the tab and saves with the layout.
 
-type Types = { tabs: { counter: { name: string; count: number } } };
+type Types = { tabs: { counter: { count: number } } };
 
 type CounterTab = TabOf<Types>;
 
@@ -39,17 +39,20 @@ const json: LayoutJson<Types> = {
                     {
                         id: "alpha",
                         component: "counter",
-                        data: { name: "Alpha", count: 0 },
+                        label: "Alpha",
+                        data: { count: 0 },
                     },
                     {
                         id: "beta",
                         component: "counter",
-                        data: { name: "Beta", count: 0 },
+                        label: "Beta",
+                        data: { count: 0 },
                     },
                     {
                         id: "gamma",
                         component: "counter",
-                        data: { name: "Gamma", count: 0 },
+                        label: "Gamma",
+                        data: { count: 0 },
                     },
                 ],
             },
@@ -57,13 +60,9 @@ const json: LayoutJson<Types> = {
     },
 };
 
-/** Writes a counter tab's new count: `tab.update` replaces the tab's whole data. */
+/** Writes a counter tab's new count: `tab.set-data` patches it into the tab's data. */
 function setCount(model: Model<Types>, tab: CounterTab, count: number) {
-    model.run("tab.update", {
-        tabId: tab.id,
-        component: "counter",
-        data: { ...tab.data, count },
-    });
+    model.run("tab.set-data", { tabId: tab.id, data: { count } });
 }
 
 export default function ExternalTabSwitcher() {
@@ -125,7 +124,7 @@ function Controls({ model }: { model: Model<Types> }) {
                             model.run("tab.select", { tabId: tab.id })
                         }
                     >
-                        {tab.data.name}
+                        {tab.label}
                         <span className={styles.switchCount}>
                             {tab.data.count}
                         </span>
@@ -150,7 +149,7 @@ function Controls({ model }: { model: Model<Types> }) {
                     className={styles.stepValue}
                 >
                     {current
-                        ? `${current.data.name}: ${current.data.count}`
+                        ? `${current.label}: ${current.data.count}`
                         : "No tab"}
                 </output>
                 <button
@@ -184,7 +183,7 @@ function Counter({ tab }: { tab: CounterTab }) {
     const { model } = useDockable<Types>();
     return (
         <div className={styles.counter}>
-            <h2 className={styles.counterName}>{tab.data.name}</h2>
+            <h2 className={styles.counterName}>{tab.label}</h2>
             <p data-testid="count" className={styles.counterValue}>
                 {tab.data.count}
             </p>
@@ -225,9 +224,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             <span className={styles.tabCount}>
                                 {tab.data.count}
                             </span>

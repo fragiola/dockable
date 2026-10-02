@@ -88,6 +88,7 @@ describe("docking", () => {
         must(
             model.run("tab.add", {
                 component: "x",
+                label: "New",
                 data: { name: "New" },
                 to: "main",
                 location: "right",
@@ -101,6 +102,7 @@ describe("docking", () => {
         must(
             model.run("tab.add", {
                 component: "x",
+                label: "New",
                 data: { name: "New" },
                 to: "root",
                 index: 1,

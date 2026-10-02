@@ -40,8 +40,8 @@ import * as styles from "./styles";
 
 type Types = {
     tabs: {
-        doc: { name: string; region: string };
-        console: { name: string };
+        doc: { region: string };
+        console: undefined;
     };
     tabset: { name: string };
 };
@@ -52,7 +52,8 @@ const LOCKED = new Set([REFERENCE, CONSOLE]);
 
 const doc = (name: string, region: string): TabJson<Types> => ({
     component: "doc",
-    data: { name, region },
+    label: name,
+    data: { region },
 });
 
 const json: LayoutJson<Types> = {
@@ -92,12 +93,12 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "console",
-                        data: { name: "Console" },
+                        label: "Console",
                         enableDrag: false,
                     },
                     {
                         component: "console",
-                        data: { name: "Output" },
+                        label: "Output",
                         enableDrag: false,
                     },
                 ],
@@ -135,7 +136,7 @@ const lockedRegions: Middleware<Types> = (ctx, next) => {
               ? payload
               : undefined;
     const tab = moving && "component" in moving ? moving : undefined;
-    const name = tab ? `"${tab.data.name}"` : "a tabset";
+    const name = tab ? `"${tab.label}"` : "a tabset";
 
     if (payload.to === REFERENCE && regionOf(tab) !== REFERENCE) {
         return veto(`A middleware vetoed moving ${name} into Reference.`);
@@ -196,7 +197,7 @@ export default function LockedRegions() {
                                 {tab.component === "doc" ? (
                                     <DocPanel tab={tab} onNotice={setNotice} />
                                 ) : (
-                                    <PanelBody title={tab.data.name}>
+                                    <PanelBody title={tab.label}>
                                         <p className={styles.panelText}>
                                             Locked in place: this tab cannot be
                                             dragged, and nothing can be dropped
@@ -249,9 +250,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
@@ -323,7 +322,7 @@ function DocPanel({
         onNotice(result.ok ? undefined : result.error.message);
     };
     return (
-        <PanelBody title={tab.data.name}>
+        <PanelBody title={tab.label}>
             <p className={styles.panelText}>
                 {`Region: ${region}. `}
                 {region === REFERENCE

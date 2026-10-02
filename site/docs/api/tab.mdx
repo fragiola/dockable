@@ -12,7 +12,7 @@ Enter or Space on the selected tab moves focus into its panel. Renders only its 
     node={tab}
     className="px-3 data-selected:bg-palette-soft data-dragging:opacity-40"
 >
-    {tab.data.name}
+    {tab.label}
     {model.can("tab.close", { tabId: tab.id }) ? <CloseButton tab={tab} /> : null}
 </Dockable.Tab>
 ```

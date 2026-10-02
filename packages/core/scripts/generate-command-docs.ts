@@ -76,20 +76,22 @@ const GROUPS: readonly [prefix: string, title: string][] = [
 const EXAMPLES: Record<string, unknown> = {
     "tab.add": {
         component: "editor",
-        data: { name: "a.ts", path: "/a.ts" },
+        label: "a.ts",
+        data: { path: "/a.ts" },
         to: "tabset-1",
     },
     "tab.select": { tabId: "tab-1" },
     "tab.close": { tabId: "tab-1" },
     "tab.move": { tabId: "tab-1", to: "tabset-2", location: "right" },
-    "tab.update": {
+    "tab.set-data": { tabId: "tab-1", data: { dirty: true } },
+    "tab.set-component": {
         tabId: "tab-1",
         component: "editor",
-        data: { name: "b.ts", path: "/b.ts" },
+        data: { path: "/b.ts" },
     },
     "tab.pin": { tabId: "tab-1", value: true },
     "tab.popout": { tabId: "tab-1" },
-    "tab.configure": { tabId: "tab-1", enableClose: false },
+    "tab.configure": { tabId: "tab-1", label: "b.ts", enableClose: false },
     "tabset.activate": { tabsetId: "tabset-1" },
     "tabset.maximize": { tabsetId: "tabset-1", value: true },
     "tabset.close": { tabsetId: "tabset-1" },
@@ -115,7 +117,11 @@ const EXAMPLES: Record<string, unknown> = {
                     {
                         type: "tabset",
                         children: [
-                            { component: "editor", data: { name: "a.ts" } },
+                            {
+                                component: "editor",
+                                label: "a.ts",
+                                data: { path: "/a.ts" },
+                            },
                         ],
                     },
                 ],
@@ -201,7 +207,7 @@ function commandTypes(): Map<string, { payload: string; result: string }> {
     const start = source.indexOf("export interface CommandMap");
     const body = source.slice(start, source.indexOf("\n}\n", start));
     const types = new Map<string, { payload: string; result: string }>();
-    for (const match of body.matchAll(/^ {4}"?([\w.]+)"?: \{/gm)) {
+    for (const match of body.matchAll(/^ {4}"?([\w.-]+)"?: \{/gm)) {
         const name = match[1] ?? "";
         // the entry's braces, balanced
         let depth = 0;
@@ -270,7 +276,7 @@ function commandCodes(): Map<string, Set<string>> {
             .split(/^export const \w+ = defineCommand\(/m)
             .slice(1);
         for (const block of blocks) {
-            const name = /name: "([\w.]+)"/.exec(block)?.[1];
+            const name = /name: "([\w.-]+)"/.exec(block)?.[1];
             if (name) result.set(name, closure(block));
         }
     }

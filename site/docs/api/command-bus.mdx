@@ -13,8 +13,8 @@ import { createModel, veto } from "@fragiola/dockable";
 
 type Types = {
     tabs: {
-        editor: { name: string; path: string; dirty: boolean };
-        log: { name: string };
+        editor: { path: string; dirty: boolean };
+        log: undefined;
     };
 };
 
@@ -29,7 +29,8 @@ model.subscribe((event) => console.log(event.command, event.result));
 
 const result = model.run("tab.add", {
     component: "editor",
-    data: { name: "a.ts", path: "/a.ts", dirty: false },
+    label: "a.ts",
+    data: { path: "/a.ts", dirty: false },
     to: "editors",
 });
 if (!result.ok) console.warn(result.error.code, result.error.message);
@@ -73,7 +74,7 @@ a successful result is typed too:
 ```ts
 const added = model.run("tab.add", {
     component: "log",
-    data: { name: "Build" },
+    label: "Build",
     to: "tools",
     select: true,
 });
@@ -193,7 +194,7 @@ return.
 | code | returned when |
 | --- | --- |
 | `unknown_command` | the name is not a command. From `dispatch` the path is `/command`; inside a batch, `/commands/<i>/command` |
-| `invalid_payload` | the payload does not match the command's JSON Schema (the first problem's path, and all of them in `issues`); a registered data schema rejects a tab's `data` (`tab.add`, `tab.update`, `layout.load`); a `layout.load` document is invalid (every issue, under `/layout`); a command-specific shape check fails (`row.resize` without one weight per child); `transient: true` on a command that cannot be transient; the `dispatch` envelope is malformed; or a middleware rewrote the payload into an invalid one |
+| `invalid_payload` | the payload does not match the command's JSON Schema (the first problem's path, and all of them in `issues`); a registered data schema rejects a tab's `data` (`tab.add`, `tab.set-data`, `tab.set-component`, `layout.load`); a `layout.load` document is invalid (every issue, under `/layout`); a command-specific shape check fails (`row.resize` without one weight per child); `transient: true` on a command that cannot be transient; the `dispatch` envelope is malformed; or a middleware rewrote the payload into an invalid one |
 | `not_found` | a node or window the payload names does not exist, or is not of the kind the command needs (a tab id given as `tabset`) |
 | `refused` | a rule of the layout forbids it: a permission flag resolves to false (`enableClose`, `enableDrag`, `enableDrop`, `enableDivide`, `enableMaximize`, `enablePopout`), the tab is pinned, the target refuses the drop, the id is already in use, the tabset is the only one of its layout, the border has no tab to open |
 | `vetoed` | a middleware returned an error without calling `next()` (usually `veto(message)`), or returned `undefined` without calling it |
@@ -441,6 +442,7 @@ Everything on this page is exported from `@fragiola/dockable`.
 | `Placement` | where `tab.add`, `tab.move` and `tabset.move` put a tab or tabset (below) |
 | `Nullable<P>` | every field of `P` optional and nullable: `null` removes the node's own value, so the defaults apply |
 | `LayoutDefaultsPatch` | the payload field of `layout.configure` (below) |
+| `DataPatchOf<T>` | the `data` of a `tab.set-data` patch: some top-level keys of one component's data, each with its type |
 
 The payload type of each command (`TabAddPayload<T>`, `TabMovePayload`, …) is named on
 [Commands](/docs/api/commands).

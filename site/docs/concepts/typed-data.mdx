@@ -3,8 +3,8 @@ title: Typed data
 description: Declare what each tab component holds once, in a Types registry, and the JSON, the commands and the render functions are all typed by it, with no casts.
 ---
 
-A tab names a **component** (what it shows) and carries **data** (its state: a file path, a chart's
-series, its name). Dockable never reads the data: it is yours. You declare its type once, in a
+A tab names a **component** (what it shows), has a **label** (its name, a string) and carries
+**data** (its state: a file path, a chart's series). Dockable never reads the data: it is yours. You declare its type once, in a
 **registry**, and everything that touches a tab is typed by it: the layout JSON, the command
 payloads, the queries and the functions you render with.
 
@@ -16,9 +16,9 @@ of tabsets, borders and rows:
 ```ts
 type Types = {
     tabs: {
-        editor: { name: string; path: string; dirty: boolean };
-        chart: { name: string; series: string[] };
-        log: { name: string };
+        editor: { path: string; dirty: boolean };
+        chart: { series: string[] };
+        log: undefined;
     };
     tabset: { name?: string };
 };
@@ -44,7 +44,7 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 id: "main",
                 data: { name: "Editors" },
-                children: [{ component: "editor", data: { name: "a.ts", path: "/a.ts", dirty: false } }],
+                children: [{ component: "editor", label: "a.ts", data: { path: "/a.ts", dirty: false } }],
             },
         ],
     },
@@ -68,11 +68,11 @@ import type { TabOf } from "@fragiola/dockable";
 function title(tab: TabOf<Types>): string {
     switch (tab.component) {
         case "editor":
-            return tab.data.dirty ? `${tab.data.name} •` : tab.data.name; // the editor's data
+            return tab.data.dirty ? `${tab.label} •` : tab.label; // the editor's data
         case "chart":
-            return `${tab.data.name} (${tab.data.series.length})`; // the chart's data
+            return `${tab.label} (${tab.data.series.length})`; // the chart's data
         case "log":
-            return tab.data.name;
+            return tab.label;
     }
 }
 ```
@@ -99,21 +99,38 @@ function TabContent({ tab }: { tab: TabOf<Types> }) {
 
 ## Typed payloads
 
-The commands are typed by the same registry. `tab.add` takes a component and **its** data, and
-`tab.update` replaces a tab's data with a new value for its component:
+The commands are typed by the same registry. `tab.add` takes a component and **its** data:
 
 ```ts
-model.run("tab.add", { component: "chart", data: { name: "Sales", series: [] }, to: "main" });
+model.run("tab.add", { component: "chart", label: "Sales", data: { series: [] }, to: "main" });
 
 // @ts-expect-error: `path` is not in the chart's data
-model.run("tab.add", { component: "chart", data: { name: "Sales", path: "/x" }, to: "main" });
+model.run("tab.add", { component: "chart", label: "Sales", data: { path: "/x" }, to: "main" });
+```
 
+`tab.set-data` changes some of an existing tab's data: `data` is a **shallow patch**, whose
+top-level keys replace the tab's while the others stay. A patch is typed as some keys of a
+component's data (`DataPatchOf<Types>`), so a key no component has, or a value of the wrong type,
+does not compile. The tab's id does not say its component, so the model checks the merged data
+against the tab's component at runtime (with `dataSchemas`, below). `tab.set-component` switches a
+tab to another component, and its `data` is the **whole** new value, typed by that component:
+
+```ts
 const tab = model.get("selected-tab-by", { tabsetId: "main" });
 if (tab?.component === "editor") {
-    // `data` is the whole new value, not a patch: keep the rest of it
-    model.run("tab.update", { tabId: tab.id, component: "editor", data: { ...tab.data, dirty: true } });
+    model.run("tab.set-data", { tabId: tab.id, data: { dirty: true } }); // the path stays
 }
+
+// a switch takes the whole data of the new component
+model.run("tab.set-component", { tabId: "t1", component: "chart", data: { series: ["a"] } });
+
+// @ts-expect-error: no component has `colour` in its data
+model.run("tab.set-data", { tabId: "t1", data: { colour: "red" } });
 ```
+
+A patch never removes a key: set an optional one to its empty value (`false`, `null`, `""`), or
+replace the whole data with `tab.set-component` (its current component, to keep it). Renaming is not a data change: it is `tab.configure` with a new
+`label`.
 
 A toolbar outside the layout can drive the tab the user is looking at this way: it narrows the
 selected tab of the active tabset on `component`, then writes the chart's new kind into its data.
@@ -128,7 +145,7 @@ selected tab of the active tabset on `component`, then writes the chart's new ki
 ```ts
 import type { TabInitOf } from "@fragiola/dockable";
 
-const newChart: TabInitOf<Types> = { component: "chart", data: { name: "Chart", series: [] } };
+const newChart: TabInitOf<Types> = { component: "chart", label: "Chart", data: { series: [] } };
 
 model.run("tab.add", { ...newChart, to: "main", select: true });
 ```
@@ -142,18 +159,18 @@ JSON Schema per component with `dataSchemas`, and the model validates `data` whe
 ```ts
 import { createModel, type JsonSchema } from "@fragiola/dockable";
 
-const dataSchemas: { [K in keyof Types["tabs"]]: JsonSchema } = {
+// the log has no data, so no schema
+const dataSchemas: { [K in keyof Types["tabs"]]?: JsonSchema } = {
     editor: {
         type: "object",
-        properties: { name: { type: "string" }, path: { type: "string", minLength: 1 }, dirty: { type: "boolean" } },
-        required: ["name", "path"],
+        properties: { path: { type: "string", minLength: 1 }, dirty: { type: "boolean" } },
+        required: ["path"],
     },
     chart: {
         type: "object",
-        properties: { name: { type: "string" }, series: { type: "array", items: { type: "string" } } },
-        required: ["name", "series"],
+        properties: { series: { type: "array", items: { type: "string" } } },
+        required: ["series"],
     },
-    log: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
 };
 
 const model = createModel<Types>(json, { dataSchemas });
@@ -161,33 +178,35 @@ const model = createModel<Types>(json, { dataSchemas });
 
 - `createModel` throws a `LayoutValidationError` listing every tab whose data fails, with its JSON
   path (`validateLayout(json, { dataSchemas })` returns the same issues without throwing).
-- `tab.add`, `tab.update` and `layout.load` return `invalid_payload`, with the path of the
-  offending `data`. Nothing changes.
+- `tab.add`, `tab.set-data`, `tab.set-component` and `layout.load` return `invalid_payload`, with the path of the
+  offending `data`. Nothing changes. A patch is validated once merged, so the keys it keeps count.
 
 The schemas use the JSON Schema subset the model's validator supports (`type`, `properties`,
 `required`, `items`, `enum`, `const`, `anyOf`, `oneOf`, `minimum`, `minLength`, …).
 
-## Why names, icons and class names live in `data`
+## The label, and why icons and class names live in `data`
 
-The model holds the layout: which tabs exist, where they are, what they allow. It holds **no text
-and no styling**. A tab's name is text your app renders (and translates); an icon, a help text or a
-class name is how your app draws the tab. So they are fields of **your** data, typed by your
-registry, and your markup reads them:
+The model holds the layout: which tabs exist, where they are, what they allow, and what each tab
+is called. Every tab has a name, so the name is a field of the tab, its `label`: a raw string the
+model stores and returns, and never translates or renders. Your markup renders it (and translates
+it, when it is a key). The model holds **no styling**: an icon, a help text or a class name is how
+your app draws the tab. So those are fields of **your** data, typed by your registry, and your
+markup reads them:
 
 ```tsx
 <Dockable.TabList<Types> aria-label={tabset.data?.name ?? "Tabs"}>
     {(tab) => (
         <Dockable.Tab node={tab} className={tab.component === "log" ? "tab tab-log" : "tab"}>
             <TabIcon component={tab.component} />
-            {tab.data.name}
+            {tab.label}
         </Dockable.Tab>
     )}
 </Dockable.TabList>
 ```
 
 The same goes for UI permissions the model does not enforce: whether a tab may be renamed, or shows
-a pin item in its menu, is a field of its data (`renamable: true`), and renaming it is `tab.update`
-with the new name. Permissions the model **does** enforce (`enableClose`, `enableDrag`,
+a pin item in its menu, is a field of its data (`renamable: true`), and renaming it is
+`tab.configure` with the new label. Permissions the model **does** enforce (`enableClose`, `enableDrag`,
 `enablePopout`, `pinned`, a tabset's `enableDrop`, …) stay node fields, because the commands check
 them.
 

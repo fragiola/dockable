@@ -18,7 +18,7 @@ import { cn } from "#/lib/cn";
 // `display: none` when hidden); every transition is the consumer's CSS, so this is where they are
 // tuned. Each layout has its own model: a drag stays inside its layout.
 
-type Types = { tabs: { body: { name: string } } };
+type Types = { tabs: { body: undefined } };
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -29,8 +29,8 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 55,
                 children: [
-                    { component: "body", data: { name: "Alpha" } },
-                    { component: "body", data: { name: "Beta" } },
+                    { component: "body", label: "Alpha" },
+                    { component: "body", label: "Beta" },
                 ],
             },
             {
@@ -39,15 +39,11 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         type: "tabset",
-                        children: [
-                            { component: "body", data: { name: "Gamma" } },
-                        ],
+                        children: [{ component: "body", label: "Gamma" }],
                     },
                     {
                         type: "tabset",
-                        children: [
-                            { component: "body", data: { name: "Delta" } },
-                        ],
+                        children: [{ component: "body", label: "Delta" }],
                     },
                 ],
             },
@@ -107,7 +103,7 @@ function MotionLayout({ name, motion }: { name: string; motion: string }) {
                                 node={tab}
                                 className="palette-raised overflow-auto rounded-b-[max(0px,calc(var(--dk-radius)-var(--dk-border)))] bg-palette-base bg-(image:--dk-panel-texture) text-palette-contrast"
                             >
-                                <PanelBody title={tab.data.name} />
+                                <PanelBody title={tab.label} />
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
@@ -168,7 +164,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
                             )}
                         >
-                            <span className="truncate">{tab.data.name}</span>
+                            <span className="truncate">{tab.label}</span>
                             <span
                                 aria-hidden="true"
                                 className="palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]"

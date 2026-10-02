@@ -20,7 +20,7 @@ state the model holds has the same shape, with the omitted fields filled in.
                 "id": "editors",
                 "weight": 70,
                 "children": [
-                    { "id": "readme", "component": "editor", "data": { "name": "README.md", "path": "/README.md" } }
+                    { "id": "readme", "component": "editor", "label": "README.md", "data": { "path": "/README.md" } }
                 ]
             },
             {
@@ -28,19 +28,19 @@ state the model holds has the same shape, with the omitted fields filled in.
                 "id": "tools",
                 "weight": 30,
                 "enableDrop": false,
-                "children": [{ "id": "log", "component": "log", "data": { "name": "Log" }, "pinned": true }]
+                "children": [{ "id": "log", "component": "log", "label": "Log", "pinned": true }]
             }
         ]
     },
     "active": "editors",
     "borders": [
-        { "location": "left", "mode": "overlay", "children": [{ "component": "files", "data": { "name": "Files" } }] }
+        { "location": "left", "mode": "overlay", "children": [{ "component": "files", "label": "Files" }] }
     ],
     "windows": [
         {
             "id": "w1",
             "rect": { "x": 100, "y": 100, "width": 600, "height": 400 },
-            "root": { "type": "row", "children": [{ "type": "tabset", "children": [{ "component": "log", "data": { "name": "Build" } }] }] }
+            "root": { "type": "row", "children": [{ "type": "tabset", "children": [{ "component": "log", "label": "Build" }] }] }
         }
     ]
 }
@@ -116,7 +116,8 @@ sources) whose `type` may be omitted:
 | `type` | `"tab"` | optional |
 | `id` | `string` | generated when missing |
 | `component` | `string` | what the tab shows: a component of your registry, which types `data` |
-| `data` | `TabDataOf<T, K>` | the app's data for the tab (its name, icon, dirty flag, …); required when the component's data type is |
+| `label` | `string` | required: the tab's name, as your app wrote it. The model never translates or renders it; your strip renders it (`{tab.label}`), and `tab.configure` changes it |
+| `data` | `TabDataOf<T, K>` | the app's data for the tab (its icon, dirty flag, …); required when the component's data type is |
 | `pinned` | `boolean` | the tab sits at the start of its strip, cannot close and cannot leave its tabset; a border's tabs cannot be pinned |
 | `enableClose` | `boolean` | it can be closed |
 | `enableDrag` | `boolean` | it can be dragged or moved |
@@ -139,7 +140,8 @@ import type { TabJson } from "@fragiola/dockable";
 const readme: TabJson<Types> = {
     id: "readme",
     component: "editor",
-    data: { name: "README.md", path: "/README.md", dirty: false },
+    label: "README.md",
+    data: { path: "/README.md", dirty: false },
 };
 ```
 
@@ -345,8 +347,9 @@ attributes:
 | `enableDeleteWhenEmpty` | `deleteWhenEmpty` |
 | a border's `borderType`, `enableAutoHide` | `mode`, `autoHide` |
 | `borderWidth`, `borderHeight` of `-1` | omitted |
-| a tab's `name`, `altName`, `icon`, `helpText` | moved to `data`: they are your text, rendered by your strip |
-| a tab's `enableRename`, `enablePin` | moved to `data`: they only gate your own menu items; renaming is `tab.update` |
+| a tab's `name` | `label`: required, rendered by your strip (the packages never render it) |
+| a tab's `altName`, `icon`, `helpText` | moved to `data`: they are your text, rendered by your strip |
+| a tab's `enableRename`, `enablePin` | moved to `data`: they only gate your own menu items; renaming is `tab.configure` with a new `label` |
 | a tabset's `name` | moved to `data` (the tab list's accessible name is yours to pass) |
 | `enableRenderOnDemand`, `enableScrollbars`, `enableWindowReMount` | props: `renderOnDemand` on `Dockable.Panels`, `scrollable` and `remountInWindow` on `Dockable.Panel` |
 | `borderLeftTabDirection`, `enableEdgeDockIndicators` | props: `tabDirection` on `Dockable.Border`; render `Dockable.EdgeIndicator` or not |

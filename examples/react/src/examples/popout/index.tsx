@@ -23,7 +23,7 @@ import * as styles from "./styles";
 // docks its tabs back into the main layout (the default "dock" policy). A tab can also be dragged
 // from the window into the main layout, and back (see the popout-drag example).
 
-type Types = { tabs: { card: { name: string } } };
+type Types = { tabs: { card: undefined } };
 
 const json: LayoutJson<Types> = {
     version: 1,
@@ -36,18 +36,18 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 55,
                 children: [
-                    { component: "card", data: { name: "Editor" } },
-                    { component: "card", data: { name: "Preview" } },
+                    { component: "card", label: "Editor" },
+                    { component: "card", label: "Preview" },
                 ],
             },
             {
                 type: "tabset",
                 weight: 45,
                 children: [
-                    { component: "card", data: { name: "Chat" } },
+                    { component: "card", label: "Chat" },
                     {
                         component: "card",
-                        data: { name: "Pinned here" },
+                        label: "Pinned here",
                         // this one stays in the main window
                         enablePopout: false,
                     },
@@ -83,7 +83,7 @@ export default function Popout() {
                 <Dockable.Panels<Types>>
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
-                            <Card name={tab.data.name}>
+                            <Card name={tab.label}>
                                 <p className={styles.panelText}>
                                     Count, type a note, then pop the tab out
                                     with the button in its header. Dock it back
@@ -145,9 +145,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
@@ -177,7 +175,7 @@ function PopoutButton({ tabset }: { tabset: TabsetNode<Types> }) {
     });
     const inWindow =
         model.get("layout-id-by", { nodeId: tabset.id }) !== MAIN_LAYOUT;
-    const name = selected?.data.name ?? "";
+    const name = selected?.label ?? "";
     return (
         <Dockable.PopoutTrigger
             aria-label={inWindow ? `Dock ${name} back` : `Pop out ${name}`}

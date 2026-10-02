@@ -16,10 +16,10 @@ import * as styles from "./styles";
 // What the layout holds: each tab component and the type of its data.
 type Types = {
     tabs: {
-        table: { name: string };
-        chart: { name: string; kind: ChartKind; seed: number };
-        log: { name: string };
-        kpi: { name: string; seed: number };
+        table: undefined;
+        chart: { kind: ChartKind; seed: number };
+        log: undefined;
+        kpi: { seed: number };
     };
 };
 
@@ -32,14 +32,16 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { component: "table", data: { name: "Sheet 1" } },
+                    { component: "table", label: "Sheet 1" },
                     {
                         component: "chart",
-                        data: { name: "Sheet 2", kind: "bar", seed: 5 },
+                        label: "Sheet 2",
+                        data: { kind: "bar", seed: 5 },
                     },
                     {
                         component: "chart",
-                        data: { name: "Sheet 3", kind: "donut", seed: 12 },
+                        label: "Sheet 3",
+                        data: { kind: "donut", seed: 12 },
                     },
                 ],
             },
@@ -47,8 +49,8 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 40,
                 children: [
-                    { component: "log", data: { name: "Console" } },
-                    { component: "kpi", data: { name: "Watch", seed: 21 } },
+                    { component: "log", label: "Console" },
+                    { component: "kpi", label: "Watch", data: { seed: 21 } },
                 ],
             },
         ],
@@ -122,13 +124,13 @@ export default function TabsAtBottom() {
                                     <ChartPanel
                                         kind={tab.data.kind}
                                         seed={tab.data.seed}
-                                        title={tab.data.name}
+                                        title={tab.label}
                                     />
                                 ) : tab.component === "log" ? (
                                     <LogPanel />
                                 ) : (
                                     <KpiPanel
-                                        label={tab.data.name}
+                                        label={tab.label}
                                         seed={tab.data.seed}
                                     />
                                 )}
@@ -170,7 +172,7 @@ function TabSet({
             >
                 {(tab) => (
                     <Dockable.Tab node={tab} className={styles.tab(bottom)}>
-                        <span className={styles.tabName}>{tab.data.name}</span>
+                        <span className={styles.tabName}>{tab.label}</span>
                         {/* the active tabset's marker, on the edge that meets the content */}
                         <span
                             aria-hidden="true"

@@ -13,8 +13,8 @@ import { createModel, type LayoutJson } from "@fragiola/dockable";
 
 type Types = {
     tabs: {
-        editor: { name: string; path: string; dirty: boolean };
-        log: { name: string };
+        editor: { path: string; dirty: boolean };
+        log: undefined;
     };
 };
 
@@ -30,7 +30,8 @@ const json: LayoutJson<Types> = {
                     {
                         id: "readme",
                         component: "editor",
-                        data: { name: "README.md", path: "/README.md", dirty: false },
+                        label: "README.md",
+                        data: { path: "/README.md", dirty: false },
                     },
                 ],
             },
@@ -91,7 +92,7 @@ middleware are typed by it.
 | option | type | description |
 | --- | --- | --- |
 | `createId` | `CreateId` | generates the id of a node or window created without one; default `` `${kind}-${n}` `` |
-| `dataSchemas` | `{ [K in ComponentOf<T>]?: JsonSchema }` | a JSON Schema per tab component: loading, `tab.add`, `tab.update` and `layout.load` validate that component's `data` with it (`invalid_payload`, or a `LayoutValidationError` at creation) |
+| `dataSchemas` | `{ [K in ComponentOf<T>]?: JsonSchema }` | a JSON Schema per tab component: loading, `tab.add`, `tab.set-data`, `tab.set-component` and `layout.load` validate that component's `data` with it (`invalid_payload`, or a `LayoutValidationError` at creation) |
 | `freeze` | `boolean` | freeze every state object (`Object.freeze`, deeply); default `true`. With `false` the state is not frozen, but must still never be mutated |
 
 ```ts
@@ -99,13 +100,13 @@ import { createModel, type FromSchema } from "@fragiola/dockable";
 
 const logSchema = {
     type: "object",
-    properties: { name: { type: "string", minLength: 1 } },
-    required: ["name"],
+    properties: { maxLines: { type: "integer", minimum: 1 } },
+    required: ["maxLines"],
     additionalProperties: false,
 } as const;
 
 type Types = {
-    tabs: { log: FromSchema<typeof logSchema> }; // { name: string }
+    tabs: { log: FromSchema<typeof logSchema> }; // { maxLines: number }
 };
 
 const model = createModel<Types>(json, {
@@ -206,9 +207,9 @@ classes and no methods. A tab of `TabOf<T>` narrows on `component`, so its `data
 function title(tab: TabOf<Types>): string {
     switch (tab.component) {
         case "editor":
-            return tab.data.dirty ? `${tab.data.name} •` : tab.data.name;
+            return tab.data.dirty ? `${tab.label} •` : tab.label;
         case "log":
-            return tab.data.name;
+            return tab.label;
     }
 }
 
@@ -330,8 +331,8 @@ says what data each tab component holds ([Typed data](/docs/concepts/typed-data)
 ```ts
 type Types = {
     tabs: {
-        editor: { name: string; path: string; dirty: boolean };
-        log: { name: string };
+        editor: { path: string; dirty: boolean };
+        log: undefined;
     };
     tabset: { name: string };
 };

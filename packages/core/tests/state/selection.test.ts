@@ -63,6 +63,7 @@ describe("selection", () => {
         must(
             model.run("tab.add", {
                 component: "x",
+                label: "Four",
                 data: { name: "Four" },
                 to: "ts0",
                 select: true,

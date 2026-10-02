@@ -39,7 +39,7 @@ export class LayoutValidationError extends Error {
     }
 }
 
-/** Per-component data schemas: `tab.add`, `tab.update` and loading validate `data` with them. */
+/** Per-component data schemas: `tab.add`, `tab.set-data`, `tab.set-component` and loading validate `data` with them. */
 export type DataSchemas = {
     readonly [component: string]: JsonSchema | undefined;
 };
@@ -60,6 +60,7 @@ interface TabJsonLike {
     readonly [key: string]: unknown;
     readonly id?: string;
     readonly component: string;
+    readonly label: string;
 }
 interface TabsetJsonLike {
     readonly [key: string]: unknown;
@@ -274,6 +275,7 @@ export function buildState(
             type: "tab",
             id: tab.id ?? newId("tab"),
             component: tab.component,
+            label: tab.label,
         };
         copyFields(node, tab, TAB_FIELDS);
         return node as unknown as AnyTab;

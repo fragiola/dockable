@@ -45,7 +45,7 @@ function MonitorTab({ tab }: { tab: TabOf<Types> }) {
                 className={styles.tabIcon(status)}
             />
             {/* a pinned tab is only its icon; the name stays for screen readers */}
-            <span className={styles.tabName(tab.pinned)}>{tab.data.name}</span>
+            <span className={styles.tabName(tab.pinned)}>{tab.label}</span>
             {alerts > 0 ? (
                 <span className={styles.alertsLabel}>
                     {`${alerts} open ${alerts === 1 ? "alert" : "alerts"}`}

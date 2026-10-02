@@ -11,7 +11,7 @@ function MyTabSet({ node }: { node: TabsetNode<Types> }) {
     return (
         <Dockable.TabSet node={node} className="tabset">
             <Dockable.TabList<Types> aria-label={node.data?.name ?? "Tabs"}>
-                {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
+                {(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}
             </Dockable.TabList>
             <Dockable.TabSetContent />
         </Dockable.TabSet>

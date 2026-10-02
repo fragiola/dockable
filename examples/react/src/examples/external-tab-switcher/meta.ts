@@ -8,7 +8,7 @@ export default {
     order: 2,
     features: [
         "tab.select",
-        "tab.update",
+        "tab.set-data",
         "selected-tab-by",
         "active-tabset",
         "model.subscribe",

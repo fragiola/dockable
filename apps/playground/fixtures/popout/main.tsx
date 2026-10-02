@@ -43,9 +43,7 @@ function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
                         aria-label={child.data?.name ?? "Tabs"}
                     >
                         {(tab) => (
-                            <Dockable.Tab node={tab}>
-                                {tab.data.name}
-                            </Dockable.Tab>
+                            <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>
                         )}
                     </Dockable.TabList>
                     <Dockable.PopoutTrigger data-testid="popout-tab">

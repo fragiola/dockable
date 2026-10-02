@@ -6,7 +6,6 @@ import {
     type RowNode,
     type TabOf,
     type TabsetNode,
-    type TabUpdatePayload,
 } from "@fragiola/dockable";
 import {
     Dockable,
@@ -20,23 +19,21 @@ import { RenameField } from "../_kit/rename-field";
 import * as styles from "./styles";
 
 // Inline rename: double-click a tab (or press F2 on it) and type. Enter confirms, Escape cancels,
-// an empty name is refused. The package has no rename UI: the name is the app's own data, and
-// renaming is the `tab.update` command with the new data. Whether a tab may be renamed is the
-// app's too (`renamable` in its data).
+// an empty name is refused. The package has no rename UI: the name is the tab's `label`, and
+// renaming is one command, `tab.configure` with the new label, whatever the tab's component.
+// Whether a tab may be renamed is the app's choice (`renamable` in its data).
 
-// What the layout holds: a note, a chart and a KPI, each named in its data, which also says
-// whether it may be renamed. The chart's title and the KPI's label are the tab's name: a rename
-// shows in the content too.
+// What the layout holds: a note, a chart and a KPI. Their data says whether they may be renamed.
+// The chart's title and the KPI's caption are the tab's label: a rename shows in the content too.
 type Types = {
     tabs: {
-        note: { name: string; text: string; renamable?: boolean };
+        note: { text: string; renamable?: boolean };
         chart: {
-            name: string;
             kind: ChartKind;
             seed: number;
             renamable?: boolean;
         };
-        kpi: { name: string; seed: number; renamable?: boolean };
+        kpi: { seed: number; renamable?: boolean };
     };
 };
 
@@ -51,20 +48,21 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "note",
+                        label: "Untitled",
                         data: {
-                            name: "Untitled",
                             text: "Double-click a tab, or focus it and press F2, to rename it.",
                         },
                     },
                     {
                         component: "chart",
-                        data: { name: "Sketch", kind: "area", seed: 5 },
+                        label: "Sketch",
+                        data: { kind: "area", seed: 5 },
                     },
                     {
                         component: "note",
+                        label: "Fixed name",
                         // this one cannot be renamed
                         data: {
-                            name: "Fixed name",
                             text: "This tab keeps its name: its data says renamable: false.",
                             renamable: false,
                         },
@@ -75,36 +73,12 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 45,
                 children: [
-                    { component: "kpi", data: { name: "Ideas", seed: 12 } },
+                    { component: "kpi", label: "Ideas", data: { seed: 12 } },
                 ],
             },
         ],
     },
 };
-
-/** The `tab.update` that renames a tab: the new data is the whole value, so it keeps the rest. */
-function renamed(tab: TabOf<Types>, name: string): TabUpdatePayload<Types> {
-    switch (tab.component) {
-        case "note":
-            return {
-                tabId: tab.id,
-                component: "note",
-                data: { ...tab.data, name },
-            };
-        case "chart":
-            return {
-                tabId: tab.id,
-                component: "chart",
-                data: { ...tab.data, name },
-            };
-        case "kpi":
-            return {
-                tabId: tab.id,
-                component: "kpi",
-                data: { ...tab.data, name },
-            };
-    }
-}
 
 export default function RenameTabs() {
     const [model] = useState(() => createModel<Types>(json));
@@ -136,7 +110,7 @@ export default function RenameTabs() {
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
                             {tab.component === "note" ? (
-                                <PanelBody title={tab.data.name}>
+                                <PanelBody title={tab.label}>
                                     <p className={styles.hint}>
                                         {tab.data.text}
                                     </p>
@@ -145,11 +119,11 @@ export default function RenameTabs() {
                                 <ChartPanel
                                     kind={tab.data.kind}
                                     seed={tab.data.seed}
-                                    title={tab.data.name}
+                                    title={tab.label}
                                 />
                             ) : (
                                 <KpiPanel
-                                    label={tab.data.name}
+                                    label={tab.label}
                                     seed={tab.data.seed}
                                 />
                             )}
@@ -230,15 +204,18 @@ function RenamableTab({
         >
             {editing ? (
                 <RenameField
-                    name={tab.data.name}
+                    name={tab.label}
                     onCommit={(name) => {
-                        model.run("tab.update", renamed(tab, name));
+                        model.run("tab.configure", {
+                            tabId: tab.id,
+                            label: name,
+                        });
                         setEditing(null);
                     }}
                     onCancel={() => setEditing(null)}
                 />
             ) : (
-                <span className={styles.tabName}>{tab.data.name}</span>
+                <span className={styles.tabName}>{tab.label}</span>
             )}
             {/* the active tabset's marker */}
             <span aria-hidden="true" className={styles.tabMarker} />

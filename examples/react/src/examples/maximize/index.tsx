@@ -23,12 +23,12 @@ import * as styles from "./styles";
 // and Escape to restore. The styles read `data-maximized` (on the tabset and on the root); the
 // splitters hide themselves while a tabset is maximized.
 
-// What the layout holds: three components, each named in its data.
+// What the layout holds: three components, each named by its label.
 type Types = {
     tabs: {
-        chart: { name: string };
-        bars: { name: string };
-        table: { name: string };
+        chart: undefined;
+        bars: undefined;
+        table: undefined;
     };
 };
 
@@ -41,8 +41,8 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 60,
                 children: [
-                    { component: "chart", data: { name: "Revenue" } },
-                    { component: "table", data: { name: "Orders" } },
+                    { component: "chart", label: "Revenue" },
+                    { component: "table", label: "Orders" },
                 ],
             },
             {
@@ -51,15 +51,11 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         type: "tabset",
-                        children: [
-                            { component: "bars", data: { name: "Signups" } },
-                        ],
+                        children: [{ component: "bars", label: "Signups" }],
                     },
                     {
                         type: "tabset",
-                        children: [
-                            { component: "table", data: { name: "Latest" } },
-                        ],
+                        children: [{ component: "table", label: "Latest" }],
                     },
                 ],
             },
@@ -147,9 +143,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

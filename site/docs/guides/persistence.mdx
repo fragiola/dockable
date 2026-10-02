@@ -68,7 +68,7 @@ it returns `{ ok: true, value }` or `{ ok: false, issues }`.
 ### Validating your data too
 
 The schema checks the layout's shape, not your tabs' `data`. Register a JSON Schema per component
-with `dataSchemas`, and `createModel`, `layout.load`, `tab.add` and `tab.update` validate each
+with `dataSchemas`, and `createModel`, `layout.load`, `tab.add`, `tab.set-data` and `tab.set-component` validate each
 tab's `data` with it, so a stored editor that lost its `path` is reported instead of crashing the
 editor:
 
@@ -77,8 +77,8 @@ import { createModel, type JsonSchema } from "@fragiola/dockable";
 
 const editor: JsonSchema = {
     type: "object",
-    properties: { name: { type: "string" }, path: { type: "string" } },
-    required: ["name", "path"],
+    properties: { path: { type: "string" }, dirty: { type: "boolean" } },
+    required: ["path"],
 };
 
 const model = createModel<Types>(json, { dataSchemas: { editor } });
@@ -137,18 +137,16 @@ const saved = { layout: model.get("layout-json"), drafts: Object.fromEntries(dra
 ```
 
 When the state should travel **inside** the layout JSON (to a popout, into undo history), write
-it into the tab's data with `tab.update` when it changes (debounced for typing). `data` is the
-whole value, so spread the rest of it:
+it into the tab's data with `tab.set-data` when it changes (debounced for typing). It takes a
+patch: only the keys you pass change.
 
 ```ts
-if (tab.component === "editor") {
-    model.run("tab.update", { tabId: tab.id, component: "editor", data: { ...tab.data, draft } });
-}
+model.run("tab.set-data", { tabId: tab.id, data: { draft } });
 ```
 
-Each such command is an undo step; add `"tab.update"` to your
+Each such command is an undo step; add `"tab.set-data"` to your
 [undo history](/docs/guides/undo-redo)'s ignored commands if it should not be (renames are
-`tab.update` too).
+`tab.configure`, so they stay undoable).
 
 ## Versioning saved layouts
 

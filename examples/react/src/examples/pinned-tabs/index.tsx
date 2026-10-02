@@ -32,8 +32,8 @@ import * as styles from "./styles";
 // (`model.can("tab.close", …)` refuses a pinned tab). The styles read `data-pinned` on the tab.
 // Whether a tab offers the pin button is the app's choice: here, `enablePin` in its data.
 
-// Every component carries the tab's name, its icon when pinned, and whether it offers the pin.
-type TabData = { name: string; icon?: string; enablePin: boolean };
+// Every component carries the tab's icon when pinned, and whether it offers the pin.
+type TabData = { icon?: string; enablePin: boolean };
 type Types = {
     tabs: {
         chart: TabData & { kind: ChartKind; seed: number };
@@ -60,9 +60,9 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
+                        label: "Home",
                         pinned: true,
                         data: {
-                            name: "Home",
                             icon: "home",
                             enablePin: true,
                             kind: "area",
@@ -71,13 +71,14 @@ const json: LayoutJson<Types> = {
                     },
                     {
                         component: "table",
+                        label: "Mail",
                         pinned: true,
-                        data: { name: "Mail", icon: "mail", enablePin: true },
+                        data: { icon: "mail", enablePin: true },
                     },
                     {
                         component: "chart",
+                        label: "Calendar",
                         data: {
-                            name: "Calendar",
                             icon: "calendar",
                             enablePin: true,
                             kind: "bar",
@@ -86,21 +87,13 @@ const json: LayoutJson<Types> = {
                     },
                     {
                         component: "chart",
-                        data: {
-                            name: "Report.pdf",
-                            enablePin: true,
-                            kind: "donut",
-                            seed: 8,
-                        },
+                        label: "Report.pdf",
+                        data: { enablePin: true, kind: "donut", seed: 8 },
                     },
                     {
                         component: "kpi",
-                        data: {
-                            name: "Budget.xlsx",
-                            enablePin: true,
-                            seed: 15,
-                            unit: "$",
-                        },
+                        label: "Budget.xlsx",
+                        data: { enablePin: true, seed: 15, unit: "$" },
                     },
                 ],
             },
@@ -110,16 +103,16 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "doc",
+                        label: "Notes",
                         data: {
-                            name: "Notes",
                             enablePin: true,
                             text: "Pin or unpin the selected tab with the pin button in the header.",
                         },
                     },
                     {
                         component: "doc",
+                        label: "Drafts",
                         data: {
-                            name: "Drafts",
                             enablePin: true,
                             text: "A pinned tab moves to the start of the strip and loses its close button.",
                         },
@@ -211,13 +204,13 @@ function Content({ tab }: { tab: TabOf<Types> }) {
                 <ChartPanel
                     kind={tab.data.kind}
                     seed={tab.data.seed}
-                    title={tab.data.name}
+                    title={tab.label}
                 />
             );
         case "kpi":
             return (
                 <KpiPanel
-                    label={tab.data.name}
+                    label={tab.label}
                     seed={tab.data.seed}
                     unit={tab.data.unit}
                 />
@@ -226,7 +219,7 @@ function Content({ tab }: { tab: TabOf<Types> }) {
             return <TablePanel />;
         case "doc":
             return (
-                <PanelBody title={tab.data.name}>
+                <PanelBody title={tab.label}>
                     <p className={styles.panelText}>{tab.data.text}</p>
                 </PanelBody>
             );
@@ -241,20 +234,20 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
         return (
             <>
                 <Icon aria-hidden className={styles.tabIcon} />
-                <span className={styles.tabNameHidden}>{tab.data.name}</span>
+                <span className={styles.tabNameHidden}>{tab.label}</span>
             </>
         );
     }
     return (
         <>
-            <span className={styles.tabName}>{tab.data.name}</span>
+            <span className={styles.tabName}>{tab.label}</span>
             {model.can("tab.close", { tabId: tab.id }) ? (
                 <button
                     type="button"
                     // the tab is the tab stop; the close button is reached with the mouse
                     // (the keyboard closes with Ctrl+Delete on the tab)
                     tabIndex={-1}
-                    aria-label={`Close ${tab.data.name}`}
+                    aria-label={`Close ${tab.label}`}
                     className={styles.closeButton}
                     onClick={(event) => {
                         event.stopPropagation(); // not a click on the tab
@@ -281,7 +274,7 @@ function PinButton({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <button
             type="button"
-            aria-label={`${pinned ? "Unpin" : "Pin"} ${selected.data.name}`}
+            aria-label={`${pinned ? "Unpin" : "Pin"} ${selected.label}`}
             aria-pressed={pinned}
             className={styles.button}
             onClick={() =>

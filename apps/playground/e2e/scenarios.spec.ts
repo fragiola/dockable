@@ -46,7 +46,7 @@ test("logs each command a button runs, and the model JSON follows", async ({
     await page.getByRole("button", { name: "Add tab" }).click();
     await expect(commandNames(page).first()).toHaveText("tab.add");
     await page.getByRole("button", { name: "Rename" }).click();
-    await expect(commandNames(page).first()).toHaveText("tab.update");
+    await expect(commandNames(page).first()).toHaveText("tab.configure");
     await page.getByRole("button", { name: "Add two (group)" }).click();
     await expect(commandNames(page).first()).toHaveText("batch");
     // one listener: each command is logged once, also under StrictMode
@@ -54,7 +54,7 @@ test("logs each command a button runs, and the model JSON follows", async ({
 
     await inspector(page).getByRole("button", { name: "Model" }).click();
     await expect(inspector(page).getByTestId("model-json")).toContainText(
-        '"name": "New 1*"',
+        '"label": "New 1*"',
     );
 
     await inspector(page).getByRole("button", { name: "Commands" }).click();

@@ -21,14 +21,14 @@ import * as styles from "./styles";
 // `window.close` commands the bringing back. `popoutMirrorRoot` mirrors the page's theme into
 // each window.
 
-// What the layout holds: five panel components (named in their data) and named tabsets.
+// What the layout holds: five panel components (named by their labels) and named tabsets.
 type Types = {
     tabs: {
-        requests: { name: string };
-        latency: { name: string };
-        orders: { name: string };
-        refunds: { name: string };
-        events: { name: string };
+        requests: undefined;
+        latency: undefined;
+        orders: undefined;
+        refunds: undefined;
+        events: undefined;
     };
     tabset: { name: string };
 };
@@ -45,8 +45,8 @@ const json: LayoutJson<Types> = {
                 data: { name: "Traffic" },
                 weight: 40,
                 children: [
-                    { component: "requests", data: { name: "Requests" } },
-                    { component: "latency", data: { name: "Latency" } },
+                    { component: "requests", label: "Requests" },
+                    { component: "latency", label: "Latency" },
                 ],
             },
             {
@@ -57,16 +57,14 @@ const json: LayoutJson<Types> = {
                         type: "tabset",
                         data: { name: "Orders" },
                         children: [
-                            { component: "orders", data: { name: "Orders" } },
-                            { component: "refunds", data: { name: "Refunds" } },
+                            { component: "orders", label: "Orders" },
+                            { component: "refunds", label: "Refunds" },
                         ],
                     },
                     {
                         type: "tabset",
                         data: { name: "Events" },
-                        children: [
-                            { component: "events", data: { name: "Events" } },
-                        ],
+                        children: [{ component: "events", label: "Events" }],
                     },
                 ],
             },
@@ -214,9 +212,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

@@ -35,7 +35,8 @@ import { INCIDENT_TABSET, MonitorTabSet } from "./tabs";
 const service = (id: ServiceId): TabInitOf<Types> => ({
     id: `service-${id}`,
     component: "service",
-    data: { name: SERVICES.find((s) => s.id === id)?.name ?? id, service: id },
+    label: SERVICES.find((s) => s.id === id)?.name ?? id,
+    data: { service: id },
 });
 
 const layout: LayoutJson<Types> = {
@@ -54,7 +55,7 @@ const layout: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "overview",
-                                data: { name: "Overview" },
+                                label: "Overview",
                                 pinned: true,
                             },
                             service("api"),
@@ -67,7 +68,7 @@ const layout: LayoutJson<Types> = {
                         children: [
                             service("search"),
                             service("auth"),
-                            { component: "events", data: { name: "Events" } },
+                            { component: "events", label: "Events" },
                         ],
                     },
                 ],
@@ -79,11 +80,13 @@ const layout: LayoutJson<Types> = {
                 children: [
                     {
                         component: "runbook",
-                        data: { name: "Runbook", region: "incident" },
+                        label: "Runbook",
+                        data: { region: "incident" },
                     },
                     {
                         component: "timeline",
-                        data: { name: "Timeline", region: "incident" },
+                        label: "Timeline",
+                        data: { region: "incident" },
                     },
                 ],
             },
@@ -93,7 +96,9 @@ const layout: LayoutJson<Types> = {
 
 /** An incident tab: its data says it belongs to the incident region. */
 const isIncidentTab = (tab: TabOf<Types>) =>
-    "region" in tab.data && tab.data.region === "incident";
+    tab.data !== undefined &&
+    "region" in tab.data &&
+    tab.data.region === "incident";
 
 const inIncidentRegion = (node: Node<Types> | undefined) =>
     node?.type === "tab" && isIncidentTab(node);

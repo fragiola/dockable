@@ -7,7 +7,6 @@ import {
     type RowNode,
     type TabOf,
     type TabsetNode,
-    type TabUpdatePayload,
 } from "@fragiola/dockable";
 import {
     Dockable,
@@ -26,14 +25,14 @@ import * as styles from "./styles";
 // says whether a command would apply; the menu (and its text) is the consumer's. The tab IS the
 // menu's trigger: `render` puts the Dockable.Tab's props onto ContextMenu.Trigger's element.
 
-// What the layout holds: one component per kind of content, each named in its data.
+// What the layout holds: one component per kind of content, each named by its label.
 type Types = {
     tabs: {
-        note: { name: string; text: string };
-        chart: { name: string; kind: ChartKind; seed: number };
-        kpi: { name: string; seed: number };
-        log: { name: string };
-        table: { name: string };
+        note: { text: string };
+        chart: { kind: ChartKind; seed: number };
+        kpi: { seed: number };
+        log: undefined;
+        table: undefined;
     };
 };
 
@@ -50,24 +49,25 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "note",
+                        label: "Overview",
                         data: {
-                            name: "Overview",
                             text: "Right-click a tab (or long-press it) for its menu.",
                         },
                     },
                     {
                         component: "note",
+                        label: "Settings",
                         data: {
-                            name: "Settings",
                             text: "This tab cannot be closed: Close is disabled in its menu.",
                         },
                         // not closable: `tab.close` refuses it, so Close is disabled in its menu
                         enableClose: false,
                     },
-                    { component: "log", data: { name: "Activity" } },
+                    { component: "log", label: "Activity" },
                     {
                         component: "chart",
-                        data: { name: "Reports", kind: "bar", seed: 21 },
+                        label: "Reports",
+                        data: { kind: "bar", seed: 21 },
                     },
                 ],
             },
@@ -75,49 +75,13 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 40,
                 children: [
-                    { component: "table", data: { name: "Inbox" } },
-                    { component: "kpi", data: { name: "Drafts", seed: 6 } },
+                    { component: "table", label: "Inbox" },
+                    { component: "kpi", label: "Drafts", data: { seed: 6 } },
                 ],
             },
         ],
     },
 };
-
-/** The `tab.update` that renames a tab: the new data is the whole value, so it keeps the rest. */
-function renamed(tab: TabOf<Types>, name: string): TabUpdatePayload<Types> {
-    switch (tab.component) {
-        case "note":
-            return {
-                tabId: tab.id,
-                component: "note",
-                data: { ...tab.data, name },
-            };
-        case "chart":
-            return {
-                tabId: tab.id,
-                component: "chart",
-                data: { ...tab.data, name },
-            };
-        case "kpi":
-            return {
-                tabId: tab.id,
-                component: "kpi",
-                data: { ...tab.data, name },
-            };
-        case "log":
-            return {
-                tabId: tab.id,
-                component: "log",
-                data: { ...tab.data, name },
-            };
-        case "table":
-            return {
-                tabId: tab.id,
-                component: "table",
-                data: { ...tab.data, name },
-            };
-    }
-}
 
 // the popout host page, served next to the app under its base
 const popoutURL = `${import.meta.env.BASE_URL}popout.html`;
@@ -159,7 +123,7 @@ export default function TabContextMenu() {
                     {(tab) => (
                         <Dockable.Panel node={tab} className={styles.panel}>
                             {tab.component === "note" ? (
-                                <PanelBody title={tab.data.name}>
+                                <PanelBody title={tab.label}>
                                     <p className={styles.hint}>
                                         {tab.data.text}
                                     </p>
@@ -168,11 +132,11 @@ export default function TabContextMenu() {
                                 <ChartPanel
                                     kind={tab.data.kind}
                                     seed={tab.data.seed}
-                                    title={tab.data.name}
+                                    title={tab.label}
                                 />
                             ) : tab.component === "kpi" ? (
                                 <KpiPanel
-                                    label={tab.data.name}
+                                    label={tab.label}
                                     seed={tab.data.seed}
                                 />
                             ) : tab.component === "log" ? (
@@ -277,8 +241,8 @@ function MenuTab({
     const maximized =
         tabset !== undefined &&
         model.get("maximized-tabset", { layoutId })?.id === tabset.id;
-    const rename = (name: string) =>
-        model.run("tab.update", renamed(tab, name));
+    const rename = (label: string) =>
+        model.run("tab.configure", { tabId: tab.id, label });
     // several closes are one command (one change event, one undo step): all apply or none
     const closeAll = (tabs: readonly TabOf<Types>[]) =>
         model.run("batch", {
@@ -308,7 +272,7 @@ function MenuTab({
             >
                 {editing ? (
                     <RenameField
-                        name={tab.data.name}
+                        name={tab.label}
                         onCommit={(name) => {
                             rename(name);
                             setEditing(null);
@@ -316,7 +280,7 @@ function MenuTab({
                         onCancel={() => setEditing(null)}
                     />
                 ) : (
-                    <span className={styles.tabName}>{tab.data.name}</span>
+                    <span className={styles.tabName}>{tab.label}</span>
                 )}
                 {/* the active tabset's marker */}
                 <span aria-hidden="true" className={styles.tabMarker} />
@@ -342,9 +306,12 @@ function MenuTab({
                 </ContextMenu.Item>
                 <ContextMenu.Separator />
                 <ContextMenu.Item
-                    // renaming is `tab.update` (the name is the tab's data): a middleware may veto it
+                    // renaming is `tab.configure` with a new label: a middleware may veto it
                     disabled={
-                        !model.can("tab.update", renamed(tab, tab.data.name))
+                        !model.can("tab.configure", {
+                            tabId: tab.id,
+                            label: tab.label,
+                        })
                     }
                     onClick={() => {
                         renameOnClose.current = true;

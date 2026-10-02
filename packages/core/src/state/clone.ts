@@ -15,7 +15,18 @@ export function cloneJson<V>(value: V): V {
     if (typeof value === "object" && value !== null && isPlainObject(value)) {
         const out: Record<string, unknown> = {};
         for (const [key, field] of Object.entries(value)) {
-            if (field !== undefined) {
+            if (field === undefined) {
+                continue;
+            }
+            if (key === "__proto__") {
+                // a JSON key like any other: an own property, never the copy's prototype
+                Object.defineProperty(out, key, {
+                    value: cloneJson(field),
+                    enumerable: true,
+                    writable: true,
+                    configurable: true,
+                });
+            } else {
                 out[key] = cloneJson(field);
             }
         }

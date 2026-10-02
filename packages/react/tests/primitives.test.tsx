@@ -793,7 +793,13 @@ describe("hooks", () => {
                 children: [
                     {
                         type: "tabset",
-                        children: [{ component: "test", data: { name: "A" } }],
+                        children: [
+                            {
+                                component: "test",
+                                label: "A",
+                                data: { name: "A" },
+                            },
+                        ],
                     },
                     {
                         type: "row",
@@ -801,13 +807,21 @@ describe("hooks", () => {
                             {
                                 type: "tabset",
                                 children: [
-                                    { component: "test", data: { name: "B" } },
+                                    {
+                                        component: "test",
+                                        label: "B",
+                                        data: { name: "B" },
+                                    },
                                 ],
                             },
                             {
                                 type: "tabset",
                                 children: [
-                                    { component: "test", data: { name: "C" } },
+                                    {
+                                        component: "test",
+                                        label: "C",
+                                        data: { name: "C" },
+                                    },
                                 ],
                             },
                         ],

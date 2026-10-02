@@ -70,10 +70,16 @@ describe("Dockable.Tab dragging", () => {
                     {
                         type: "tabset",
                         children: [
-                            { id: "a", component: "test", data: { name: "A" } },
+                            {
+                                id: "a",
+                                component: "test",
+                                label: "A",
+                                data: { name: "A" },
+                            },
                             {
                                 id: "b",
                                 component: "test",
+                                label: "B",
                                 data: { name: "B" },
                                 enableDrag: false,
                             },
@@ -120,7 +126,13 @@ describe("Dockable.Tab dragging", () => {
                 children: [
                     {
                         type: "tabset",
-                        children: [{ component: "test", data: { name: "A" } }],
+                        children: [
+                            {
+                                component: "test",
+                                label: "A",
+                                data: { name: "A" },
+                            },
+                        ],
                     },
                 ],
             },

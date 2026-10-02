@@ -212,6 +212,12 @@ export const borderFieldProperties = {
     maxSize: { ...sizeSchema, description: "its panel's largest size, in px" },
 } as const satisfies { readonly [name: string]: JsonSchema };
 
+/** A tab's label: any string (refusing an empty one is the app's policy). */
+export const labelSchema = {
+    type: "string",
+    description: "the tab's name (the app renders it; the packages never do)",
+} as const satisfies JsonSchema;
+
 /** The behaviour fields of a tab, as `tab.add` and JSON take them. */
 export const tabFieldProperties = {
     pinned: {

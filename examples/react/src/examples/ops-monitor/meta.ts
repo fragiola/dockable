@@ -8,7 +8,7 @@ export default {
     order: 5,
     features: [
         "typed data",
-        "tab.update",
+        "tab.set-data",
         "data-status",
         "pinned",
         "model.use",

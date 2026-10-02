@@ -15,7 +15,14 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 id: "ts0",
                 weight: 60,
-                children: [{ id: "a", component: "test", data: { name: "A" } }],
+                children: [
+                    {
+                        id: "a",
+                        component: "test",
+                        label: "A",
+                        data: { name: "A" },
+                    },
+                ],
             },
             {
                 type: "row",
@@ -26,14 +33,24 @@ const json: LayoutJson<Types> = {
                         type: "tabset",
                         id: "ts1",
                         children: [
-                            { id: "b", component: "test", data: { name: "B" } },
+                            {
+                                id: "b",
+                                component: "test",
+                                label: "B",
+                                data: { name: "B" },
+                            },
                         ],
                     },
                     {
                         type: "tabset",
                         id: "ts2",
                         children: [
-                            { id: "c", component: "test", data: { name: "C" } },
+                            {
+                                id: "c",
+                                component: "test",
+                                label: "C",
+                                data: { name: "C" },
+                            },
                         ],
                     },
                 ],

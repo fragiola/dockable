@@ -26,13 +26,11 @@ import * as styles from "./styles";
 export type Status = "healthy" | "degraded" | "down";
 
 interface MonitorData {
-    name: string;
     status: Status;
     incidents: number;
 }
 
 interface DocumentData {
-    name: string;
     dirty: boolean;
 }
 
@@ -47,7 +45,8 @@ const STATUS = {
 
 const monitor = (name: string, status: Status, incidents = 0) => ({
     component: "monitor" as const,
-    data: { name, status, incidents },
+    label: name,
+    data: { status, incidents },
 });
 
 const json: LayoutJson<Types> = {
@@ -70,11 +69,13 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "document",
-                        data: { name: "README.md", dirty: false },
+                        label: "README.md",
+                        data: { dirty: false },
                     },
                     {
                         component: "document",
-                        data: { name: "notes.txt", dirty: false },
+                        label: "notes.txt",
+                        data: { dirty: false },
                     },
                 ],
             },
@@ -177,7 +178,7 @@ function StatusTab({ tab }: { tab: TabOf<Types> }) {
             {status ? (
                 <status.Icon aria-hidden className={styles.tabIcon} />
             ) : null}
-            <span className={styles.tabName}>{tab.data.name}</span>
+            <span className={styles.tabName}>{tab.label}</span>
             {/* the active tabset's marker */}
             <span aria-hidden="true" className={styles.tabMarker} />
             {incidents ? (
@@ -207,19 +208,17 @@ function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
         if (status === data.status) {
             return;
         }
-        // `tab.update` replaces the whole data, checked against the monitor's type
-        model.run("tab.update", {
+        // `tab.set-data` patches the data: the keys it passes change, the others stay
+        model.run("tab.set-data", {
             tabId: tab.id,
-            component: "monitor",
             data: {
-                ...data,
                 status,
                 incidents: data.incidents + (status === "healthy" ? 0 : 1),
             },
         });
     };
     return (
-        <PanelBody title={`${data.name} service`}>
+        <PanelBody title={`${tab.label} service`}>
             <p className={styles.monitorText}>
                 Set the service's health. The panel writes it into the tab's
                 data with a command; the tab reads it back.
@@ -251,22 +250,18 @@ function Monitor({ tab }: { tab: TabNode<"monitor", MonitorData> }) {
 /** An editor that marks its tab as modified while its text differs from the saved one. */
 function Editor({ tab }: { tab: TabNode<"document", DocumentData> }) {
     const { model } = useDockable<Types>();
-    const [saved, setSaved] = useState(`# ${tab.data.name}\n`);
+    const [saved, setSaved] = useState(`# ${tab.label}\n`);
     const [text, setText] = useState(saved);
     const setDirty = (dirty: boolean) => {
         // only run the command when the flag changes, not on every keystroke
         if (tab.data.dirty !== dirty) {
-            model.run("tab.update", {
-                tabId: tab.id,
-                component: "document",
-                data: { ...tab.data, dirty },
-            });
+            model.run("tab.set-data", { tabId: tab.id, data: { dirty } });
         }
     };
     return (
         <div className={styles.editor}>
             <textarea
-                aria-label={`${tab.data.name} text`}
+                aria-label={`${tab.label} text`}
                 value={text}
                 onChange={(event) => {
                     setText(event.target.value);

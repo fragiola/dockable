@@ -52,12 +52,12 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
             ) : (
                 <Icon aria-hidden="true" className={styles.tabIcon} />
             )}
-            <span className={styles.tabName}>{tab.data.name}</span>
+            <span className={styles.tabName}>{tab.label}</span>
             <button
                 type="button"
                 tabIndex={-1}
                 draggable={false}
-                aria-label={`Close ${tab.data.name}`}
+                aria-label={`Close ${tab.label}`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
@@ -86,8 +86,8 @@ export function TabSetButtons({ tabset }: { tabset: TabsetNode<Types> }) {
         <Dockable.PopoutTrigger
             aria-label={
                 inPopout
-                    ? `Dock ${selected.data.name} back`
-                    : `Pop out ${selected.data.name}`
+                    ? `Dock ${selected.label} back`
+                    : `Pop out ${selected.label}`
             }
             data-testid={inPopout ? "dock-back" : "popout"}
             className={styles.button}

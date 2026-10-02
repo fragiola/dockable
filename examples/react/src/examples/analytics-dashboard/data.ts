@@ -124,7 +124,6 @@ export const ORDERS: Order[] = CUSTOMERS.map((customer, index) => ({
 
 /** What a KPI tab keeps in its `data`; `status` is written by the widget itself. */
 export interface KpiData {
-    name: string;
     metric: KpiMetric;
     status?: "ok" | "alert";
 }
@@ -132,8 +131,8 @@ export interface KpiData {
 /** What the layout holds: each widget's `component` and the type of its tab's `data`. */
 export type Types = {
     tabs: {
-        chart: { name: string; metric: ChartMetric; kind?: "bar" };
-        table: { name: string };
+        chart: { metric: ChartMetric; kind?: "bar" };
+        table: undefined;
         kpi: KpiData;
     };
 };
@@ -146,23 +145,27 @@ export type WidgetTab<K extends TabOf<Types>["component"]> = Extract<
 
 const REVENUE = {
     component: "chart",
-    data: { name: "Revenue", metric: "revenue" },
+    label: "Revenue",
+    data: { metric: "revenue" },
 } satisfies TabInitOf<Types>;
 const CHANNELS = {
     component: "chart",
-    data: { name: "Channels", metric: "channels" },
+    label: "Channels",
+    data: { metric: "channels" },
 } satisfies TabInitOf<Types>;
 const ORDERS_TABLE = {
     component: "table",
-    data: { name: "Orders" },
+    label: "Orders",
 } satisfies TabInitOf<Types>;
 const CONVERSION = {
     component: "kpi",
-    data: { name: "Conversion", metric: "conversion" },
+    label: "Conversion",
+    data: { metric: "conversion" },
 } satisfies TabInitOf<Types>;
 const AVERAGE_ORDER = {
     component: "kpi",
-    data: { name: "Avg. order", metric: "aov" },
+    label: "Avg. order",
+    data: { metric: "aov" },
 } satisfies TabInitOf<Types>;
 
 /** Every widget "Add widget" can create: the tab's component and data. */
@@ -218,11 +221,8 @@ export const layout: LayoutJson<Types> = {
                             {
                                 id: "mix",
                                 component: "chart",
-                                data: {
-                                    name: "Channel mix",
-                                    metric: "channels",
-                                    kind: "bar",
-                                },
+                                label: "Channel mix",
+                                data: { metric: "channels", kind: "bar" },
                             },
                         ],
                     },

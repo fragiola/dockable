@@ -31,12 +31,12 @@ const json: FixtureLayout = {
                     "Delta",
                     "Echo",
                     "Foxtrot",
-                ].map((name) => ({ component: "testing", data: { name } })),
+                ].map((name) => ({ component: "testing", label: name })),
             },
             {
                 type: "tabset",
                 weight: 25,
-                children: [{ component: "testing", data: { name: "Other" } }],
+                children: [{ component: "testing", label: "Other" }],
             },
         ],
     },
@@ -71,7 +71,7 @@ function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
                                     setOpen(false);
                                 }}
                             >
-                                {tab.data.name}
+                                {tab.label}
                             </button>
                         </div>
                     ))}
@@ -95,7 +95,7 @@ function App() {
                                 >
                                     {(tab) => (
                                         <Dockable.Tab node={tab}>
-                                            {tab.data.name}
+                                            {tab.label}
                                         </Dockable.Tab>
                                     )}
                                 </Dockable.TabList>

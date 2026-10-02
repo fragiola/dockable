@@ -15,7 +15,7 @@ import { ChartPanel, series } from "../_kit/charts";
 import { LogPanel, TablePanel } from "../_kit/data";
 import * as styles from "./styles";
 
-/** The widget components: each is a tab component, whose data is the tab's name. */
+/** The widget components: each is a tab component with no data (the tab is named by its label). */
 export type WidgetComponent =
     | "kpi-revenue"
     | "kpi-conversion"
@@ -25,9 +25,9 @@ export type WidgetComponent =
     | "table"
     | "log";
 
-/** What the layout holds: every widget tab has a name; a tabset may have one too. */
+/** What the layout holds: widget tabs have no data (the name is the tab's label); a tabset has a name. */
 export type Types = {
-    tabs: Record<WidgetComponent, { name: string }>;
+    tabs: Record<WidgetComponent, undefined>;
     tabset: { name: string };
 };
 
@@ -78,7 +78,7 @@ export const GROUPS = ["KPIs", "Charts", "Data"] as const;
 
 /** The tab a widget becomes: a `tab.add` init (its data is checked against its component). */
 export function widgetTab(widget: Widget): TabInitOf<Types> {
-    return { component: widget.component, data: { name: widget.title } };
+    return { component: widget.component, label: widget.title };
 }
 
 export function widgetOf(tab: TabOf<Types>): Widget | undefined {
@@ -98,7 +98,7 @@ function Kpi({ tab }: { tab: TabOf<Types> }) {
     const up = change >= 0;
     return (
         <div className={styles.kpi}>
-            <p className={styles.kpiLabel}>{tab.data.name}</p>
+            <p className={styles.kpiLabel}>{tab.label}</p>
             <p className={styles.kpiValue}>
                 {tab.component === "kpi-revenue"
                     ? `$${last}k`

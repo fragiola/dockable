@@ -135,7 +135,7 @@ describe("unmounted border parts", () => {
             withBorders([
                 {
                     location: "left",
-                    children: [{ id: "b0", component: "test" }],
+                    children: [{ id: "b0", component: "test", label: "test" }],
                 },
             ]),
         );
@@ -212,7 +212,7 @@ describe("overlay borders", () => {
             location: "left",
             mode: "overlay",
             selected: 0,
-            children: [{ id: "b0", component: "test" }],
+            children: [{ id: "b0", component: "test", label: "test" }],
         },
     ]);
 

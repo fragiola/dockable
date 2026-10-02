@@ -6,12 +6,12 @@ import testThreeTabs from "../layouts/test_three_tabs.json";
 import testTwoTabs from "../layouts/test_two_tabs.json";
 
 /**
- * The fixtures' type registry: one component, whose data is the tab's name (the text every strip
+ * The fixtures' type registry: one component with no data (a tab's label is the text every strip
  * renders), a tabset's optional name (its tab list's accessible name), and a border's tab
  * direction (the `Dockable.Border` prop, kept in the border's data so a command can switch it).
  */
 export type Types = {
-    tabs: { testing: { name: string } };
+    tabs: { testing: undefined };
     tabset: { name?: string };
     border: { tabDirection?: "up" | "down" };
 };
@@ -22,7 +22,7 @@ export type FixtureLayout = LayoutJson<Types>;
 const ts = (name: string): TabsetJson<Types> => ({
     type: "tabset",
     weight: 1,
-    children: [{ component: "testing", data: { name } }],
+    children: [{ component: "testing", label: name }],
 });
 
 const big: FixtureLayout = {
@@ -54,15 +54,15 @@ const multi: FixtureLayout = {
                 type: "tabset",
                 weight: 50,
                 children: [
-                    { component: "testing", data: { name: "One" } },
-                    { component: "testing", data: { name: "Two" } },
-                    { component: "testing", data: { name: "Three" } },
+                    { component: "testing", label: "One" },
+                    { component: "testing", label: "Two" },
+                    { component: "testing", label: "Three" },
                 ],
             },
             {
                 type: "tabset",
                 weight: 50,
-                children: [{ component: "testing", data: { name: "Four" } }],
+                children: [{ component: "testing", label: "Four" }],
             },
         ],
     },

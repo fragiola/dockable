@@ -121,7 +121,7 @@ export function ChartWidget({ tab }: { tab: WidgetTab<"chart"> }) {
 
 /**
  * A KPI. It compares its value with a threshold and writes the result into its TAB's data
- * (the `tab.update` command), and the tab turns red: the tab follows its content.
+ * (the `tab.set-data` command), and the tab turns red: the tab follows its content.
  */
 export function KpiWidget({ tab }: { tab: WidgetTab<"kpi"> }) {
     const filters = useContext(FiltersContext);
@@ -134,11 +134,7 @@ export function KpiWidget({ tab }: { tab: WidgetTab<"kpi"> }) {
 
     useEffect(() => {
         if (config.status !== status) {
-            model.run("tab.update", {
-                tabId: tab.id,
-                component: "kpi",
-                data: { ...config, status },
-            });
+            model.run("tab.set-data", { tabId: tab.id, data: { status } });
         }
     }, [model, tab.id, config, status]);
 

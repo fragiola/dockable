@@ -29,7 +29,8 @@ const SAMPLES = [
             command: "tab.add",
             payload: {
                 component: "note",
-                data: { name: "Draft", text: "Added from JSON." },
+                label: "Draft",
+                data: { text: "Added from JSON." },
                 to: "left",
             },
         },

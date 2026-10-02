@@ -19,8 +19,8 @@ import * as styles from "./styles";
 
 type Types = {
     tabs: {
-        chart: { name: string; kind: ChartKind };
-        kpi: { name: string; seed: number };
+        chart: { kind: ChartKind };
+        kpi: { seed: number };
     };
 };
 
@@ -34,8 +34,8 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 weight: 35,
                 children: [
-                    { component: "kpi", data: { name: "Revenue", seed: 3 } },
-                    { component: "kpi", data: { name: "Orders", seed: 9 } },
+                    { component: "kpi", label: "Revenue", data: { seed: 3 } },
+                    { component: "kpi", label: "Orders", data: { seed: 9 } },
                 ],
             },
             {
@@ -48,7 +48,8 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "chart",
-                                data: { name: "Traffic", kind: "area" },
+                                label: "Traffic",
+                                data: { kind: "area" },
                             },
                         ],
                     },
@@ -58,11 +59,13 @@ const json: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "chart",
-                                data: { name: "Channels", kind: "bar" },
+                                label: "Channels",
+                                data: { kind: "bar" },
                             },
                             {
                                 component: "chart",
-                                data: { name: "Share", kind: "pie" },
+                                label: "Share",
+                                data: { kind: "pie" },
                             },
                         ],
                     },
@@ -92,12 +95,12 @@ export default function SplitterFramedHandle() {
                             {tab.component === "chart" ? (
                                 <ChartPanel
                                     kind={tab.data.kind}
-                                    seed={tab.data.name.length}
-                                    title={tab.data.name}
+                                    seed={tab.label.length}
+                                    title={tab.label}
                                 />
                             ) : (
                                 <KpiPanel
-                                    label={tab.data.name}
+                                    label={tab.label}
                                     seed={tab.data.seed}
                                 />
                             )}
@@ -142,9 +145,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

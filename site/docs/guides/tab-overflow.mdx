@@ -17,7 +17,7 @@ overflow. In a header row, let it shrink:
 ```tsx
 <div className="flex">
     <Dockable.TabList<Types> className="flex min-w-0 flex-1 overflow-hidden gap-1 ps-1">
-        {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
+        {(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}
     </Dockable.TabList>
     {/* the trigger, step 2 */}
 </div>
@@ -45,9 +45,9 @@ import type { TabOf, TabsetNode } from "@fragiola/dockable";
 import { Dockable, useDockable, useTabOverflow } from "@fragiola/dockable-react";
 
 // an icon-only tab has no name: `altName` names it in the menu
-type Types = { tabs: { file: { name: string; altName?: string } } };
+type Types = { tabs: { file: { altName?: string } } };
 
-const label = (tab: TabOf<Types>) => tab.data.name || tab.data.altName;
+const label = (tab: TabOf<Types>) => tab.label || tab.data.altName;
 
 function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
     const { model } = useDockable<Types>();
@@ -103,7 +103,7 @@ function ScrollingTab({ tab }: { tab: TabOf<Types> }) {
     }, [selected]);
     return (
         <Dockable.Tab node={tab} ref={ref}>
-            {tab.data.name}
+            {tab.label}
         </Dockable.Tab>
     );
 }

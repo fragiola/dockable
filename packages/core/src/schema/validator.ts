@@ -176,8 +176,9 @@ function check(
     }
     if (isObject(value)) {
         const properties = schema.properties ?? {};
+        // own keys only: an inherited one (`toString`, `__proto__`) is not the document's
         for (const key of schema.required ?? []) {
-            if (value[key] === undefined) {
+            if (!Object.hasOwn(value, key) || value[key] === undefined) {
                 issues.push({
                     path: joinPointer(path, key),
                     message: "is required",
@@ -185,7 +186,9 @@ function check(
             }
         }
         for (const [key, child] of Object.entries(value)) {
-            const property = properties[key];
+            const property = Object.hasOwn(properties, key)
+                ? properties[key]
+                : undefined;
             if (property) {
                 if (child !== undefined) {
                     check(

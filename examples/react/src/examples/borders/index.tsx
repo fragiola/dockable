@@ -21,15 +21,14 @@ import * as styles from "./styles";
 // Dockable.BorderContent (the panel area and its splitter) is where its panel opens; open one,
 // resize it, or drag a tab between a border and the tabsets.
 
-// Every component carries its tab's name in its data.
-type Named = { name: string };
+// The tab's name is its label; only the editor has data of its own.
 type Types = {
     tabs: {
-        explorer: Named;
-        search: Named;
-        terminal: Named;
-        outline: Named;
-        editor: Named & { source: string };
+        explorer: undefined;
+        search: undefined;
+        terminal: undefined;
+        outline: undefined;
+        editor: { source: string };
     };
 };
 
@@ -64,21 +63,21 @@ const json: LayoutJson<Types> = {
             location: "left",
             selected: 0,
             children: [
-                { component: "explorer", data: { name: "Explorer" } },
-                { component: "search", data: { name: "Search" } },
+                { component: "explorer", label: "Explorer" },
+                { component: "search", label: "Search" },
             ],
         },
         {
             location: "bottom",
             size: 160,
             children: [
-                { component: "terminal", data: { name: "Terminal" } },
-                { component: "terminal", data: { name: "Output" } },
+                { component: "terminal", label: "Terminal" },
+                { component: "terminal", label: "Output" },
             ],
         },
         {
             location: "right",
-            children: [{ component: "outline", data: { name: "Outline" } }],
+            children: [{ component: "outline", label: "Outline" }],
         },
     ],
     root: {
@@ -89,11 +88,13 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "editor",
-                        data: { name: "app.ts", source: APP_SOURCE },
+                        label: "app.ts",
+                        data: { source: APP_SOURCE },
                     },
                     {
                         component: "editor",
-                        data: { name: "store.ts", source: STORE_SOURCE },
+                        label: "store.ts",
+                        data: { source: STORE_SOURCE },
                     },
                 ],
             },
@@ -175,9 +176,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"
@@ -227,7 +226,7 @@ function BorderTabLabel({ tab }: { tab: TabOf<Types> }) {
             {Icon ? (
                 <Icon aria-hidden="true" className={styles.borderTabIcon} />
             ) : null}
-            {tab.data.name}
+            {tab.label}
         </>
     );
 }

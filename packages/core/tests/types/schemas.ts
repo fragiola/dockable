@@ -12,7 +12,8 @@ import type {
     tabPin,
     tabPopout,
     tabSelect,
-    tabUpdate,
+    tabSetComponent,
+    tabSetData,
 } from "../../src/commands/tab";
 import type {
     tabsetActivate,
@@ -56,7 +57,8 @@ export type SchemasMatchTypes = [
     Check<"tab.select", typeof tabSelect>,
     Check<"tab.close", typeof tabClose>,
     Check<"tab.move", typeof tabMove>,
-    Check<"tab.update", typeof tabUpdate>,
+    Check<"tab.set-data", typeof tabSetData>,
+    Check<"tab.set-component", typeof tabSetComponent>,
     Check<"tab.pin", typeof tabPin>,
     Check<"tab.popout", typeof tabPopout>,
     Check<"tab.configure", typeof tabConfigure>,

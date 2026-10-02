@@ -72,13 +72,13 @@ function WorkbenchTab({
                 className={styles.tab}
             >
                 <TabIcon tab={tab} />
-                <span className={styles.tabName}>{tab.data.name}</span>
+                <span className={styles.tabName}>{tab.label}</span>
                 {canClose ? (
                     <button
                         type="button"
                         tabIndex={-1}
                         draggable={false}
-                        aria-label={`Close ${tab.data.name}`}
+                        aria-label={`Close ${tab.label}`}
                         data-testid="close-tab"
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => {
@@ -206,7 +206,7 @@ export function WorkbenchTabSet({ node }: { node: TabsetNode<Types> }) {
                         <Select.Content>
                             {hiddenTabs.map((tab) => (
                                 <Select.Item key={tab.id} value={tab.id}>
-                                    {tab.data.name}
+                                    {tab.label}
                                 </Select.Item>
                             ))}
                         </Select.Content>

@@ -29,9 +29,9 @@ import * as styles from "./styles";
 
 type Types = {
     tabs: {
-        chart: { name: string; kind: ChartKind };
-        kpi: { name: string; seed: number };
-        log: { name: string };
+        chart: { kind: ChartKind };
+        kpi: { seed: number };
+        log: undefined;
     };
 };
 
@@ -49,15 +49,18 @@ const json: LayoutJson<Types> = {
                 children: [
                     {
                         component: "chart",
-                        data: { name: "Revenue", kind: "bar" },
+                        label: "Revenue",
+                        data: { kind: "bar" },
                     },
                     {
                         component: "chart",
-                        data: { name: "Traffic", kind: "line" },
+                        label: "Traffic",
+                        data: { kind: "line" },
                     },
                     {
                         component: "chart",
-                        data: { name: "Share", kind: "pie" },
+                        label: "Share",
+                        data: { kind: "pie" },
                     },
                 ],
             },
@@ -66,15 +69,15 @@ const json: LayoutJson<Types> = {
                 id: "kpis",
                 weight: 30,
                 children: [
-                    { component: "kpi", data: { name: "Orders", seed: 4 } },
-                    { component: "kpi", data: { name: "Visitors", seed: 8 } },
+                    { component: "kpi", label: "Orders", data: { seed: 4 } },
+                    { component: "kpi", label: "Visitors", data: { seed: 8 } },
                 ],
             },
             {
                 type: "tabset",
                 id: "log",
                 weight: 30,
-                children: [{ component: "log", data: { name: "Log" } }],
+                children: [{ component: "log", label: "Log" }],
             },
         ],
     },
@@ -121,18 +124,11 @@ function tidy(name: string) {
     return capital.length > 20 ? `${capital.slice(0, 19)}…` : capital;
 }
 
-/** Rewrite: a chart's new name is tidied, then the command runs with the new payload. */
+/** Rewrite: a tab's new label is tidied, then the command runs with the new payload. */
 const tidyNames: Middleware<Types> = (ctx, next) => {
-    // `ctx.payload.component` narrows the payload, and with it the type of its data
-    if (
-        ctx.command === "tab.update" &&
-        ctx.payload.component === "chart" &&
-        ctx.payload.data
-    ) {
-        ctx.payload = {
-            ...ctx.payload,
-            data: { ...ctx.payload.data, name: tidy(ctx.payload.data.name) },
-        };
+    // `ctx.command` narrows the payload: a rename is `tab.configure` with a label
+    if (ctx.command === "tab.configure" && ctx.payload.label !== undefined) {
+        ctx.payload = { ...ctx.payload, label: tidy(ctx.payload.label) };
     }
     return next();
 };
@@ -221,7 +217,8 @@ export default function MiddlewareExample() {
             "Add a chart",
             model.run("tab.add", {
                 component: "chart",
-                data: { name: "Forecast", kind: "area" },
+                label: "Forecast",
+                data: { kind: "area" },
                 to: "charts",
                 select: true,
             }),
@@ -231,16 +228,15 @@ export default function MiddlewareExample() {
         event.preventDefault();
         const tab = model.get("selected-tab-by", { tabsetId: "charts" });
         if (tab?.component !== "chart") return;
-        const result = model.run("tab.update", {
+        const result = model.run("tab.configure", {
             tabId: tab.id,
-            component: "chart",
-            data: { ...tab.data, name },
+            label: name,
         });
         // the name that committed is the tidied one when the rewrite is on
         const renamed = model.get("node-by", { id: tab.id });
         setLast(
             result.ok && renamed?.type === "tab"
-                ? `Rename: committed as "${renamed.data.name}"`
+                ? `Rename: committed as "${renamed.label}"`
                 : `Rename: ${result.ok ? "applied" : result.error.message}`,
         );
     };
@@ -313,12 +309,12 @@ export default function MiddlewareExample() {
                                 {tab.component === "chart" ? (
                                     <ChartPanel
                                         kind={tab.data.kind}
-                                        seed={tab.data.name.length}
-                                        title={tab.data.name}
+                                        seed={tab.label.length}
+                                        title={tab.label}
                                     />
                                 ) : tab.component === "kpi" ? (
                                     <KpiPanel
-                                        label={tab.data.name}
+                                        label={tab.label}
                                         seed={tab.data.seed}
                                     />
                                 ) : (
@@ -384,9 +380,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             <span
                                 aria-hidden="true"
                                 className={styles.tabMarker}

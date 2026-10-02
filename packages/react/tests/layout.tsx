@@ -21,15 +21,30 @@ export const twoTabsets: LayoutJson<Types> = {
                 type: "tabset",
                 id: "ts0",
                 children: [
-                    { id: "t0", component: "test", data: { name: "One" } },
-                    { id: "t1", component: "test", data: { name: "Two" } },
+                    {
+                        id: "t0",
+                        component: "test",
+                        label: "One",
+                        data: { name: "One" },
+                    },
+                    {
+                        id: "t1",
+                        component: "test",
+                        label: "Two",
+                        data: { name: "Two" },
+                    },
                 ],
             },
             {
                 type: "tabset",
                 id: "ts1",
                 children: [
-                    { id: "t2", component: "test", data: { name: "Three" } },
+                    {
+                        id: "t2",
+                        component: "test",
+                        label: "Three",
+                        data: { name: "Three" },
+                    },
                 ],
             },
         ],
@@ -66,7 +81,7 @@ export function renderNode(
             <Dockable.TabSet node={child}>
                 <Dockable.TabList<Types>>
                     {(tab) => (
-                        <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
+                        <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>
                     )}
                 </Dockable.TabList>
                 <Dockable.TabSetContent />

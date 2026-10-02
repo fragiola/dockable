@@ -15,7 +15,7 @@ export function renderNode(
                     aria-label={child.data?.name ?? "Tabs"}
                 >
                     {(tab) => (
-                        <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
+                        <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>
                     )}
                 </Dockable.TabList>
                 <Dockable.TabSetContent />

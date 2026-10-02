@@ -28,7 +28,7 @@ import { createModel, type LayoutJson, type Model } from "@fragiola/dockable";
 import { Dockable } from "@fragiola/dockable-react";
 import { useState } from "react";
 
-type Types = { tabs: { chart: { name: string; metric: string } } };
+type Types = { tabs: { chart: { metric: string } } };
 
 function Sidebar({ model }: { model: Model<Types> }) {
     return (
@@ -36,7 +36,7 @@ function Sidebar({ model }: { model: Model<Types> }) {
             <Dockable.DragSource
                 model={model}
                 // a function builds the tab at each drag start; `data` is checked against `component`
-                tab={() => ({ component: "chart", data: { name: "Revenue", metric: "revenue" } })}
+                tab={() => ({ component: "chart", label: "Revenue", data: { metric: "revenue" } })}
                 // the new tab's id, or undefined when the add was refused
                 onDrop={(id) => id && console.log(`added ${id}`)}
                 render={<li />}
@@ -76,7 +76,7 @@ run the same command, into the active tabset:
 ```tsx
 import type { TabInitOf } from "@fragiola/dockable";
 
-const widget: TabInitOf<Types> = { component: "chart", data: { name: "Revenue", metric: "revenue" } };
+const widget: TabInitOf<Types> = { component: "chart", label: "Revenue", data: { metric: "revenue" } };
 
 const addToActiveTabset = () => {
     const target = model.get("active-tabset") ?? model.get("tabsets")[0];
@@ -100,7 +100,7 @@ drag. Type it with `OnExternalDrag<Types>`:
 ```tsx
 import type { OnExternalDrag } from "@fragiola/dockable";
 
-type Types = { tabs: { file: { name: string } } };
+type Types = { tabs: { file: undefined } };
 
 const files = new Map<string, File>(); // a File is not JSON: keep it outside the model, by tab id
 
@@ -108,11 +108,11 @@ const onExternalDrag: OnExternalDrag<Types> = (event) => {
     // until the drop, browsers expose only the types, not the data
     if (!event.dataTransfer?.types.includes("Files")) return undefined;
     return {
-        tab: { component: "file", data: { name: "File" } },
+        tab: { component: "file", label: "File" },
         onDrop: (id, drop) => {
             const file = drop.dataTransfer?.files[0];
             if (!id || !file) return; // refused by a rule or a middleware
-            model.run("tab.update", { tabId: id, component: "file", data: { name: file.name } });
+            model.run("tab.configure", { tabId: id, label: file.name }); // named after the file
             files.set(id, file);
         },
     };
@@ -147,7 +147,7 @@ itself, placement included, so a rule reads its `component`:
 ```ts
 import { type Middleware, veto } from "@fragiola/dockable";
 
-type Types = { tabs: { "kpi-sales": { name: string }; "kpi-churn": { name: string }; chart: { name: string } } };
+type Types = { tabs: { "kpi-sales": undefined; "kpi-churn": undefined; chart: undefined } };
 
 const kpis: Middleware<Types> = (ctx, next) => {
     if (ctx.command !== "tab.add") return next();

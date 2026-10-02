@@ -43,13 +43,13 @@ import {
 
 type Types = {
     tabs: {
-        welcome: { name: string };
-        pending: { name: string };
-        table: { name: string; csv: Csv };
-        chart: { name: string; csv: Csv };
-        image: { name: string };
-        info: { name: string; type: string; size: number };
-        error: { name: string; message: string };
+        welcome: undefined;
+        pending: undefined;
+        table: { csv: Csv };
+        chart: { csv: Csv };
+        image: undefined;
+        info: { type: string; size: number };
+        error: { message: string };
     };
 };
 
@@ -61,14 +61,12 @@ const json: LayoutJson<Types> = {
             {
                 type: "tabset",
                 weight: 50,
-                children: [
-                    { component: "welcome", data: { name: "Open files" } },
-                ],
+                children: [{ component: "welcome", label: "Open files" }],
             },
             {
                 type: "tabset",
                 weight: 50,
-                children: [{ component: "welcome", data: { name: "Or here" } }],
+                children: [{ component: "welcome", label: "Or here" }],
             },
         ],
     },
@@ -89,14 +87,14 @@ async function openFile(
     const kind = kindOf(file);
     if (kind === "image") {
         keep(tabId, file);
-        model.run("tab.update", { tabId, component: "image", data: { name } });
+        model.run("tab.set-component", { tabId, component: "image" });
         return;
     }
     if (kind === "other") {
-        model.run("tab.update", {
+        model.run("tab.set-component", {
             tabId,
             component: "info",
-            data: { name, type: file.type, size: file.size },
+            data: { type: file.type, size: file.size },
         });
         return;
     }
@@ -105,26 +103,27 @@ async function openFile(
         text = await file.text();
     } catch {
         // the file went away after the drop (moved, deleted, no longer readable)
-        model.run("tab.update", {
+        model.run("tab.set-component", {
             tabId,
             component: "error",
-            data: { name, message: "The file could not be read." },
+            data: { message: "The file could not be read." },
         });
         return;
     }
     if (kind === "csv") {
         const csv = parseCsv(text);
-        model.run("tab.update", {
+        model.run("tab.set-component", {
             tabId,
             component: "table",
-            data: { name, csv },
+            data: { csv },
         });
         // the chart opens beside the table: an edge of its tabset splits it
         const tabset = model.get("node-parent-by", { nodeId: tabId });
         if (tabset && numericColumns(csv).length > 0) {
             model.run("tab.add", {
                 component: "chart",
-                data: { name: `${name} chart`, csv },
+                label: `${name} chart`,
+                data: { csv },
                 to: tabset.id,
                 location: "right",
             });
@@ -144,11 +143,10 @@ async function openFile(
             ? undefined
             : model.dispatch({ command: "layout.load", payload: { layout } });
     if (!result?.ok) {
-        model.run("tab.update", {
+        model.run("tab.set-component", {
             tabId,
             component: "error",
             data: {
-                name,
                 message: result
                     ? `Not a layout: ${result.error.message}`
                     : "Not valid JSON.",
@@ -168,7 +166,7 @@ export default function DropFiles() {
         for (const file of files) {
             const added = model.run("tab.add", {
                 component: "pending",
-                data: { name: file.name },
+                label: file.name,
                 to: tabsetId,
                 select: true,
             });
@@ -183,18 +181,14 @@ export default function DropFiles() {
         if (!event.dataTransfer?.types.includes("Files")) return undefined;
         return {
             // the tab the drop creates, wherever it lands; it becomes the first file's viewer
-            tab: { component: "pending", data: { name: "Opening…" } },
+            tab: { component: "pending", label: "Opening…" },
             onDrop: (tabId, dropEvent) => {
                 const [first, ...others] = Array.from(
                     dropEvent.dataTransfer?.files ?? [],
                 );
                 // no tab: the drop was refused (a rule or a middleware); no file: nothing to read
                 if (!tabId || !first) return;
-                model.run("tab.update", {
-                    tabId,
-                    component: "pending",
-                    data: { name: first.name },
-                });
+                model.run("tab.configure", { tabId, label: first.name });
                 void openFile(model, first, tabId, keep);
                 const tabset = model.get("node-parent-by", { nodeId: tabId });
                 if (tabset) openInto(tabset.id, others);
@@ -305,9 +299,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                 >
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
-                            <span className={styles.tabName}>
-                                {tab.data.name}
-                            </span>
+                            <span className={styles.tabName}>{tab.label}</span>
                             {/* the active tabset's marker */}
                             <span
                                 aria-hidden="true"

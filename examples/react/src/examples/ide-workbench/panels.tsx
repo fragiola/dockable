@@ -13,7 +13,7 @@ import type { EditorData, Types, Workspace } from "./workspace";
 
 /**
  * A plain-text editor. It reports "modified" to its TAB: the dirty flag goes into the tab's
- * `data` through the `tab.update` command, and the tab reads it back (`data-dirty`).
+ * `data` through the `tab.set-data` command, and the tab reads it back (`data-dirty`).
  * The text itself stays in the workspace, outside the model.
  */
 export function EditorPanel({
@@ -33,12 +33,8 @@ export function EditorPanel({
 
     useEffect(() => {
         if (Boolean(data.dirty) !== dirty) {
-            // `data` is replaced whole: keep the rest of it
-            model.run("tab.update", {
-                tabId: id,
-                component: "editor",
-                data: { ...data, dirty },
-            });
+            // a patch: the rest of the data (the path) stays
+            model.run("tab.set-data", { tabId: id, data: { dirty } });
         }
     }, [model, id, data, dirty]);
 

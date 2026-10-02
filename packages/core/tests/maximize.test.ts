@@ -12,7 +12,7 @@ const json: LayoutJson = {
             {
                 type: "tabset",
                 id: "ts0",
-                children: [{ id: "a", component: "x" }],
+                children: [{ id: "a", component: "x", label: "x" }],
             },
             {
                 type: "row",
@@ -21,12 +21,12 @@ const json: LayoutJson = {
                     {
                         type: "tabset",
                         id: "ts1",
-                        children: [{ id: "b", component: "x" }],
+                        children: [{ id: "b", component: "x", label: "x" }],
                     },
                     {
                         type: "tabset",
                         id: "ts2",
-                        children: [{ id: "c", component: "x" }],
+                        children: [{ id: "c", component: "x", label: "x" }],
                     },
                 ],
             },

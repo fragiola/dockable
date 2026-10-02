@@ -64,15 +64,11 @@ like any other drop.
     onExternalDrag={(event) =>
         event.dataTransfer?.types.includes("Files")
             ? {
-                  tab: { component: "file", data: { name: "Dropped file" } },
+                  tab: { component: "file", label: "Dropped file" },
                   onDrop: (tabId, drop) => {
                       const file = drop.dataTransfer?.files[0];
                       if (tabId && file) {
-                          model.run("tab.update", {
-                              tabId,
-                              component: "file",
-                              data: { name: file.name },
-                          });
+                          model.run("tab.configure", { tabId, label: file.name });
                       }
                   },
               }

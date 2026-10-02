@@ -11,9 +11,8 @@ import type {
 
 type Json = LayoutJson<AnyTypes>;
 
-function label(tab: { id: string; data: unknown }): string {
-    const data = tab.data as { name?: unknown } | undefined;
-    return typeof data?.name === "string" ? data.name : tab.id;
+function label(tab: { label: string }): string {
+    return tab.label;
 }
 
 function renderTabs(
@@ -81,9 +80,9 @@ export function at(model: Model, path: string): string {
     return node.id;
 }
 
-/** A tab of the test registry with a name. */
+/** A tab of the test registry, its id and label both `name`. */
 export function tab(name: string, extra: Record<string, unknown> = {}) {
-    return { id: name, component: "test", data: { name }, ...extra };
+    return { id: name, component: "test", label: name, ...extra };
 }
 
 /** A layout of tabsets side by side, each a list of tab names. */

@@ -25,7 +25,7 @@ import {
     widgetTab,
 } from "./widgets";
 
-const STORAGE_KEY = "dockable-examples:dashboard-builder";
+const STORAGE_KEY = "dockable-examples:dashboard-builder:v2";
 
 /** A KPI strip on top (it only takes KPIs), and an empty canvas for everything else. */
 const EMPTY: LayoutJson<Types> = {
@@ -47,7 +47,7 @@ const EMPTY: LayoutJson<Types> = {
                         children: [
                             {
                                 component: "kpi-revenue",
-                                data: { name: "Revenue" },
+                                label: "Revenue",
                             },
                         ],
                     },
@@ -347,7 +347,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                     />
                                 ) : null}
                                 <span className={styles.tabName}>
-                                    {tab.data.name}
+                                    {tab.label}
                                 </span>
                                 {/* the active tabset's marker */}
                                 <span

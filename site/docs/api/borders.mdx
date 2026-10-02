@@ -17,7 +17,7 @@ Pass the model's registry as the type argument (`<Dockable.Borders<Types>>`): `r
         renderBar={(border) => (
             <Dockable.Border node={border} className="bar">
                 <Dockable.TabList<Types> aria-label={`${border.location} panels`}>
-                    {(tab) => <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>}
+                    {(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}
                 </Dockable.TabList>
             </Dockable.Border>
         )}
