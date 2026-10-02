@@ -299,4 +299,33 @@ test("a popout of an RTL page is RTL, and its strip keys follow it", async ({
     await tabs.nth(0).focus();
     await popout.keyboard.press("ArrowLeft");
     await expect(tabs.nth(1)).toBeFocused();
+
+    // the page turns LTR on a wrapper (<body>, <html> stays rtl): the window follows the layout
+    await page.evaluate(() => {
+        document.body.dir = "ltr";
+    });
+    await expect(popout.locator("html")).toHaveAttribute("dir", "ltr");
+    await expect
+        .poll(async () => {
+            const [a, b] = await Promise.all([
+                tabs.nth(0).boundingBox(),
+                tabs.nth(1).boundingBox(),
+            ]);
+            return (a?.x ?? 0) < (b?.x ?? 0);
+        })
+        .toBe(true);
+    const panel = popout.getByRole("tabpanel");
+    const content = popout.locator('[data-layout-path$="/content"]');
+    await expect
+        .poll(async () => {
+            const [p, c] = await Promise.all([
+                panel.boundingBox(),
+                content.boundingBox(),
+            ]);
+            return Math.abs((p?.x ?? -1) - (c?.x ?? 1));
+        })
+        .toBeLessThan(1);
+    await tabs.nth(0).focus();
+    await popout.keyboard.press("ArrowRight");
+    await expect(tabs.nth(1)).toBeFocused();
 });

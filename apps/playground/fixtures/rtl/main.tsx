@@ -16,7 +16,7 @@ import "./rtl.css";
 
 /**
  * A right-to-left page (`dir="rtl"` on `<html>`): borders on every side, a nested row, and
- * popouts. `start` is on the right. The page exposes the model on `window.__dockable`, so the
+ * popouts, which take the layout's direction without `popoutMirrorRoot`. `start` is on the right. The page exposes the model on `window.__dockable`, so the
  * specs can run commands directly.
  */
 declare global {
@@ -114,12 +114,7 @@ function App() {
         window.__dockable = { model };
     }, [model]);
     return (
-        <Dockable.Root
-            model={model}
-            popoutURL="/popout.html"
-            supportsPopout
-            popoutMirrorRoot
-        >
+        <Dockable.Root model={model} popoutURL="/popout.html" supportsPopout>
             <Dockable.Borders<Types> renderBar={renderBar}>
                 <Dockable.Row<Types>>{renderNode}</Dockable.Row>
             </Dockable.Borders>

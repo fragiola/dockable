@@ -8,7 +8,7 @@ export default {
     order: 2,
     features: [
         'dir="rtl"',
-        'engine.get("direction")',
+        "runtime dir flip",
         "start / end",
         "tabDirection",
         "EdgeIndicator",
