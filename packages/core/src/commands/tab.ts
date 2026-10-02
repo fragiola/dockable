@@ -5,6 +5,7 @@ import {
     dataSchema,
     describedId,
     idSchema,
+    labelSchema,
     nullable,
     object,
     placementProperties,
@@ -50,6 +51,7 @@ export function tabFromInit(draft: Draft, init: TabInit): AnyTab {
         type: "tab" as const,
         id: init.id ?? draft.newId("tab"),
         component: init.component,
+        label: init.label,
         data: cloneJson(init.data),
         pinned: init.pinned,
         enableClose: init.enableClose,
@@ -108,7 +110,7 @@ export function defaultWindowRect(n: number): Rect {
 export const tabAdd = defineCommand({
     name: "tab.add",
     description:
-        "Add a new tab. `component` names what the tab shows and `data` holds its state (validated when the app registered a data schema). `to` is a tabset, a row, a border or a layout id; `location` center adds it to that tabset or border at `index` (-1 appends), an edge of a tabset splits it, an edge of a root row docks the tab to that side of the layout.",
+        "Add a new tab. `component` names what the tab shows, `label` is its name (the app renders it) and `data` holds its state (validated when the app registered a data schema). `to` is a tabset, a row, a border or a layout id; `location` center adds it to that tabset or border at `index` (-1 appends), an edge of a tabset splits it, an edge of a root row docks the tab to that side of the layout.",
     payloadSchema: object(
         {
             id: {
@@ -120,11 +122,12 @@ export const tabAdd = defineCommand({
                 minLength: 1,
                 description: "what the tab shows (a key of the app's registry)",
             },
+            label: labelSchema,
             data: dataSchema,
             ...tabFieldProperties,
             ...placementProperties,
         },
-        ["component", "to"],
+        ["component", "label", "to"],
     ),
     resultSchema: tabIdResult,
     transient: false,
@@ -279,28 +282,75 @@ export const tabMove = defineCommand({
     },
 });
 
-export const tabUpdate = defineCommand({
-    name: "tab.update",
+export const tabSetData = defineCommand({
+    name: "tab.set-data",
     description:
-        "Replace a tab's data (and optionally switch its component). `data` is the whole new value, not a patch; it is validated when the app registered a schema for the component.",
-    payloadSchema: object(
-        {
-            tabId: tabIdSchema,
-            component: {
-                type: "string",
-                minLength: 1,
-                description: "the tab's component (its current one to keep it)",
-            },
-            data: dataSchema,
-        },
-        ["tabId", "component"],
-    ),
+        "Change a tab's data. Without `component`, `data` is a shallow patch: its top-level keys replace the tab's, the others stay (none is removed). With `component`, the tab switches to that component and `data` is its whole new value. The resulting data is validated when the app registered a schema for the component.",
+    payloadSchema: {
+        type: "object",
+        anyOf: [
+            object(
+                {
+                    tabId: tabIdSchema,
+                    component: {
+                        not: {},
+                        description: "absent: the data is a patch",
+                    },
+                    data: {
+                        type: "object",
+                        description:
+                            "the keys to change; each replaces the tab's own (a shallow merge)",
+                    },
+                },
+                ["tabId", "data"],
+            ),
+            object(
+                {
+                    tabId: tabIdSchema,
+                    component: {
+                        type: "string",
+                        minLength: 1,
+                        description:
+                            "the tab's new component (its current one to replace the data whole)",
+                    },
+                    data: {
+                        ...dataSchema,
+                        description: "the component's whole data",
+                    },
+                },
+                ["tabId", "component"],
+            ),
+        ],
+    },
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft, validateData }) {
         const tab = attachedTab(draft, payload.tabId);
         if (isError(tab)) {
             return { ok: false, error: tab };
+        }
+        if (payload.component === undefined) {
+            const current = tab.data ?? {};
+            if (!isPlainObject(current)) {
+                return fail(
+                    "invalid_payload",
+                    `the data of tab "${tab.id}" is not an object: set it whole, with its component`,
+                    "/data",
+                );
+            }
+            // an undefined value is no change (a patch never removes a key)
+            const data: Record<string, unknown> = { ...current };
+            for (const [key, value] of Object.entries(payload.data)) {
+                if (value !== undefined) {
+                    data[key] = value;
+                }
+            }
+            const invalid = validateData(tab.component, data, "/data");
+            if (invalid) {
+                return { ok: false, error: invalid };
+            }
+            draft.set(tab.id, "data", cloneJson(data));
+            return ok({ tabId: tab.id });
         }
         const invalid = validateData(payload.component, payload.data, "/data");
         if (invalid) {
@@ -311,6 +361,11 @@ export const tabUpdate = defineCommand({
         return ok({ tabId: tab.id });
     },
 });
+
+/** A plain JSON object (not an array, not null). */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 export const tabPin = defineCommand({
     name: "tab.pin",
@@ -420,10 +475,11 @@ export const tabPopout = defineCommand({
 export const tabConfigure = defineCommand({
     name: "tab.configure",
     description:
-        "Change a tab's behaviour flags and size limits. A null value removes the tab's own value so the layout default applies.",
+        "Change a tab's label, behaviour flags and size limits. Absent keys are left as they are. A null flag or limit removes the tab's own value so the layout default applies; the label cannot be removed (a tab always has one).",
     payloadSchema: object(
         {
             tabId: tabIdSchema,
+            label: { ...labelSchema, description: "the tab's new name" },
             enableClose: nullable(tabFieldProperties.enableClose),
             enableDrag: nullable(tabFieldProperties.enableDrag),
             enablePopout: nullable(tabFieldProperties.enablePopout),

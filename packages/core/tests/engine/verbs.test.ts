@@ -37,7 +37,7 @@ const withBorder: LayoutJson = {
             location: "left",
             mode: "overlay",
             selected: 0,
-            children: [{ id: "b0", component: "test" }],
+            children: [{ id: "b0", component: "test", label: "test" }],
         },
     ],
 };

@@ -30,11 +30,13 @@ const jsonWith = (prefix: string): LayoutJson => ({
                     {
                         id: `${prefix}0`,
                         component: "test",
+                        label: "test",
                         data: { name: `${prefix}0` },
                     },
                     {
                         id: `${prefix}1`,
                         component: "test",
+                        label: "test",
                         data: { name: `${prefix}1` },
                     },
                 ],
@@ -46,6 +48,7 @@ const jsonWith = (prefix: string): LayoutJson => ({
                     {
                         id: `${prefix}2`,
                         component: "test",
+                        label: "test",
                         data: { name: `${prefix}2` },
                     },
                 ],

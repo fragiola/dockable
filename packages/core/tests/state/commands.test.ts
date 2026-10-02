@@ -19,6 +19,7 @@ describe("tab commands", () => {
             model.run("tab.add", {
                 id: "n",
                 component: "x",
+                label: "New",
                 data: { name: "New" },
                 to: "ts0",
             }),
@@ -28,7 +29,12 @@ describe("tab commands", () => {
         });
         expect(text()).toBe("/ts0/t0[One],/ts0/t1[New]*");
         expect(
-            model.run("tab.add", { id: "n", component: "x", to: "ts0" }),
+            model.run("tab.add", {
+                id: "n",
+                component: "x",
+                label: "x",
+                to: "ts0",
+            }),
         ).toEqual({
             ok: false,
             error: {
@@ -38,7 +44,7 @@ describe("tab commands", () => {
             },
         });
         expect(
-            model.run("tab.add", { component: "x", to: "nowhere" }),
+            model.run("tab.add", { component: "x", label: "x", to: "nowhere" }),
         ).toMatchObject({
             ok: false,
             error: { code: "not_found", path: "/to" },
@@ -53,6 +59,7 @@ describe("tab commands", () => {
         must(
             model.run("tab.add", {
                 component: "x",
+                label: "Log",
                 data: { name: "Log" },
                 to: "border_bottom",
                 select: true,
@@ -61,12 +68,37 @@ describe("tab commands", () => {
         expect(text()).toBe("/b/bottom/t0[Log]*,/ts0/t0[One]*");
     });
 
-    it("tab.add and tab.update validate data with the registered schema", () => {
+    it("tab.add requires a string label", () => {
+        const { model } = setup(tabsets(["One"]));
+        expect(
+            model.dispatch({
+                command: "tab.add",
+                payload: { component: "x", to: "ts0" },
+            }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/payload/label" },
+        });
+        expect(
+            model.dispatch({
+                command: "tab.add",
+                payload: { component: "x", label: 1, to: "ts0" },
+            }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/payload/label" },
+        });
+    });
+
+    it("tab.add and tab.set-data validate data with the registered schema", () => {
         const model = createModel(tabsets(["One"]), {
             dataSchemas: {
                 editor: {
                     type: "object",
-                    properties: { path: { type: "string" } },
+                    properties: {
+                        path: { type: "string" },
+                        dirty: { type: "boolean" },
+                    },
                     required: ["path"],
                     additionalProperties: false,
                 },
@@ -75,6 +107,7 @@ describe("tab commands", () => {
         expect(
             model.run("tab.add", {
                 component: "editor",
+                label: "a.ts",
                 data: { path: 1 },
                 to: "ts0",
             }),
@@ -89,12 +122,14 @@ describe("tab commands", () => {
         const { tabId: id } = must(
             model.run("tab.add", {
                 component: "editor",
+                label: "a.ts",
                 data: { path: "/a" },
                 to: "ts0",
             }),
         );
+        // a switch replaces the data whole: without `path` it is incomplete
         expect(
-            model.run("tab.update", {
+            model.run("tab.set-data", {
                 tabId: id,
                 component: "editor",
                 data: {},
@@ -107,36 +142,111 @@ describe("tab commands", () => {
                 message: "is required",
             },
         });
-        must(
-            model.run("tab.update", {
-                tabId: id,
-                component: "editor",
-                data: { path: "/b" },
-            }),
-        );
+        // a patch is validated once merged: the kept keys count
+        must(model.run("tab.set-data", { tabId: id, data: { dirty: true } }));
+        expect(
+            model.run("tab.set-data", { tabId: id, data: { path: 2 } }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/data/path" },
+        });
+        expect(
+            model.run("tab.set-data", { tabId: id, data: { extra: 1 } }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/data/extra" },
+        });
         expect(model.get("node-by", { id })).toMatchObject({
             component: "editor",
-            data: { path: "/b" },
+            label: "a.ts",
+            data: { path: "/a", dirty: true },
         });
     });
 
-    it("tab.update replaces the data and can switch the component", () => {
+    it("tab.set-data merges a patch into the data, keeping the other keys", () => {
         const { model } = setup(tabsets(["One"]));
         must(
-            model.run("tab.update", {
+            model.run("tab.set-data", {
+                tabId: "One",
+                data: { seed: 3, kind: "area" },
+            }),
+        );
+        must(model.run("tab.set-data", { tabId: "One", data: { seed: 4 } }));
+        expect(model.get("node-by", { id: "One" })).toEqual({
+            type: "tab",
+            id: "One",
+            component: "test",
+            label: "One",
+            data: { seed: 4, kind: "area" },
+        });
+        // an empty patch, or an undefined value, changes nothing
+        must(model.run("tab.set-data", { tabId: "One", data: {} }));
+        must(
+            model.run("tab.set-data", {
+                tabId: "One",
+                data: { seed: undefined },
+            }),
+        );
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            data: { seed: 4, kind: "area" },
+        });
+    });
+
+    it("tab.set-data with a component switches it and replaces the data", () => {
+        const { model } = setup(tabsets(["One"]));
+        must(
+            model.run("tab.set-data", {
                 tabId: "One",
                 component: "other",
-                data: { name: "Uno" },
+                data: { seed: 1 },
             }),
         );
         expect(model.get("node-by", { id: "One" })).toEqual({
             type: "tab",
             id: "One",
             component: "other",
-            data: { name: "Uno" },
+            label: "One",
+            data: { seed: 1 },
         });
-        must(model.run("tab.update", { tabId: "One", component: "other" }));
+        must(model.run("tab.set-data", { tabId: "One", component: "other" }));
         expect(model.get("node-by", { id: "One" })).not.toHaveProperty("data");
+        // a tab without data takes a patch as its first keys
+        must(model.run("tab.set-data", { tabId: "One", data: { seed: 2 } }));
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            data: { seed: 2 },
+        });
+    });
+
+    it("tab.set-data refuses a patch that is not an object, or onto data that is not one", () => {
+        const { model } = setup(tabsets(["One"]));
+        // untyped input: a patch that is not an object fails the payload schema
+        for (const data of [[1], "x", null]) {
+            expect(
+                model.dispatch({
+                    command: "tab.set-data",
+                    payload: { tabId: "One", data },
+                }),
+            ).toMatchObject({ ok: false, error: { code: "invalid_payload" } });
+        }
+        must(
+            model.run("tab.set-data", {
+                tabId: "One",
+                component: "test",
+                data: "plain",
+            }),
+        );
+        expect(
+            model.run("tab.set-data", { tabId: "One", data: { a: 1 } }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/data" },
+        });
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            data: "plain",
+        });
+        expect(
+            model.run("tab.set-data", { tabId: "nope", data: {} }),
+        ).toMatchObject({ ok: false, error: { code: "not_found" } });
     });
 
     it("tab.close refuses a tab that cannot close (FlexLayout's DELETE_TAB did not)", () => {
@@ -177,6 +287,33 @@ describe("tab commands", () => {
         );
         expect(model.get("node-by", { id: "One" })).toMatchObject({
             minWidth: 40,
+        });
+    });
+
+    it("tab.configure renames a tab and leaves its data alone", () => {
+        const { model, text } = setup(tabsets(["One"]));
+        must(model.run("tab.set-data", { tabId: "One", data: { seed: 1 } }));
+        must(model.run("tab.configure", { tabId: "One", label: "Uno" }));
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            label: "Uno",
+            data: { seed: 1 },
+        });
+        expect(text()).toBe("/ts0/t0[Uno]*");
+        // any string is a label: refusing an empty one is the app's choice
+        must(model.run("tab.configure", { tabId: "One", label: "" }));
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            label: "",
+        });
+        // a tab always has a label: it cannot be removed
+        expect(
+            model.run("tab.configure", {
+                tabId: "One",
+                // @ts-expect-error the label is not nullable
+                label: null,
+            }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/label" },
         });
     });
 
@@ -489,6 +626,7 @@ describe("window commands", () => {
         must(
             context.model.run("tab.add", {
                 component: "x",
+                label: "Four",
                 data: { name: "Four" },
                 to: window,
             }),
@@ -660,6 +798,7 @@ describe("batch", () => {
                         payload: {
                             id: "n",
                             component: "x",
+                            label: "New",
                             data: { name: "New" },
                             to: "ts0",
                         },

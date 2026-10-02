@@ -4,6 +4,7 @@ import {
     borderModeSchema,
     dataSchema,
     idSchema,
+    labelSchema,
     object,
     orientationSchema,
     rectSchema,
@@ -55,10 +56,11 @@ export const layoutDefs = {
             type: { const: "tab" },
             id: idSchema,
             component: { type: "string", minLength: 1 },
+            label: labelSchema,
             data: dataSchema,
             ...tabFieldProperties,
         },
-        ["component"],
+        ["component", "label"],
     ),
     tabset: object(
         {

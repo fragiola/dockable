@@ -54,11 +54,13 @@ const layoutJson = (prefix: string): LayoutJson<Types> => ({
                     {
                         id: `${prefix}0`,
                         component: "test",
+                        label: `${prefix}0`,
                         data: { name: `${prefix}0` },
                     },
                     {
                         id: `${prefix}1`,
                         component: "test",
+                        label: `${prefix}1`,
                         data: { name: `${prefix}1` },
                     },
                 ],

@@ -75,6 +75,8 @@ export interface TabNode<K extends string = string, D = unknown>
     readonly id: string;
     /** what the tab shows: the registry key that types `data` */
     readonly component: K;
+    /** the tab's name, as the app wrote it: never translated, never rendered by the packages */
+    readonly label: string;
     /** the app's data for the tab */
     readonly data: D;
     /** pinned tabs sit at the start of their strip, cannot close and cannot leave their tabset */

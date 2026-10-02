@@ -10,7 +10,7 @@ import {
     tabPin,
     tabPopout,
     tabSelect,
-    tabUpdate,
+    tabSetData,
 } from "./tab";
 import {
     tabsetActivate,
@@ -33,7 +33,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
     tabSelect,
     tabClose,
     tabMove,
-    tabUpdate,
+    tabSetData,
     tabPin,
     tabPopout,
     tabConfigure,

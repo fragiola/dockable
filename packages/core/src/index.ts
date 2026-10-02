@@ -15,6 +15,7 @@ export type {
     CommandMap,
     CommandName,
     CommandResult,
+    DataPatchOf,
     LayoutDefaultsPatch,
     Middleware,
     Nullable,
@@ -26,9 +27,9 @@ export type {
     TabAddPayload,
     TabConfigurePayload,
     TabMovePayload,
+    TabSetDataPayload,
     TabsetConfigurePayload,
     TabsetMovePayload,
-    TabUpdatePayload,
 } from "./commands/types";
 export { veto } from "./commands/types";
 export {

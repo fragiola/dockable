@@ -15,7 +15,7 @@ The payload types below use `T`, your registry (see [typed data](/docs/concepts/
 
 ### `tab.add`
 
-Add a new tab. `component` names what the tab shows and `data` holds its state (validated when the app registered a data schema). `to` is a tabset, a row, a border or a layout id; `location` center adds it to that tabset or border at `index` (-1 appends), an edge of a tabset splits it, an edge of a root row docks the tab to that side of the layout.
+Add a new tab. `component` names what the tab shows, `label` is its name (the app renders it) and `data` holds its state (validated when the app registered a data schema). `to` is a tabset, a row, a border or a layout id; `location` center adds it to that tabset or border at `index` (-1 appends), an edge of a tabset splits it, an edge of a root row docks the tab to that side of the layout.
 
 **Payload** (`TabAddPayload<T>`)
 
@@ -23,6 +23,7 @@ Add a new tab. `component` names what the tab shows and `data` holds its state (
 | --- | --- | --- | --- |
 | `id` | `string` | no | the new tab's id (generated when omitted) |
 | `component` | `string` | yes | what the tab shows (a key of the app's registry) |
+| `label` | `string` | yes | the tab's name (the app renders it; the packages never do) |
 | `data` | `JSON` | no | the app's data (any JSON value) |
 | `pinned` | `boolean` | no | a pinned tab sits at the start of its strip, cannot close and cannot leave its tabset |
 | `enableClose` | `boolean` | no | whether the tab can be closed |
@@ -50,8 +51,8 @@ Add a new tab. `component` names what the tab shows and `data` holds its state (
 ```ts
 model.run("tab.add", {
     component: "editor",
+    label: "a.ts",
     data: {
-        name: "a.ts",
         path: "/a.ts"
     },
     to: "tabset-1"
@@ -59,7 +60,7 @@ model.run("tab.add", {
 ```
 
 ```json
-{ "command": "tab.add", "payload": {"component":"editor","data":{"name":"a.ts","path":"/a.ts"},"to":"tabset-1"} }
+{ "command": "tab.add", "payload": {"component":"editor","label":"a.ts","data":{"path":"/a.ts"},"to":"tabset-1"} }
 ```
 
 ### `tab.select`
@@ -152,17 +153,27 @@ model.run("tab.move", {
 { "command": "tab.move", "payload": {"tabId":"tab-1","to":"tabset-2","location":"right"} }
 ```
 
-### `tab.update`
+### `tab.set-data`
 
-Replace a tab's data (and optionally switch its component). `data` is the whole new value, not a patch; it is validated when the app registered a schema for the component.
+Change a tab's data. Without `component`, `data` is a shallow patch: its top-level keys replace the tab's, the others stay (none is removed). With `component`, the tab switches to that component and `data` is its whole new value. The resulting data is validated when the app registered a schema for the component.
 
-**Payload** (`TabUpdatePayload<T>`)
+**Payload** (`TabSetDataPayload<T>`)
+
+Either:
 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `tabId` | `string` | yes | the tab's id |
-| `component` | `string` | yes | the tab's component (its current one to keep it) |
-| `data` | `JSON` | no | the app's data (any JSON value) |
+| `component` | `never` | no | absent: the data is a patch |
+| `data` | `object` | yes | the keys to change; each replaces the tab's own (a shallow merge) |
+
+Or:
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `tabId` | `string` | yes | the tab's id |
+| `component` | `string` | yes | the tab's new component (its current one to replace the data whole) |
+| `data` | `JSON` | no | the component's whole data |
 
 **Result** (`{ tabId: string }`)
 
@@ -173,18 +184,16 @@ Replace a tab's data (and optionally switch its component). `data` is the whole 
 **Errors**: `not_found`, besides those every command can return.
 
 ```ts
-model.run("tab.update", {
+model.run("tab.set-data", {
     tabId: "tab-1",
-    component: "editor",
     data: {
-        name: "b.ts",
-        path: "/b.ts"
+        dirty: true
     }
 });
 ```
 
 ```json
-{ "command": "tab.update", "payload": {"tabId":"tab-1","component":"editor","data":{"name":"b.ts","path":"/b.ts"}} }
+{ "command": "tab.set-data", "payload": {"tabId":"tab-1","data":{"dirty":true}} }
 ```
 
 ### `tab.pin`
@@ -248,13 +257,14 @@ model.run("tab.popout", {
 
 ### `tab.configure`
 
-Change a tab's behaviour flags and size limits. A null value removes the tab's own value so the layout default applies.
+Change a tab's label, behaviour flags and size limits. Absent keys are left as they are. A null flag or limit removes the tab's own value so the layout default applies; the label cannot be removed (a tab always has one).
 
 **Payload** (`TabConfigurePayload`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `tabId` | `string` | yes | the tab's id |
+| `label` | `string` | no | the tab's new name |
 | `enableClose` | `boolean \| null` | no | whether the tab can be closed (null removes it: the layout default applies) |
 | `enableDrag` | `boolean \| null` | no | whether the tab can be dragged (null removes it: the layout default applies) |
 | `enablePopout` | `boolean \| null` | no | whether the tab can be popped out into a window (null removes it: the layout default applies) |
@@ -276,12 +286,13 @@ Change a tab's behaviour flags and size limits. A null value removes the tab's o
 ```ts
 model.run("tab.configure", {
     tabId: "tab-1",
+    label: "b.ts",
     enableClose: false
 });
 ```
 
 ```json
-{ "command": "tab.configure", "payload": {"tabId":"tab-1","enableClose":false} }
+{ "command": "tab.configure", "payload": {"tabId":"tab-1","label":"b.ts","enableClose":false} }
 ```
 
 ## Tabsets
@@ -749,8 +760,9 @@ model.run("layout.load", {
                     children: [
                         {
                             component: "editor",
+                            label: "a.ts",
                             data: {
-                                name: "a.ts"
+                                path: "/a.ts"
                             }
                         }
                     ]
@@ -762,7 +774,7 @@ model.run("layout.load", {
 ```
 
 ```json
-{ "command": "layout.load", "payload": {"layout":{"version":1,"root":{"type":"row","children":[{"type":"tabset","children":[{"component":"editor","data":{"name":"a.ts"}}]}]}}} }
+{ "command": "layout.load", "payload": {"layout":{"version":1,"root":{"type":"row","children":[{"type":"tabset","children":[{"component":"editor","label":"a.ts","data":{"path":"/a.ts"}}]}]}}} }
 ```
 
 ## Batches

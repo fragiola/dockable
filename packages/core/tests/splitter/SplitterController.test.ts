@@ -375,12 +375,17 @@ describe("SplitterController ARIA", () => {
                     size: 200,
                     minSize: 50,
                     maxSize: 400,
-                    children: [{ component: "x" }],
+                    children: [{ component: "x", label: "x" }],
                 },
             ],
             root: {
                 type: "row",
-                children: [{ type: "tabset", children: [{ component: "x" }] }],
+                children: [
+                    {
+                        type: "tabset",
+                        children: [{ component: "x", label: "x" }],
+                    },
+                ],
             },
         });
         engine = createLayoutEngine({ model });
@@ -424,13 +429,18 @@ describe("border splitters", () => {
                     minSize: 50,
                     maxSize: 300,
                     selected: 0,
-                    children: [{ component: "x" }],
+                    children: [{ component: "x", label: "x" }],
                 },
             ],
             root: {
                 type: "row",
                 id: "row",
-                children: [{ type: "tabset", children: [{ component: "x" }] }],
+                children: [
+                    {
+                        type: "tabset",
+                        children: [{ component: "x", label: "x" }],
+                    },
+                ],
             },
         });
         const actions: {

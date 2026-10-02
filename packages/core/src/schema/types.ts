@@ -35,6 +35,8 @@ export interface JsonSchema {
     readonly items?: JsonSchema;
     readonly oneOf?: readonly JsonSchema[];
     readonly anyOf?: readonly JsonSchema[];
+    /** the value must not match it (`{ not: {} }` on a property: the property must be absent) */
+    readonly not?: JsonSchema;
     readonly minimum?: number;
     readonly exclusiveMinimum?: number;
     readonly minLength?: number;

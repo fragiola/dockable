@@ -21,7 +21,7 @@ const model = createModel({
             {
                 type: "tabset",
                 id: "ts0",
-                children: [{ id: "one", component: "x" }],
+                children: [{ id: "one", component: "x", label: "x" }],
             },
             {
                 type: "row",
@@ -30,14 +30,18 @@ const model = createModel({
                     {
                         type: "tabset",
                         id: "ts1",
-                        children: [{ id: "two", component: "x" }],
+                        children: [{ id: "two", component: "x", label: "x" }],
                     },
                     {
                         type: "tabset",
                         id: "ts2",
                         children: [
-                            { id: "three", component: "x" },
-                            { id: "four with space", component: "x" },
+                            { id: "three", component: "x", label: "x" },
+                            {
+                                id: "four with space",
+                                component: "x",
+                                label: "x",
+                            },
                         ],
                     },
                 ],
@@ -45,7 +49,10 @@ const model = createModel({
         ],
     },
     borders: [
-        { location: "left", children: [{ id: "files", component: "x" }] },
+        {
+            location: "left",
+            children: [{ id: "files", component: "x", label: "x" }],
+        },
     ],
 });
 const paths = computePaths(model.state.root, "", model.state.borders);

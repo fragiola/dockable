@@ -33,8 +33,18 @@ const ideBorders = withBorders([
         location: "left",
         size: 180,
         children: [
-            { id: "files", component: "test", data: { name: "Files" } },
-            { id: "search", component: "test", data: { name: "Search" } },
+            {
+                id: "files",
+                component: "test",
+                label: "Files",
+                data: { name: "Files" },
+            },
+            {
+                id: "search",
+                component: "test",
+                label: "Search",
+                data: { name: "Search" },
+            },
         ],
     },
     {
@@ -42,7 +52,12 @@ const ideBorders = withBorders([
         selected: 0,
         size: 120,
         children: [
-            { id: "terminal", component: "test", data: { name: "Terminal" } },
+            {
+                id: "terminal",
+                component: "test",
+                label: "Terminal",
+                data: { name: "Terminal" },
+            },
         ],
     },
     { location: "right", autoHide: true, children: [] },
@@ -75,7 +90,7 @@ function BorderLayout({
                         <Dockable.TabList<Types>>
                             {(tab) => (
                                 <Dockable.Tab node={tab}>
-                                    {tab.data.name}
+                                    {tab.label}
                                 </Dockable.Tab>
                             )}
                         </Dockable.TabList>
@@ -306,6 +321,7 @@ describe("Dockable.Borders", () => {
                         {
                             id: "files",
                             component: "test",
+                            label: "Files",
                             data: { name: "Files" },
                         },
                     ],

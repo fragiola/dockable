@@ -105,6 +105,10 @@ function check(
         check(target, value, path, root, issues);
         return;
     }
+    if (schema.not && validate(schema.not, value, path, root).length === 0) {
+        issues.push({ path, message: "is not allowed" });
+        return;
+    }
     if (schema.anyOf) {
         checkAlternatives(schema.anyOf, value, path, root, issues, false);
         return;
@@ -211,6 +215,16 @@ function check(
  * value's discriminator (its `type` property, when the alternatives have one) are reported, so a
  * wrong field of a tabset is not drowned in "not a row" noise.
  */
+/** A missing or unexpected key of the object at `path`. */
+function isKeyIssue(issue: ValidationIssue, path: string): boolean {
+    return (
+        (issue.message === "is required" ||
+            issue.message === "is not allowed") &&
+        issue.path.startsWith(`${path}/`) &&
+        !issue.path.slice(path.length + 1).includes("/")
+    );
+}
+
 function checkAlternatives(
     alternatives: readonly JsonSchema[],
     value: unknown,
@@ -246,6 +260,15 @@ function checkAlternatives(
     const fitting = shaped.length === 1 ? shaped[0] : undefined;
     if (fitting) {
         issues.push(...fitting);
+        return;
+    }
+    // the one alternative whose keys the value has (its problems are in the values, not the keys)
+    const keyed = results.filter(
+        (result) => !result.some((issue) => isKeyIssue(issue, path)),
+    );
+    const fittingKeys = keyed.length === 1 ? keyed[0] : undefined;
+    if (fittingKeys) {
+        issues.push(...fittingKeys);
         return;
     }
     const shallow = results.filter((result) =>

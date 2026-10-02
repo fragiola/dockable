@@ -24,8 +24,8 @@ const json: LayoutJson = {
                 id: "ts0",
                 selected: 1,
                 children: [
-                    { id: "a", component: "x" },
-                    { id: "b", component: "x", enableClose: true },
+                    { id: "a", component: "x", label: "x" },
+                    { id: "b", component: "x", label: "x", enableClose: true },
                 ],
             },
             {
@@ -35,7 +35,14 @@ const json: LayoutJson = {
                     {
                         type: "tabset",
                         id: "ts1",
-                        children: [{ id: "c", component: "x", pinned: true }],
+                        children: [
+                            {
+                                id: "c",
+                                component: "x",
+                                label: "x",
+                                pinned: true,
+                            },
+                        ],
                     },
                     {
                         type: "tabset",
@@ -53,7 +60,7 @@ const json: LayoutJson = {
             location: "left",
             selected: 0,
             size: 220,
-            children: [{ id: "d", component: "x" }],
+            children: [{ id: "d", component: "x", label: "x" }],
         },
     ],
     windows: [
@@ -67,7 +74,7 @@ const json: LayoutJson = {
                     {
                         type: "tabset",
                         id: "ts3",
-                        children: [{ id: "e", component: "x" }],
+                        children: [{ id: "e", component: "x", label: "x" }],
                     },
                 ],
             },

@@ -51,6 +51,7 @@ afterEach(() => {
 
 const chart: TabInitOf<Types> = {
     component: "test",
+    label: "Revenue",
     data: { name: "Revenue" },
 };
 
@@ -125,7 +126,11 @@ describe("Dockable.DragSource", () => {
         });
         expect(commands.map((c) => c.command)).toContain("tab.add");
         expect(commands.find((c) => c.command === "tab.add")?.payload).toEqual(
-            expect.objectContaining({ component: "test", data: chart.data }),
+            expect.objectContaining({
+                component: "test",
+                label: chart.label,
+                data: chart.data,
+            }),
         );
         expect(onDrop).toHaveBeenCalledTimes(1);
         const id = onDrop.mock.calls[0]?.[0];
@@ -145,7 +150,8 @@ describe("Dockable.DragSource", () => {
         const tab = vi.fn(
             (): TabInitOf<Types> => ({
                 component: "test",
-                data: { name: `Chart ${++n}` },
+                label: `Chart ${++n}`,
+                data: { name: `Chart ${n}` },
             }),
         );
         render(
@@ -264,7 +270,13 @@ describe("Dockable.Root onExternalDrag", () => {
         const onExternalDrag = vi.fn(
             (event: DragEventLike): ExternalDrag<Types> | undefined =>
                 event.dataTransfer?.types.includes("Files")
-                    ? { tab: { component: "test", data: { name: "file" } } }
+                    ? {
+                          tab: {
+                              component: "test",
+                              label: "file",
+                              data: { name: "file" },
+                          },
+                      }
                     : undefined,
         );
         render(<Layout model={model} onExternalDrag={onExternalDrag} />);
@@ -290,7 +302,7 @@ describe("Dockable.Root onExternalDrag", () => {
         expect(state?.source).toBe("external");
         expect(state?.subjectOf(model)).toEqual({
             kind: "new",
-            tab: { component: "test", data: { name: "file" } },
+            tab: { component: "test", label: "file", data: { name: "file" } },
         });
         expect(root).toHaveAttribute("data-dragging", "");
 

@@ -319,8 +319,8 @@ describe("LayoutEngine moveable elements", () => {
                 type: "tabset",
                 id: "ts0",
                 children: [
-                    { id: "t2", component: "test" },
-                    { id: "t0", component: "test" },
+                    { id: "t2", component: "test", label: "test" },
+                    { id: "t0", component: "test", label: "test" },
                 ],
             },
         ];

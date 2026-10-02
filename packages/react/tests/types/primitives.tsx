@@ -38,6 +38,7 @@ const model = createModel<Types>({
                 children: [
                     {
                         component: "editor",
+                        label: "a.ts",
                         data: { name: "a.ts", path: "/a.ts", dirty: false },
                     },
                 ],
@@ -89,9 +90,7 @@ function renderNode(
     return (
         <Dockable.TabSet node={child} aria-label={name}>
             <Dockable.TabList<Types>>
-                {(tab) => (
-                    <Dockable.Tab node={tab}>{tab.data.name}</Dockable.Tab>
-                )}
+                {(tab) => <Dockable.Tab node={tab}>{tab.label}</Dockable.Tab>}
             </Dockable.TabList>
             <Dockable.TabSetContent />
         </Dockable.TabSet>
@@ -123,7 +122,11 @@ export const rendered = (
 export const source = (
     <Dockable.DragSource
         model={model}
-        tab={{ component: "chart", data: { name: "Sales", series: [] } }}
+        tab={{
+            component: "chart",
+            label: "Sales",
+            data: { name: "Sales", series: [] },
+        }}
     />
 );
 
@@ -131,7 +134,7 @@ export const wrongSource = (
     <Dockable.DragSource
         model={model}
         // @ts-expect-error: `path` is not in the chart's data
-        tab={{ component: "chart", data: { name: "x", path: "x" } }}
+        tab={{ component: "chart", label: "x", data: { name: "x", path: "x" } }}
     />
 );
 
@@ -140,22 +143,25 @@ export function Hooks() {
         model,
         tab: () => ({
             component: "editor",
+            label: "b.ts",
             data: { name: "b.ts", path: "/b.ts", dirty: true },
         }),
     });
     useDragSource({
         model,
         // @ts-expect-error: an editor needs a path and a dirty flag
-        tab: { component: "editor", data: { name: "c.ts" } },
+        tab: { component: "editor", label: "c.ts", data: { name: "c.ts" } },
     });
     const { model: typed, engine } = useDockable<Types>();
     typed.run("tab.add", {
         component: "chart",
+        label: "Costs",
         data: { name: "Costs", series: ["q1"] },
         to: "main",
     });
     typed.run("tab.add", {
         component: "chart",
+        label: "x",
         // @ts-expect-error: a chart's series are strings
         data: { name: "x", series: [1] },
         to: "main",
@@ -166,7 +172,7 @@ export function Hooks() {
         void dirty;
     }
     const names = useModelState<Types, string[]>((_state, m) =>
-        m.get("all-tabs").map((tab) => tab.data.name),
+        m.get("all-tabs").map((tab) => tab.label),
     );
     // the engine of the layout this renders in: screen actions and view facts
     const panelId: string = engine.get("tab-panel-dom-id-by", {

@@ -24,6 +24,7 @@ const json: LayoutJson<Types> = {
                     (id): TabJson<Types> => ({
                         id,
                         component: "test",
+                        label: id.toUpperCase(),
                         data: { name: id.toUpperCase() },
                     }),
                 ),
@@ -39,7 +40,7 @@ function Menu({ tabset }: { tabset: TabsetNode<Types> }) {
     return (
         <ul data-testid="menu">
             {hiddenTabs.map((tab) => (
-                <li key={tab.id}>{tab.data.name}</li>
+                <li key={tab.id}>{tab.label}</li>
             ))}
         </ul>
     );
@@ -61,7 +62,7 @@ function OverflowLayout({
                             <Dockable.TabList<Types>>
                                 {(tab) => (
                                     <Dockable.Tab node={tab}>
-                                        {tab.data.name}
+                                        {tab.label}
                                     </Dockable.Tab>
                                 )}
                             </Dockable.TabList>

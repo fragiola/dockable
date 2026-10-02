@@ -48,7 +48,7 @@ describe("useModelState", () => {
         const seen: string[][] = [];
         function Names() {
             const names = useModelState<Types, string[]>(
-                (_state, m) => m.get("all-tabs").map((tab) => tab.data.name),
+                (_state, m) => m.get("all-tabs").map((tab) => tab.label),
                 (a, b) => a.join() === b.join(),
             );
             seen.push(names);
@@ -66,11 +66,7 @@ describe("useModelState", () => {
         });
         expect(seen.at(-1)).toBe(first);
         await act(async () => {
-            model.run("tab.update", {
-                tabId: "t0",
-                component: "test",
-                data: { name: "Uno" },
-            });
+            model.run("tab.configure", { tabId: "t0", label: "Uno" });
         });
         expect(seen.at(-1)).toEqual(["Uno", "Two", "Three"]);
     });
@@ -83,7 +79,7 @@ describe("useModelState, selectors and contexts", () => {
             const name = useModelState<Types, string | undefined>(
                 (_state, m) => {
                     const tab = m.get("node-by", { id });
-                    return tab?.type === "tab" ? tab.data.name : undefined;
+                    return tab?.type === "tab" ? tab.label : undefined;
                 },
             );
             return <output data-testid="name">{name}</output>;
@@ -152,6 +148,7 @@ describe("layout.load", () => {
                             {
                                 id: "t1",
                                 component: "test",
+                                label: "Two",
                                 data: { name: "Two" },
                             },
                         ],
@@ -163,11 +160,13 @@ describe("layout.load", () => {
                             {
                                 id: "t2",
                                 component: "test",
+                                label: "Three",
                                 data: { name: "Three" },
                             },
                             {
                                 id: "t0",
                                 component: "test",
+                                label: "One",
                                 data: { name: "One" },
                             },
                         ],

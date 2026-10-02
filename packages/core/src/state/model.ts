@@ -43,7 +43,7 @@ import type {
 export interface ModelOptions<T extends DockableTypes = AnyTypes> {
     /** generates the id of a node created without one; default `` `${kind}-${n}` `` */
     createId?: CreateId | undefined;
-    /** a JSON Schema per component: `tab.add`, `tab.update` and `layout.load` validate `data` */
+    /** a JSON Schema per component: `tab.add`, `tab.set-data` and `layout.load` validate `data` */
     dataSchemas?: { [K in ComponentOf<T>]?: JsonSchema } | undefined;
     /** freeze every state object (default true) */
     freeze?: boolean | undefined;

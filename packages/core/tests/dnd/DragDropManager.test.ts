@@ -290,14 +290,19 @@ describe("excluded centre", () => {
                         type: "tabset",
                         id: "ts0",
                         enableClose: false,
-                        children: [{ id: "t0", component: "x" }],
+                        children: [{ id: "t0", component: "x", label: "x" }],
                     },
                     {
                         type: "tabset",
                         id: "ts1",
                         children: [
-                            { id: "t1", component: "x", pinned: true },
-                            { id: "t2", component: "x" },
+                            {
+                                id: "t1",
+                                component: "x",
+                                label: "x",
+                                pinned: true,
+                            },
+                            { id: "t2", component: "x", label: "x" },
                         ],
                     },
                 ],
@@ -555,7 +560,11 @@ describe("lost drag", () => {
 });
 
 describe("add drags (a consumer element dragged in)", () => {
-    const tab = { component: "chart", data: { name: "Revenue" } };
+    const tab = {
+        component: "chart",
+        label: "Revenue",
+        data: { name: "Revenue" },
+    };
 
     function addDragAndDrop(
         s: Setup,
@@ -631,6 +640,7 @@ describe("add drags (a consumer element dragged in)", () => {
         const added = children(s, "ts1")[1];
         expect(s.model.get("node-by", { id: added ?? "" })).toMatchObject({
             component: "chart",
+            label: "Revenue",
             data: { name: "Revenue" },
         });
         expect(onDrop).toHaveBeenCalledWith(added, drop);
@@ -709,7 +719,11 @@ describe("external drags (onExternalDrag)", () => {
         const onDrop = vi.fn();
         const s = setup({
             onExternalDrag: () => ({
-                tab: { component: "file", data: { name: "report.csv" } },
+                tab: {
+                    component: "file",
+                    label: "report.csv",
+                    data: { name: "report.csv" },
+                },
                 onDrop,
             }),
         });
@@ -731,7 +745,7 @@ describe("external drags (onExternalDrag)", () => {
 
     it("ends an external drag that leaves the layout without dropping", () => {
         const s = setup({
-            onExternalDrag: () => ({ tab: { component: "x" } }),
+            onExternalDrag: () => ({ tab: { component: "x", label: "x" } }),
         });
         s.root.dispatchEvent(dragEvent("dragenter", 312, 185, foreign()));
         s.root.dispatchEvent(dragEvent("dragover", 312, 185, foreign()));
@@ -745,7 +759,11 @@ describe("external drags (onExternalDrag)", () => {
 
     it("lets a popout window's layout accept external drags through the main engine's handler", () => {
         const onExternalDrag = vi.fn(() => ({
-            tab: { component: "x", data: { name: "dropped" } },
+            tab: {
+                component: "x",
+                label: "dropped",
+                data: { name: "dropped" },
+            },
         }));
         const s = setup({ onExternalDrag });
         const { subRoot } = openPopout(s, "t2");
@@ -772,7 +790,9 @@ describe("external drags (onExternalDrag)", () => {
     });
 
     it("does not treat a layout's own drag as external", () => {
-        const onExternalDrag = vi.fn(() => ({ tab: { component: "x" } }));
+        const onExternalDrag = vi.fn(() => ({
+            tab: { component: "x", label: "x" },
+        }));
         const s = setup({ onExternalDrag });
         dragAndDrop(s, "t0", 312, 185);
         expect(onExternalDrag).not.toHaveBeenCalled();
@@ -891,8 +911,8 @@ describe("refused drops", () => {
                         type: "tabset",
                         id: "ts0",
                         children: [
-                            { id: "t0", component: "x" },
-                            { id: "t1", component: "x" },
+                            { id: "t0", component: "x", label: "x" },
+                            { id: "t1", component: "x", label: "x" },
                         ],
                     },
                     {
@@ -900,7 +920,7 @@ describe("refused drops", () => {
                         id: "ts1",
                         enableDrop: false,
                         enableDivide: false,
-                        children: [{ id: "t2", component: "x" }],
+                        children: [{ id: "t2", component: "x", label: "x" }],
                     },
                 ],
             },
@@ -1020,7 +1040,11 @@ describe("drop zones", () => {
     it("takes an external drag that moves on from the layout, and ends it when it leaves", () => {
         const s = setup({
             onExternalDrag: () => ({
-                tab: { component: "file", data: { name: "report.csv" } },
+                tab: {
+                    component: "file",
+                    label: "report.csv",
+                    data: { name: "report.csv" },
+                },
             }),
         });
         const z = zone(s);
@@ -1037,7 +1061,11 @@ describe("drop zones", () => {
         expect(z.onDrop).toHaveBeenCalledTimes(1);
         expect(z.onDrop.mock.calls[0]?.[0]).toEqual({
             kind: "new",
-            tab: { component: "file", data: { name: "report.csv" } },
+            tab: {
+                component: "file",
+                label: "report.csv",
+                data: { name: "report.csv" },
+            },
         });
         expect(DragDropManager.getDragState()).toBeUndefined();
 
