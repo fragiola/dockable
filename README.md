@@ -27,6 +27,7 @@ pnpm check      # lint + format, and the generated command reference is up to da
 pnpm typecheck
 pnpm test       # unit and component tests
 pnpm build
+pnpm check:package  # the packed packages: publint, attw and a smoke app
 pnpm e2e        # Playwright
 ```
 

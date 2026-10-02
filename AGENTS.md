@@ -97,6 +97,7 @@ Do not "fix" these.
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit) |
 | `pnpm test` | Vitest: `core` (node), `react` (jsdom), `playground`, `examples-react`, `site` |
 | `pnpm build` | `pnpm -r build` (tsdown for the packages, Vite for the playground) |
+| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are dist-only, runs `publint` and `attw --profile esm-only` on the tarballs, then a smoke test: a scratch Vite + React app outside the workspace installs them, builds and loads its dev server (`scripts/check-package.ts`) |
 | `pnpm e2e` | Playwright (Chromium) against the playground and the examples app |
 | `pnpm dev` | the playground on <http://localhost:5173>: every example and scenario live, the Inspector, the fixtures (`PLAYGROUND_PORT` moves it) |
 | `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.2, `../www/CONTRACT.md`), self-validated |
@@ -141,7 +142,10 @@ landing's `title` is its `<title>` as is ("Dockable — …"). `project.json` ca
 `<meta name="robots" content="noindex">`.
 
 In dev the playground resolves both packages to their sources through the
-`development` export condition; production builds use `dist`.
+`@fragiola/source` export condition (`SOURCE_CONDITION` in `examples/react/vite.shared.ts`, the
+tsconfigs' `customConditions`, the Vitest configs); production builds use `dist`. The published
+`exports` (`publishConfig.exports`) are dist-only, and only pnpm applies them: the packages are
+packed and published through pnpm, never npm.
 
 ## Playground
 

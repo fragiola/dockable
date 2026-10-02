@@ -1,6 +1,9 @@
 # CI: the Fragiola project jobs, with the Playwright suites split out of Checks.
 #
 #   Checks            Biome, TypeScript, the unit tests and the build (with the .d.ts check).
+#   Package           `pnpm check:package`: builds and packs the packages with pnpm, lints the
+#                     tarballs (dist-only exports, publint, attw), then installs them into a scratch
+#                     Vite + React app outside the workspace that builds and loads its dev server.
 #   E2E               the Playwright suites, in parallel jobs: the playground in two shards and
 #                     the examples app. Native HTML5 drags flake under contention, so each
 #                     machine keeps the configs' CI workers (1 and 2): the parallelism comes from
@@ -60,6 +63,25 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+
+  package:
+    name: Package
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # builds the packages first, then packs, lints and smoke-tests the tarballs
+      - run: pnpm check:package
 
   e2e:
     name: E2E (${{ matrix.name }})
