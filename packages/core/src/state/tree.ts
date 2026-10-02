@@ -18,7 +18,6 @@ export type AnyTab = TabNode<string, unknown>;
 export type AnyBorder = BorderNode<AnyTypes>;
 export type AnyWindow = WindowLayout<AnyTypes>;
 export type AnyState = LayoutState<AnyTypes>;
-export type AnyParent = AnyRow | AnyTabset | AnyBorder;
 
 /** The children of a node (a tab has none). */
 export function childrenOf(node: AnyNode): readonly AnyNode[] {
@@ -35,19 +34,6 @@ export function walk(
     for (const child of childrenOf(node)) {
         walk(child, fn, node.id);
     }
-}
-
-/** The root rows of a state's layouts, main first, with each layout's id. */
-export function layoutRoots(
-    state: AnyState,
-): { layout: string; root: AnyRow }[] {
-    return [
-        { layout: MAIN_LAYOUT, root: state.root },
-        ...state.windows.map((windowLayout) => ({
-            layout: windowLayout.id,
-            root: windowLayout.root,
-        })),
-    ];
 }
 
 /** Calls `fn` for every node of a state: the main tree, the borders, then each window's tree. */
@@ -103,14 +89,6 @@ export class NodeIndex {
 
     parent(id: string): string | undefined {
         return this.entries.get(id)?.parent;
-    }
-
-    ids(): IterableIterator<string> {
-        return this.entries.keys();
-    }
-
-    get size(): number {
-        return this.entries.size;
     }
 
     /** the layout of the root row `id`, if it is one */

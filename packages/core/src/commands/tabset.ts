@@ -82,10 +82,7 @@ export const tabsetMaximize = defineCommand({
         if (isError(tabset)) {
             return { ok: false, error: tabset };
         }
-        const layout = draft.layoutOf(tabset.id);
-        if (layout === undefined) {
-            return fail("not_found", `no tabset "${tabset.id}"`, "/tabsetId");
-        }
+        const layout = draft.layoutOf(tabset.id) ?? MAIN_LAYOUT;
         const maximized = draft.getMaximized(layout) === tabset.id;
         if (!payload.value) {
             if (maximized) {
