@@ -134,7 +134,7 @@ it, and the examples never touch it.
 
 The adapter's side of the cycle:
 
-1. call `prepare()` before rendering a layout (computes paths and size ranges);
+1. call `prepare()` before rendering a layout (paths and size ranges are computed as the render reads them);
 2. render the structure, registering elements with `registerMeasurable`, `registerTabPanel` and
    `registerSplitter`;
 3. run `engine.run("measure-and-position")` after every commit (a layout effect in React);
@@ -170,7 +170,7 @@ render();
 | --- | --- |
 | `subscribe(listener)` | calls `listener` when adapters should re-render; returns the unsubscribe function (bound, for `useSyncExternalStore`) |
 | `getSnapshot()` | the render revision: a number that changes whenever adapters should re-render (bound). Every engine of a model shares it |
-| `prepare()` | prepares the layout for rendering: the `data-layout-path` of every node and the size ranges rows and tabsets are rendered with. Call before rendering |
+| `prepare()` | prepares the layout for rendering; the `data-layout-path` of every node and the size ranges rows and tabsets are rendered with are computed as the render reads them. Call before rendering |
 | `attachRoot(element)` | attaches the layout's root element, the containing block the panels are positioned in, and starts observing it, the window it lives in and the model. Idempotent; attaching another element detaches the previous one first |
 | `detachRoot()` | detaches the root element and releases every observer and listener |
 | `dispose()` | detaches and forgets everything. The engine must not be used afterwards |

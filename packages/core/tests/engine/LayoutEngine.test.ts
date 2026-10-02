@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createLayoutEngine,
     type LayoutEngine,
+    MAIN_LAYOUT,
     MOVEABLE_ATTRIBUTE,
 } from "../../src";
 import { MOVEABLES_HOME_ATTRIBUTE } from "../../src/engine/LayoutEngine";
@@ -182,6 +183,36 @@ describe("LayoutEngine measure pass", () => {
         expect(engine.adapter.rect("tabset", "ts1")).toBeUndefined();
         expect(engine.adapter.rect("tabstrip", "ts1")).toBeUndefined();
         expect(engine.adapter.rect("tabsetcontent", "ts1")).toBeUndefined();
+        expect(engine.adapter.rect("tabset", "ts0")).toBeDefined();
+    });
+
+    it("forgets the rects of the nodes that leave its layout for a window", () => {
+        const { model, rects, engine, root } = setup();
+        model.run("layout.configure", {
+            defaults: { tab: { enablePopout: true } },
+        });
+        const button = rects.set(
+            root.appendChild(document.createElement("div")),
+            10,
+            20,
+            60,
+            30,
+        );
+        engine.adapter.registerMeasurable("t0", "tabbutton", button);
+        engine.run("measure-and-position");
+        expect(engine.adapter.rect("tabbutton", "t0")).toBeDefined();
+        const frame = document.body.appendChild(
+            document.createElement("iframe"),
+        );
+        const win = frame.contentWindow;
+        engine.adapter.setOptions({
+            popout: { supportsPopout: true, openWindow: () => win },
+        });
+        expect(model.run("tab.popout", { tabId: "t0" }).ok).toBe(true);
+        const layout = model.get("layout-id-by", { nodeId: "t0" });
+        expect(layout).toBeDefined();
+        expect(layout).not.toBe(MAIN_LAYOUT);
+        expect(engine.adapter.rect("tabbutton", "t0")).toBeUndefined();
         expect(engine.adapter.rect("tabset", "ts0")).toBeDefined();
     });
 });

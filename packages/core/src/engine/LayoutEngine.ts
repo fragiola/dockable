@@ -133,7 +133,7 @@ const NO_TABS: readonly string[] = Object.freeze([]);
  * popout machinery. An app never needs it: it uses `run`, `can`, `check`, `get` and `is`.
  *
  * The adapter's side of the cycle:
- * 1. call `prepare()` before rendering a layout (computes paths and size ranges);
+ * 1. call `prepare()` before rendering a layout (paths and size ranges are computed as the render reads them);
  * 2. render the structure, registering elements with `registerMeasurable`, `registerTabPanel`
  *    and `registerSplitter`;
  * 3. run `engine.run("measure-and-position")` after every commit (a layout effect in React);
@@ -161,8 +161,8 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     /** the render revision: a number that changes whenever adapters should re-render */
     getSnapshot(): number;
     /**
-     * prepares the layout for rendering: the `data-layout-path` of every node and the size ranges
-     * rows and tabsets are rendered with. Call before rendering the layout
+     * prepares the layout for rendering; the `data-layout-path` of every node and the size ranges
+     * rows and tabsets are rendered with are computed as the render reads them. Call before rendering
      */
     prepare(): void;
     /** the orientation of a row of this layout */
@@ -456,11 +456,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private readonly overflowListeners = new Set<() => void>();
     private healFrame: number | undefined;
     private readonly teardown: (() => void)[] = [];
-    private derivedFor: AnyState | undefined;
+    private pathsFor: AnyState | undefined;
     private paths = new Map<string, string>();
+    private orientationsFor: AnyState | undefined;
     private orientations = new Map<string, Orientation>();
+    private rangesFor: AnyState | undefined;
     private ranges = new Map<string, SizeRange>();
-    private derivedRoot: AnyRow | undefined;
     private rangesSplitterSize = 0;
     private rangesDirty = true;
 
@@ -725,7 +726,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     private prepare() {
         this.cachedLayoutDomRect = undefined;
-        this.derived();
     }
 
     /**
@@ -765,30 +765,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return this.shared.idScope;
     }
 
-    private derived() {
-        const state = this.state();
-        if (state === this.derivedFor) {
-            return;
-        }
-        const root = this.rootRow(state);
-        if (!root) {
-            return;
-        }
-        this.derivedFor = state;
-        this.derivedRoot = root;
-        this.paths = this.isMainLayout()
-            ? computePaths(root, "", state.borders)
-            : computePaths(
-                  root,
-                  windowPath(this.windowNumber(state, this.layoutId)),
-              );
-        this.orientations = rowOrientations(
-            root,
-            resolveLayout(state.defaults).rootOrientation,
-        );
-        this.rangesDirty = true;
-    }
-
     private rootRow(state: AnyState): AnyRow | undefined {
         if (this.isMainLayout()) {
             return state.root;
@@ -798,21 +774,30 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** The `data-layout-path` of a node of this layout (the root row's is the layout's prefix). */
     private path(id: string): string {
-        this.derived();
+        const state = this.state();
+        const root = state === this.pathsFor ? undefined : this.rootRow(state);
+        if (root) {
+            this.pathsFor = state;
+            this.paths = this.isMainLayout()
+                ? computePaths(root, "", state.borders)
+                : computePaths(
+                      root,
+                      windowPath(this.windowNumber(state, this.layoutId)),
+                  );
+        }
         return this.paths.get(id) ?? "";
     }
 
     /** The size range of a row or tabset of this layout (its flex min/max). */
     private minMax(id: string): SizeRange {
-        this.derived();
-        const state = this.derivedFor;
-        const root = this.derivedRoot;
-        if (
-            state &&
-            root &&
-            (this.rangesDirty ||
-                this.rangesSplitterSize !== this.shared.splitterSize)
-        ) {
+        const state = this.state();
+        const stale =
+            state !== this.rangesFor ||
+            this.rangesDirty ||
+            this.rangesSplitterSize !== this.shared.splitterSize;
+        const root = stale ? this.rootRow(state) : undefined;
+        if (root) {
+            this.rangesFor = state;
             this.rangesDirty = false;
             this.rangesSplitterSize = this.shared.splitterSize;
             this.ranges = sizeRanges(
@@ -834,11 +819,15 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     }
 
     private rowOrientation(rowId: string): Orientation {
-        this.derived();
-        return (
-            this.orientations.get(rowId) ??
-            resolveLayout(this.state().defaults).rootOrientation
-        );
+        const state = this.state();
+        const rootOrientation = resolveLayout(state.defaults).rootOrientation;
+        const root =
+            state === this.orientationsFor ? undefined : this.rootRow(state);
+        if (root) {
+            this.orientationsFor = state;
+            this.orientations = rowOrientations(root, rootOrientation);
+        }
+        return this.orientations.get(rowId) ?? rootOrientation;
     }
 
     /** The measured splitter thickness (shared by every layout of the model). */
@@ -1019,14 +1008,15 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 shared.scroll.delete(id);
             }
         }
-        this.forgetRemovedNodes();
+        this.forgetNodesOutside();
         for (const { id } of this.state().windows) {
-            this.popoutManager?.getLayoutEngine(id)?.forgetRemovedNodes();
+            this.popoutManager?.getLayoutEngine(id)?.forgetNodesOutside();
         }
     }
 
-    private forgetRemovedNodes() {
-        const gone = (id: string) => !this.model.get("node-by", { id });
+    private forgetNodesOutside() {
+        const gone = (id: string) =>
+            this.model.get("layout-id-by", { nodeId: id }) !== this.layoutId;
         for (const key of this.rects.keys()) {
             if (gone(key.slice(key.indexOf(":") + 1))) {
                 this.rects.delete(key);
