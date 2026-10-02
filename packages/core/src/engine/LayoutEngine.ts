@@ -306,6 +306,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         "overlay-placement-by": ({ borderId }) =>
             this.overlay.overlayPlacement(borderId),
         "popout-mode-by": ({ nodeId }) => this.popoutMode(nodeId),
+        direction: () => this.measure.direction,
         "splitter-size": () => this.splitterSize(),
         "owner-document": () => this.getCurrentDocument(),
         "owner-window": () => this.getCurrentWindow(),
@@ -496,6 +497,17 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                     this.measure.setGeometryResizeObserver(undefined);
                     observer.disconnect();
                 });
+            }
+            // a `dir` flip moves the tabsets without resizing any: the observers above miss it
+            if (win.MutationObserver) {
+                const observer = new win.MutationObserver(() =>
+                    this.measure.sync(),
+                );
+                observer.observe(doc, {
+                    attributeFilter: ["dir"],
+                    subtree: true,
+                });
+                this.teardown.push(() => observer.disconnect());
             }
             const resizeListener = () => this.measure.updateRect();
             win.addEventListener("resize", resizeListener);

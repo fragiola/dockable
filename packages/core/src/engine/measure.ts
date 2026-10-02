@@ -2,6 +2,7 @@
 // and src/view/layout/LayoutInternal.tsx (the measure-and-position cycle and the observers that
 // drive it), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+import type { Direction } from "../geometry/direction";
 import {
     EMPTY_RECT,
     equalsWhenRounded,
@@ -86,6 +87,8 @@ export class Measure<T extends DockableTypes> {
 
     layoutRef: HTMLElement | null = null;
     cachedLayoutDomRect: Rect | undefined;
+    /** the computed `direction` of the layout root, read on every measure */
+    direction: Direction = "ltr";
     private reLayout = false;
     rangesDirty = true;
     private lastRect: Rect = EMPTY_RECT;
@@ -226,6 +229,7 @@ export class Measure<T extends DockableTypes> {
 
     private syncLayoutMetrics(): boolean {
         this.cachedLayoutDomRect = undefined;
+        this.syncDirection();
         let changed = false;
         for (const [key, { kind, element }] of this.measurables) {
             if (!element.isConnected) {
@@ -260,6 +264,21 @@ export class Measure<T extends DockableTypes> {
             }
         }
         return changed;
+    }
+
+    /** reads the root's direction; a change re-renders (overlay borders sit on a physical side) */
+    private syncDirection() {
+        const root = this.layoutRef;
+        if (!root) {
+            return;
+        }
+        const view = root.ownerDocument.defaultView;
+        const direction: Direction =
+            view?.getComputedStyle(root).direction === "rtl" ? "rtl" : "ltr";
+        if (direction !== this.direction) {
+            this.direction = direction;
+            this.reLayout = true;
+        }
     }
 
     isPanelVisible(tabId: string): boolean {

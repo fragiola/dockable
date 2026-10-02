@@ -338,6 +338,7 @@ const GET_INPUTS: {
     "flex-by": { required: true, fields: ["nodeId"] },
     "overlay-placement-by": { required: true, fields: ["borderId"] },
     "popout-mode-by": { required: true, fields: ["nodeId"] },
+    direction: { required: false, fields: [] },
     "splitter-size": { required: false, fields: [] },
     "owner-document": { required: false, fields: [] },
     "owner-window": { required: false, fields: [] },

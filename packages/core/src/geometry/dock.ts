@@ -5,7 +5,7 @@ import { bottom, type Rect, rect, right } from "./rect";
 
 /**
  * A side of a layout, a border, or of a tabset. `start` is the side a line of text begins on, `end`
- * the other; the geometry here maps them to left and right.
+ * the other; the geometry here reads x from the start side (its callers mirror it in RTL).
  */
 export type BorderLocation = "top" | "bottom" | "start" | "end";
 /** Where a drop goes relative to its target: into it (`center`) or beside it. */

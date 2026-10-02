@@ -1,6 +1,7 @@
 // Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/view/layout/LayoutController.tsx
 // (the paths and size ranges a layout renders with), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+import { inlineRect } from "../geometry/direction";
 import {
     type EdgeBand,
     edgeBands,
@@ -185,11 +186,12 @@ export class Derived<T extends DockableTypes> {
         if (!settings.edgeDock || !rect) {
             return [];
         }
+        const direction = this.measure.direction;
         return edgeBands(
-            rect,
+            inlineRect(rect, direction),
             settings.edgeDockMargin,
             settings.edgeDockLength,
-        );
+        ).map((band) => ({ ...band, rect: inlineRect(band.rect, direction) }));
     }
 
     state(): AnyState {

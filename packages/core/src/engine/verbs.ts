@@ -45,7 +45,7 @@ export interface EngineActionMap {
     };
     /**
      * measures the layout again and repositions the panels; call it after a change the engine
-     * cannot observe (flipping `dir` at runtime)
+     * cannot observe (a `direction` changed by CSS alone; a changed `dir` attribute it sees)
      */
     "measure-and-position": { payload: NoPayload; result: NoPayload };
 }
@@ -102,6 +102,11 @@ export interface EngineGetMap {
         payload: { nodeId: string };
         result: "popout" | "dock" | undefined;
     };
+    /**
+     * the computed `direction` of this layout's root, read when it measures: where `start` is on
+     * screen (the left in `"ltr"`, the right in `"rtl"`)
+     */
+    direction: { payload: NoPayload; result: "ltr" | "rtl" };
     /** the measured splitter thickness, in pixels */
     "splitter-size": { payload: NoPayload; result: number };
     /** the document this layout renders in (a popout's own, for a window's layout) */

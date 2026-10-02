@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
     createLayoutEngine,
     createSplitterController,
@@ -9,6 +9,7 @@ import {
     type Rect,
     type SplitterController,
 } from "../../src";
+import { inlineRect, inlineX } from "../../src/geometry/direction";
 import {
     dragEvent,
     freshModel,
@@ -28,7 +29,7 @@ afterEach(() => {
     document.body.innerHTML = "";
 });
 
-const DIRECTIONS = ["ltr"] as const;
+const DIRECTIONS = ["ltr", "rtl"] as const;
 type Direction = (typeof DIRECTIONS)[number];
 
 /**
@@ -36,7 +37,7 @@ type Direction = (typeof DIRECTIONS)[number];
  * the root, so `x` maps a viewport x, `rect` a viewport rect and `local` a rect relative to the root.
  */
 function mirror(direction: Direction, rootX: number, rootWidth: number) {
-    const rtl = (direction as string) === "rtl";
+    const rtl = direction === "rtl";
     return {
         x: (x: number) => (rtl ? 2 * rootX + rootWidth - x : x),
         rect: (x: number, width: number) =>
@@ -146,9 +147,9 @@ function key(controller: SplitterController, name: string) {
 
 /** the arrow key that moves a splitter towards the end side, on screen */
 const towardsEnd = (direction: Direction) =>
-    (direction as string) === "rtl" ? "ArrowLeft" : "ArrowRight";
+    direction === "rtl" ? "ArrowLeft" : "ArrowRight";
 const towardsStart = (direction: Direction) =>
-    (direction as string) === "rtl" ? "ArrowRight" : "ArrowLeft";
+    direction === "rtl" ? "ArrowRight" : "ArrowLeft";
 
 function lastWeights(commands: { command: string; payload: unknown }[]) {
     const last = commands
@@ -386,12 +387,103 @@ describe.each(DIRECTIONS)("overlay borders in %s", (direction) => {
                 children: [{ component: "test", label: location }],
             })),
         });
-        const rtl = (direction as string) === "rtl";
+        const rtl = direction === "rtl";
         expect(
             s.engine.get("overlay-placement-by", { borderId: "border_start" }),
         ).toEqual({ [rtl ? "right" : "left"]: 0, top: 0, bottom: 0 });
         expect(
             s.engine.get("overlay-placement-by", { borderId: "border_end" }),
         ).toEqual({ [rtl ? "left" : "right"]: 0, top: 0, bottom: 0 });
+    });
+});
+
+describe("the direction", () => {
+    it("is the computed direction of the root, read when the engine measures", () => {
+        const ltr = setup("ltr");
+        expect(ltr.engine.get("direction")).toBe("ltr");
+        const rtl = setup("rtl");
+        expect(rtl.engine.get("direction")).toBe("rtl");
+        // a direction set by CSS alone is read on the next measure
+        rtl.root.removeAttribute("dir");
+        rtl.root.style.direction = "ltr";
+        rtl.engine.run("measure-and-position");
+        expect(rtl.engine.get("direction")).toBe("ltr");
+    });
+
+    it("follows a dir flip on an ancestor, repositioning the panels with no manual measure", async () => {
+        const s = setup("ltr");
+        const panel = s.root.appendChild(document.createElement("div"));
+        s.engine.adapter.registerTabPanel("t0", panel);
+        s.engine.run("measure-and-position");
+        expect(panel.style.left).toBe("0px");
+        // the page flips: the browser lays the tabsets out mirrored
+        s.root.removeAttribute("dir");
+        const m = mirror("rtl", 10, 400);
+        s.rects.set(s.ts0content, m.rect(10, 196), 50, 196, 270);
+        const redraws = vi.fn();
+        s.engine.adapter.subscribe(redraws);
+        document.documentElement.setAttribute("dir", "rtl");
+        await Promise.resolve();
+        expect(s.engine.get("direction")).toBe("rtl");
+        expect(panel.style.left).toBe("204px");
+        // overlay borders sit on a physical side: the adapter re-renders
+        expect(redraws).toHaveBeenCalled();
+        document.documentElement.removeAttribute("dir");
+    });
+
+    it("stops observing dir once the root is detached", async () => {
+        const s = setup("ltr");
+        s.root.removeAttribute("dir");
+        s.engine.adapter.detachRoot();
+        document.documentElement.setAttribute("dir", "rtl");
+        await Promise.resolve();
+        expect(s.engine.get("direction")).toBe("ltr");
+        document.documentElement.removeAttribute("dir");
+    });
+
+    it("is each window's own: a popout's engine reads its own root", () => {
+        const s = setup("ltr", {
+            ...structuredClone(twoTabsets),
+            windows: [
+                {
+                    id: "w0",
+                    rect: { x: 0, y: 0, width: 400, height: 300 },
+                    root: {
+                        type: "row",
+                        children: [
+                            {
+                                type: "tabset",
+                                children: [{ component: "test", label: "w" }],
+                            },
+                        ],
+                    },
+                },
+            ],
+        });
+        const sub = s.engine.adapter.createPopoutEngine("w0");
+        engines.push(sub);
+        const root = document.body.appendChild(document.createElement("div"));
+        root.setAttribute("dir", "rtl");
+        sub.adapter.attachRoot(root);
+        sub.run("measure-and-position");
+        expect(sub.get("direction")).toBe("rtl");
+        expect(s.engine.get("direction")).toBe("ltr");
+    });
+});
+
+describe("inline coordinates", () => {
+    it("are physical in LTR, mirrored in RTL, and map back the same way", () => {
+        const r = { x: 10, y: 5, width: 30, height: 20 };
+        expect(inlineRect(r, "ltr")).toBe(r);
+        expect(inlineX(12, "ltr")).toBe(12);
+        expect(inlineRect(r, "rtl")).toEqual({
+            x: -40,
+            y: 5,
+            width: 30,
+            height: 20,
+        });
+        expect(inlineRect(inlineRect(r, "rtl"), "rtl")).toEqual(r);
+        expect(inlineX(inlineX(12, "rtl"), "rtl")).toBe(12);
+        expect(Object.is(inlineX(0, "rtl"), 0)).toBe(true);
     });
 });

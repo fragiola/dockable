@@ -6,7 +6,11 @@
 // reads its offsetLeft/Top back to commit. The controller instead computes the bounded position
 // arithmetically and exposes it as `previewOffset`; the adapter reflects it on the splitter
 // element itself (a structural translate), and the commit uses the computed value.
+//
+// A splitter between side by side children works from the start side: in RTL it reads the rects,
+// the pointer and the arrow keys mirrored, and mirrors the preview offset back.
 import type { LayoutEngine } from "../engine/LayoutEngine";
+import { type Direction, inlineRect, inlineX } from "../geometry/direction";
 import type { BorderLocation, Orientation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect } from "../geometry/rect";
 import { hasModifier } from "../keyboard/keymap";
@@ -41,7 +45,8 @@ export interface SplitterControllerState {
     readonly dragging: boolean;
     /**
      * While an outline (non-realtime) drag is in progress: how far, in px along the splitter's
-     * axis, the splitter would move if released now (bounded). `undefined` otherwise.
+     * axis on screen (negative is left or up, in RTL too), the splitter would move if released now
+     * (bounded). `undefined` otherwise.
      */
     readonly previewOffset: number | undefined;
 }
@@ -160,6 +165,8 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     private draggingTimer: number | undefined;
     private drag: Drag | undefined;
     private horizontal = false;
+    /** the direction positions run in along the drag's axis (always `"ltr"` across a column) */
+    private inline: Direction = "ltr";
     private bounds: [number, number] = [0, 0];
     private startPosition = 0;
     private pointerOffset = 0;
@@ -249,20 +256,30 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         };
     };
 
-    private rect(node: { type: string; id: string }): Rect | undefined {
-        return this.engine.adapter.rect(
+    /** the direction a splitter's positions run in: the page's along x, top to bottom along y */
+    private axisDirection(horizontal: boolean): Direction {
+        return horizontal ? this.engine.get("direction") : "ltr";
+    }
+
+    private rect(
+        node: { type: string; id: string },
+        direction: Direction,
+    ): Rect | undefined {
+        const r = this.engine.adapter.rect(
             node.type === "row" ? "row" : "tabset",
             node.id,
         );
+        return r && inlineRect(r, direction);
     }
 
     /** the row's children as the split math sees them, and where this splitter can move */
     private rowSplit(row: AnyRow): RowSplit {
+        const orientation = this.engine.adapter.rowOrientation(row.id);
+        const direction = this.axisDirection(orientation === "horizontal");
         const children = row.children.map((child) => ({
-            rect: this.rect(child) ?? EMPTY_RECT,
+            rect: this.rect(child, direction) ?? EMPTY_RECT,
             range: this.engine.get("flex-by", { nodeId: child.id }),
         }));
-        const orientation = this.engine.adapter.rowOrientation(row.id);
         const size = this.engine.get("splitter-size");
         return {
             children,
@@ -278,11 +295,16 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         origin: [number, number];
     } {
         const state = this.engine.adapter.model.state;
-        const strip = this.engine.adapter.rect("borderheader", border.id);
-        const layout = this.engine.adapter.rect("row", state.root.id);
-        if (!strip || !layout) {
+        const direction = this.axisDirection(
+            border.location === "start" || border.location === "end",
+        );
+        const measured = this.engine.adapter.rect("borderheader", border.id);
+        const root = this.engine.adapter.rect("row", state.root.id);
+        if (!measured || !root) {
             return { bounds: [0, 0], origin: [0, 0] };
         }
+        const strip = inlineRect(measured, direction);
+        const layout = inlineRect(root, direction);
         const range = this.engine.get("flex-by", {
             nodeId: state.root.id,
         });
@@ -348,9 +370,11 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             aria.valueText = `${aria.valueNow}px`;
             return aria;
         }
-        const rowRect = target && this.engine.adapter.rect("row", target.id);
+        const direction = this.axisDirection(horizontal);
+        const row = target && this.engine.adapter.rect("row", target.id);
+        const rowRect = row && inlineRect(row, direction);
         const prev = target?.children[this.index - 1];
-        const prevRect = prev && this.rect(prev);
+        const prevRect = prev && this.rect(prev, direction);
         const extent = rowRect
             ? horizontal
                 ? rowRect.width
@@ -403,14 +427,16 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         this.engine.adapter.setSplitterDragging(true);
         enablePointerOnIFrames(false, doc);
 
-        const r = this.engine.adapter.rectInLayout(element);
-        const domRect = this.engine.adapter.getDomRect();
+        this.inline = this.axisDirection(this.horizontal);
+        const r = inlineRect(
+            this.engine.adapter.rectInLayout(element),
+            this.inline,
+        );
         this.startPosition = this.horizontal ? r.x : r.y;
         this.position = this.startPosition;
         this.moved = false;
-        this.pointerOffset = this.horizontal
-            ? event.clientX - domRect.x - r.x
-            : event.clientY - domRect.y - r.y;
+        this.pointerOffset =
+            this.pointerAt(event.clientX, event.clientY) - this.startPosition;
 
         this.stopDrag = startDrag(
             doc,
@@ -428,7 +454,10 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         });
     };
 
-    /** Arrow keys move the splitter by 10px. Call from the splitter's `keydown`. */
+    /**
+     * Arrow keys move the splitter by 10px, the way they point on screen (in RTL too). Call from the
+     * splitter's `keydown`.
+     */
     onKeyDown = (event: KeyboardEvent) => {
         if (hasModifier(event)) {
             return; // modified arrows are left for keymap bindings (e.g. tabset cycling)
@@ -437,6 +466,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         if (this.isHorizontal()) {
             if (event.key === "ArrowLeft") delta = -KEYBOARD_STEP;
             if (event.key === "ArrowRight") delta = KEYBOARD_STEP;
+            delta = inlineX(delta, this.engine.get("direction"));
         } else {
             if (event.key === "ArrowUp") delta = -KEYBOARD_STEP;
             if (event.key === "ArrowDown") delta = KEYBOARD_STEP;
@@ -510,16 +540,20 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         if (!this.state.dragging) {
             return;
         }
-        const domRect = this.engine.adapter.getDomRect();
-        const pointer = this.horizontal ? x - domRect.x : y - domRect.y;
-        this.position = this.getBoundPosition(pointer - this.pointerOffset);
+        this.position = this.getBoundPosition(
+            this.pointerAt(x, y) - this.pointerOffset,
+        );
         this.moved = true;
         if (this.engine.adapter.isRealtimeResize()) {
             this.updateLayout(true);
         } else {
             this.setState({
                 dragging: true,
-                previewOffset: this.position - this.startPosition,
+                // on screen: mirrored back in RTL
+                previewOffset: inlineX(
+                    this.position - this.startPosition,
+                    this.inline,
+                ),
             });
         }
     }
@@ -609,6 +643,14 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
                 );
             }
         }
+    }
+
+    /** a viewport point as a position along the drag's axis, in the layout */
+    private pointerAt(clientX: number, clientY: number): number {
+        const domRect = this.engine.adapter.getDomRect();
+        return this.horizontal
+            ? inlineX(clientX - domRect.x, this.inline)
+            : clientY - domRect.y;
     }
 
     private getBoundPosition(p: number) {

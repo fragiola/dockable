@@ -68,7 +68,8 @@ export function reads(engine: LayoutEngine): void {
     const mode: "popout" | "dock" | undefined = engine.get("popout-mode-by", {
         nodeId: "t0",
     });
-    use(grow, top, shown, tabbable, mode);
+    const direction: "ltr" | "rtl" = engine.get("direction");
+    use(grow, top, shown, tabbable, mode, direction);
 
     // @ts-expect-error: not a view fact
     engine.get("node-parent-by", { nodeId: "t0" });
