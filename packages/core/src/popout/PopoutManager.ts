@@ -48,8 +48,8 @@ export interface PopoutOptions<T extends DockableTypes = AnyTypes> {
     onPopoutClose?: PopoutCallback<T> | undefined;
     /**
      * copies the main document's `<html>` and `<body>` attributes into each popout and keeps them
-     * in sync: `true` copies them all (except `style` and `id`), a list copies those names only.
-     * Default: only `lang` and `dir` of `<html>`.
+     * in sync: `true` copies them all (except `style`, `id` and `dir`), a list copies those names
+     * only. Default: only `lang` of `<html>`. A popout's `dir` is always the layout's direction.
      */
     mirrorRoot?: boolean | readonly string[] | undefined;
     /** opens the native window (default: the main window's `open`) */

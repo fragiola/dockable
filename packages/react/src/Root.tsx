@@ -69,8 +69,9 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
     openWindow?: OpenWindow | undefined;
     /**
      * copies the main document's `<html>` and `<body>` attributes into each popout and keeps them
-     * in sync (a theme class, `data-theme`, …): `true` copies them all (except `style` and `id`),
-     * a list copies those names. Default: only `lang` and `dir`.
+     * in sync (a theme class, `data-theme`, …): `true` copies them all (except `style`, `id` and
+     * `dir`), a list copies those names. Default: only `lang`. A popout's `dir` is always the
+     * layout's direction.
      */
     popoutMirrorRoot?: boolean | readonly string[] | undefined;
     /**
