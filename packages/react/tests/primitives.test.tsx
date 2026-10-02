@@ -526,6 +526,22 @@ describe("interaction", () => {
         expect(tab1).toHaveAttribute("aria-selected", "true");
     });
 
+    it("reverses the horizontal arrow keys in RTL, where the strip runs from the right", () => {
+        document.documentElement.dir = "rtl";
+        try {
+            render(<Layout model={fresh()} />);
+            const tab0 = mustPath("/ts0/tb0");
+            const tab1 = mustPath("/ts0/tb1");
+            tab0.focus();
+            fireEvent.keyDown(tab0, { key: "ArrowLeft" });
+            expect(document.activeElement).toBe(tab1);
+            fireEvent.keyDown(tab1, { key: "ArrowRight" });
+            expect(document.activeElement).toBe(tab0);
+        } finally {
+            document.documentElement.removeAttribute("dir");
+        }
+    });
+
     it("closes a tab with the closeTab key", () => {
         const model = fresh();
         render(<Layout model={model} />);

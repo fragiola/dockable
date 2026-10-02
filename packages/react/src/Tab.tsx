@@ -54,10 +54,24 @@ function focusFirstIn(container: HTMLElement | null) {
     }
 }
 
+/** the keys to the previous and the next tab: a horizontal strip runs from the right in RTL */
+function arrowKeys(
+    orientation: "horizontal" | "vertical",
+    direction: "ltr" | "rtl",
+): [string, string] {
+    if (orientation === "vertical") {
+        return ["ArrowUp", "ArrowDown"];
+    }
+    return direction === "rtl"
+        ? ["ArrowRight", "ArrowLeft"]
+        : ["ArrowLeft", "ArrowRight"];
+}
+
 /**
  * A tab button (`role="tab"`), following the APG tabs pattern with manual activation: arrow keys
- * (along the tab list's orientation), Home and End move focus; click, Enter or Space selects.
- * Enter or Space on the selected tab moves focus into its panel. Renders only its children.
+ * (along the tab list's orientation, mirrored in RTL), Home and End move focus; click, Enter or
+ * Space selects. Enter or Space on the selected tab moves focus into its panel. Renders only its
+ * children.
  */
 export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const { node, children, ...rest } = props;
@@ -158,13 +172,14 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         }
     };
 
-    const previousKey = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
-    const nextKey = orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
-
     const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
         if (event.defaultPrevented) {
             return;
         }
+        const [previousKey, nextKey] = arrowKeys(
+            orientation,
+            engine.get("direction"),
+        );
         if (matchesKey(event, keyMap.focusTabToggle)) {
             focusTabContent();
             event.preventDefault();
