@@ -56,7 +56,7 @@ describe("LayoutEngine measure pass", () => {
     it("measures registered elements relative to the root, into the engine (never the model)", () => {
         const { model, engine } = setup();
         const before = model.state;
-        expect(engine.adapter.syncLayoutMetrics()).toBe(true);
+        engine.run("measure-and-position");
         expect(engine.adapter.rect("row", "row")).toEqual({
             x: 0,
             y: 0,
@@ -69,13 +69,13 @@ describe("LayoutEngine measure pass", () => {
             width: 196,
             height: 300,
         });
-        expect(engine.adapter.contentRect("ts0")).toEqual({
+        expect(engine.adapter.rect("tabsetcontent", "ts0")).toEqual({
             x: 0,
             y: 30,
             width: 196,
             height: 270,
         });
-        expect(engine.adapter.contentRect("ts1")).toEqual({
+        expect(engine.adapter.rect("tabsetcontent", "ts1")).toEqual({
             x: 204,
             y: 30,
             width: 196,
@@ -108,18 +108,24 @@ describe("LayoutEngine measure pass", () => {
 
     it("counts only rounded changes", () => {
         const { rects, engine, ts0 } = setup();
-        engine.adapter.syncLayoutMetrics();
-        expect(engine.adapter.syncLayoutMetrics()).toBe(false);
+        engine.run("measure-and-position");
         rects.set(ts0, 10.2, 20.2, 196.3, 300.1); // sub-pixel jitter
-        expect(engine.adapter.syncLayoutMetrics()).toBe(false);
+        engine.run("measure-and-position");
+        expect(engine.adapter.rect("tabset", "ts0")).toEqual({
+            x: 0,
+            y: 0,
+            width: 196,
+            height: 300,
+        });
         rects.set(ts0, 10, 20, 180, 300);
-        expect(engine.adapter.syncLayoutMetrics()).toBe(true);
+        engine.run("measure-and-position");
+        expect(engine.adapter.rect("tabset", "ts0")?.width).toBe(180);
     });
 
     it("skips elements that are not connected", () => {
         const { engine, ts0 } = setup();
         ts0.remove();
-        engine.adapter.syncLayoutMetrics();
+        engine.run("measure-and-position");
         expect(engine.adapter.rect("tabset", "ts0")).toBeUndefined();
     });
 
@@ -165,6 +171,18 @@ describe("LayoutEngine measure pass", () => {
         expect(engine.get("size-limits-by", { nodeId: "ts0" }).minHeight).toBe(
             31,
         );
+    });
+
+    it("forgets the rects of the nodes that leave the model", () => {
+        const { model, engine } = setup();
+        engine.run("measure-and-position");
+        expect(engine.adapter.rect("tabset", "ts1")).toBeDefined();
+        model.run("tab.move", { tabId: "t2", to: "ts0" });
+        expect(model.get("node-by", { id: "ts1" })).toBeUndefined();
+        expect(engine.adapter.rect("tabset", "ts1")).toBeUndefined();
+        expect(engine.adapter.rect("tabstrip", "ts1")).toBeUndefined();
+        expect(engine.adapter.rect("tabsetcontent", "ts1")).toBeUndefined();
+        expect(engine.adapter.rect("tabset", "ts0")).toBeDefined();
     });
 });
 
@@ -247,6 +265,23 @@ describe("LayoutEngine and the model", () => {
         model.run("row.resize", { rowId: "row", weights: [30, 70] });
         expect(listener).toHaveBeenCalled();
     });
+
+    it("looks up no tab of the layout on a transient resize", () => {
+        const { model, engine, panels } = setup();
+        engine.run("measure-and-position");
+        for (const [tabId, panel] of Object.entries(panels)) {
+            engine.adapter.attachMoveable(tabId, panel);
+            engine.adapter.shouldRender(tabId, false);
+        }
+        const get = vi.spyOn(model, "get");
+        model.run(
+            "row.resize",
+            { rowId: "row", weights: [30, 70] },
+            { transient: true },
+        );
+        const lookups = get.mock.calls.filter(([key]) => key === "node-by");
+        expect(lookups).toEqual([["node-by", { id: "row" }]]);
+    });
 });
 
 describe("LayoutEngine moveable elements", () => {
@@ -254,9 +289,7 @@ describe("LayoutEngine moveable elements", () => {
         const { engine } = setup();
         const element = engine.adapter.getMoveableElement("t0");
         expect(element.hasAttribute(MOVEABLE_ATTRIBUTE)).toBe(true);
-        expect(element.ownerDocument).toBe(
-            engine.adapter.getLayoutRef()?.ownerDocument,
-        );
+        expect(element.ownerDocument).toBe(engine.get("owner-document"));
         expect(engine.adapter.getMoveableElement("t0")).toBe(element);
         expect(styleKeys(element).sort()).toEqual(["height", "width"]);
     });
@@ -283,6 +316,18 @@ describe("LayoutEngine moveable elements", () => {
         expect(element.parentElement).toBe(otherPanel);
         expect(element.firstChild).toBe(content);
         expect(content.value).toBe("typed");
+    });
+
+    it("detaches a closed tab's parked moveable, so the home goes with the root", () => {
+        const { model, engine, panels, root } = setup();
+        engine.adapter.attachMoveable("t1", panels.t1);
+        const element = engine.adapter.getMoveableElement("t1");
+        engine.adapter.releaseMoveable("t1", panels.t1);
+        expect(element.isConnected).toBe(true);
+        model.run("tab.close", { tabId: "t1" });
+        expect(element.isConnected).toBe(false);
+        engine.adapter.detachRoot();
+        expect(root.querySelector(`[${MOVEABLES_HOME_ATTRIBUTE}]`)).toBeNull();
     });
 
     it("does not park an element that already moved to another panel", () => {
@@ -404,6 +449,26 @@ describe("LayoutEngine registration bookkeeping", () => {
         expect(
             root.querySelectorAll(`[${MOVEABLES_HOME_ATTRIBUTE}]`),
         ).toHaveLength(1);
+    });
+
+    it("observes only its own splitters: a window's engine never watches the main layout's", () => {
+        const { engine, splitter } = setup();
+        const main = RecordingResizeObserver.instances[0];
+        const sub = engine.adapter.createPopoutEngine("window");
+        sub.adapter.attachRoot(
+            document.body.appendChild(document.createElement("div")),
+        );
+        const popout = RecordingResizeObserver.instances[1];
+        expect(main?.observed.has(splitter)).toBe(true);
+        expect(popout?.observed.has(splitter)).toBe(false);
+
+        const own = document.body.appendChild(document.createElement("div"));
+        const unregister = sub.adapter.registerSplitter(own, () => true);
+        expect(popout?.observed.has(own)).toBe(true);
+        expect(main?.observed.has(own)).toBe(false);
+        unregister();
+        expect(popout?.observed.has(own)).toBe(false);
+        sub.adapter.dispose();
     });
 });
 

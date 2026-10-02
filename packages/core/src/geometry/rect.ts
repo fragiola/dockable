@@ -9,15 +9,6 @@ export interface Rect {
     readonly height: number;
 }
 
-/** The structural style keys {@link positionStyle} writes. */
-export interface PositionStyle {
-    left: string;
-    top: string;
-    width: string;
-    height: string;
-    position: string;
-}
-
 export const EMPTY_RECT: Rect = Object.freeze({
     x: 0,
     y: 0,
@@ -47,10 +38,6 @@ export function bottom(r: Rect): number {
     return r.y + r.height;
 }
 
-export function center(r: Rect): { x: number; y: number } {
-    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-}
-
 /** `r` relative to the origin of `origin`. */
 export function relativeTo(r: Rect, origin: Rect): Rect {
     return rect(r.x - origin.x, r.y - origin.y, r.width, r.height);
@@ -58,10 +45,6 @@ export function relativeTo(r: Rect, origin: Rect): Rect {
 
 export function contains(r: Rect, x: number, y: number): boolean {
     return r.x <= x && x <= right(r) && r.y <= y && y <= bottom(r);
-}
-
-export function isEmpty(r: Rect | undefined): boolean {
-    return !r || (r.width === 0 && r.height === 0);
 }
 
 export function rectEquals(a: Rect | undefined, b: Rect | undefined): boolean {
@@ -99,27 +82,14 @@ export function snap(r: Rect, unit = 1): Rect {
     return rect(round(r.x), round(r.y), round(r.width), round(r.height));
 }
 
-/** The structural absolute-position style of `r` (sizes clamped to 0). */
-export function positionStyle(r: Rect, position = "absolute"): PositionStyle {
-    return {
-        left: `${r.x}px`,
-        top: `${r.y}px`,
-        width: `${Math.max(0, r.width)}px`,
-        height: `${Math.max(0, r.height)}px`,
-        position,
-    };
-}
-
-/** Writes {@link positionStyle} onto an element's inline style. */
+/** Positions an element absolutely over `r` (sizes clamped to 0): structural style only. */
 export function positionElement(
     element: { style: CSSStyleDeclaration },
     r: Rect,
-    position = "absolute",
 ): void {
-    const style = positionStyle(r, position);
-    element.style.left = style.left;
-    element.style.top = style.top;
-    element.style.width = style.width;
-    element.style.height = style.height;
-    element.style.position = style.position;
+    element.style.left = `${r.x}px`;
+    element.style.top = `${r.y}px`;
+    element.style.width = `${Math.max(0, r.width)}px`;
+    element.style.height = `${Math.max(0, r.height)}px`;
+    element.style.position = "absolute";
 }

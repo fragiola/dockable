@@ -58,7 +58,7 @@ export {
 } from "./dnd/DragGroup";
 export {
     createLayoutEngine,
-    LayoutEngine,
+    type LayoutEngine,
     type LayoutEngineAdapter,
     type LayoutEngineOptions,
     type LayoutEngineSettings,
@@ -89,8 +89,20 @@ export type {
     Orientation,
 } from "./geometry/dock";
 export type { Rect } from "./geometry/rect";
-export * from "./keyboard/keymap";
-export * from "./overflow/tabOverflow";
+export {
+    defaultKeyMap,
+    hasModifier,
+    type KeyEventLike,
+    type KeyMap,
+    matchesKey,
+    resolveKeyMap,
+    toAriaKeyShortcuts,
+} from "./keyboard/keymap";
+export {
+    computeTabOverflow,
+    type TabOverflowInput,
+    type TabOverflowResult,
+} from "./overflow/tabOverflow";
 export {
     computePaths,
     DROP_INDICATOR_PATH,
@@ -128,7 +140,7 @@ export {
     createSplitterController,
     enablePointerOnIFrames,
     type SplitterAria,
-    SplitterController,
+    type SplitterController,
     type SplitterState,
     startDrag,
 } from "./splitter/SplitterController";

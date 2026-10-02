@@ -2,7 +2,7 @@
 
 import {
     createModel,
-    type IKeyMap,
+    type KeyMap,
     type LayoutJson,
     type RowNode,
     resolveKeyMap,
@@ -81,7 +81,7 @@ const json: LayoutJson<Types> = {
  * keys: single printable characters must be remappable (WCAG 2.1.4). The arrows, Home/End,
  * Enter and Space are the ARIA patterns' own keys and are not configurable.
  */
-const keyMap: IKeyMap = {
+const keyMap: KeyMap = {
     focusNextTabset: "Ctrl+Alt+ArrowRight",
     focusPreviousTabset: "Ctrl+Alt+ArrowLeft",
     focusTabToggle: "Ctrl+Enter",

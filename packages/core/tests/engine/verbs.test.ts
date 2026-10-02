@@ -8,12 +8,11 @@ import {
     MAIN_LAYOUT,
     veto,
 } from "../../src";
-import {
-    ENGINE_ACTION_KEYS,
-    ENGINE_GET_KEYS,
-    ENGINE_IS_KEYS,
-    type EngineGetKey,
-    type EngineGetMap,
+import type {
+    EngineActionKey,
+    EngineGetKey,
+    EngineGetMap,
+    EngineIsKey,
 } from "../../src/engine/verbs";
 import type { NoPayload } from "../../src/state/queries";
 import { recordCommands, twoTabsets } from "./fixture";
@@ -267,24 +266,50 @@ describe("engine.get / is", () => {
     });
 });
 
+const ACTION_KEYS = Object.keys({
+    popout: true,
+    "dock-back": true,
+    "focus-tabset": true,
+    "close-overlay-border": true,
+    "measure-and-position": true,
+} satisfies Record<EngineActionKey, true>);
+
+const GET_INPUTS: {
+    [K in EngineGetKey]: {
+        required: NoPayload extends EngineGetMap[K]["payload"] ? false : true;
+        fields: readonly (keyof EngineGetMap[K]["payload"])[];
+    };
+} = {
+    "layout-path-by": { required: true, fields: ["nodeId"] },
+    "tab-button-dom-id-by": { required: true, fields: ["tabId"] },
+    "tab-panel-dom-id-by": { required: true, fields: ["tabId"] },
+    "size-limits-by": { required: true, fields: ["nodeId"] },
+    "splitter-size": { required: false, fields: [] },
+    "owner-document": { required: false, fields: [] },
+    "owner-window": { required: false, fields: [] },
+};
+
+const IS_KEYS = Object.keys({
+    "popout-supported": true,
+    "tab-panel-visible": true,
+    "main-layout": true,
+    "splitter-dragging": true,
+} satisfies Record<EngineIsKey, true>);
+
 describe("the key lists", () => {
     it("are kebab-case, without a dot: never a command name", () => {
-        const keys = [
-            ...ENGINE_ACTION_KEYS,
-            ...ENGINE_GET_KEYS,
-            ...ENGINE_IS_KEYS,
-        ];
+        const keys = [...ACTION_KEYS, ...Object.keys(GET_INPUTS), ...IS_KEYS];
         for (const key of keys) {
             expect(key).toMatch(/^[a-z]+(-[a-z]+)*$/);
         }
         for (const name of COMMAND_NAMES) {
             expect(name === "batch" || name.includes(".")).toBe(true);
-            expect(ENGINE_ACTION_KEYS).not.toContain(name);
+            expect(ACTION_KEYS).not.toContain(name);
         }
     });
 
     it("cover every action", () => {
-        expect([...ENGINE_ACTION_KEYS].sort()).toEqual([
+        expect([...ACTION_KEYS].sort()).toEqual([
             "close-overlay-border",
             "dock-back",
             "focus-tabset",
@@ -296,26 +321,7 @@ describe("the key lists", () => {
     it("read as a sentence: the key names its result, the payload whose", () => {
         // a get key that takes an id ends in `-by`, its payload is required, and its field
         // completes the key (`tab-panel-dom-id-by { tabId }`); any other key takes nothing
-        const getInputs: {
-            [K in EngineGetKey]: {
-                required: NoPayload extends EngineGetMap[K]["payload"]
-                    ? false
-                    : true;
-                fields: readonly (keyof EngineGetMap[K]["payload"])[];
-            };
-        } = {
-            "layout-path-by": { required: true, fields: ["nodeId"] },
-            "tab-button-dom-id-by": { required: true, fields: ["tabId"] },
-            "tab-panel-dom-id-by": { required: true, fields: ["tabId"] },
-            "size-limits-by": { required: true, fields: ["nodeId"] },
-            "splitter-size": { required: false, fields: [] },
-            "owner-document": { required: false, fields: [] },
-            "owner-window": { required: false, fields: [] },
-        };
-        expect(Object.keys(getInputs).sort()).toEqual(
-            [...ENGINE_GET_KEYS].sort(),
-        );
-        for (const [key, { required, fields }] of Object.entries(getInputs)) {
+        for (const [key, { required, fields }] of Object.entries(GET_INPUTS)) {
             const fieldList: readonly string[] = fields;
             expect(key, key).not.toMatch(/-by-/);
             expect(required, key).toBe(key.endsWith("-by"));
@@ -324,6 +330,6 @@ describe("the key lists", () => {
                 expect(field === "id" || field.endsWith("Id"), key).toBe(true);
             }
         }
-        expect(ENGINE_IS_KEYS).toContain("tab-panel-visible");
+        expect(IS_KEYS).toContain("tab-panel-visible");
     });
 });

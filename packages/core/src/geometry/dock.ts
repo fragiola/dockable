@@ -10,20 +10,6 @@ export type DockLocation = "center" | BorderLocation;
 /** The direction a row lays its children out in. */
 export type Orientation = "horizontal" | "vertical";
 
-export const DOCK_LOCATIONS: readonly DockLocation[] = [
-    "center",
-    "top",
-    "bottom",
-    "left",
-    "right",
-];
-export const BORDER_LOCATIONS: readonly BorderLocation[] = [
-    "top",
-    "bottom",
-    "left",
-    "right",
-];
-
 /** The orientation of the row a drop at `location` lines up with (center counts as vertical). */
 export function dockOrientation(location: DockLocation): Orientation {
     return location === "left" || location === "right"
@@ -175,24 +161,5 @@ export function edgeAt(
     if (!location) {
         return undefined;
     }
-    const half = dockRect(root, location);
-    const outline =
-        location === "left"
-            ? rect(half.x, half.y, half.width / 2, half.height)
-            : location === "right"
-              ? rect(
-                    half.x + half.width / 2,
-                    half.y,
-                    half.width / 2,
-                    half.height,
-                )
-              : location === "top"
-                ? rect(half.x, half.y, half.width, half.height / 2)
-                : rect(
-                      half.x,
-                      half.y + half.height / 2,
-                      half.width,
-                      half.height / 2,
-                  );
-    return { location, outline };
+    return { location, outline: dockRect(dockRect(root, location), location) };
 }

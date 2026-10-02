@@ -5,7 +5,7 @@ import {
     type AnyTypes,
     createLayoutEngine,
     type DockableTypes,
-    type IKeyMap,
+    type KeyMap,
     MAIN_LAYOUT,
     type Model,
     matchesKey,
@@ -51,7 +51,7 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
      */
     model: Model<T>;
     /** keyboard bindings, merged over `defaultKeyMap` */
-    keyMap?: IKeyMap | undefined;
+    keyMap?: KeyMap | undefined;
     /** true (default) to resize live while dragging a splitter; false to preview and commit on release */
     realtimeResize?: boolean | undefined;
     /** seconds a view may take to animate the drop indicator (exposed as data; default 0.3) */

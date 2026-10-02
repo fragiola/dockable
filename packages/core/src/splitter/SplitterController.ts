@@ -7,7 +7,8 @@
 // arithmetically and exposes it as `previewOffset`; the adapter reflects it on the splitter
 // element itself (a structural translate), and the commit uses the computed value.
 import type { LayoutEngine } from "../engine/LayoutEngine";
-import type { BorderLocation } from "../geometry/dock";
+import type { BorderLocation, Orientation } from "../geometry/dock";
+import { EMPTY_RECT, type Rect } from "../geometry/rect";
 import { hasModifier } from "../keyboard/keymap";
 import {
     borderSplitSize,
@@ -123,6 +124,21 @@ export function startDrag(
     return removeListeners;
 }
 
+interface RowSplit {
+    readonly children: SplitChild[];
+    readonly orientation: Orientation;
+    readonly initials: SplitInitials;
+    readonly bounds: [number, number];
+}
+
+type Drag =
+    | { readonly kind: "row"; readonly split: RowSplit }
+    | {
+          readonly kind: "border";
+          readonly location: BorderLocation;
+          readonly origin: [number, number];
+      };
+
 /**
  * Headless splitter behaviour for the splitter before child `index` of a row (1-based), or for a
  * border's splitter. The adapter forwards native pointer and keyboard events and renders the ARIA
@@ -136,19 +152,16 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     private readonly listeners = new Set<() => void>();
     private element: HTMLElement | null = null;
     private stopDrag: (() => void) | undefined;
+    private unregister: (() => void) | undefined;
     private draggingTimer: number | undefined;
+    private drag: Drag | undefined;
+    private horizontal = false;
     private bounds: [number, number] = [0, 0];
     private startPosition = 0;
     private pointerOffset = 0;
     private position = 0;
     // a press without movement (a click to focus the splitter) commits nothing
     private moved = false;
-    private initials: SplitInitials = {
-        initialSizes: [],
-        sum: 0,
-        startPosition: 0,
-    };
-    private children: SplitChild[] = [];
 
     private readonly onTouchStart = (event: TouchEvent) => {
         event.preventDefault();
@@ -161,27 +174,20 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         this.index = index;
     }
 
-    private row(): AnyRow | undefined {
+    private target(): AnyRow | AnyBorder | undefined {
         const node = this.engine.adapter.model.get("node-by", {
             id: this.nodeId,
         });
-        return node?.type === "row" ? (node as unknown as AnyRow) : undefined;
-    }
-
-    private border(): AnyBorder | undefined {
-        const node = this.engine.adapter.model.get("node-by", {
-            id: this.nodeId,
-        });
-        return node?.type === "border"
-            ? (node as unknown as AnyBorder)
+        return node?.type === "row" || node?.type === "border"
+            ? (node as unknown as AnyRow | AnyBorder)
             : undefined;
     }
 
     /** true when the splitter sits between side by side children (it moves along x) */
     isHorizontal = (): boolean => {
-        const border = this.border();
-        if (border) {
-            return border.location === "left" || border.location === "right";
+        const target = this.target();
+        if (target?.type === "border") {
+            return target.location === "left" || target.location === "right";
         }
         return this.engine.adapter.rowOrientation(this.nodeId) === "horizontal";
     };
@@ -189,7 +195,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     /** true when the splitter must not render: row splitters hide while a tabset is maximized */
     isHidden(): boolean {
         return (
-            !this.border() &&
+            this.target()?.type !== "border" &&
             this.engine.adapter.model.get("maximized-tabset", {
                 layoutId: this.engine.layoutId,
             }) !== undefined
@@ -204,21 +210,16 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         if (this.element === element) {
             return;
         }
-        if (this.element) {
-            this.element.removeEventListener("touchstart", this.onTouchStart);
-            this.engine.adapter.registerSplitter(
-                this.element,
-                this.isHorizontal,
-                false,
-            );
-        }
+        this.element?.removeEventListener("touchstart", this.onTouchStart);
+        this.unregister?.();
+        this.unregister = undefined;
         this.element = element;
         if (element) {
             element.addEventListener("touchstart", this.onTouchStart, {
                 passive: false,
             });
-            if (!this.border()) {
-                this.engine.adapter.registerSplitter(
+            if (this.target()?.type !== "border") {
+                this.unregister = this.engine.adapter.registerSplitter(
                     element,
                     this.isHorizontal,
                 );
@@ -237,22 +238,62 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         };
     };
 
-    /** the row's children as the split math sees them: measured rects and size ranges */
-    private splitChildren(row: AnyRow): SplitChild[] {
-        return row.children.map((child) => ({
-            rect: this.engine.adapter.rect(
-                child.type === "row" ? "row" : "tabset",
-                child.id,
-            ) ?? {
-                x: 0,
-                y: 0,
-                width: 0,
-                height: 0,
-            },
-            range: this.engine.get("size-limits-by", {
-                nodeId: child.id,
-            }),
+    private rect(node: { type: string; id: string }): Rect | undefined {
+        return this.engine.adapter.rect(
+            node.type === "row" ? "row" : "tabset",
+            node.id,
+        );
+    }
+
+    /** the row's children as the split math sees them, and where this splitter can move */
+    private rowSplit(row: AnyRow): RowSplit {
+        const children = row.children.map((child) => ({
+            rect: this.rect(child) ?? EMPTY_RECT,
+            range: this.engine.get("size-limits-by", { nodeId: child.id }),
         }));
+        const orientation = this.engine.adapter.rowOrientation(row.id);
+        const size = this.engine.get("splitter-size");
+        return {
+            children,
+            orientation,
+            initials: splitterInitials(children, orientation, size, this.index),
+            bounds: splitterBounds(children, orientation, size, this.index),
+        };
+    }
+
+    /** the border's splitter bounds, and the unconstrained ones its size is measured from */
+    private borderSplit(border: AnyBorder): {
+        bounds: [number, number];
+        origin: [number, number];
+    } {
+        const state = this.engine.adapter.model.state;
+        const strip = this.engine.adapter.rect("borderheader", border.id);
+        const layout = this.engine.adapter.rect("row", state.root.id);
+        if (!strip || !layout) {
+            return { bounds: [0, 0], origin: [0, 0] };
+        }
+        const range = this.engine.get("size-limits-by", {
+            nodeId: state.root.id,
+        });
+        const size = this.engine.get("splitter-size");
+        const resolved = resolveBorder(state.defaults, border);
+        return {
+            bounds: borderSplitterBounds(
+                border.location,
+                strip,
+                layout,
+                range,
+                size,
+                resolved,
+            ),
+            origin: borderSplitterBounds(
+                border.location,
+                strip,
+                layout,
+                range,
+                size,
+            ),
+        };
     }
 
     /** The ARIA values, computed from the current geometry. */
@@ -265,11 +306,11 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             valueMax: undefined,
             valueText: undefined,
         };
-        const border = this.border();
-        if (border) {
+        const target = this.target();
+        if (target?.type === "border") {
             const resolved = resolveBorder(
                 this.engine.adapter.model.state.defaults,
-                border,
+                target,
             );
             aria.valueNow = Math.round(resolved.size);
             aria.valueMin = Math.round(resolved.minSize);
@@ -277,17 +318,9 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             aria.valueText = `${aria.valueNow}px`;
             return aria;
         }
-        const row = this.row();
-        const rowRect = row
-            ? this.engine.adapter.rect("row", row.id)
-            : undefined;
-        const prev = row?.children[this.index - 1];
-        const prevRect = prev
-            ? this.engine.adapter.rect(
-                  prev.type === "row" ? "row" : "tabset",
-                  prev.id,
-              )
-            : undefined;
+        const rowRect = target && this.engine.adapter.rect("row", target.id);
+        const prev = target?.children[this.index - 1];
+        const prevRect = prev && this.rect(prev);
         const extent = rowRect
             ? horizontal
                 ? rowRect.width
@@ -308,29 +341,6 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         return aria;
     }
 
-    /** the border's splitter bounds, with its size limits (`limits`) or without */
-    private borderBounds(border: AnyBorder, limits: boolean): [number, number] {
-        const state = this.engine.adapter.model.state;
-        const strip = this.engine.adapter.rect("borderheader", border.id);
-        const layout = this.engine.adapter.rect("row", state.root.id);
-        if (!strip || !layout) {
-            return [0, 0];
-        }
-        const resolved = resolveBorder(state.defaults, border);
-        return borderSplitterBounds(
-            border.location as BorderLocation,
-            strip,
-            layout,
-            this.engine.get("size-limits-by", {
-                nodeId: state.root.id,
-            }),
-            this.engine.get("splitter-size"),
-            limits
-                ? { minSize: resolved.minSize, maxSize: resolved.maxSize }
-                : undefined,
-        );
-    }
-
     /** Starts a pointer drag. Call from the splitter's `pointerdown`. */
     onPointerDown = (event: PointerEvent) => {
         if (event.button !== 0) {
@@ -345,26 +355,18 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             return;
         }
         this.cancelDrag();
-        const border = this.border();
-        const row = this.row();
-        if (border) {
-            this.bounds = this.borderBounds(border, true);
-        } else if (row) {
-            this.children = this.splitChildren(row);
-            const orientation = this.engine.adapter.rowOrientation(row.id);
-            const size = this.engine.get("splitter-size");
-            this.initials = splitterInitials(
-                this.children,
-                orientation,
-                size,
-                this.index,
-            );
-            this.bounds = splitterBounds(
-                this.children,
-                orientation,
-                size,
-                this.index,
-            );
+        const target = this.target();
+        if (target?.type === "border") {
+            const { bounds, origin } = this.borderSplit(target);
+            this.bounds = bounds;
+            this.drag = { kind: "border", location: target.location, origin };
+            this.horizontal =
+                target.location === "left" || target.location === "right";
+        } else if (target) {
+            const split = this.rowSplit(target);
+            this.bounds = split.bounds;
+            this.drag = { kind: "row", split };
+            this.horizontal = split.orientation === "horizontal";
         } else {
             return;
         }
@@ -375,11 +377,10 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
 
         const r = this.engine.adapter.rectInLayout(element);
         const domRect = this.engine.adapter.getDomRect();
-        const horizontal = this.isHorizontal();
-        this.startPosition = horizontal ? r.x : r.y;
+        this.startPosition = this.horizontal ? r.x : r.y;
         this.position = this.startPosition;
         this.moved = false;
-        this.pointerOffset = horizontal
+        this.pointerOffset = this.horizontal
             ? event.clientX - domRect.x - r.x
             : event.clientY - domRect.y - r.y;
 
@@ -417,47 +418,33 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         }
         event.preventDefault();
         this.engine.adapter.setSplitterDragging(true);
-        const border = this.border();
-        const row = this.row();
-        if (border) {
+        const target = this.target();
+        if (target?.type === "border") {
             // moving towards the border's edge shrinks it; bottom/right borders grow the other way
             const grow =
-                border.location === "bottom" || border.location === "right"
+                target.location === "bottom" || target.location === "right"
                     ? -delta
                     : delta;
             const resolved = resolveBorder(
                 this.engine.adapter.model.state.defaults,
-                border,
+                target,
             );
             const size = Math.max(
                 resolved.minSize,
                 Math.min(resolved.maxSize, resolved.size + grow),
             );
             this.engine.adapter.model.run("border.resize", {
-                borderId: border.id,
+                borderId: target.id,
                 size,
             });
-        } else if (row) {
-            const children = this.splitChildren(row);
-            const orientation = this.engine.adapter.rowOrientation(row.id);
-            const size = this.engine.get("splitter-size");
-            const initials = splitterInitials(
-                children,
-                orientation,
-                size,
-                this.index,
-            );
+        } else if (target) {
+            const { children, orientation, initials, bounds } =
+                this.rowSplit(target);
             // an unmeasured row (all zero rects) cannot be split
             if (initials.sum <= 0) {
                 this.engine.adapter.setSplitterDragging(false);
                 return;
             }
-            const bounds = splitterBounds(
-                children,
-                orientation,
-                size,
-                this.index,
-            );
             const pos = Math.max(
                 bounds[0],
                 Math.min(bounds[1], initials.startPosition + delta),
@@ -471,7 +458,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             );
             if (weights.length > 0) {
                 this.engine.adapter.model.run("row.resize", {
-                    rowId: row.id,
+                    rowId: target.id,
                     weights,
                 });
             }
@@ -484,7 +471,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     dispose() {
         this.cancelDrag();
         if (this.draggingTimer !== undefined) {
-            this.clearTimer(this.draggingTimer);
+            this.view()?.clearTimeout(this.draggingTimer);
             this.draggingTimer = undefined;
         }
         this.attach(null);
@@ -496,7 +483,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             return;
         }
         const domRect = this.engine.adapter.getDomRect();
-        const pointer = this.isHorizontal() ? x - domRect.x : y - domRect.y;
+        const pointer = this.horizontal ? x - domRect.x : y - domRect.y;
         this.position = this.getBoundPosition(pointer - this.pointerOffset);
         this.moved = true;
         if (this.engine.adapter.isRealtimeResize()) {
@@ -532,11 +519,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     }
 
     private finishDrag() {
-        const doc =
-            this.element?.ownerDocument ?? this.engine.get("owner-document");
-        if (doc) {
-            enablePointerOnIFrames(true, doc);
-        }
+        this.restoreIFrames();
         this.holdDraggingFlag();
         this.setState(IDLE);
     }
@@ -551,47 +534,49 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             if (this.moved && this.engine.adapter.isRealtimeResize()) {
                 this.updateLayout(false);
             }
-            const doc =
-                this.element?.ownerDocument ??
-                this.engine.get("owner-document");
-            if (doc) {
-                enablePointerOnIFrames(true, doc);
-            }
+            this.restoreIFrames();
             this.engine.adapter.setSplitterDragging(false);
             this.setState(IDLE);
         }
     }
 
+    private restoreIFrames() {
+        const doc =
+            this.element?.ownerDocument ?? this.engine.get("owner-document");
+        if (doc) {
+            enablePointerOnIFrames(true, doc);
+        }
+    }
+
     private updateLayout(transient: boolean) {
-        const border = this.border();
-        const row = this.row();
-        if (border) {
-            const size = borderSplitSize(
-                border.location as BorderLocation,
-                this.borderBounds(border, false),
-                this.position,
-            );
+        const drag = this.drag;
+        if (drag?.kind === "border") {
             this.engine.adapter.model.run(
                 "border.resize",
-                { borderId: border.id, size },
+                {
+                    borderId: this.nodeId,
+                    size: borderSplitSize(
+                        drag.location,
+                        drag.origin,
+                        this.position,
+                    ),
+                },
                 { transient },
             );
-        } else if (row) {
-            // an unmeasured row (all zero rects) cannot be split
-            if (this.initials.sum <= 0) {
-                return;
-            }
+        } else if (drag) {
+            const { children, orientation, initials } = drag.split;
             const weights = calculateSplit(
-                this.children,
-                this.engine.adapter.rowOrientation(row.id),
+                children,
+                orientation,
                 this.index,
                 this.position,
-                this.initials,
+                initials,
             );
-            if (weights.length === row.children.length) {
+            // an unmeasured row (all zero rects) cannot be split
+            if (weights.length > 0) {
                 this.engine.adapter.model.run(
                     "row.resize",
-                    { rowId: row.id, weights },
+                    { rowId: this.nodeId, weights },
                     { transient },
                 );
             }
@@ -603,12 +588,17 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         return Math.min(max, Math.max(min, p));
     }
 
-    private holdDraggingFlag() {
-        const win =
+    private view(): Window | undefined {
+        return (
             this.element?.ownerDocument.defaultView ??
-            this.engine.get("owner-window");
+            this.engine.get("owner-window")
+        );
+    }
+
+    private holdDraggingFlag() {
+        const win = this.view();
         if (this.draggingTimer !== undefined) {
-            this.clearTimer(this.draggingTimer);
+            win?.clearTimeout(this.draggingTimer);
         }
         if (!win) {
             this.engine.adapter.setSplitterDragging(false);
@@ -618,13 +608,6 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             this.draggingTimer = undefined;
             this.engine.adapter.setSplitterDragging(false);
         }, DRAGGING_HOLD_MS);
-    }
-
-    private clearTimer(timer: number) {
-        const win =
-            this.element?.ownerDocument.defaultView ??
-            this.engine.get("owner-window");
-        win?.clearTimeout(timer);
     }
 
     private setState(state: SplitterState) {

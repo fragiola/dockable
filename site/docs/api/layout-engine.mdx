@@ -85,17 +85,15 @@ unknown key or a wrong payload does not compile.
 
 ## Creating one
 
-`createLayoutEngine<T>(options: LayoutEngineOptions<T>): LayoutEngine<T>` (the same as
-`new LayoutEngine<T>(options)`) creates the engine of a layout of `model`, the main layout by
-default. Popout windows get their engines from the main one: an adapter never creates those.
+`createLayoutEngine<T>(options: LayoutEngineOptions<T>): LayoutEngine<T>` creates the engine of
+the main layout of `model`. Popout windows get their engines from the main one
+(`createPopoutEngine`): an adapter never creates those.
 
 `LayoutEngineOptions<T>`:
 
 | option | type | description |
 | --- | --- | --- |
 | `model` | `Model<T>` | the model |
-| `layoutId` | `string` | the layout this engine drives; defaults to the main layout (`"main"`) |
-| `main` | `LayoutEngine<T>` | the main layout's engine, for the engines of popout windows |
 | `measure` | `MeasureFunction` | injectable element measurement (tests pass fixed rects); defaults to `getBoundingClientRect` |
 | `realtimeResize` | `boolean` | true (default) to resize live while a splitter is dragged; false to preview and commit on release |
 | `tabDragSpeed` | `number` | seconds a view may take to animate the drop outline (exposed as data; default 0.3) |
@@ -114,8 +112,7 @@ React's `useId()`, so server and client agree. Popout engines share their main e
 `engine.adapter.setOptions(settings: LayoutEngineSettings<T>)` updates the options an adapter may change on
 every render. `LayoutEngineSettings<T>` is the subset of `LayoutEngineOptions<T>` that can change:
 `realtimeResize`, `tabDragSpeed`, `popout`, `onExternalDrag` and `dragGroup`. An option left out
-goes back to its default. `model`, `layoutId`, `main`, `measure` and `idScope` are fixed for the
-engine's life.
+goes back to its default. `model`, `measure` and `idScope` are fixed for the engine's life.
 
 ## For adapter authors: `engine.adapter`
 
@@ -176,10 +173,6 @@ render();
 | `prepare()` | prepares the layout for rendering: the `data-layout-path` of every node and the size ranges rows and tabsets are rendered with. Call before rendering |
 | `attachRoot(element)` | attaches the layout's root element, the containing block the panels are positioned in, and starts observing it, the window it lives in and the model. Idempotent; attaching another element detaches the previous one first |
 | `detachRoot()` | detaches the root element and releases every observer and listener |
-| `syncLayoutMetrics()` | measures every registered element; returns true when a rect changed (part of `run("measure-and-position")`) |
-| `positionTabPanels()` | positions the tab panels over their container's content area and shows only the visible ones (part of `run("measure-and-position")`). Writes only structural style: `position`, `left`, `top`, `width`, `height`, `display` |
-| `updateRect()` | re-measures the layout root; a changed size relayouts (bound) |
-| `redraw()` | asks adapters to re-render (bumps the revision) |
 | `dispose()` | detaches and forgets everything. The engine must not be used afterwards |
 
 ### Registration by id
@@ -193,8 +186,7 @@ state that changes it, its id is not.
 | `registerTabList(containerId, element, vertical?)` | registers (or, with `null`, unregisters) a tabset's or border's tab list for tab overflow: when its tabs do not fit, the engine hides the ones that do not (keeping the selected one) and reports them through `getHiddenTabs`. `vertical` is the direction the tabs run (`Dockable.TabList` does) |
 | `registerOverflowTrigger(containerId, element)` | registers (or, with `null`, unregisters) the overflow trigger of a tab container: the space it takes is reserved in the strip (`Dockable.TabOverflowTrigger` does) |
 | `registerTabPanel(tabId, element)` | registers (or, with `null`, unregisters) the element a tab's content panel is positioned with |
-| `registerSplitter(element, isHorizontal, register?)` | registers (or, with `register` false, unregisters) a splitter element. Its thickness (width while `isHorizontal()`, height otherwise) becomes the splitter size of every layout of the model. The orientation is read at every measure pass, since a row can flip it |
-| `registerDropZone(element, options)` | makes `element` (anywhere in the document) a drop zone for this model's drags: `DropZoneOptions<T>`, `{ accepts?, onDrop, onOverChange? }`. While a drag the zone accepts is over it, the layouts show no outline; a drop calls `onDrop` with the `DragSubject<T>` instead of moving anything. Returns the unregister function |
+| `registerSplitter(element, isHorizontal)` | registers a splitter element and returns its remover. Its thickness (width while `isHorizontal()`, height otherwise) becomes the splitter size of every layout of the model. The orientation is read at every measure pass, since a row can flip it |
 | `getRegistrations()` | the registered elements (`measurables`, `tabPanels`, `splitters`), read-only, for tests and debugging |
 
 ### Derived view data
@@ -207,7 +199,6 @@ state that changes it, its id is not.
 | `subscribeOverflow(listener)` | calls `listener` when a container's hidden tabs change; returns the unsubscribe function (bound) |
 | `shouldRender(tabId, renderOnDemand?)` | whether a tab's content should be rendered: once rendered it stays rendered (its state is kept); before that, when its container's content area has a size and it is selected (or `renderOnDemand` is false). Marks it rendered |
 | `rect(kind, id)` | a measured rect of a node of this layout, relative to the layout root |
-| `contentRect(containerId)` | the content area a tab's panel is positioned over (its tabset's, or its border's) |
 
 ### Moveables
 
@@ -222,7 +213,6 @@ windows never remounts its content.
 | `releaseMoveable(tabId, panel?, options?)` | parks the moveable element in the hidden moveables home when its panel goes away, so the content's DOM (and the framework state rendered into it) is never destroyed by unmounting a panel. A later `attachMoveable` moves the same element into a new panel |
 | `takeMoveable(tabId)` | hands a tab's moveable element over to another model (a [drag group](/docs/guides/cross-layout-drag) transfer) and forgets it; `undefined` if there is none |
 | `adoptMoveable(tabId, element)` | adopts another model's moveable element for a tab (the other side of a transfer), so its content keeps its state |
-| `getMoveablesHome()` | the hidden element moveables are parked in (main layout only), marked with `MOVEABLES_HOME_ATTRIBUTE` |
 
 `MoveableOptions` (how a panel hosts its content, a view option rather than layout state; the
 `scrollable` and `remountInWindow` props of [Dockable.Panel](/docs/api/panel)):
@@ -267,8 +257,6 @@ window.
 | `rectInLayout(element)` | an element's rect relative to the layout root (not the viewport) |
 | `getDomRect()` | the layout root's rect in viewport coordinates (cached per measure pass) |
 | `getFreshDomRect()` | the layout root's rect in viewport coordinates, measured now |
-| `getScreenRect(rect)` | a layout-relative rect in screen coordinates (for opening popout windows) |
-| `getLayoutRef()` | the root element, once attached |
 
 The document and window the layout renders in are view facts any code may need:
 `engine.get("owner-document")` and `engine.get("owner-window")`.
@@ -337,7 +325,7 @@ Static members, for the page:
 | `subscribeDrag(listener)` | calls `listener` when a drag starts or ends; returns the unsubscribe function |
 | `startAddDrag(model, event, tab, onDrop?, dragImage?)` | starts dragging a new tab (`tab: TabInitOf<T>`) into the layout of `model` from a consumer element anywhere on the page (a sidebar item, a palette entry). Returns false, starting nothing, when no layout of `model` is attached. A drop runs `tab.add`, then calls `onDrop` (`useDragSource` does) |
 | `endDrag()` | ends the page's drag, if any (a drag source's `dragend`) |
-| `registerDropZone(model, element, options)` | makes `element` a drop zone for drags of `model`'s layouts (what `engine.adapter.registerDropZone` calls). Returns the unregister function |
+| `registerDropZone(model, element, options)` | makes `element` a drop zone for drags of `model`'s layouts (`useDropZone` calls it). Returns the unregister function |
 
 Members of a layout's manager (`engine.adapter.getDragDropManager()`):
 
@@ -409,8 +397,7 @@ keyboard events and renders the ARIA values and state. It runs `row.resize` or `
 transient on every move of a realtime drag, then one lasting command on release. Without
 realtime resize, it exposes the bounded preview offset instead, and commits on release.
 
-`createSplitterController<T>(engine, nodeId, index)` (the same as
-`new SplitterController<T>(engine, nodeId, index)`) creates one; `useSplitter` does it for you.
+`createSplitterController<T>(engine, nodeId, index)` creates one; `useSplitter` does it for you.
 
 | member | description |
 | --- | --- |
@@ -450,10 +437,10 @@ Two helpers are exported with it:
 
 ## Keyboard
 
-The configurable command shortcuts. `Dockable.Root` takes an `IKeyMap` as `keyMap`; see
+The configurable command shortcuts. `Dockable.Root` takes a `KeyMap` as `keyMap`; see
 [Keyboard](/docs/guides/keyboard).
 
-`IKeyMap`, bindings as `"Ctrl+Shift+Key"` strings (modifiers in any order, key compared
+`KeyMap`, bindings as `"Ctrl+Shift+Key"` strings (modifiers in any order, key compared
 case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disables a shortcut:
 
 | field | default | description |
@@ -472,7 +459,7 @@ case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disable
 | `matchesKey(event, spec)` | true when `event` is exactly the key combination `spec` (a disabled binding never matches) |
 | `hasModifier(event)` | true when any modifier key is held (the fixed ARIA pattern keys, arrows on tabs and splitters, only apply unmodified) |
 | `toAriaKeyShortcuts(spec)` | the `aria-keyshortcuts` spelling of a binding (`Ctrl` becomes `Control`) |
-| `IKeyEventLike` | the fields shared by native and framework keyboard events: `key`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |
+| `KeyEventLike` | the fields shared by native and framework keyboard events: `key`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |
 
 ## Tab overflow
 
@@ -480,13 +467,13 @@ The arithmetic behind `registerTabList`: which tabs of a strip fit, and which go
 menu. Dockable hides the tabs that do not fit (keeping the selected one) instead of scrolling
 the strip. See [Tab overflow](/docs/guides/tab-overflow).
 
-`computeTabOverflow(input: ITabOverflowInput): ITabOverflowResult` splits a strip's tabs into the
+`computeTabOverflow(input: TabOverflowInput): TabOverflowResult` splits a strip's tabs into the
 visible and the hidden ones. When every tab fits, all are visible. Otherwise the tabs fit from the
 start into `available - reserve`, stopping at the first that does not fit; when the selected tab
 is not among them, tabs are taken off the end until it fits, and it is shown in its place. The
 selected tab always shows, even alone in too small a strip; with no selection, the first tab does.
 
-`ITabOverflowInput` (sizes in px along the strip's axis):
+`TabOverflowInput` (sizes in px along the strip's axis):
 
 | field | type | description |
 | --- | --- | --- |
@@ -496,7 +483,7 @@ selected tab always shows, even alone in too small a strip; with no selection, t
 | `selectedIndex` | `number` | the selected tab's index, or -1: it stays in the strip when anything is hidden |
 | `reserve` | `number` | the space the overflow trigger takes, reserved only when something is hidden |
 
-`ITabOverflowResult`:
+`TabOverflowResult`:
 
 | field | type | description |
 | --- | --- | --- |

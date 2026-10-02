@@ -46,11 +46,18 @@ const queries = (await import(join(CORE_SRC, "state/queries.ts"))) as {
     MODEL_GET_KEYS: readonly string[];
     MODEL_IS_KEYS: readonly string[];
 };
-const verbs = (await import(join(CORE_SRC, "engine/verbs.ts"))) as {
-    ENGINE_ACTION_KEYS: readonly string[];
-    ENGINE_GET_KEYS: readonly string[];
-    ENGINE_IS_KEYS: readonly string[];
-};
+const verbs = read(join(CORE_SRC, "engine/verbs.ts"));
+
+/** The keys of the registry `export interface <name> { … }`: `popout`, `"dock-back"`, … */
+function registryKeys(source: string, name: string): string[] {
+    const body =
+        new RegExp(
+            `export interface ${name}\\b[^{]*\\{([\\s\\S]*?)\\n\\}`,
+        ).exec(source)?.[1] ?? "";
+    return [...body.matchAll(/^ {4}"?([\w-]+)"?:/gm)].map(
+        (match) => match[1] ?? "",
+    );
+}
 
 /** `key` appears in the page as a quoted key in code: `` `"selected-tab-by"` ``. */
 function mentionsKey(mdx: string, key: string): boolean {
@@ -489,9 +496,9 @@ describe("the core reference", () => {
     it("lists every key of the engine's run, get and is", () => {
         const mdx = page("layout-engine");
         const keys = [
-            ...verbs.ENGINE_ACTION_KEYS,
-            ...verbs.ENGINE_GET_KEYS,
-            ...verbs.ENGINE_IS_KEYS,
+            ...registryKeys(verbs, "EngineActionMap"),
+            ...registryKeys(verbs, "EngineGetMap"),
+            ...registryKeys(verbs, "EngineIsMap"),
         ];
         expect(keys.length).toBeGreaterThan(10);
         for (const key of keys) {

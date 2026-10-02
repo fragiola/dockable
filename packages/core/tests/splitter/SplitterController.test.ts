@@ -129,6 +129,22 @@ describe("SplitterController pointer drag", () => {
         expect(controller.getState().dragging).toBe(false);
     });
 
+    it("captures the row at pointerdown: a move looks up no node and reads no size limits", () => {
+        const { model, engine, splitter, controller } = setup(true);
+        pointerDown(splitter, controller);
+        const modelGet = vi.spyOn(model, "get");
+        const engineGet = vi.spyOn(engine, "get");
+        pointer("pointermove", document, 230);
+        const keys = modelGet.mock.calls.map(([key]) => key);
+        // the engine's own: the transient resize's row, and the splitter size's orientation
+        expect(keys.filter((key) => key === "node-by")).toHaveLength(2);
+        expect(engineGet).not.toHaveBeenCalledWith(
+            "size-limits-by",
+            expect.anything(),
+        );
+        pointer("pointerup", document, 230);
+    });
+
     it("outline: previews without touching the model, then commits a single command", () => {
         const { model, actions, splitter, controller } = setup(false);
         const before = model.state;
@@ -477,7 +493,12 @@ describe("border splitters", () => {
         expect(controller.isHorizontal()).toBe(true);
 
         pointerDown(splitterElement, controller, 232);
+        const engineGet = vi.spyOn(engine, "get");
         pointer("pointermove", document, 282); // 50px wider
+        expect(engineGet).not.toHaveBeenCalledWith(
+            "size-limits-by",
+            expect.anything(),
+        );
         expect(actions.at(-1)).toMatchObject({
             command: "border.resize",
             payload: { borderId: "border_left", size: 250 },
