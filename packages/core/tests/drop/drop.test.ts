@@ -87,10 +87,27 @@ describe("strip drops", () => {
         });
     });
 
+    it("drops before or after tabs flush with the tabset's edges", () => {
+        expect(findStripDrop(host, strip, tabs, 10, 10, "tabset")).toEqual({
+            index: 0,
+            outline: rect(-2, 0, 3, 30),
+        });
+        const full = [rect(0, 0, 150, 30), rect(150, 0, 150, 30)];
+        expect(findStripDrop(host, strip, full, 290, 10, "tabset")).toEqual({
+            index: 2,
+            outline: rect(298, 0, 3, 30),
+        });
+    });
+
     it("keeps a tabset's slots inside the tabset, and a vertical strip's along its own axis", () => {
         const tabset = rect(20, 0, 300, 200);
+        // the first tab is scrolled out of the tabset
         expect(
             findStripDrop(tabset, strip, tabs, 10, 10, "tabset"),
+        ).toBeUndefined();
+        const overflowing = [rect(0, 0, 150, 30), rect(150, 0, 160, 30)];
+        expect(
+            findStripDrop(host, strip, overflowing, 305, 10, "tabset"),
         ).toBeUndefined();
         expect(
             findStripDrop(tabset, strip, tabs, 10, 10, "horizontal"),
@@ -201,6 +218,10 @@ describe("drop candidates", () => {
     it("offers a strip drop with its index", () => {
         expect(candidates(100, 10)).toMatchObject([
             { target: "a", location: "center", index: 2 },
+        ]);
+        // A1 is flush with the tabset's start
+        expect(candidates(20, 10)).toMatchObject([
+            { target: "a", location: "center", index: 0 },
         ]);
     });
 

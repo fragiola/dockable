@@ -5,7 +5,8 @@ import { bottom, type Rect, rect, right } from "../geometry/rect";
 
 /**
  * How a strip lays out its tabs: a border's strip runs `"horizontal"` or `"vertical"`; a tabset's
- * runs horizontally, and a slot whose edge is outside the tabset (a tab scrolled out) is not offered.
+ * runs horizontally, and a slot whose edge is outside the tabset (a tab scrolled out) is not offered;
+ * a tab flush with the tabset's edge is inside.
  */
 export type StripMode = "horizontal" | "vertical" | "tabset";
 
@@ -84,7 +85,7 @@ export function findStripDrop(
             : extent.x + extent.width / 2;
         if (p <= pos && pos < middle) {
             const edge = vertical ? extent.y : extent.x;
-            if (mode !== "tabset" || (host.x < edge && edge < right(host))) {
+            if (mode !== "tabset" || (host.x <= edge && edge <= right(host))) {
                 return { index, outline: before(vertical, extent) };
             }
             return undefined;
@@ -96,7 +97,7 @@ export function findStripDrop(
         : last.extent.x + last.extent.width / 2;
     const lastEdge = vertical ? bottom(last.extent) : right(last.extent);
     const hostEdge = vertical ? bottom(host) : right(host);
-    if (pos >= lastMiddle && lastEdge < hostEdge) {
+    if (pos >= lastMiddle && lastEdge <= hostEdge) {
         return { index: tabs.length, outline: after(vertical, last.extent) };
     }
     return undefined;

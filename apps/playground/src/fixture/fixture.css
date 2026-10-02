@@ -36,9 +36,6 @@ body {
 [role="tablist"] {
     display: flex;
     min-height: 30px;
-    /* FlexLayout's strip drop only offers "before the first tab" when that tab is not flush with
-       the tabset's edge (the edge itself belongs to the tabset's left drop) */
-    padding-inline: 4px;
 }
 
 /* the drop outline must be seen to be useful, above the panels (they are portalled into the
