@@ -486,6 +486,33 @@ describe("foreign drags and resets", () => {
         expect(s.commands).toHaveLength(0);
     });
 
+    it("does not let a drag whose source unmounted take over the next one (caplin/FlexLayout#528)", () => {
+        const s = setup();
+        // a tab dragged out of an overflow menu, which closes (unmounts) as the drag starts
+        const menuItem = document.body.appendChild(
+            document.createElement("button"),
+        );
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0", menuItem);
+        menuItem.remove();
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragleave", 312, 185));
+        // released outside the layout: the dragend goes to the detached item, never the document
+        menuItem.dispatchEvent(dragEvent("dragend", 0, 0));
+        // next, text dragged from one input of a tab to another
+        const input = s.panels.t2.appendChild(document.createElement("input"));
+        const text = () => fakeDataTransfer(["text/plain"]);
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185, text()));
+        const over = dragEvent("dragover", 312, 185, text());
+        input.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(false); // the layout does not claim it
+        input.dispatchEvent(dragEvent("drop", 312, 185, text()));
+        expect(s.commands).toHaveLength(0);
+        expect(children(s, "ts0")).toEqual(["t0", "t1"]);
+        // and the next tab drag works as usual
+        dragAndDrop(s, "t1", 312, 185);
+        expect(children(s, "ts1")).toEqual(["t2", "t1"]);
+    });
+
     it("resets after a drop that was not a tab (text dropped into an input of a tab)", () => {
         const onExternalDrag = vi.fn(() => undefined);
         const s = setup({ onExternalDrag });

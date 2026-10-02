@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { LayoutJson } from "../../src/state/json";
 import {
     LayoutValidationError,
@@ -106,6 +106,33 @@ describe("loading JSON v1", () => {
         const ids = a.get("all-tabs").map((t) => t.id);
         expect(ids).toEqual(["tab-2", "tab-1"]);
         expect(a.state.root.id).toBe("row-1");
+    });
+
+    it("creates and changes a model with no global crypto, as on plain HTTP (caplin/FlexLayout#383)", () => {
+        vi.stubGlobal("crypto", undefined);
+        try {
+            const model = createModel({
+                version: 1,
+                root: {
+                    type: "row",
+                    children: [
+                        {
+                            type: "tabset",
+                            children: [{ component: "x", label: "x" }],
+                        },
+                    ],
+                },
+            });
+            const [tabset] = model.get("tabsets");
+            const added = model.run("tab.add", {
+                component: "x",
+                label: "y",
+                to: tabset?.id ?? "",
+            });
+            expect(added.ok).toBe(true);
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 
     it("uses an injected id generator", () => {

@@ -233,6 +233,48 @@ describe("model.get", () => {
         expect(m.get("default-tabset", { layoutId: "nope" })).toBeUndefined();
     });
 
+    it("default-tabset still answers once the active tabset is gone, so add-to-active lands (caplin/FlexLayout#51)", () => {
+        const m = createModel({
+            version: 1,
+            root: {
+                type: "row",
+                children: ["left", "right"].map((id) => ({
+                    type: "tabset" as const,
+                    id,
+                    children: [{ id: `${id}-tab`, component: "x", label: id }],
+                })),
+            },
+        });
+        // the active tabset goes with its last tab
+        must(m.run("tabset.activate", { tabsetId: "right" }));
+        must(m.run("tab.close", { tabId: "right-tab" }));
+        expect(m.get("active-tabset")).toBeUndefined();
+        const target = m.get("default-tabset");
+        expect(target?.id).toBe("left");
+        must(
+            m.run("tab.add", {
+                component: "x",
+                label: "a",
+                to: target?.id ?? "",
+            }),
+        );
+        // the last tabset closed as a whole: the main layout gets a new one, which answers too
+        must(m.run("tabset.activate", { tabsetId: "left" }));
+        must(m.run("tabset.close", { tabsetId: "left" }));
+        const next = m.get("default-tabset");
+        expect(next).toBeDefined();
+        must(
+            m.run("tab.add", {
+                component: "x",
+                label: "b",
+                to: next?.id ?? "",
+            }),
+        );
+        expect(m.get("node-by", { id: next?.id ?? "" })).toMatchObject({
+            children: [{ label: "b" }],
+        });
+    });
+
     it("default-tabset: another layout's active tabset is never the main one's", () => {
         const { active: _, windows = [], ...rest } = structuredClone(json);
         const m = createModel({
