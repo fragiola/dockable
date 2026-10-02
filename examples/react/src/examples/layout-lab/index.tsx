@@ -194,8 +194,8 @@ export default function LayoutLab() {
                                     ) : (
                                         <PanelBody title={tab.label}>
                                             <p className={styles.cardText}>
-                                                {tab.data.text ??
-                                                    "A card: its name and text come from its data."}
+                                                {tab.data?.text ??
+                                                    "A card: its label names it, its data holds its text."}
                                             </p>
                                         </PanelBody>
                                     )}

@@ -8,7 +8,7 @@ test("applying JSON changes the layout", async ({ page }) => {
 
     const tabset = (name: string) => ({
         type: "tabset",
-        children: [{ component: "card", data: { name } }],
+        children: [{ component: "card", label: name }],
     });
     await json.fill(
         JSON.stringify({

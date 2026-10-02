@@ -9,7 +9,8 @@ import type { ChartKind } from "../_kit/charts";
  */
 export type Types = {
     tabs: {
-        card: { text?: string };
+        // a card's data is optional: a card with none shows a default text
+        card: { text?: string } | undefined;
         chart: { kind: ChartKind };
         log: undefined;
     };

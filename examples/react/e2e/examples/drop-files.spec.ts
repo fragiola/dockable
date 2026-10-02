@@ -64,9 +64,7 @@ test("a saved layout dropped on the layout replaces it", async ({ page }) => {
             children: [
                 {
                     type: "tabset",
-                    children: [
-                        { component: "welcome", data: { name: "Restored" } },
-                    ],
+                    children: [{ component: "welcome", label: "Restored" }],
                 },
             ],
         },

@@ -52,7 +52,7 @@ test("lists every built-in command with its payload fields, and as AI tools", as
     await openExample(page, "command-console");
     await page.getByRole("button", { name: "Commands" }).click();
     const list = page.getByTestId("command-list");
-    await expect(list.locator("[data-command]")).toHaveCount(23);
+    await expect(list.locator("[data-command]")).toHaveCount(24);
     const move = list.locator('[data-command="tab.move"]');
     await expect(move).toContainText("tab");
     await expect(move).toContainText("location?");
