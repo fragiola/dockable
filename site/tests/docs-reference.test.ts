@@ -464,12 +464,13 @@ describe("the core reference", () => {
         expect([...members].sort()).toEqual(
             ["adapter", "can", "check", "get", "is", "layoutId", "run"].sort(),
         );
-        const adapterStart = source.indexOf(
+        const adapter = read(join(CORE_SRC, "engine/adapter.ts"));
+        const adapterStart = adapter.indexOf(
             "export interface LayoutEngineAdapter",
         );
-        const adapterBody = source.slice(
+        const adapterBody = adapter.slice(
             adapterStart,
-            source.indexOf("\n}\n", adapterStart),
+            adapter.indexOf("\n}\n", adapterStart),
         );
         const adapterMembers = [
             ...adapterBody.matchAll(/^ {4}(?:readonly )?(\w+)[<(:]/gm),

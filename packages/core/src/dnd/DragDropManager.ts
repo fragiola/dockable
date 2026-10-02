@@ -19,7 +19,8 @@ import {
     type DropGeometry,
     dropCandidates,
 } from "../drop/resolve";
-import type { LayoutEngine, MeasurableKind } from "../engine/LayoutEngine";
+import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { MeasurableKind } from "../engine/measure";
 import type { DockLocation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect, rect, rectEquals } from "../geometry/rect";
 import { enablePointerOnIFrames } from "../splitter/SplitterController";
