@@ -46,31 +46,22 @@ export interface PanelProps<T extends DockableTypes = AnyTypes>
     remountInWindow?: boolean | undefined;
 }
 
-/** style keys the engine owns on a panel: a consumer style never sets them */
-const ENGINE_KEYS = [
-    "position",
-    "inset",
-    "left",
-    "top",
-    "right",
-    "bottom",
-    "width",
-    "height",
-    "display",
-] as const;
-
-function withoutEngineKeys(
-    style: React.CSSProperties | undefined,
-): React.CSSProperties | undefined {
-    if (!style) {
-        return style;
-    }
-    const rest: Record<string, unknown> = { ...style };
-    for (const key of ENGINE_KEYS) {
-        delete rest[key];
-    }
-    return rest as React.CSSProperties;
-}
+/**
+ * a panel's structural style: absolute from first mount, so it never joins the layout's flow
+ * before the engine positions it; the engine writes the geometry and the display, so they are
+ * `undefined` here and no consumer style (prop or render element) sets them
+ */
+const PANEL_STYLE: React.CSSProperties = {
+    position: "absolute",
+    inset: undefined,
+    left: undefined,
+    top: undefined,
+    right: undefined,
+    bottom: undefined,
+    width: undefined,
+    height: undefined,
+    display: undefined,
+};
 
 /** A stable key per moveable element, for a drag group's content host. */
 const moveableKeys = new WeakMap<HTMLElement, string>();
@@ -101,7 +92,6 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const {
         node,
         children,
-        style,
         scrollable = true,
         remountInWindow = false,
         ...rest
@@ -189,39 +179,29 @@ export function Panel<T extends DockableTypes = AnyTypes>(
         }
     };
 
-    const consumerStyle =
-        typeof style === "function"
-            ? (s: PanelState) => withoutEngineKeys(style(s))
-            : withoutEngineKeys(style);
-    const panel = useRenderElement(
-        "div",
-        { ...rest, style: consumerStyle },
-        {
-            state,
-            ref,
-            props: {
-                id: mainEngine.get("tab-panel-dom-id-by", { tabId: id }),
-                role: "tabpanel",
-                "aria-labelledby": mainEngine.get("tab-button-dom-id-by", {
-                    tabId: id,
-                }),
-                "aria-keyshortcuts": toAriaKeyShortcuts(focusToggleKey),
-                tabIndex: -1,
-                ...dataAttributes({
-                    "layout-path": mainEngine.adapter
-                        .engineOf(id)
-                        .get("layout-path-by", { nodeId: id }),
-                    selected,
-                    visible,
-                }),
-                onPointerDown,
-                onKeyDown: focusToggleKey ? onKeyDown : undefined,
-            },
-            // absolute from first mount: the panel must never join the layout's flow before the
-            // engine's positioning pass runs; the engine writes the geometry and display
-            style: { position: "absolute" },
+    const panel = useRenderElement("div", rest, {
+        state,
+        ref,
+        props: {
+            id: mainEngine.get("tab-panel-dom-id-by", { tabId: id }),
+            role: "tabpanel",
+            "aria-labelledby": mainEngine.get("tab-button-dom-id-by", {
+                tabId: id,
+            }),
+            "aria-keyshortcuts": toAriaKeyShortcuts(focusToggleKey),
+            tabIndex: -1,
+            ...dataAttributes({
+                "layout-path": mainEngine.adapter
+                    .engineOf(id)
+                    .get("layout-path-by", { nodeId: id }),
+                selected,
+                visible,
+            }),
+            onPointerDown,
+            onKeyDown: focusToggleKey ? onKeyDown : undefined,
         },
-    );
+        style: PANEL_STYLE,
+    });
 
     const moveable = mainEngine.adapter.getMoveableElement(id);
     // with remountInWindow the content is keyed by its layout, so it remounts when it changes
