@@ -66,17 +66,18 @@ describe("matchesKey", () => {
     });
 
     it("never matches an event with no key, and does not throw (caplin/FlexLayout#529)", () => {
-        // browser autofill and scripts dispatch keydown events that carry no key
-        const noKey = {
-            ctrlKey: false,
-            shiftKey: false,
-            altKey: false,
-            metaKey: false,
-        };
-        expect(matchesKey(noKey, "Escape")).toBe(false);
-        expect(matchesKey({ ...noKey, ctrlKey: true }, "Ctrl+Delete")).toBe(
-            false,
-        );
+        // browser autofill and scripts dispatch keydown events that carry no key, whatever the
+        // KeyboardEvent type says
+        const noKey = (mods: Partial<KeyEventLike> = {}) =>
+            ({
+                ctrlKey: false,
+                shiftKey: false,
+                altKey: false,
+                metaKey: false,
+                ...mods,
+            }) as KeyEventLike;
+        expect(matchesKey(noKey(), "Escape")).toBe(false);
+        expect(matchesKey(noKey({ ctrlKey: true }), "Ctrl+Delete")).toBe(false);
         expect(
             matchesKey(new Event("keydown") as unknown as KeyEventLike, "F2"),
         ).toBe(false);

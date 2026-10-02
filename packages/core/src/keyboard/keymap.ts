@@ -46,12 +46,9 @@ export const defaultKeyMap: Readonly<KeyMap> = {
     closeOverlayBorder: "Escape",
 };
 
-/**
- * the modifier/key fields shared by native and framework keyboard events. `key` may be missing:
- * browser autofill and scripts dispatch keydown events without one
- */
+/** the modifier/key fields shared by native and framework keyboard events */
 export interface KeyEventLike {
-    key?: string | undefined;
+    key: string;
     ctrlKey: boolean;
     shiftKey: boolean;
     altKey: boolean;
@@ -66,6 +63,8 @@ export function matchesKey(
     event: KeyEventLike,
     spec: string | undefined,
 ): boolean {
+    // typed as a string, yet browser autofill and scripts dispatch keydown events with no key
+    // (caplin/FlexLayout#529)
     if (!spec || typeof event.key !== "string") {
         return false;
     }

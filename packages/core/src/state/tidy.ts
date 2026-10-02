@@ -12,9 +12,10 @@ import { MAIN_LAYOUT } from "./types";
  *   children are hoisted, their weights scaled to the row's);
  * - an empty tabset is removed when it may be (`deleteWhenEmpty` and `enableClose`), clearing a
  *   maximize that pointed at it;
- * - the main layout keeps a tabset: when tidy would leave it with none, the first empty tabset it
- *   removed stays, with its id (caplin/FlexLayout#291; FlexLayout makes a new one), else a new
- *   empty tabset is made; either becomes active. An empty window is removed.
+ * - the main layout keeps a tabset: when tidy would leave it with none, an empty tabset it removed
+ *   stays, with its id (caplin/FlexLayout#291; FlexLayout makes a new one): the active one, else
+ *   the first in tree order. With none removed, a new empty tabset is made. Either becomes active
+ *   and is not maximized (an only tabset cannot be). An empty window is removed.
  */
 export function tidy(draft: Draft): void {
     for (const layout of draft.layoutIds()) {
@@ -29,9 +30,14 @@ export function tidy(draft: Draft): void {
                 draft.removeWindow(layout);
                 continue;
             }
-            const kept = removed.shift() ?? newTabset(draft).id;
+            const active = draft.getActive(layout);
+            const kept =
+                active !== undefined && removed.includes(active)
+                    ? active
+                    : (removed[0] ?? newTabset(draft).id);
             draft.attach(root, kept);
             draft.setActive(layout, kept);
+            draft.setMaximized(layout, undefined);
         }
         const maximized = draft.getMaximized(layout);
         if (maximized !== undefined && removed.includes(maximized)) {

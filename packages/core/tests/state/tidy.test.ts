@@ -271,6 +271,42 @@ describe("tidy", () => {
         expect(model.get("node-by", { id: "b" })).toBeUndefined();
     });
 
+    it("keeps the active one of several empty tabsets of the main layout (caplin/FlexLayout#291)", () => {
+        const { model } = setup({
+            version: 1,
+            active: "b",
+            root: {
+                type: "row",
+                children: [
+                    { type: "tabset", id: "a", children: [] },
+                    { type: "tabset", id: "b", children: [] },
+                ],
+            },
+        });
+        expect(model.state.root.children.map((c) => c.id)).toEqual(["b"]);
+        expect(model.get("active-tabset")?.id).toBe("b");
+    });
+
+    it("does not leave the kept tabset maximized: the only tabset cannot be (caplin/FlexLayout#291)", () => {
+        const { model } = setup(tabsets(["One"], ["Two"]));
+        must(model.run("tabset.maximize", { tabsetId: "ts1", value: true }));
+        must(model.run("tab.close", { tabId: "One" }));
+        must(model.run("tab.close", { tabId: "Two" }));
+        expect(model.state.root.children.map((c) => c.id)).toEqual(["ts1"]);
+        expect(model.get("maximized-tabset")).toBeUndefined();
+        expect(model.state.maximized).toBeUndefined();
+        // from the JSON too
+        const loaded = setup({
+            version: 1,
+            maximized: "x",
+            root: {
+                type: "row",
+                children: [{ type: "tabset", id: "x", children: [] }],
+            },
+        }).model;
+        expect(loaded.get("maximized-tabset")).toBeUndefined();
+    });
+
     it("still removes the empty tabsets beside a tabset with tabs (caplin/FlexLayout#291)", () => {
         const { model } = setup({
             version: 1,

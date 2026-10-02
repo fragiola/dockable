@@ -573,6 +573,74 @@ describe("foreign drags and resets", () => {
         });
     });
 
+    it("cleans up an accepted external drag whose drop the content stopped (caplin/FlexLayout#527)", async () => {
+        const onExternalDrag = vi.fn(() => ({
+            tab: { component: "x", label: "x" },
+        }));
+        const s = setup({ onExternalDrag });
+        s.engine.adapter.attachMoveable("t2", s.panels.t2);
+        const editor = s.engine.adapter
+            .getMoveableElement("t2")
+            .appendChild(document.createElement("div"));
+        editor.addEventListener("drop", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185, foreign()));
+        editor.dispatchEvent(dragEvent("dragover", 312, 185, foreign()));
+        expect(s.manager.getIndicatorState().visible).toBe(true);
+        // a file from the OS: the content takes the drop, and no dragend follows in the page
+        editor.dispatchEvent(dragEvent("drop", 312, 185, foreign()));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(s.manager.getIndicatorState()).toMatchObject({
+            visible: false,
+            dragging: false,
+        });
+        expect(s.commands).toHaveLength(0);
+        // the next file drag is asked about again
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185, foreign()));
+        expect(onExternalDrag).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps a drop it ran, and a drag that started since, out of the deferred cleanup (caplin/FlexLayout#527)", async () => {
+        const s = setup({
+            onExternalDrag: () => ({ tab: { component: "x", label: "x" } }),
+        });
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185, foreign()));
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185, foreign()));
+        s.root.dispatchEvent(dragEvent("drop", 312, 185, foreign()));
+        expect(s.commands.map((c) => c.command)).toEqual(["tab.add"]);
+        // a tab drag starts before the cleanup's task runs: it is left alone
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(DragDropManager.getDragState()?.dragId).toBe("t0");
+        expect(s.manager.getIndicatorState().dragging).toBe(true);
+    });
+
+    it("resets every layout of the model when a drag starts, popouts included (caplin/FlexLayout#527)", () => {
+        const s = setup();
+        const { sub, subRoot } = openPopout(s, "t2");
+        const popoutWindow = subRoot.ownerDocument.defaultView;
+        if (!popoutWindow) throw new Error("no popout window");
+        // a drop in the popout that its document never sees leaves the popout's layout active
+        const swallow = (event: Event) => event.stopPropagation();
+        popoutWindow.addEventListener("drop", swallow, true);
+        try {
+            subRoot.dispatchEvent(dragEvent("dragenter", 10, 10, foreign()));
+            subRoot.dispatchEvent(dragEvent("drop", 10, 10, foreign()));
+        } finally {
+            popoutWindow.removeEventListener("drop", swallow, true);
+        }
+        // a tab drag from the main layout into the popout shows the popout's overlay and edges
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t1");
+        subRoot.dispatchEvent(dragEvent("dragenter", 10, 10));
+        expect(
+            sub.adapter.getDragDropManager().getIndicatorState(),
+        ).toMatchObject({ dragging: true, showEdges: true });
+    });
+
     it("ends the drag on a dragend whose propagation the source stopped (caplin/FlexLayout#527)", () => {
         const s = setup();
         s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
@@ -946,6 +1014,37 @@ describe("external drags (onExternalDrag)", () => {
         // a drag from outside the layout (a file from the OS: no dragstart in the page) is asked
         s.root.dispatchEvent(dragEvent("dragenter", 312, 185, foreign()));
         expect(onExternalDrag).toHaveBeenCalledTimes(1);
+    });
+
+    it("forgets a content drag cancelled at its start, so the next file drag is asked (caplin/FlexLayout#350)", () => {
+        const onExternalDrag = vi.fn(() => undefined);
+        const s = setup({ onExternalDrag });
+        s.engine.adapter.attachMoveable("t0", s.panels.t0);
+        const content = s.engine.adapter.getMoveableElement("t0");
+        const text = () => fakeDataTransfer(["text/plain"]);
+        const fileDragEnters = () => {
+            s.root.dispatchEvent(dragEvent("dragenter", 312, 185, foreign()));
+            s.root.dispatchEvent(dragEvent("dragleave", 312, 185, foreign()));
+        };
+        // an image that must not be dragged: the drag never starts, so no dragend comes
+        const image = content.appendChild(document.createElement("img"));
+        image.addEventListener("dragstart", (event) => event.preventDefault());
+        image.dispatchEvent(dragEvent("dragstart", 50, 100, text()));
+        fileDragEnters();
+        expect(onExternalDrag).toHaveBeenCalledTimes(1);
+        // cancelled where the document does not see it: the next pointer move with no button
+        // held, which a native drag never sends, forgets it
+        const hidden = content.appendChild(document.createElement("img"));
+        hidden.addEventListener("dragstart", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        hidden.dispatchEvent(dragEvent("dragstart", 50, 100, text()));
+        document.dispatchEvent(
+            new PointerEvent("pointermove", { bubbles: true, buttons: 0 }),
+        );
+        fileDragEnters();
+        expect(onExternalDrag).toHaveBeenCalledTimes(2);
     });
 
     it("leaves a drag inside a nested layout to it: the outer layout neither asks nor claims it (caplin/FlexLayout#497)", () => {
