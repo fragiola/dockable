@@ -4,6 +4,7 @@
 //
 // Differences from FlexLayout:
 // - adoptedStyleSheets (constructable stylesheets) are mirrored too.
+import { elementOf } from "../dom/nodes";
 
 /** Timeout for blocked stylesheets. */
 export const STYLE_LOAD_TIMEOUT_MS = 2000;
@@ -123,12 +124,9 @@ export class StyleMirror {
             } else {
                 // a mutation inside an existing <style> (css-in-js updating its text): re-sync the
                 // owning style's current text (or css rules) into its clone in the popout
-                const target = mutation.target;
-                const styleElement = (
-                    target.nodeType === 1
-                        ? (target as Element)
-                        : target.parentElement
-                )?.closest("style");
+                const styleElement = elementOf(mutation.target)?.closest(
+                    "style",
+                );
                 const clone = styleElement && this.styleMap.get(styleElement);
                 if (styleElement && clone) {
                     syncStyleElement(styleElement, clone as HTMLStyleElement);

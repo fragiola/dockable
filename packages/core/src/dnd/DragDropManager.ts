@@ -16,6 +16,8 @@
 //   `onExternalDrag`) drop through `tab.add`; a native drag that starts in a layout's own content
 //   is the content's, never offered to `onExternalDrag` (caplin/FlexLayout#350, #497);
 // - drop zones: consumer elements that take a layout drag and hand it to the consumer.
+
+import { elementOf } from "../dom/nodes";
 import {
     type DropCandidate,
     type DropGeometry,
@@ -119,15 +121,6 @@ function hasOwnPayload(event: DragEventLike): boolean {
 function isForeignDrag(event: DragEventLike): boolean {
     const types = event.dataTransfer?.types;
     return !!types && types.length > 0 && !hasOwnPayload(event);
-}
-
-/** The element an event's target is, or holds it (a dragged text selection starts at a text node). */
-function elementOf(target: EventTarget | null): Element | null {
-    const node = target as Node | null;
-    if (typeof node?.nodeType !== "number") {
-        return null;
-    }
-    return node.nodeType === 1 ? (node as Element) : node.parentElement;
 }
 
 /** The indicator fields of a pointer over no target (over one that refuses the drop, if given). */
