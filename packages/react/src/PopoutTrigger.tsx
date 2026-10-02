@@ -3,8 +3,8 @@ import type * as React from "react";
 import { useDockableContext, useLayoutContext } from "./context";
 import { useTabSetNode } from "./TabSet";
 import {
+    type ButtonPrimitiveProps,
     dataAttributes,
-    type PrimitiveProps,
     useRenderElement,
 } from "./utils/useRender";
 
@@ -15,14 +15,8 @@ export interface PopoutTriggerState {
     target: "tab" | "tabset";
 }
 
-type ButtonProps = Omit<
-    React.ButtonHTMLAttributes<HTMLButtonElement>,
-    "className" | "style" | "children"
->;
-
 export interface PopoutTriggerProps<T extends DockableTypes = AnyTypes>
-    extends PrimitiveProps<PopoutTriggerState>,
-        ButtonProps {
+    extends ButtonPrimitiveProps<PopoutTriggerState> {
     /** `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset */
     target?: "tab" | "tabset" | undefined;
     /** the tab to act on; default: the enclosing tabset's selected tab */

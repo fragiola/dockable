@@ -112,6 +112,13 @@ describe("toAriaKeyShortcuts", () => {
         expect(toAriaKeyShortcuts("F2")).toBe("F2");
         expect(toAriaKeyShortcuts(undefined)).toBeUndefined();
     });
+
+    it("joins several bindings, skipping the unset ones", () => {
+        expect(toAriaKeyShortcuts("Ctrl+Delete", undefined, "F2")).toBe(
+            "Control+Delete F2",
+        );
+        expect(toAriaKeyShortcuts(undefined, "")).toBeUndefined();
+    });
 });
 
 describe("hasModifier", () => {

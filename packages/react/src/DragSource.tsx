@@ -1,12 +1,6 @@
-import type {
-    AnyTypes,
-    DockableTypes,
-    Model,
-    NewTabDropped,
-    TabInitOf,
-} from "@fragiola/dockable";
+import type { AnyTypes, DockableTypes } from "@fragiola/dockable";
 import type * as React from "react";
-import { useDragSource } from "./hooks";
+import { type UseDragSourceOptions, useDragSource } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -23,18 +17,8 @@ export interface DragSourceState {
 // `onDrop` is the new-tab callback here, not the element's native drop handler (a drag source
 // is never a drop target)
 export interface DragSourceProps<T extends DockableTypes = AnyTypes>
-    extends Omit<DivPrimitiveProps<DragSourceState>, "onDrop"> {
-    /** the model of the layout the new tab is dropped into (its `Dockable.Root` must be mounted) */
-    model: Model<T>;
-    /**
-     * the tab a drop creates (a `tab.add` init: `data` is checked against `component`); a function
-     * is called at each drag start
-     */
-    tab: TabInitOf<T> | (() => TabInitOf<T>);
-    /** called after the drop with the new tab's id, or `undefined` when the add was refused */
-    onDrop?: NewTabDropped | undefined;
-    /** no drag starts while true */
-    disabled?: boolean | undefined;
+    extends Omit<DivPrimitiveProps<DragSourceState>, "onDrop">,
+        UseDragSourceOptions<T> {
     /** the source's content; the primitive renders no text of its own */
     children?: React.ReactNode;
 }

@@ -1,6 +1,7 @@
 // Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/layout/EdgeIndicators.tsx
 // (the edge targets shown during a drag); the markup, icons and class names are not copied.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+import type { BorderLocation } from "@fragiola/dockable";
 import type * as React from "react";
 import { useLayoutContext } from "./context";
 import { useIndicator } from "./hooks";
@@ -10,10 +11,8 @@ import {
     useRenderElement,
 } from "./utils/useRender";
 
-export type Edge = "top" | "bottom" | "left" | "right";
-
 export interface EdgeIndicatorState {
-    edge: Edge;
+    edge: BorderLocation;
     /** a drag that can dock to the layout's edges is over the layout */
     visible: boolean;
     /** the drop would dock to this edge */
@@ -23,7 +22,7 @@ export interface EdgeIndicatorState {
 export interface EdgeIndicatorProps
     extends DivPrimitiveProps<EdgeIndicatorState> {
     /** the layout edge it marks */
-    edge: Edge;
+    edge: BorderLocation;
     /** its content (an arrow icon); the primitive renders none */
     children?: React.ReactNode;
 }

@@ -70,8 +70,7 @@ function OverflowMenu({ tabset }: { tabset: TabsetNode<Types> }) {
 ```
 
 Selecting a hidden tab (`tab.select`, through the model's middleware) brings it into the strip;
-another tab goes to the menu in its place. The result also has `visibleTabs` (the tabs in the strip)
-and `overflowing`. What a tab is called in the menu is your data: `altName` above is a field of
+another tab goes to the menu in its place. The result also has `overflowing`. What a tab is called in the menu is your data: `altName` above is a field of
 the registry, not of the package. The trigger has no name of its own: give it an `aria-label`.
 
 The [`overflow-select`](/examples/overflow-select) example uses Fragiola UI's `Select`, with

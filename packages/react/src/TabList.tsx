@@ -30,8 +30,6 @@ export interface TabListState {
     dropIndex: number | undefined;
     /** some tabs do not fit, so they are hidden (list them with `Dockable.TabOverflowTrigger`) */
     overflowing: boolean;
-    /** how many tabs are hidden */
-    hiddenCount: number;
 }
 
 export interface TabListProps<T extends DockableTypes = AnyTypes>
@@ -91,23 +89,19 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         },
         [engine, id, border, vertical, overflow],
     );
-    const tabOverflow = useTabOverflow(container);
+    const { overflowing } = useTabOverflow(container);
 
-    const keyShortcuts =
-        [
-            toAriaKeyShortcuts(keyMap.focusNextTabset),
-            toAriaKeyShortcuts(keyMap.focusPreviousTabset),
-        ]
-            .filter(Boolean)
-            .join(" ") || undefined;
+    const keyShortcuts = toAriaKeyShortcuts(
+        keyMap.focusNextTabset,
+        keyMap.focusPreviousTabset,
+    );
 
     const drop = useTabSetDropState(engine, id);
     const state: TabListState = {
         orientation,
         dropTarget: drop.index !== undefined,
         dropIndex: drop.index,
-        overflowing: tabOverflow.overflowing,
-        hiddenCount: tabOverflow.hiddenTabs.length,
+        overflowing,
     };
     const tabs = container.children.map((tab) => (
         <React.Fragment key={tab.id}>{children(tab)}</React.Fragment>

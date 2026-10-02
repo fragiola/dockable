@@ -451,7 +451,7 @@ case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disable
 | `resolveKeyMap(keyMap)` | merges the configured bindings over the defaults; a binding passed as an explicit `undefined` disables that shortcut |
 | `matchesKey(event, spec)` | true when `event` is exactly the key combination `spec` (a disabled binding never matches) |
 | `hasModifier(event)` | true when any modifier key is held (the fixed ARIA pattern keys, arrows on tabs and splitters, only apply unmodified) |
-| `toAriaKeyShortcuts(spec)` | the `aria-keyshortcuts` spelling of a binding (`Ctrl` becomes `Control`) |
+| `toAriaKeyShortcuts(...specs)` | the `aria-keyshortcuts` value of bindings: the set ones, space separated, `Ctrl` spelled `Control`; `undefined` when none is set |
 | `KeyEventLike` | the fields shared by native and framework keyboard events: `key`, `ctrlKey`, `shiftKey`, `altKey`, `metaKey` |
 
 ## Tab overflow

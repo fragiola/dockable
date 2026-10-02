@@ -1,11 +1,6 @@
-import type {
-    AnyTypes,
-    DockableTypes,
-    DropZoneOptions,
-    Model,
-} from "@fragiola/dockable";
+import type { AnyTypes, DockableTypes } from "@fragiola/dockable";
 import type * as React from "react";
-import { useDropZone } from "./hooks";
+import { type UseDropZoneOptions, useDropZone } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -21,17 +16,8 @@ export interface DropZoneState {
 
 // `onDrop` is the zone's callback with what is dragged, not the element's native drop handler
 export interface DropZoneProps<T extends DockableTypes = AnyTypes>
-    extends Omit<DivPrimitiveProps<DropZoneState>, "onDrop"> {
-    /** the model whose drags the zone takes */
-    model: Model<T>;
-    /** whether the zone takes this drag (default: every drag of the model) */
-    accepts?: DropZoneOptions<T>["accepts"];
-    /**
-     * called when the drag is dropped on the zone, with what is dragged (`{ kind: "tab", tab }`,
-     * `{ kind: "tabset", tabset }`, `{ kind: "new", tab }`). Nothing is moved: run the command you
-     * want (`tab.close`)
-     */
-    onDrop: DropZoneOptions<T>["onDrop"];
+    extends Omit<DivPrimitiveProps<DropZoneState>, "onDrop">,
+        UseDropZoneOptions<T> {
     /** the zone's content; the primitive renders no text of its own */
     children?: React.ReactNode;
 }
@@ -46,11 +32,10 @@ export function DropZone<T extends DockableTypes = AnyTypes>(
     props: DropZoneProps<T>,
 ) {
     const { model, accepts, onDrop, children, ...rest } = props;
-    const zone = useDropZone({ model, accepts, onDrop });
-    const state: DropZoneState = zone.state;
+    const { state, props: zone } = useDropZone({ model, accepts, onDrop });
     return useRenderElement("div", rest, {
         state,
-        ref: zone.props.ref,
+        ref: zone.ref,
         props: {
             ...dataAttributes({
                 "drop-over": state.over,

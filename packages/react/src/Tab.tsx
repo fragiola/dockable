@@ -199,17 +199,14 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         }
     };
 
-    const keyShortcuts =
-        [
-            toAriaKeyShortcuts(keyMap.focusTabToggle),
-            // the hint follows the tab's own rule; the key itself asks the model (`closeable`)
-            model.get("tab-settings-by", { tabId: node.id })?.enableClose &&
+    const keyShortcuts = toAriaKeyShortcuts(
+        keyMap.focusTabToggle,
+        // the hint follows the tab's own rule; the key itself asks the model (`closeable`)
+        model.get("tab-settings-by", { tabId: node.id })?.enableClose &&
             node.pinned !== true
-                ? toAriaKeyShortcuts(keyMap.closeTab)
-                : undefined,
-        ]
-            .filter(Boolean)
-            .join(" ") || undefined;
+            ? keyMap.closeTab
+            : undefined,
+    );
 
     const overflowHidden = useTabHidden(containerId, id);
     const state: TabState = {

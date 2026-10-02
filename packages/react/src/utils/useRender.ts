@@ -73,6 +73,13 @@ type DivProps = Omit<
 /** The props of a primitive that renders a `div` by default. */
 export type DivPrimitiveProps<State> = PrimitiveProps<State> & DivProps;
 
+/** The props of a primitive that renders a `button` by default. */
+export type ButtonPrimitiveProps<State> = PrimitiveProps<State> &
+    Omit<
+        React.ButtonHTMLAttributes<HTMLButtonElement>,
+        "className" | "style" | "children"
+    >;
+
 /** `data-*` attributes from a record: `true` → present (empty), `false`/`undefined` → absent. */
 export function dataAttributes(
     record: Record<string, string | number | boolean | undefined>,

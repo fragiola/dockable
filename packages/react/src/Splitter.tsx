@@ -4,10 +4,10 @@
 import {
     type AnyTypes,
     type BorderNode,
-    type SplitterState as CoreSplitterState,
     type DockableTypes,
     getSplitterPath,
     type RowNode,
+    type SplitterState as SplitterControllerState,
 } from "@fragiola/dockable";
 import type * as React from "react";
 import { useLayoutContext } from "./context";
@@ -18,9 +18,11 @@ import {
     useRenderElement,
 } from "./utils/useRender";
 
-export interface SplitterState extends CoreSplitterState {
+export interface SplitterState extends SplitterControllerState {
     /** `"vertical"` for a splitter between side by side children, as its `aria-orientation` */
     orientation: "horizontal" | "vertical";
+    /** row splitters are hidden while a tabset is maximized */
+    hidden: boolean;
 }
 
 export interface SplitterProps<T extends DockableTypes = AnyTypes>
@@ -45,14 +47,8 @@ export function Splitter<T extends DockableTypes = AnyTypes>(
     const { engine } = useLayoutContext("Splitter");
     const { state, props: separator } = useSplitter(node, index);
     const { ref, style, ...separatorProps } = separator;
-
-    const splitterState: SplitterState = {
-        dragging: state.dragging,
-        previewOffset: state.previewOffset,
-        orientation: state.orientation,
-    };
     return useRenderElement("div", rest, {
-        state: splitterState,
+        state,
         ref,
         props: {
             ...separatorProps,

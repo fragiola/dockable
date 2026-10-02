@@ -28,13 +28,15 @@ function renderSplitter(props: RowSplitterProps<Types>) {
 
 ## State
 
-`SplitterState` extends the core's `SplitterState` (the `SplitterController` state):
+`SplitterState` (also returned by [`useSplitter`](/docs/api/hooks#usesplitter)) extends the
+core's `SplitterState` (the `SplitterController` state):
 
 | field | type | description |
 | --- | --- | --- |
 | `orientation` | `"horizontal" \| "vertical"` | `"vertical"` for a splitter between side by side children, as its `aria-orientation` |
 | `dragging` | `boolean` | true while the splitter is being dragged with the pointer |
 | `previewOffset` | `number \| undefined` | while an outline (non-realtime) drag is in progress: how far, in px along the splitter's axis, the splitter would move if released now (bounded). `undefined` otherwise |
+| `hidden` | `boolean` | row splitters are hidden while a tabset is maximized (`display: none`) |
 
 ## Data attributes and ARIA
 

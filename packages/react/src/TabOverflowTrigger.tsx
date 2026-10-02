@@ -4,26 +4,18 @@ import { useLayoutContext } from "./context";
 import { useTabOverflow } from "./hooks";
 import { useTabContainer } from "./TabSet";
 import {
+    type ButtonPrimitiveProps,
     dataAttributes,
-    type PrimitiveProps,
     useRenderElement,
 } from "./utils/useRender";
 
 export interface TabOverflowTriggerState<T extends DockableTypes = AnyTypes> {
     /** the tabs that do not fit in the strip, in model order: what the menu lists */
     hiddenTabs: TabOf<T>[];
-    /** how many tabs are hidden */
-    hiddenCount: number;
 }
 
-type ButtonProps = Omit<
-    React.ButtonHTMLAttributes<HTMLButtonElement>,
-    "className" | "style" | "children"
->;
-
 export interface TabOverflowTriggerProps<T extends DockableTypes = AnyTypes>
-    extends PrimitiveProps<TabOverflowTriggerState<T>>,
-        ButtonProps {
+    extends ButtonPrimitiveProps<TabOverflowTriggerState<T>> {
     /** the trigger's content (an icon, a count); the primitive renders no text of its own */
     children?: React.ReactNode;
 }
@@ -50,10 +42,7 @@ export function TabOverflowTrigger<T extends DockableTypes = AnyTypes>(
         },
         [engine, id],
     );
-    const state: TabOverflowTriggerState<T> = {
-        hiddenTabs,
-        hiddenCount: hiddenTabs.length,
-    };
+    const state: TabOverflowTriggerState<T> = { hiddenTabs };
     const element = useRenderElement("button", rest, {
         state,
         ref,

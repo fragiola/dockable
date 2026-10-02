@@ -18,8 +18,6 @@ import {
     type NewTabDropped,
     type RowNode,
     type SplitterAria,
-    type SplitterController,
-    type SplitterState,
     type TabContainer,
     type TabInitOf,
     type TabOf,
@@ -34,6 +32,8 @@ import {
     useDockableContext,
     useLayoutContext,
 } from "./context";
+import type { DropZoneState } from "./DropZone";
+import type { SplitterState } from "./Splitter";
 
 export interface UseDockableResult<T extends DockableTypes = AnyTypes> {
     /**
@@ -348,8 +348,6 @@ export interface UseTabOverflowResult<T extends DockableTypes = AnyTypes> {
     overflowing: boolean;
     /** the hidden tabs, in model order: what an overflow menu lists */
     hiddenTabs: TabOf<T>[];
-    /** the tabs that stay in the strip, in model order */
-    visibleTabs: TabOf<T>[];
 }
 
 /**
@@ -367,11 +365,11 @@ export function useTabOverflow<T extends DockableTypes>(
         () => engine.adapter.getHiddenTabs(id),
         () => engine.adapter.getHiddenTabs(id),
     );
-    const hiddenSet = new Set(hiddenIds);
     return {
         overflowing: hiddenIds.length > 0,
-        hiddenTabs: container.children.filter((tab) => hiddenSet.has(tab.id)),
-        visibleTabs: container.children.filter((tab) => !hiddenSet.has(tab.id)),
+        hiddenTabs: container.children.filter((tab) =>
+            hiddenIds.includes(tab.id),
+        ),
     };
 }
 
@@ -385,16 +383,9 @@ export function useTabHidden(containerId: string, tabId: string): boolean {
     );
 }
 
-export interface UseSplitterState extends SplitterState {
-    /** `"vertical"` for a splitter between side by side children (the separator's orientation) */
-    orientation: SplitterAria["orientation"];
-    /** row splitters are hidden while a tabset is maximized */
-    hidden: boolean;
-}
-
 export interface UseSplitterResult {
     /** what the splitter shows as `data-*` */
-    state: UseSplitterState;
+    state: SplitterState;
     /**
      * what goes on the splitter's element: the ref, `role="separator"` and its ARIA values, focus,
      * the pointer and key handlers, and the structural style (hidden, and the outline preview)
@@ -412,8 +403,6 @@ export interface UseSplitterResult {
         onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
         style: React.CSSProperties;
     };
-    /** the headless controller behind it (drag and keyboard resizing), for a custom gesture */
-    controller: SplitterController;
 }
 
 /**
@@ -479,7 +468,6 @@ export function useSplitter<T extends DockableTypes>(
             },
             style,
         },
-        controller,
     };
 }
 
@@ -654,12 +642,7 @@ export interface UseDropZoneOptions<T extends DockableTypes = AnyTypes> {
 }
 
 export interface UseDropZoneResult {
-    state: {
-        /** a drag the zone takes is over it */
-        over: boolean;
-        /** a drag the zone would take is in progress */
-        active: boolean;
-    };
+    state: DropZoneState;
     /** what goes on the zone's element */
     props: {
         /** callback ref */

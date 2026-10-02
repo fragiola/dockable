@@ -200,7 +200,6 @@ The selected tab is never hidden."
 | --- | --- | --- |
 | `overflowing` | `boolean` | some of the container's tabs do not fit, so they are hidden |
 | `hiddenTabs` | `TabOf<T>[]` | the hidden tabs, in model order: what an overflow menu lists |
-| `visibleTabs` | `TabOf<T>[]` | the tabs that stay in the strip, in model order |
 
 It re-renders only when the container's hidden tabs change. See
 [Tab overflow](/docs/guides/tab-overflow).
@@ -227,18 +226,8 @@ function MySplitter({ node, index }: RowSplitterProps) {
 
 | field | type | description |
 | --- | --- | --- |
-| `state` | `UseSplitterState` | see below |
+| `state` | `SplitterState` | see [Dockable.Splitter](/docs/api/splitter#state) |
 | `props` | `{ ref, role, tabIndex, aria-*, onPointerDown, onKeyDown, style }` | the ref; `role="separator"`, `tabIndex: 0` and the ARIA values (`aria-orientation`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-valuetext`); the pointer and arrow-key handlers; and the structural style: `display: none` while hidden, the outline preview's `transform`, `pointer-events: auto` on a border's splitter |
-| `controller` | `SplitterController` | the headless controller behind it, for a gesture of your own: `onPointerDown`, `onKeyDown`, `getAria`, `isHidden`, … (see [LayoutEngine](/docs/api/layout-engine#splitters)) |
-
-`UseSplitterState`:
-
-| field | type | description |
-| --- | --- | --- |
-| `dragging` | `boolean` | the splitter is being dragged with the pointer |
-| `previewOffset` | `number \| undefined` | during an outline (non-realtime) drag: how far, in px, the splitter would move if released now |
-| `orientation` | `"horizontal" \| "vertical"` | the separator's orientation: `"vertical"` for a splitter between side by side children |
-| `hidden` | `boolean` | row splitters are hidden while a tabset is maximized |
 
 A drag runs `row.resize` (or `border.resize`); while a realtime drag moves, those runs are
 transient, and the release runs one lasting command.
@@ -344,7 +333,7 @@ foreign drag), `{ kind: "new", tab }` (a `TabInitOf<T>`).
 
 | field | type | description |
 | --- | --- | --- |
-| `state` | `{ over, active }` | `over`: a drag the zone takes is over it; `active`: a drag the zone would take is in progress |
+| `state` | `DropZoneState` | `over`: a drag the zone takes is over it; `active`: a drag the zone would take is in progress (see [Dockable.DropZone](/docs/api/drop-zone)) |
 | `props` | `{ ref }` | the zone's callback ref |
 
 While a drag the zone takes is over it, the layouts hide their outline.
@@ -359,6 +348,5 @@ undo) or listens to transfers. It must be called inside `Dockable.DragGroup`. Se
 ## Types
 
 Also exported: `TabSetState`, `DragProps`, `UseDockableResult`, `UseTabSetResult`,
-`UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`,
-`UseSplitterState`, `UseDragNodeResult`, `UseDragSourceOptions`, `UseDragSourceResult`,
-`UseDropZoneOptions` and `UseDropZoneResult`.
+`UseBorderResult`, `UseTabOverflowResult`, `UseSplitterResult`, `UseDragNodeResult`,
+`UseDragSourceOptions`, `UseDragSourceResult`, `UseDropZoneOptions` and `UseDropZoneResult`.

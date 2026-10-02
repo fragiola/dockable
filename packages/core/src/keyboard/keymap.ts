@@ -87,7 +87,14 @@ export function resolveKeyMap(keyMap: KeyMap | undefined): KeyMap {
     return { ...defaultKeyMap, ...keyMap };
 }
 
-/** the `aria-keyshortcuts` spelling of a binding */
-export function toAriaKeyShortcuts(spec: string | undefined) {
-    return spec?.replace(/\bctrl\b/i, "Control"); // the aria-keyshortcuts attribute spells it "Control"
+/** the `aria-keyshortcuts` value of bindings (`Ctrl` spelled `Control`), or undefined when none is set */
+export function toAriaKeyShortcuts(
+    ...specs: (string | undefined)[]
+): string | undefined {
+    return (
+        specs
+            .filter((spec): spec is string => !!spec)
+            .map((spec) => spec.replace(/\bctrl\b/i, "Control"))
+            .join(" ") || undefined
+    );
 }
