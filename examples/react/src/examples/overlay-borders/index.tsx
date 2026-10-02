@@ -177,13 +177,7 @@ export default function OverlayBorders() {
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                     {/* The band along each layout edge where a drop docks to that edge, shown
                         during a drag. */}
                     {EDGES.map(([edge, Arrow]) => (

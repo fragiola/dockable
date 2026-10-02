@@ -171,9 +171,6 @@ export default function DropIndicatorColours() {
                                 styles.regionOf(target, state.kind),
                             )
                         }
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
                     />
                 </Dockable.Root>
             </div>

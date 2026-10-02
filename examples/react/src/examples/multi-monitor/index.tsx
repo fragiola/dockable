@@ -148,7 +148,7 @@ export default function MultiMonitor() {
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <DropIndicator />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                     {/* Each window's layout: its own root element in the window's document, with
                         the same recursion as the main layout. */}
                     <Dockable.Popout<Types> className={styles.popout}>
@@ -162,7 +162,9 @@ export default function MultiMonitor() {
                                     {renderNode}
                                 </Dockable.Row>
                                 {/* a window shows its own outline during a drag into it */}
-                                <DropIndicator />
+                                <Dockable.DropIndicator
+                                    className={styles.dropIndicator}
+                                />
                             </>
                         )}
                     </Dockable.Popout>
@@ -257,18 +259,6 @@ function BackButton() {
         >
             <MonitorDown aria-hidden className={styles.actionIcon} />
         </Dockable.PopoutTrigger>
-    );
-}
-
-/** Where a dragged tab would land, in the main layout or in a window. */
-function DropIndicator() {
-    return (
-        <Dockable.DropIndicator
-            className={styles.dropIndicator}
-            style={(state) => ({
-                transitionDuration: `${state.tabDragSpeed}s`,
-            })}
-        />
     );
 }
 

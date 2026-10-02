@@ -175,12 +175,7 @@ export default function BorderTabOrientation() {
                         )}
                     </Dockable.Panels>
                     {/* Where a dragged tab would land. */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </div>

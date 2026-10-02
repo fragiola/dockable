@@ -279,9 +279,6 @@ export default function DashboardBuilder() {
                         {/* Where a dragged widget would land (hidden where the rules refuse it). */}
                         <Dockable.DropIndicator
                             className={styles.dropIndicator}
-                            style={(state) => ({
-                                transitionDuration: `${state.tabDragSpeed}s`,
-                            })}
                         />
                     </Dockable.Root>
                 </div>

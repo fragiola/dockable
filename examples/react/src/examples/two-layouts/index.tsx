@@ -90,7 +90,9 @@ export default function TwoLayouts() {
                                         </Dockable.Panel>
                                     )}
                                 </Dockable.Panels>
-                                <DropIndicator />
+                                <Dockable.DropIndicator
+                                    className={styles.dropIndicator}
+                                />
                             </Dockable.Root>
                         </div>
                     </section>
@@ -122,7 +124,9 @@ export default function TwoLayouts() {
                                         </Dockable.Panel>
                                     )}
                                 </Dockable.Panels>
-                                <DropIndicator />
+                                <Dockable.DropIndicator
+                                    className={styles.dropIndicator}
+                                />
                             </Dockable.Root>
                         </div>
                     </section>
@@ -252,18 +256,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
             </div>
             <Dockable.TabSetContent />
         </Dockable.TabSet>
-    );
-}
-
-/** Where a dragged tab would land, in either layout. */
-function DropIndicator() {
-    return (
-        <Dockable.DropIndicator
-            className={styles.dropIndicator}
-            style={(state) => ({
-                transitionDuration: `${state.tabDragSpeed}s`,
-            })}
-        />
     );
 }
 

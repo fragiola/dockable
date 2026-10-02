@@ -252,12 +252,7 @@ export default function DropFiles() {
                         )}
                     </Dockable.Panels>
                     {/* Where a file would land (a tabset, a tabset edge, the layout edge). */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </>

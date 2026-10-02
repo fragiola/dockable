@@ -93,7 +93,7 @@ export default function Popout() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                <DropIndicator />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
                 {/* Each popout window: its own floor, rows and drop outline, portalled into the
                     window once it is ready. */}
                 <Dockable.Popout<Types> className={styles.popout}>
@@ -107,7 +107,9 @@ export default function Popout() {
                                 {renderNode}
                             </Dockable.Row>
                             {/* a window shows its own outline during a drag into it */}
-                            <DropIndicator />
+                            <Dockable.DropIndicator
+                                className={styles.dropIndicator}
+                            />
                         </>
                     )}
                 </Dockable.Popout>
@@ -184,18 +186,6 @@ function PopoutButton({ tabset }: { tabset: TabsetNode<Types> }) {
             <SquareArrowOutUpRight aria-hidden className={styles.popoutIcon} />
             <ArrowDownToLine aria-hidden className={styles.dockIcon} />
         </Dockable.PopoutTrigger>
-    );
-}
-
-/** Where a dragged tab would land, animated at the layout's drag speed. */
-function DropIndicator() {
-    return (
-        <Dockable.DropIndicator
-            className={styles.dropIndicator}
-            style={(state) => ({
-                transitionDuration: `${state.tabDragSpeed}s`,
-            })}
-        />
     );
 }
 

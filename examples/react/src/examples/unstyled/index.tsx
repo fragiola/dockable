@@ -145,9 +145,6 @@ export default function UnstyledExample() {
                     {styled ? (
                         <Dockable.DropIndicator
                             className={styles.dropIndicator}
-                            style={(state) => ({
-                                transitionDuration: `${state.tabDragSpeed}s`,
-                            })}
                         />
                     ) : null}
                 </Dockable.Root>

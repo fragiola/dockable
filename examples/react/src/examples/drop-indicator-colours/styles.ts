@@ -58,7 +58,7 @@ const SIDES: Record<DropIndicatorState["location"], string> = {
  */
 export const dropIndicator = (state: DropIndicatorState, region: Region) =>
     cn(
-        "z-20 rounded-(--dk-radius) border-2 border-palette-base transition-[left,top,width,height,background-color,border-color]",
+        "z-20 rounded-(--dk-radius) border-2 border-palette-base transition-[left,top,width,height,background-color,border-color] duration-(--dk-motion)",
         PALETTES[region],
         state.kind === "edge"
             ? "[background:repeating-linear-gradient(135deg,color-mix(in_oklab,var(--palette-base)_40%,transparent)_0_8px,color-mix(in_oklab,var(--palette-base)_12%,transparent)_8px_16px)]"

@@ -117,7 +117,7 @@ export default function DropZones() {
                             </Dockable.Panel>
                         )}
                     </Dockable.Panels>
-                    <DropIndicator />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                     {/* a popped-out tab's window: its own layout, and its own outline */}
                     <Dockable.Popout<Types> className={styles.popout}>
                         {() => (
@@ -129,7 +129,9 @@ export default function DropZones() {
                                 >
                                     {renderNode}
                                 </Dockable.Row>
-                                <DropIndicator />
+                                <Dockable.DropIndicator
+                                    className={styles.dropIndicator}
+                                />
                             </>
                         )}
                     </Dockable.Popout>
@@ -310,17 +312,5 @@ function Splitter(props: RowSplitterProps<Types>) {
         >
             <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
-    );
-}
-
-/** Where a dragged tab would land: blue into a tabset, orange at an edge. */
-function DropIndicator() {
-    return (
-        <Dockable.DropIndicator
-            className={styles.dropIndicator}
-            style={(state) => ({
-                transitionDuration: `${state.tabDragSpeed}s`,
-            })}
-        />
     );
 }

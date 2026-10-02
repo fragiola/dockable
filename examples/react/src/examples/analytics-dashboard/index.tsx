@@ -104,7 +104,9 @@ export default function AnalyticsDashboard() {
                                 </Dockable.Panel>
                             )}
                         </Dockable.Panels>
-                        <DropIndicator />
+                        <Dockable.DropIndicator
+                            className={styles.dropIndicator}
+                        />
                         {/* A popped-out widget's window: its own row, with the same tabsets. */}
                         <Dockable.Popout<Types> className={styles.popout}>
                             {() => (
@@ -117,7 +119,9 @@ export default function AnalyticsDashboard() {
                                         {renderNode}
                                     </Dockable.Row>
                                     {/* a window shows its own outline during a drag into it */}
-                                    <DropIndicator />
+                                    <Dockable.DropIndicator
+                                        className={styles.dropIndicator}
+                                    />
                                 </>
                             )}
                         </Dockable.Popout>
@@ -200,17 +204,5 @@ function Splitter(props: RowSplitterProps<Types>) {
         >
             <span aria-hidden="true" className={styles.splitterGrip} />
         </Dockable.Splitter>
-    );
-}
-
-/** Where a dragged tab would land, animated at the layout's drag speed. */
-function DropIndicator() {
-    return (
-        <Dockable.DropIndicator
-            className={styles.dropIndicator}
-            style={(state) => ({
-                transitionDuration: `${state.tabDragSpeed}s`,
-            })}
-        />
     );
 }

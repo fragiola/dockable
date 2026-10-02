@@ -127,12 +127,7 @@ export default function SplitterHairline() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
             </Dockable.Root>
         </div>
     );

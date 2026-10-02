@@ -203,9 +203,6 @@ export default function IdeWorkbench() {
                         </Dockable.Panels>
                         <Dockable.DropIndicator
                             className={styles.dropIndicator}
-                            style={(state) => ({
-                                transitionDuration: `${state.tabDragSpeed}s`,
-                            })}
                         />
                     </Dockable.Root>
                 </div>

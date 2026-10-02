@@ -202,12 +202,8 @@ export default function LayoutLab() {
                                 </Dockable.Panel>
                             )}
                         </Dockable.Panels>
-                        {/* Where a dragged tab would land, animated at the layout's drag speed. */}
                         <Dockable.DropIndicator
                             className={styles.dropIndicator}
-                            style={(state) => ({
-                                transitionDuration: `${state.tabDragSpeed}s`,
-                            })}
                         />
                     </Dockable.Root>
                 </div>

@@ -147,13 +147,7 @@ export default function TabContextMenu() {
                         </Dockable.Panel>
                     )}
                 </Dockable.Panels>
-                {/* Where a dragged tab would land, animated at the layout's drag speed. */}
-                <Dockable.DropIndicator
-                    className={styles.dropIndicator}
-                    style={(state) => ({
-                        transitionDuration: `${state.tabDragSpeed}s`,
-                    })}
-                />
+                <Dockable.DropIndicator className={styles.dropIndicator} />
                 {/* A popped-out tab's window: its own layout, rendered by the same recursion. */}
                 <Dockable.Popout<Types> className={styles.popout}>
                     {() => (
@@ -168,9 +162,6 @@ export default function TabContextMenu() {
                             {/* a window shows its own outline during a drag into it */}
                             <Dockable.DropIndicator
                                 className={styles.dropIndicator}
-                                style={(state) => ({
-                                    transitionDuration: `${state.tabDragSpeed}s`,
-                                })}
                             />
                         </>
                     )}

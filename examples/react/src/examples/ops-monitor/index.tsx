@@ -250,12 +250,7 @@ export default function OpsMonitor() {
                         )}
                     </Dockable.Panels>
                     {/* Where a dragged tab would land (a refused target shows none). */}
-                    <Dockable.DropIndicator
-                        className={styles.dropIndicator}
-                        style={(state) => ({
-                            transitionDuration: `${state.tabDragSpeed}s`,
-                        })}
-                    />
+                    <Dockable.DropIndicator className={styles.dropIndicator} />
                 </Dockable.Root>
             </div>
         </div>

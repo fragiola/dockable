@@ -48,7 +48,7 @@ export const documentChart = "h-64 px-0";
 /** Panels are portalled into the root after the indicator: `z-20` paints it above them. */
 export const dropIndicator = (state: DropIndicatorState) =>
     cn(
-        "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height]",
+        "z-20 rounded-(--dk-radius) border-2 [border-style:var(--dk-indicator-style)] border-palette-base transition-[left,top,width,height] duration-(--dk-motion)",
         state.kind === "edge"
             ? "palette-orange bg-palette-base/25"
             : "palette-blue bg-palette-base/20",
