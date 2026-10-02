@@ -2,6 +2,10 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+    exportedNames,
+    specifierNames,
+} from "../../../scripts/exported-names.ts";
+import {
     collectFiles,
     EXAMPLES_DIR,
     type ExampleEntry,
@@ -16,6 +20,31 @@ import { CATEGORIES } from "../src/examples/meta-types.ts";
 // the manifest, imports only what a consumer can copy, the code panel lists exactly the
 // files it is compiled from, and each example assembles Dockable itself (README, "Anatomy of
 // an example"): `_kit/` is shared demo content and app logic only.
+
+/**
+ * The names a source imports (or re-exports) from @fragiola/dockable-react, as the package
+ * exports them (before any `as`). `opaque` when it also reaches the package in a way whose names
+ * cannot be read: a namespace, a default or a dynamic import, a side-effect import.
+ */
+function kitImportsOfReact(source: string): {
+    names: string[];
+    opaque: boolean;
+} {
+    const lists = [
+        ...source.matchAll(
+            /^\s*(?:import|export)\s+(?:type\s+)?\{([^}]*)\}\s*from\s*["']@fragiola\/dockable-react["']/gm,
+        ),
+    ];
+    const uses = importsOf(source).filter(
+        (specifier) => specifier === "@fragiola/dockable-react",
+    );
+    return {
+        names: lists.flatMap(([, list = ""]) =>
+            specifierNames(list, "before-as"),
+        ),
+        opaque: uses.length !== lists.length,
+    };
+}
 
 /** What an example file may import, besides relative files inside examples/. */
 const ALLOWED = [
@@ -283,14 +312,48 @@ describe("the kit", () => {
     });
 
     it("renders no Dockable primitive: the examples assemble the layout", () => {
+        // the React package also re-exports the core, which _kit may use (undo.ts): a kit file
+        // imports from it only names the core exports, never a primitive or a hook
+        const coreNames = new Set(
+            exportedNames(
+                readFileSync(
+                    join(
+                        import.meta.dirname,
+                        "../../../packages/core/src/index.ts",
+                    ),
+                    "utf-8",
+                ),
+            ),
+        );
+        expect(coreNames.size).toBeGreaterThan(0);
         for (const file of KIT_FILES) {
             const source = readFileSync(
                 join(EXAMPLES_DIR, "_kit", file),
                 "utf-8",
             );
-            // the React package also re-exports the core, which _kit may use (undo.ts): the
-            // rule is on the primitives
-            expect(source, `_kit/${file}`).not.toMatch(/\bDockable\./);
+            const imported = kitImportsOfReact(source);
+            expect(imported.opaque, `_kit/${file}`).toBe(false);
+            expect(
+                imported.names.filter((name) => !coreNames.has(name)),
+                `_kit/${file}`,
+            ).toEqual([]);
         }
+    });
+
+    it("finds the React-only names a kit file imports, whatever their alias", () => {
+        const source = [
+            'import { type Model, veto } from "@fragiola/dockable-react";',
+            'import { useDockable as useLayout } from "@fragiola/dockable-react";',
+            'import type { RootProps as Props } from "@fragiola/dockable-react";',
+        ].join("\n");
+        expect(kitImportsOfReact(source)).toEqual({
+            names: ["Model", "veto", "useDockable", "RootProps"],
+            opaque: false,
+        });
+        expect(
+            kitImportsOfReact(
+                'import * as Dock from "@fragiola/dockable-react";',
+            ).opaque,
+        ).toBe(true);
     });
 });
