@@ -214,6 +214,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private static dragState: DragState | undefined = undefined;
     private static readonly dragListeners = new Set<() => void>();
     private static readonly dropZones = new Set<DropZone>();
+    private static removeLostDragGuard: (() => void) | undefined;
     /** the managers of the main layouts attached to the page, by model (latest last) */
     private static readonly attachedMains = new WeakMap<
         object,
@@ -227,7 +228,6 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
     private target: DropCommand | "self" | undefined;
     private indicator: DropIndicatorState;
     private readonly listeners = new Set<() => void>();
-    private removeLostDragGuard: (() => void) | undefined;
     /** the model's answers during the current drag, by candidate (the state does not change mid-drag) */
     private verdicts = new Map<string, boolean>();
     private verdictsFor: DragState | undefined;
@@ -285,11 +285,14 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             .onDragEnded();
     }
 
-    private static setDragState(state: DragState | undefined) {
+    private static setDragState(state: DragState | undefined, doc?: Document) {
         if (DragDropManager.dragState === state) {
             return;
         }
         DragDropManager.dragState = state;
+        DragDropManager.removeLostDragGuard?.();
+        DragDropManager.removeLostDragGuard =
+            state && doc ? lostDragGuard(doc) : undefined;
         if (state === undefined) {
             for (const zone of DragDropManager.dropZones) {
                 DragDropManager.setZoneOver(zone, false);
@@ -395,6 +398,7 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                 subject,
                 onNewTabDropped,
             ),
+            this.engine.get("owner-document"),
         );
         const dataTransfer = event.dataTransfer;
         if (dataTransfer) {
@@ -407,7 +411,6 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
             dataTransfer.dropEffect = copy ? "copy" : "move";
         }
         this.dragEnterCount = 0;
-        this.installLostDragGuard();
     }
 
     /**
@@ -491,51 +494,15 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                 { kind: "new", tab: external.tab as TabInitOf<AnyTypes> },
                 external.onDrop,
             ),
+            this.engine.get("owner-document"),
         );
-        this.installLostDragGuard();
     }
 
     /** Ends the drag. Called on `dragend` from the drag source, or by the lost drag fallback. */
     onDragEnded = () => {
         this.clearDragMain();
-        this.removeLostDragGuard?.();
         DragDropManager.setDragState(undefined);
     };
-
-    /**
-     * Lost drag fallback: `dragend` is dispatched on the drag source, so it never arrives when the
-     * source unmounts mid-drag. A pointer move with no button held, or a new press, ends a drag
-     * that is still registered.
-     */
-    private installLostDragGuard() {
-        this.removeLostDragGuard?.();
-        const doc = this.engine.get("owner-document");
-        if (!doc) {
-            return;
-        }
-        const state = DragDropManager.dragState;
-        const end = () => {
-            remove();
-            if (DragDropManager.dragState === state) {
-                this.onDragEnded();
-            }
-        };
-        const onPointerMove = (event: PointerEvent) => {
-            if (event.buttons === 0) {
-                end();
-            }
-        };
-        const remove = () => {
-            doc.removeEventListener("pointerdown", end, true);
-            doc.removeEventListener("pointermove", onPointerMove, true);
-            if (this.removeLostDragGuard === remove) {
-                this.removeLostDragGuard = undefined;
-            }
-        };
-        doc.addEventListener("pointerdown", end, true);
-        doc.addEventListener("pointermove", onPointerMove, true);
-        this.removeLostDragGuard = remove;
-    }
 
     /**
      * Attaches the native drag listeners to a layout root, and the document listeners that end the
@@ -1061,7 +1028,6 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
                 this.runDrop(state, target, event);
             }
             this.clearDragMain();
-            this.removeLostDragGuard?.();
             if (
                 !sameModel(
                     state.mainEngine.adapter.model,
@@ -1262,9 +1228,28 @@ export class DragDropManager<T extends DockableTypes = AnyTypes> {
         return this.dragging;
     }
 
-    /** Detaches the lost drag guard. */
+    /** Releases the indicator's listeners. */
     dispose() {
-        this.removeLostDragGuard?.();
         this.listeners.clear();
     }
+}
+
+/**
+ * Lost drag fallback: `dragend` is dispatched on the drag source, so it never arrives when the
+ * source unmounts mid-drag. A pointer move with no button held, or a new press, ends the drag.
+ * Returns the function that removes the guard.
+ */
+function lostDragGuard(doc: Document): () => void {
+    const onPointerDown = () => DragDropManager.endDrag();
+    const onPointerMove = (event: PointerEvent) => {
+        if (event.buttons === 0) {
+            DragDropManager.endDrag();
+        }
+    };
+    doc.addEventListener("pointerdown", onPointerDown, true);
+    doc.addEventListener("pointermove", onPointerMove, true);
+    return () => {
+        doc.removeEventListener("pointerdown", onPointerDown, true);
+        doc.removeEventListener("pointermove", onPointerMove, true);
+    };
 }

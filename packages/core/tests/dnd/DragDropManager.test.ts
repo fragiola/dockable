@@ -557,6 +557,45 @@ describe("lost drag", () => {
         s.panels.t1.dispatchEvent(dragEvent("dragend", 0, 0));
         expect(DragDropManager.getDragState()).toBeUndefined();
     });
+
+    it("removes the guard of a popout drag that drops into the main layout", () => {
+        const s = setup();
+        const { sub, subRoot } = openPopout(s, "t2");
+        const removed = vi.spyOn(subRoot.ownerDocument, "removeEventListener");
+        sub.adapter
+            .getDragDropManager()
+            .startDrag(dragEvent("dragstart", 10, 10), "t2");
+        s.root.dispatchEvent(dragEvent("dragenter", 312, 185));
+        s.root.dispatchEvent(dragEvent("dragover", 312, 185));
+        s.root.dispatchEvent(dragEvent("drop", 312, 185));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(removed).toHaveBeenCalledWith(
+            "pointermove",
+            expect.any(Function),
+            true,
+        );
+    });
+
+    it("removes the guard of a drag dropped on a drop zone", () => {
+        const s = setup();
+        const element = document.body.appendChild(
+            document.createElement("div"),
+        );
+        const unregister = s.engine.adapter.registerDropZone(element, {
+            onDrop: vi.fn(),
+        });
+        const removed = vi.spyOn(document, "removeEventListener");
+        s.manager.startDrag(dragEvent("dragstart", 40, 35), "t0");
+        element.dispatchEvent(dragEvent("dragenter", 0, 0));
+        element.dispatchEvent(dragEvent("drop", 0, 0));
+        expect(DragDropManager.getDragState()).toBeUndefined();
+        expect(removed).toHaveBeenCalledWith(
+            "pointermove",
+            expect.any(Function),
+            true,
+        );
+        unregister();
+    });
 });
 
 describe("add drags (a consumer element dragged in)", () => {
