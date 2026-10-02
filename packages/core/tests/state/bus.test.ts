@@ -501,6 +501,67 @@ describe("batch", () => {
         });
     });
 
+    it("places a dispatched batch's step errors under /payload", () => {
+        const model = model2();
+        model.use((ctx, next) =>
+            ctx.inBatch && ctx.command === "tab.close"
+                ? {
+                      ok: false,
+                      error: { code: "refused", message: "no", path: "/tabId" },
+                  }
+                : next(),
+        );
+        const errorOf = (commands: unknown[], transient?: boolean) => {
+            const result = model.dispatch({
+                command: "batch",
+                payload: { commands },
+                ...(transient === undefined ? {} : { transient }),
+            });
+            return result.ok ? undefined : result.error;
+        };
+        expect(errorOf([{ command: "x.y", payload: {} }])).toMatchObject({
+            code: "unknown_command",
+            path: "/payload/commands/0/command",
+        });
+        expect(
+            errorOf([{ command: "tab.select", payload: { tabId: 1 } }]),
+        ).toMatchObject({
+            code: "invalid_payload",
+            path: "/payload/commands/0/payload/tabId",
+            issues: [{ path: "/payload/commands/0/payload/tabId" }],
+        });
+        expect(
+            errorOf([{ command: "tab.close", payload: { tabId: "One" } }]),
+        ).toMatchObject({
+            code: "refused",
+            path: "/payload/commands/0/payload/tabId",
+        });
+        expect(
+            errorOf([
+                {
+                    command: "batch",
+                    payload: {
+                        commands: [
+                            { command: "tab.select", payload: { tabId: "x" } },
+                        ],
+                    },
+                },
+            ]),
+        ).toMatchObject({
+            code: "not_found",
+            path: "/payload/commands/0/payload/commands/0/payload/tabId",
+        });
+        expect(
+            errorOf(
+                [{ command: "tab.select", payload: { tabId: "Two" } }],
+                true,
+            ),
+        ).toMatchObject({
+            code: "invalid_payload",
+            path: "/payload/commands/0/command",
+        });
+    });
+
     it("emits one event that lists its commands, flattened", () => {
         const model = model2();
         const events: CommandEvent[] = [];
