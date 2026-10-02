@@ -10,7 +10,8 @@ export function joinPointer(path: string, key: string | number): string {
     return `${path}/${pointerSegment(key)}`;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
+/** A JSON object: not an array, not null. */
+export function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 

@@ -1,8 +1,6 @@
-import { dataSchema, describedId, idSchema, object } from "../schema/fragments";
+import { dataSchema, describedId, object } from "../schema/fragments";
 import { cloneJson } from "../state/clone";
 import { defineCommand, fail, ok } from "./define";
-
-const rowIdSchema = { ...idSchema, description: "the row's id" } as const;
 
 const rowIdResult = object({ rowId: describedId("row") }, ["rowId"]);
 
@@ -12,7 +10,7 @@ export const rowResize = defineCommand({
         "Set the relative weights of a row's children, one positive number per child in order (the splitters issue this while dragged).",
     payloadSchema: object(
         {
-            rowId: rowIdSchema,
+            rowId: describedId("row"),
             weights: {
                 type: "array",
                 items: { type: "number", exclusiveMinimum: 0 },
@@ -48,7 +46,9 @@ export const rowResize = defineCommand({
 export const rowConfigure = defineCommand({
     name: "row.configure",
     description: "Set (or, with null, remove) a row's data.",
-    payloadSchema: object({ rowId: rowIdSchema, data: dataSchema }, ["rowId"]),
+    payloadSchema: object({ rowId: describedId("row"), data: dataSchema }, [
+        "rowId",
+    ]),
     resultSchema: rowIdResult,
     transient: false,
     reduce(payload, { draft }) {

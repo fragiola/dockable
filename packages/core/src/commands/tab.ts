@@ -1,5 +1,4 @@
 import type { DockLocation } from "../geometry/dock";
-import type { Rect } from "../geometry/rect";
 import {
     booleanSchema,
     dataSchema,
@@ -14,10 +13,11 @@ import {
     tabDefaultProperties,
     tabFieldProperties,
 } from "../schema/fragments";
+import { isObject } from "../schema/validator";
 import { cloneJson } from "../state/clone";
 import { resolveTab } from "../state/defaults";
 import { type Draft, newRow, newTabset } from "../state/draft";
-import { tabNode } from "../state/load";
+import { defaultWindowRect, tabNode } from "../state/load";
 import {
     adjustSelectedIndex,
     pinnedRunLength,
@@ -30,8 +30,6 @@ import { MAIN_LAYOUT } from "../state/types";
 import { defineCommand, type Failure, fail, ok } from "./define";
 import { dropOnBorder, dropOnRow, dropOnTabset } from "./dock";
 import { checkDrop, type DropTarget, resolveTarget } from "./rules";
-
-const tabIdSchema = { ...idSchema, description: "the tab's id" } as const;
 
 const tabIdResult = object({ tabId: describedId("tab") }, ["tabId"]);
 
@@ -61,11 +59,6 @@ function attachedTab(draft: Draft, id: string): AnyTab | Failure {
         return fail("not_found", `no tab "${id}"`, "/tabId");
     }
     return tab;
-}
-
-/** The rect of the n-th new window when none is given. */
-export function defaultWindowRect(n: number): Rect {
-    return { x: 50 + 50 * n, y: 50 + 50 * n, width: 600, height: 400 };
 }
 
 export const tabAdd = defineCommand({
@@ -138,7 +131,7 @@ export const tabSelect = defineCommand({
     name: "tab.select",
     description:
         "Select a tab, making it visible. In a tabset the tabset also becomes the active one; in a border the border's panel opens. Selecting the selected tab changes nothing.",
-    payloadSchema: object({ tabId: tabIdSchema }, ["tabId"]),
+    payloadSchema: object({ tabId: describedId("tab") }, ["tabId"]),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
@@ -168,7 +161,7 @@ export const tabClose = defineCommand({
     name: "tab.close",
     description:
         "Close a tab and remove it from the layout. Refused for a pinned tab or one whose enableClose is false.",
-    payloadSchema: object({ tabId: tabIdSchema }, ["tabId"]),
+    payloadSchema: object({ tabId: describedId("tab") }, ["tabId"]),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
@@ -204,10 +197,10 @@ export const tabMove = defineCommand({
     name: "tab.move",
     description:
         "Move a tab to another place: into a tabset or border at an index (location center), beside a tabset (an edge location splits it), or to an edge of a layout (`to` a root row or a layout id, with an edge location). Refused where the tab or the target does not allow it.",
-    payloadSchema: object({ tabId: tabIdSchema, ...placementProperties }, [
-        "tabId",
-        "to",
-    ]),
+    payloadSchema: object(
+        { tabId: describedId("tab"), ...placementProperties },
+        ["tabId", "to"],
+    ),
     resultSchema: tabIdResult,
     transient: false,
     reduce(payload, { draft }) {
@@ -251,7 +244,7 @@ export const tabSetData = defineCommand({
         "Change some of a tab's data: `data` is a shallow patch, whose top-level keys replace the tab's while the others stay (none is removed). The merged data is validated when the app registered a schema for the tab's component. To switch the component, use `tab.set-component`.",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             data: {
                 type: "object",
                 description:
@@ -268,7 +261,7 @@ export const tabSetData = defineCommand({
             return tab;
         }
         const current = tab.data ?? {};
-        if (!isPlainObject(current)) {
+        if (!isObject(current)) {
             return fail(
                 "invalid_payload",
                 `the data of tab "${tab.id}" is not an object: replace it with tab.set-component`,
@@ -293,7 +286,7 @@ export const tabSetComponent = defineCommand({
         "Switch a tab to another component (or reset it to its own): `data` is the component's whole new value, validated when the app registered a schema for that component. The tab keeps its id, label and place.",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             component: {
                 type: "string",
                 minLength: 1,
@@ -321,18 +314,13 @@ export const tabSetComponent = defineCommand({
     },
 });
 
-/** A plain JSON object (not an array, not null). */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 export const tabPin = defineCommand({
     name: "tab.pin",
     description:
         "Pin (value true) or unpin a tab of a tabset. Pinned tabs sit at the start of the strip, cannot be closed and cannot be dragged out of their tabset.",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             value: { ...booleanSchema, description: "true pins, false unpins" },
         },
         ["tabId", "value"],
@@ -382,7 +370,7 @@ export const tabPopout = defineCommand({
         "Open a tab in a new browser window (a window layout). `rect` is the window's screen rect; a default is used without one. Refused when the tab does not allow popouts, is pinned or is already in a window.",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             rect: {
                 ...rectSchema,
                 description:
@@ -437,7 +425,7 @@ export const tabConfigure = defineCommand({
         "Change a tab's label, behaviour flags and size limits. Absent keys are left as they are. A null flag or limit removes the tab's own value so the layout default applies; the label cannot be removed (a tab always has one).",
     payloadSchema: object(
         {
-            tabId: tabIdSchema,
+            tabId: describedId("tab"),
             label: { ...labelSchema, description: "the tab's new name" },
             ...nullableEach({
                 ...tabDefaultProperties,

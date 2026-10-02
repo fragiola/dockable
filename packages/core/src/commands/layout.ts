@@ -12,8 +12,8 @@ import { layoutDefs, layoutDocumentSchema } from "../schema/layout";
 import type { JsonSchema } from "../schema/types";
 import { validate } from "../schema/validator";
 import type { Draft } from "../state/draft";
-import { type AnyNode, childrenOf, walkState } from "../state/tree";
-import type { LayoutDefaults } from "../state/types";
+import { walk, walkState } from "../state/tree";
+import { type LayoutDefaults, MAIN_LAYOUT } from "../state/types";
 import { defineCommand, type Failure, invalid, ok } from "./define";
 
 /** Each kind's defaults, nullable: null removes a field (or a kind), so the built-in value applies. */
@@ -44,28 +44,17 @@ export const layoutConfigure = defineCommand({
     resultSchema: object({}),
     transient: false,
     reduce(payload, { draft }) {
-        const next: Record<string, Record<string, unknown>> = {};
-        const current = draft.getDefaults() as Record<
-            string,
-            Record<string, unknown> | undefined
-        >;
-        for (const kind of KINDS) {
-            const existing = current[kind];
-            if (existing) {
-                next[kind] = { ...existing };
-            }
-        }
+        const next: { [kind: string]: object | undefined } = {
+            ...draft.getDefaults(),
+        };
         for (const kind of KINDS) {
             const patch = payload.defaults[kind];
             if (patch === undefined) {
                 continue;
             }
-            if (patch === null) {
-                delete next[kind];
-                continue;
-            }
-            const merged: Record<string, unknown> = { ...next[kind] };
-            for (const [key, value] of Object.entries(patch)) {
+            const merged: Record<string, unknown> =
+                patch === null ? {} : { ...next[kind] };
+            for (const [key, value] of Object.entries(patch ?? {})) {
                 if (value === null) {
                     delete merged[key];
                 } else if (value !== undefined) {
@@ -87,18 +76,13 @@ export const layoutConfigure = defineCommand({
 function currentIds(draft: Draft): Set<string> {
     const ids = new Set<string>();
     const visit = (id: string | undefined) => {
-        const node: AnyNode | undefined =
-            id === undefined ? undefined : draft.get(id);
-        if (!node) {
-            return;
-        }
-        ids.add(node.id);
-        for (const child of childrenOf(node)) {
-            visit(child.id);
+        const node = id === undefined ? undefined : draft.get(id);
+        if (node) {
+            walk(node, (visited) => ids.add(visited.id));
         }
     };
     for (const layout of draft.layoutIds()) {
-        if (layout !== "main") {
+        if (layout !== MAIN_LAYOUT) {
             ids.add(layout);
         }
         visit(draft.rootOf(layout));

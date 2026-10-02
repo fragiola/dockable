@@ -15,7 +15,7 @@ import type {
     RunOptions,
 } from "../commands/types";
 import type { JsonSchema } from "../schema/types";
-import { validate } from "../schema/validator";
+import { isObject, validate } from "../schema/validator";
 import { Draft } from "./draft";
 import { type CreateId, IdSource } from "./ids";
 import type { LayoutJson } from "./json";
@@ -145,10 +145,6 @@ function prefixed(
                 : {}),
         },
     };
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Where a command's errors point: into its payload, at its name and at its transient flag. */

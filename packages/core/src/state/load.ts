@@ -1,4 +1,4 @@
-import { snap } from "../geometry/rect";
+import { type Rect, snap } from "../geometry/rect";
 import {
     borderFieldProperties,
     tabFieldProperties,
@@ -27,6 +27,11 @@ import {
     type LayoutState,
     MAIN_LAYOUT,
 } from "./types";
+
+/** The rect of the n-th window when it has none. */
+export function defaultWindowRect(n: number): Rect {
+    return { x: 50 + 50 * n, y: 50 + 50 * n, width: 600, height: 400 };
+}
 
 /** Thrown by `createModel` for an invalid layout document: every problem, each with a JSON path. */
 export class LayoutValidationError extends Error {
@@ -310,14 +315,7 @@ export function buildState(
         const at = joinPointer(joinPointer(path, "windows"), i);
         return {
             id: windowLayout.id ?? newId("window"),
-            rect: snap(
-                windowLayout.rect ?? {
-                    x: 50 + 50 * i,
-                    y: 50 + 50 * i,
-                    width: 600,
-                    height: 400,
-                },
-            ),
+            rect: snap(windowLayout.rect ?? defaultWindowRect(i)),
             root: buildRow(windowLayout.root, joinPointer(at, "root")),
             ...(windowLayout.active !== undefined
                 ? { active: windowLayout.active }
@@ -347,18 +345,7 @@ export function buildState(
         if (id === undefined) {
             return;
         }
-        let top = id;
-        for (
-            let parent = index.parent(top);
-            parent !== undefined;
-            parent = index.parent(top)
-        ) {
-            top = parent;
-        }
-        if (
-            index.get(id)?.type !== "tabset" ||
-            index.layoutOfRoot(top) !== layout
-        ) {
+        if (index.get(id)?.type !== "tabset" || index.layoutOf(id) !== layout) {
             issues.push({
                 path: at,
                 message: `"${id}" is not a tabset of this layout`,
@@ -409,8 +396,13 @@ export function validateLayout<J = LayoutJson>(
         : { ok: false, issues: result.issues };
 }
 
-/** A state as a layout document (a writable copy). */
-export function stateToJson(state: AnyState): LayoutJson {
+/**
+ * A state as a layout document (a writable copy), like `model.get("layout-json")` for the current state:
+ * for a state kept from before (`event.before`, an undo step), to load it back with `layout.load`.
+ */
+export function toLayoutJson<T extends DockableTypes>(
+    state: LayoutState<T>,
+): LayoutJson<T> {
     // the state is JSON-shaped already: a copy, with the version, and without the empty parts
     const json: Record<string, unknown> = { version: 1 };
     if (Object.keys(state.defaults).length > 0) {
@@ -429,17 +421,5 @@ export function stateToJson(state: AnyState): LayoutJson {
     if (state.windows.length > 0) {
         json.windows = cloneJson(state.windows);
     }
-    return json as unknown as LayoutJson;
-}
-
-/**
- * A state as a layout document (a writable copy), like `model.get("layout-json")` for the current state:
- * for a state kept from before (`event.before`, an undo step), to load it back with `layout.load`.
- */
-export function toLayoutJson<T extends DockableTypes>(
-    state: LayoutState<T>,
-): LayoutJson<T> {
-    return stateToJson(
-        state as unknown as AnyState,
-    ) as unknown as LayoutJson<T>;
+    return json as unknown as LayoutJson<T>;
 }

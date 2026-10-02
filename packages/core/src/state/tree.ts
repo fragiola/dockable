@@ -91,6 +91,24 @@ export class NodeIndex {
         return this.entries.get(id)?.parent;
     }
 
+    /** the layout a node is in: its root row's, or the main layout for a border's */
+    layoutOf(id: string): string | undefined {
+        if (!this.entries.has(id)) {
+            return undefined;
+        }
+        let top = id;
+        for (
+            let parent = this.parent(top);
+            parent !== undefined;
+            parent = this.parent(top)
+        ) {
+            top = parent;
+        }
+        return this.get(top)?.type === "border"
+            ? MAIN_LAYOUT
+            : this.roots.get(top);
+    }
+
     /** the layout of the root row `id`, if it is one */
     layoutOfRoot(id: string): string | undefined {
         return this.roots.get(id);

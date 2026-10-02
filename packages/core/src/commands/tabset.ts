@@ -13,6 +13,7 @@ import {
 import { cloneJson } from "../state/clone";
 import { resolveTab, resolveTabset } from "../state/defaults";
 import { type Draft, newRow } from "../state/draft";
+import { defaultWindowRect } from "../state/load";
 import { adjustSelectedIndex } from "../state/selection";
 import { tidy } from "../state/tidy";
 import type { AnyTabset } from "../state/tree";
@@ -20,9 +21,7 @@ import { MAIN_LAYOUT } from "../state/types";
 import { defineCommand, type Failure, fail, ok } from "./define";
 import { dropOnRow } from "./dock";
 import { checkDrop, resolveTarget } from "./rules";
-import { defaultWindowRect, place } from "./tab";
-
-const tabsetIdSchema = { ...idSchema, description: "the tabset's id" } as const;
+import { place } from "./tab";
 
 const tabsetIdResult = object({ tabsetId: describedId("tabset") }, [
     "tabsetId",
@@ -40,7 +39,7 @@ function attachedTabset(draft: Draft, id: string): AnyTabset | Failure {
 export const tabsetActivate = defineCommand({
     name: "tabset.activate",
     description: "Make a tabset the active one of its layout.",
-    payloadSchema: object({ tabsetId: tabsetIdSchema }, ["tabsetId"]),
+    payloadSchema: object({ tabsetId: describedId("tabset") }, ["tabsetId"]),
     resultSchema: tabsetIdResult,
     transient: false,
     reduce(payload, { draft }) {
@@ -62,7 +61,7 @@ export const tabsetMaximize = defineCommand({
         "Maximize a tabset so it fills its layout (value true), or restore it (value false). Maximizing also makes it active. Refused when the tabset does not allow it or is the only tabset of its layout.",
     payloadSchema: object(
         {
-            tabsetId: tabsetIdSchema,
+            tabsetId: describedId("tabset"),
             value: {
                 ...booleanSchema,
                 description: "true maximizes, false restores",
@@ -117,7 +116,7 @@ export const tabsetClose = defineCommand({
     name: "tabset.close",
     description:
         "Close a tabset: its closable tabs close, and the tabset is removed once empty. Refused when the tabset's enableClose is false.",
-    payloadSchema: object({ tabsetId: tabsetIdSchema }, ["tabsetId"]),
+    payloadSchema: object({ tabsetId: describedId("tabset") }, ["tabsetId"]),
     resultSchema: object(
         {
             closedTabIds: {
@@ -167,7 +166,7 @@ export const tabsetMove = defineCommand({
         "Move a whole tabset: merge its tabs into another tabset (location center), place it beside a tabset (an edge), or dock it to an edge of a layout.",
     payloadSchema: object(
         {
-            tabsetId: tabsetIdSchema,
+            tabsetId: describedId("tabset"),
             to: {
                 ...idSchema,
                 description: "a tabset, a row, or a layout id (its root row)",
@@ -236,7 +235,7 @@ export const tabsetPopout = defineCommand({
         "Open a whole tabset in a new browser window. Refused when any of its tabs does not allow popouts, when it is empty, or when it is already in a window.",
     payloadSchema: object(
         {
-            tabsetId: tabsetIdSchema,
+            tabsetId: describedId("tabset"),
             rect: {
                 ...rectSchema,
                 description:
@@ -301,7 +300,7 @@ export const tabsetConfigure = defineCommand({
         "Change a tabset's behaviour flags, size limits or data. A null value removes the tabset's own value so the layout default applies (data: null removes the data).",
     payloadSchema: object(
         {
-            tabsetId: tabsetIdSchema,
+            tabsetId: describedId("tabset"),
             ...nullableEach(tabsetDefaultProperties),
             data: dataSchema,
         },
