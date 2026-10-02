@@ -431,7 +431,12 @@ export function useSplitter<T extends DockableTypes>(
         },
         [controller],
     );
-    const aria = controller.getAria();
+    // a snapshot: a measure after the commit that moved the splitter re-renders it before paint
+    const aria = React.useSyncExternalStore(
+        controller.subscribe,
+        controller.getAria,
+        controller.getAria,
+    );
     const hidden = controller.isHidden();
     const style: React.CSSProperties = {};
     if (node.type === "border") {

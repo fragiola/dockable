@@ -68,8 +68,30 @@ const multi: FixtureLayout = {
     },
 };
 
+/** weights that would put the splitter at 10%, held at 300px by the first tabset's min width */
+const min_width: FixtureLayout = {
+    version: 1,
+    root: {
+        type: "row",
+        children: [
+            {
+                type: "tabset",
+                weight: 10,
+                minWidth: 300,
+                children: [{ component: "testing", label: "One" }],
+            },
+            {
+                type: "tabset",
+                weight: 90,
+                children: [{ component: "testing", label: "Two" }],
+            },
+        ],
+    },
+};
+
 export const layouts: Record<string, FixtureLayout> = {
     multi,
+    min_width,
     test_two_tabs: testTwoTabs as FixtureLayout,
     test_three_tabs: testThreeTabs as FixtureLayout,
     big,

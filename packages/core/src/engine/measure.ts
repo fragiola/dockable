@@ -97,6 +97,7 @@ export class Measure<T extends DockableTypes> {
     readonly rects = new Map<string, Rect>();
     readonly tabPanels = new Map<string, HTMLElement>();
     private readonly splitters = new Map<HTMLElement, () => boolean>();
+    private readonly geometryListeners = new Set<() => void>();
     private geometryResizeObserver: ResizeObserver | undefined;
     private healFrame: number | undefined;
 
@@ -190,6 +191,13 @@ export class Measure<T extends DockableTypes> {
                 this.shared.splitters.delete(element);
                 this.watch(element, undefined);
             }
+        };
+    }
+
+    subscribeGeometry(listener: () => void): () => void {
+        this.geometryListeners.add(listener);
+        return () => {
+            this.geometryListeners.delete(listener);
         };
     }
 
@@ -302,6 +310,11 @@ export class Measure<T extends DockableTypes> {
         if (splitterSizeChanged || this.reLayout) {
             this.reLayout = false;
             this.host.redraw();
+        }
+        if (changed) {
+            for (const listener of [...this.geometryListeners]) {
+                listener();
+            }
         }
         return changed;
     }

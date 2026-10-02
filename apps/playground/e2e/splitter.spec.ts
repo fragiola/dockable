@@ -80,6 +80,20 @@ test.describe("splitter", () => {
         ).toBeLessThan(valueBefore);
     });
 
+    test("announces where a min width holds the splitter, not the weights", async ({
+        page,
+    }) => {
+        await open(page, "min_width");
+        const row = await waitForBox(findPath(page, "/row"), "/row");
+        const first = await waitForBox(findPath(page, "/ts0"), "/ts0");
+        expect(first.width).toBeCloseTo(300, 0);
+        const position = ((first.x + first.width - row.x) / row.width) * 100;
+        await expect(findPath(page, "/s0")).toHaveAttribute(
+            "aria-valuenow",
+            String(Math.round(position * 10) / 10),
+        );
+    });
+
     test("realtime row drag keeps weights finite", async ({ page }) => {
         await open(page, "big");
         const sr = await waitForBox(findPath(page, "/s0"), "/s0");

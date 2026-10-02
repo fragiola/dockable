@@ -27,11 +27,11 @@ import type { AnyTypes, DockableTypes } from "../state/types";
 export interface SplitterAria {
     /** the separator's orientation: `"vertical"` for a splitter between side by side children */
     orientation: "horizontal" | "vertical";
-    /** row splitters: 0-100 position within the row; border splitters: the border size in px */
+    /** row splitters: 0-100 position within the row, to a tenth; border splitters: the border size in px */
     valueNow: number | undefined;
     valueMin: number | undefined;
     valueMax: number | undefined;
-    /** the formatted value (`"40%"` or `"200px"`), announced in preference to the raw number */
+    /** the formatted value (`"40.5%"` or `"200px"`), announced in preference to the raw number */
     valueText: string | undefined;
 }
 
@@ -153,6 +153,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     private element: HTMLElement | null = null;
     private stopDrag: (() => void) | undefined;
     private unregister: (() => void) | undefined;
+    private aria: SplitterAria | undefined;
     private draggingTimer: number | undefined;
     private drag: Drag | undefined;
     private horizontal = false;
@@ -219,10 +220,17 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
                 passive: false,
             });
             if (this.target()?.type !== "border") {
-                this.unregister = this.engine.adapter.registerSplitter(
+                const unregister = this.engine.adapter.registerSplitter(
                     element,
                     this.isHorizontal,
                 );
+                const unsubscribe = this.engine.adapter.subscribeGeometry(
+                    this.onGeometry,
+                );
+                this.unregister = () => {
+                    unregister();
+                    unsubscribe();
+                };
             }
         }
     }
@@ -230,7 +238,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
     /** The current drag state. The same object is returned until it changes. */
     getState = (): SplitterState => this.state;
 
-    /** Calls `listener` when the state changes. Returns the unsubscribe function. */
+    /** Calls `listener` when the state or the ARIA values change. Returns the unsubscribe function. */
     subscribe = (listener: () => void): (() => void) => {
         this.listeners.add(listener);
         return () => {
@@ -296,8 +304,27 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         };
     }
 
-    /** The ARIA values, read from the model: a row's weights, or a border's size. */
-    getAria(): SplitterAria {
+    /**
+     * The ARIA values: a row splitter's position in the measured row, a border splitter's size. The
+     * same object is returned until they change; `subscribe` hears when a measure changes them.
+     */
+    getAria = (): SplitterAria => {
+        const next = this.measureAria();
+        const previous = this.aria;
+        if (
+            previous &&
+            previous.orientation === next.orientation &&
+            previous.valueNow === next.valueNow &&
+            previous.valueMin === next.valueMin &&
+            previous.valueMax === next.valueMax
+        ) {
+            return previous;
+        }
+        this.aria = next;
+        return next;
+    };
+
+    private measureAria(): SplitterAria {
         const horizontal = this.isHorizontal();
         const aria: SplitterAria = {
             orientation: horizontal ? "vertical" : "horizontal",
@@ -318,13 +345,20 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             aria.valueText = `${aria.valueNow}px`;
             return aria;
         }
-        const weights = target?.children.map((child) => child.weight) ?? [];
-        const total = weights.reduce((sum, weight) => sum + weight, 0);
-        if (total > 0 && this.index > 0 && this.index < weights.length) {
-            const before = weights
-                .slice(0, this.index)
-                .reduce((sum, weight) => sum + weight, 0);
-            aria.valueNow = Math.round((before / total) * 100);
+        const rowRect = target && this.engine.adapter.rect("row", target.id);
+        const prev = target?.children[this.index - 1];
+        const prevRect = prev && this.rect(prev);
+        const extent = rowRect
+            ? horizontal
+                ? rowRect.width
+                : rowRect.height
+            : 0;
+        if (rowRect && prevRect && extent > 0) {
+            const position = horizontal
+                ? prevRect.x + prevRect.width - rowRect.x
+                : prevRect.y + prevRect.height - rowRect.y;
+            // to a tenth of a percent: one 10px key step changes it on rows up to 10000px
+            aria.valueNow = Math.round((position / extent) * 1000) / 10;
             aria.valueMin = 0;
             aria.valueMax = 100;
             aria.valueText = `${aria.valueNow}%`;
@@ -601,6 +635,20 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
         }, DRAGGING_HOLD_MS);
     }
 
+    /** a measure moved rects: the position this splitter announces may have changed */
+    private readonly onGeometry = () => {
+        const previous = this.aria;
+        if (this.getAria() !== previous) {
+            this.notify();
+        }
+    };
+
+    private notify() {
+        for (const listener of [...this.listeners]) {
+            listener();
+        }
+    }
+
     private setState(state: SplitterState) {
         if (
             state.dragging === this.state.dragging &&
@@ -609,9 +657,7 @@ export class SplitterController<T extends DockableTypes = AnyTypes> {
             return;
         }
         this.state = state;
-        for (const listener of [...this.listeners]) {
-            listener();
-        }
+        this.notify();
     }
 }
 

@@ -9,7 +9,12 @@ import {
     type SplitterController,
 } from "../../src";
 import { splitterBounds } from "../../src/split/split";
-import { freshModel, mountTwoTabsets, Rects } from "../engine/fixture";
+import {
+    freshModel,
+    mountTwoTabsets,
+    Rects,
+    twoTabsets,
+} from "../engine/fixture";
 
 let engine: LayoutEngine | undefined;
 let controller: SplitterController | undefined;
@@ -375,27 +380,65 @@ describe("SplitterController ARIA", () => {
         const { controller } = setup();
         expect(controller.getAria()).toEqual({
             orientation: "vertical",
-            valueNow: 50,
+            valueNow: 49,
             valueMin: 0,
             valueMax: 100,
+            valueText: "49%",
+        });
+    });
+
+    it("reports a row splitter's new value after the measure that follows one arrow key", () => {
+        const { rects, engine, controller, ts0, ts1, splitter } = setup();
+        const listener = vi.fn();
+        controller.subscribe(listener);
+        key(controller, "ArrowRight");
+        rects.set(ts0, 10, 20, 206, 300);
+        rects.set(splitter, 216, 20, 8, 300);
+        rects.set(ts1, 224, 20, 186, 300);
+        engine.run("measure-and-position");
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(controller.getAria()).toMatchObject({
+            valueNow: 51.5,
+            valueText: "51.5%",
+        });
+        // a measure that moves nothing it reads leaves it alone
+        engine.run("measure-and-position");
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports where a min size puts the splitter, not the weights", () => {
+        const json = structuredClone(twoTabsets);
+        const [first, second] = json.root.children ?? [];
+        if (first?.type !== "tabset" || second?.type !== "tabset") {
+            throw new Error("two tabsets expected");
+        }
+        first.weight = 10;
+        first.minWidth = 150;
+        second.weight = 90;
+        const rects = new Rects();
+        engine = createLayoutEngine({
+            model: freshModel(json),
+            measure: rects.measure,
+        });
+        const dom = mountTwoTabsets(engine, rects);
+        // the browser honours the min width: 150px of the 400px row
+        rects.set(dom.ts0, 10, 20, 150, 300);
+        rects.set(dom.splitter, 160, 20, 8, 300);
+        rects.set(dom.ts1, 168, 20, 242, 300);
+        engine.run("measure-and-position");
+        controller = createSplitterController(engine, "row", 1);
+        controller.attach(dom.splitter);
+        expect(controller.getAria().valueNow).toBe(37.5);
+    });
+
+    it("rounds to whole percents when the position is one", () => {
+        const { rects, engine, controller, ts0 } = setup();
+        rects.set(ts0, 10, 20, 200, 300);
+        engine.run("measure-and-position");
+        expect(controller.getAria()).toMatchObject({
+            valueNow: 50,
             valueText: "50%",
         });
-    });
-
-    it("reports a row splitter's new value right after one arrow key, before any re-measure", () => {
-        const { controller } = setup();
-        key(controller, "ArrowRight");
-        // 206px of 392: the weights the key committed, not the rects measured before it
-        expect(controller.getAria()).toMatchObject({
-            valueNow: 53,
-            valueText: "53%",
-        });
-    });
-
-    it("reports a row splitter's value without any measured geometry", () => {
-        engine = createLayoutEngine({ model: freshModel() });
-        controller = createSplitterController(engine, "row", 1);
-        expect(controller.getAria().valueNow).toBe(50);
     });
 
     it("reports a border splitter in px with min and max", () => {

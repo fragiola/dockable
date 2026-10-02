@@ -47,8 +47,8 @@ core's `SplitterState` (the `SplitterController` state):
 | `data-dragging` | being dragged with the pointer |
 | `role` | `"separator"` |
 | `aria-orientation` | same as `data-orientation` |
-| `aria-valuenow` / `aria-valuemin` / `aria-valuemax` | row splitters: the 0–100 position within the row (the share of its weight before the splitter); border splitters: the border's size, `minSize` and `maxSize` in px |
-| `aria-valuetext` | the formatted value, e.g. `"40%"` or `"200px"` |
+| `aria-valuenow` / `aria-valuemin` / `aria-valuemax` | row splitters: the 0–100 position within the row, as measured, to a tenth; border splitters: the border's size, `minSize` and `maxSize` in px |
+| `aria-valuetext` | the formatted value, e.g. `"40%"`, `"40.5%"` or `"200px"` |
 | `aria-label` | none of its own: pass yours (see [Accessible names](/docs/getting-started/accessible-names)) |
 | `tabIndex` | `0` |
 

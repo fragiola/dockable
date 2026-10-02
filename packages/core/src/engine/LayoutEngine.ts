@@ -358,6 +358,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 this.measure.registerTabPanel(tabId, element),
             registerSplitter: (element, isHorizontal) =>
                 this.measure.registerSplitter(element, isHorizontal),
+            subscribeGeometry: (listener) =>
+                this.measure.subscribeGeometry(listener),
             getRegistrations: () => this.measure.getRegistrations(),
             rect: (kind, id) => this.measure.rect(kind, id),
             rectInLayout: (element) => this.measure.rectInLayout(element),
