@@ -81,11 +81,11 @@ function CloseButton({ tab }: { tab: TabOf<Types> }) {
     return (
         <button
             type="button"
+            // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
+            tabIndex={-1}
             aria-label={`Close ${tab.label}`}
-            // a press on the button must not start a drag or select the tab first
-            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
-                event.stopPropagation();
+                event.stopPropagation(); // a click on the tab would select it
                 model.run("tab.close", { tabId: tab.id });
             }}
         >

@@ -356,15 +356,12 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
             <span className={styles.tabName}>{tab.label}</span>
             <button
                 type="button"
-                // the keyboard closes with Ctrl+Delete on the tab itself
+                // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                 tabIndex={-1}
                 aria-label={`Close ${tab.label}`}
                 className={styles.closeButton}
-                // keep the press from selecting the tab or starting a drag
-                onPointerDown={(event) => event.stopPropagation()}
-                onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
-                    event.stopPropagation();
+                    event.stopPropagation(); // a click on the tab would select it
                     model.run("tab.close", { tabId: tab.id });
                 }}
             >

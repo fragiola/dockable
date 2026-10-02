@@ -251,17 +251,14 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                             {/* a close button: one more command to watch in the log */}
                             <button
                                 type="button"
+                                // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                                 tabIndex={-1}
-                                draggable={false}
                                 aria-label={`Close ${tab.label}`}
-                                onPointerDown={(event) =>
-                                    event.stopPropagation()
-                                }
+                                className={styles.tabClose}
                                 onClick={(event) => {
-                                    event.stopPropagation();
+                                    event.stopPropagation(); // a click on the tab would select it
                                     model.run("tab.close", { tabId: tab.id });
                                 }}
-                                className={styles.tabClose}
                             >
                                 <X
                                     aria-hidden="true"

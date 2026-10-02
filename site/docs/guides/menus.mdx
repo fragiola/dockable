@@ -98,9 +98,8 @@ app keeps them, translated or not (see [Accessible names](/docs/getting-started/
 ## Menus and drags
 
 A context menu opened on a tab does not interfere with dragging (a drag starts from a primary
-button press and a move). Keep menu triggers from starting a drag of their own: a menu **button**
-inside a tab should stop `pointerdown` propagation, as the close button does in
-[Tabs](/docs/guides/tabs).
+button press and a move). A menu **button** inside a tab is part of the tab: stop its `click` from
+reaching the tab, which would select it, as the close button does in [Tabs](/docs/guides/tabs).
 
 ## Overflow menus
 

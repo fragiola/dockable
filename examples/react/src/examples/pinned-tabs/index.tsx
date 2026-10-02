@@ -238,13 +238,12 @@ function TabLabel({ tab }: { tab: TabOf<Types> }) {
             {model.can("tab.close", { tabId: tab.id }) ? (
                 <button
                     type="button"
-                    // the tab is the tab stop; the close button is reached with the mouse
-                    // (the keyboard closes with Ctrl+Delete on the tab)
+                    // the tab is the tab stop: Ctrl+Delete on it closes it from the keyboard
                     tabIndex={-1}
                     aria-label={`Close ${tab.label}`}
                     className={styles.closeButton}
                     onClick={(event) => {
-                        event.stopPropagation(); // not a click on the tab
+                        event.stopPropagation(); // a click on the tab would select it
                         model.run("tab.close", { tabId: tab.id });
                     }}
                 >
