@@ -48,6 +48,7 @@ const PORTED = [
     "src/dnd/session.ts",
     "src/dnd/dropCommand.ts",
     "src/popout/PopoutManager.ts",
+    "src/popout/styles.ts",
     "src/splitter/SplitterController.ts",
     "src/keyboard/keymap.ts",
     "src/paths.ts",
