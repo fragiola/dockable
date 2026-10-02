@@ -103,8 +103,9 @@ export interface EngineGetMap {
         result: "popout" | "dock" | undefined;
     };
     /**
-     * the computed `direction` of this layout's root, read when it measures: where `start` is on
-     * screen (the left in `"ltr"`, the right in `"rtl"`)
+     * the computed `direction` of this layout's root, read when it attaches, when a `dir` on it or
+     * above it changes, and on `measure-and-position`: where `start` is on screen (the left in
+     * `"ltr"`, the right in `"rtl"`)
      */
     direction: { payload: NoPayload; result: "ltr" | "rtl" };
     /** the measured splitter thickness, in pixels */

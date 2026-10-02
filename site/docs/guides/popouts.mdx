@@ -115,7 +115,8 @@ docked back immediately.
 
 The core copies into the popout document: every `<link rel="stylesheet">`, every `<style>`
 (including later edits), CSSOM rules inserted at runtime (polled), `adoptedStyleSheets`, and the
-page's `lang` and `dir`.
+page's `lang`. The popout's `dir` is its layout's direction (`engine.get("direction")` of the main
+layout), wherever the page sets it, and follows a flip ([Right-to-left layouts](/docs/guides/rtl)).
 
 If your theme keys off `:root[data-theme]`, a class on `<html>` or on `<body>`, turn on
 `popoutMirrorRoot`: it copies the attributes of `<html>` and `<body>` into every popout and keeps

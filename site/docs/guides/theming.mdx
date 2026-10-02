@@ -96,8 +96,8 @@ that menus portalled into `<body>` and popout windows take it too.
 ## Themes and popouts
 
 A popout window is a new document. Dockable copies your **stylesheets** into it (`<link>`,
-`<style>` including later edits, CSSOM rules and adopted stylesheets) and the `lang` and `dir`
-of the page. If your theme keys off `:root[data-theme]` or a class on `<html>` or `<body>`, turn
+`<style>` including later edits, CSSOM rules and adopted stylesheets) and the page's `lang`, and
+gives it the layout's direction (`dir`). If your theme keys off `:root[data-theme]` or a class on `<html>` or `<body>`, turn
 on `popoutMirrorRoot` and the windows follow the page, theme switches included:
 
 ```tsx

@@ -4,7 +4,8 @@ description: The tab strip of a tabset or border calls the child function per ta
 ---
 
 "The tabset's tab strip (`role="tablist"`). Calls the child function per tab. Arrow keys along
-the orientation, Home and End move focus between tabs; Enter or Space selects."
+the orientation (Left and Right swap in [RTL](/docs/guides/rtl), where a horizontal strip runs from
+the right), Home and End move focus between tabs; Enter or Space selects."
 
 ```tsx
 <Dockable.TabList<Types> aria-label={tabset.data?.name ?? "Tabs"} className="flex min-h-8 ps-1">

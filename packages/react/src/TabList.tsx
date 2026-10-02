@@ -54,7 +54,8 @@ export interface TabListProps<T extends DockableTypes = AnyTypes>
 
 /**
  * The tab strip (`role="tablist"`) of a tabset or a border. Calls the child function per tab.
- * Arrow keys along the orientation, Home and End move focus between tabs; Enter or Space selects.
+ * Arrow keys along the orientation (Left and Right swap in RTL, where a horizontal strip runs from
+ * the right), Home and End move focus between tabs; Enter or Space selects.
  */
 export function TabList<T extends DockableTypes = AnyTypes>(
     props: TabListProps<T>,

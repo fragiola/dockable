@@ -14,7 +14,8 @@ right, and every interaction lands where the pointer or the key points.
 
 Nothing in the layout changes: the same JSON, the same primitives, the same commands. The rows and
 the tab strips are CSS flex, so they mirror with the page. The engine reads the computed
-`direction` of its root each time it measures, and works from the start side in RTL:
+`direction` of its root when it attaches (and when a `dir` above it changes), and works from the
+start side in RTL:
 
 ```tsx
 <html lang="ar" dir="rtl">
@@ -24,8 +25,8 @@ the tab strips are CSS flex, so they mirror with the page. The engine reads the 
 ```
 
 `engine.get("direction")` says which one it read, `"ltr"` or `"rtl"` (take the engine from
-[`useDockable`](/docs/api/hooks)). Each layout reads its own root, so a popout window, which
-copies the page's `lang` and `dir`, reads its own document's.
+[`useDockable`](/docs/api/hooks)). A popout window takes the direction of the layout it came from
+(its `<html>` gets that `dir`, wherever the page sets it), and its own engine reads its root there.
 
 ## What follows the direction
 
@@ -48,8 +49,10 @@ The names never change with the direction: a drop on the right of a tabset is st
 
 ## Flipping the direction at runtime
 
-The engine observes the `dir` attribute of every element of its document: changing it on `<html>`
-or on a wrapper repositions the panels by itself, with the tabsets.
+The engine observes the `dir` attribute of its root and of every ancestor of it: changing it on
+`<html>` or on a wrapper repositions the panels by itself, with the tabsets, and the popout windows
+take the new direction too. A `dir` inside the layout's content (an editor's paragraph) is not the
+layout's, and does not re-measure it.
 
 ```tsx
 <div dir={rtl ? "rtl" : "ltr"}>
@@ -58,7 +61,8 @@ or on a wrapper repositions the panels by itself, with the tabsets.
 ```
 
 A direction changed by CSS alone (a class that sets `direction: rtl`, with no `dir` attribute)
-moves the tabsets without the engine noticing: run `engine.run("measure-and-position")` after it.
+moves the tabsets without the engine noticing: run `engine.run("measure-and-position")` after it,
+which reads the direction again.
 
 ## Borders
 
