@@ -10,8 +10,8 @@
 //   middleware veto refuses a drop; there is no `onAllowDrop`;
 // - only drags that carry Dockable's MIME type are claimed (other libraries' drags pass through),
 //   and every `drop` and `dragend` in the document ends the page's drag state, from the capture
-//   phase, so content that stops a drop's propagation cannot leave the layout's hover state behind
-//   (caplin/FlexLayout#527);
+//   phase (a drop the layout still has to run, once its dispatch is over), so content that stops
+//   their propagation cannot leave a drag behind (caplin/FlexLayout#527);
 // - "add" drags (a consumer element dragged in) and external drags (a foreign drag accepted by
 //   `onExternalDrag`) drop through `tab.add`; a native drag that starts in a layout's own content
 //   is the content's, never offered to `onExternalDrag` (caplin/FlexLayout#350, #497);
@@ -266,13 +266,13 @@ export class DragDropManager {
         subject: DragSubject,
         onDrop?: NewTabDropped,
     ) {
+        // a fresh start for every layout of the model, popouts included: a drop a layout never saw
+        // must not leave it "active" (caplin/FlexLayout#527)
+        this.clearDragMain();
         setDragState(
             new DragState(this.engine.adapter.main, source, subject, onDrop),
             this.engine.get("owner-document"),
         );
-        // a fresh start: a drop the layout never saw must not leave it "active" (caplin/FlexLayout#527)
-        this.dragEnterCount = 0;
-        this.active = false;
     }
 
     /** @internal */
@@ -353,6 +353,7 @@ export class DragDropManager {
         // whatever received the drop, the drag is over. In the capture phase, so content that stops
         // the event's propagation (an editor taking a text or file drop) cannot keep it from the
         // layout (caplin/FlexLayout#527)
+        const view = doc.defaultView;
         const onDocumentEnd = () => {
             this.contentDrag = false;
             this.clearDragLocal();
@@ -366,17 +367,43 @@ export class DragDropManager {
             );
             this.contentDrag = !!moveable && element.contains(moveable);
         };
+        // a drag cancelled at its start sends no dragend: forget it once it is seen cancelled, or
+        // else on the next press or pointer move with no button held (a native drag sends none)
+        const onDocumentDragStarted = (event: DragEvent) => {
+            if (event.defaultPrevented) {
+                this.contentDrag = false;
+            }
+        };
+        const onDocumentPointer = (event: PointerEvent) => {
+            if (
+                this.contentDrag &&
+                (event.type === "pointerdown" || event.buttons === 0)
+            ) {
+                this.contentDrag = false;
+            }
+        };
         const onDocumentDrop = (event: DragEvent) => {
             this.contentDrag = false;
             const state = getDragState();
             if (!state || !this.active || !this.belongsToDrag(event)) {
                 // a drop this layout does not run: only its hover state is left to clear
                 this.clearDragLocal();
+                return;
             }
-            // otherwise the drop is still to be run (by the root, or a drop zone): the bubble phase
-            // ends it, else the source's dragend or the lost drag guard
+            // the drop is still to be run, by the root or a drop zone, which end the drag. Content
+            // that stops the drop's propagation keeps it from both, and a drag from outside the page
+            // sends no dragend: a drag still in place once the event is dispatched is over
+            view?.setTimeout(() => {
+                if (getDragState() === state) {
+                    this.clearDragMain();
+                    endDrag();
+                }
+            }, 0);
         };
         doc.addEventListener("dragstart", onDocumentDragStart, true);
+        doc.addEventListener("dragstart", onDocumentDragStarted);
+        doc.addEventListener("pointerdown", onDocumentPointer, true);
+        doc.addEventListener("pointermove", onDocumentPointer, true);
         doc.addEventListener("dragend", onDocumentEnd, true);
         doc.addEventListener("drop", onDocumentDrop, true);
         doc.addEventListener("drop", onDocumentEnd);
@@ -400,6 +427,9 @@ export class DragDropManager {
             element.removeEventListener("dragover", onDragOver);
             element.removeEventListener("drop", onDrop);
             doc.removeEventListener("dragstart", onDocumentDragStart, true);
+            doc.removeEventListener("dragstart", onDocumentDragStarted);
+            doc.removeEventListener("pointerdown", onDocumentPointer, true);
+            doc.removeEventListener("pointermove", onDocumentPointer, true);
             doc.removeEventListener("dragend", onDocumentEnd, true);
             doc.removeEventListener("drop", onDocumentDrop, true);
             doc.removeEventListener("drop", onDocumentEnd);
