@@ -1,0 +1,49 @@
+/* Structural only, plus enough colour to see the parts. No package ships CSS. */
+
+[role="tab"] {
+    padding-inline: 8px;
+}
+
+/* a border's strip has a thickness; side borders stack their tabs */
+[data-location][data-orientation="horizontal"]:not(
+    [data-layout-path$="/content"]
+) {
+    min-height: 30px;
+    background: #eee;
+}
+
+[data-location][data-orientation="vertical"]:not(
+    [data-layout-path$="/content"]
+) {
+    min-width: 30px;
+    background: #eee;
+}
+
+[data-layout-path^="/border/"] [role="tablist"][data-orientation="vertical"] {
+    flex-direction: column;
+}
+
+/* side tabs read along the strip (top to bottom: the start border passes tabDirection="down") */
+[data-layout-path^="/border/"]
+    [role="tablist"][data-orientation="vertical"]
+    [role="tab"] {
+    writing-mode: vertical-rl;
+    padding-block: 6px;
+}
+
+[role="tab"][aria-selected="true"] {
+    font-weight: bold;
+}
+
+[data-layout-path$="/content"][data-overlay] {
+    z-index: 5;
+}
+
+[role="tabpanel"] {
+    background: white;
+}
+
+[data-layout-path^="/edge/"] {
+    z-index: 11;
+    background: rgb(255 0 0 / 0.3);
+}
