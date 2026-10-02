@@ -17,7 +17,12 @@ import {
     type OnExternalDrag,
 } from "../dnd/DragDropManager";
 import type { DragGroup } from "../dnd/DragGroup";
-import { type EdgeBand, edgeBands, type Orientation } from "../geometry/dock";
+import {
+    type EdgeBand,
+    edgeBands,
+    flip,
+    type Orientation,
+} from "../geometry/dock";
 import {
     contains,
     EMPTY_RECT,
@@ -41,7 +46,12 @@ import { resolveBorder, resolveLayout } from "../state/defaults";
 import type { Model } from "../state/model";
 import type { QueryArgs } from "../state/queries";
 import type { AnyBorder, AnyRow, AnyState } from "../state/tree";
-import { type AnyTypes, type DockableTypes, MAIN_LAYOUT } from "../state/types";
+import {
+    type AnyTypes,
+    type DockableTypes,
+    MAIN_LAYOUT,
+    type TabContainer,
+} from "../state/types";
 import type {
     EngineActionKey,
     EngineActionPayload,
@@ -236,8 +246,6 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
 
     /** a measured rect of a node of this layout, relative to the layout root */
     rect(kind: MeasurableKind, id: string): Rect | undefined;
-    /** the content area a tab's panel is positioned over (its tabset's, or its border's) */
-    contentRect(containerId: string): Rect | undefined;
     /** measures every registered element; returns true on change */
     syncLayoutMetrics(): boolean;
     /**
@@ -330,6 +338,24 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     getPopoutManager(): PopoutManager<T>;
 }
 
+function hasSize(rect: Rect | undefined): boolean {
+    return !!rect && rect.width > 0 && rect.height > 0;
+}
+
+function rowOrientations(
+    row: AnyRow,
+    orientation: Orientation,
+    into = new Map<string, Orientation>(),
+): Map<string, Orientation> {
+    into.set(row.id, orientation);
+    for (const child of row.children) {
+        if (child.type === "row") {
+            rowOrientations(child, flip(orientation), into);
+        }
+    }
+    return into;
+}
+
 function refused(message: string): { ok: false; error: CommandError } {
     return { ok: false, error: { code: "refused", message } };
 }
@@ -418,11 +444,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private readonly overflowListeners = new Set<() => void>();
     private healFrame: number | undefined;
     private readonly teardown: (() => void)[] = [];
-    // derived per state
-    private pathsFor: AnyState | undefined;
+    private derivedFor: AnyState | undefined;
     private paths = new Map<string, string>();
-    private rangesKey = "";
+    private orientations = new Map<string, Orientation>();
     private ranges = new Map<string, SizeRange>();
+    private rangesSplitterSize = 0;
+    private stripsDirty = true;
 
     constructor(options: LayoutEngineOptions<T>) {
         this.model = options.model;
@@ -625,7 +652,6 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 this.registerDropZone(element, options),
             getRegistrations: () => this.getRegistrations(),
             rect: (kind: MeasurableKind, id: string) => this.rect(kind, id),
-            contentRect: (containerId: string) => this.contentRect(containerId),
             syncLayoutMetrics: () => this.syncLayoutMetrics(),
             positionTabPanels: () => this.positionTabPanels(),
             updateRect: () => this.updateRect(),
@@ -788,57 +814,43 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     }
 
     private derived() {
-        const state = this.model.state as unknown as AnyState;
+        const state = this.state();
+        const stateChanged = state !== this.derivedFor;
+        if (
+            !stateChanged &&
+            !this.stripsDirty &&
+            this.rangesSplitterSize === this.shared.splitterSize
+        ) {
+            return;
+        }
         const root = this.rootRow(state);
         if (!root) {
             return;
         }
-        if (this.pathsFor !== state) {
-            this.pathsFor = state;
-            const prefix =
-                this.layoutId === MAIN_LAYOUT
-                    ? ""
-                    : windowPath(this.windowNumber(state, this.layoutId));
-            this.paths = computePaths(
-                root,
-                prefix,
-                this.layoutId === MAIN_LAYOUT ? state.borders : [],
-            );
+        const rootOrientation = resolveLayout(state.defaults).rootOrientation;
+        if (stateChanged) {
+            this.derivedFor = state;
+            this.paths = this.isMainLayout()
+                ? computePaths(root, "", state.borders)
+                : computePaths(
+                      root,
+                      windowPath(this.windowNumber(state, this.layoutId)),
+                  );
+            this.orientations = rowOrientations(root, rootOrientation);
         }
-        const strips = new Map<string, number>();
-        let key = `${this.shared.splitterSize}`;
-        for (const [measured, rect] of this.rects) {
-            if (measured.startsWith("tabstrip:")) {
-                strips.set(measured.slice(9), rect.height);
-                key += `|${measured}:${Math.round(rect.height)}`;
-            }
-        }
-        const stateKey = `${key}#${this.revisionOf(state)}`;
-        if (stateKey !== this.rangesKey) {
-            this.rangesKey = stateKey;
-            this.ranges = sizeRanges(
-                state.defaults,
-                root,
-                resolveLayout(state.defaults).rootOrientation,
-                this.shared.splitterSize,
-                (id) => strips.get(id) ?? 0,
-            );
-        }
-    }
-
-    private readonly stateIds = new WeakMap<object, number>();
-    private nextStateId = 0;
-    private revisionOf(state: AnyState): number {
-        let id = this.stateIds.get(state);
-        if (id === undefined) {
-            id = this.nextStateId++;
-            this.stateIds.set(state, id);
-        }
-        return id;
+        this.stripsDirty = false;
+        this.rangesSplitterSize = this.shared.splitterSize;
+        this.ranges = sizeRanges(
+            state.defaults,
+            root,
+            rootOrientation,
+            this.shared.splitterSize,
+            (id) => this.rects.get(`tabstrip:${id}`)?.height ?? 0,
+        );
     }
 
     private rootRow(state: AnyState): AnyRow | undefined {
-        if (this.layoutId === MAIN_LAYOUT) {
+        if (this.isMainLayout()) {
             return state.root;
         }
         return state.windows.find((w) => w.id === this.layoutId)?.root;
@@ -863,18 +875,12 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         );
     }
 
-    /** The orientation of a row of this layout. */
     private rowOrientation(rowId: string): Orientation {
-        let orientation = resolveLayout(this.state().defaults).rootOrientation;
-        for (
-            let parent = this.model.get("node-parent-by", { nodeId: rowId });
-            parent !== undefined;
-            parent = this.model.get("node-parent-by", { nodeId: parent.id })
-        ) {
-            orientation =
-                orientation === "horizontal" ? "vertical" : "horizontal";
-        }
-        return orientation;
+        this.derived();
+        return (
+            this.orientations.get(rowId) ??
+            resolveLayout(this.state().defaults).rootOrientation
+        );
     }
 
     /** The measured splitter thickness (shared by every layout of the model). */
@@ -1020,26 +1026,26 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (event.command === "window.configure") {
             return; // only a window's screen rect changed: nothing draws it
         }
-        this.forgetRemoved();
-        if (event.transient && event.command === "row.resize") {
-            if (
-                this.applyTransientWeights(
-                    event.payload as { rowId: string; weights: number[] },
-                )
-            ) {
-                return;
-            }
-        } else if (event.transient && event.command === "border.resize") {
-            if (
-                this.applyTransientBorderSize(
-                    event.payload as { borderId: string },
-                )
-            ) {
-                return;
-            }
+        if (event.transient && this.applyTransient(event)) {
+            return;
         }
+        this.forgetRemoved();
         this.popoutManager?.sync();
         this.redraw();
+    }
+
+    private applyTransient(event: CommandEvent): boolean {
+        if (event.command === "row.resize") {
+            return this.applyTransientWeights(
+                event.payload as { rowId: string; weights: number[] },
+            );
+        }
+        if (event.command === "border.resize") {
+            return this.applyTransientBorderSize(
+                event.payload as { borderId: string },
+            );
+        }
+        return false;
     }
 
     /** drops the view state of tabs no longer in the model (a closed tab's moveable is released) */
@@ -1379,16 +1385,13 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return this.rects.get(`${kind}:${id}`);
     }
 
-    /** The content area a tab's panel is positioned over (its tabset's, or its border's). */
-    private contentRect(containerId: string): Rect | undefined {
-        const container = this.model.get("node-by", { id: containerId });
-        if (container?.type === "border") {
-            return this.rect("bordercontent", containerId);
-        }
-        return this.rect("tabsetcontent", containerId);
+    private contentRect(container: TabContainer<T>): Rect | undefined {
+        return this.rect(
+            container.type === "border" ? "bordercontent" : "tabsetcontent",
+            container.id,
+        );
     }
 
-    /** @internal measures every registered element; returns true on change */
     private syncLayoutMetrics(): boolean {
         this.cachedLayoutDomRect = undefined;
         let changed = false;
@@ -1397,74 +1400,75 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 continue;
             }
             const rect = this.rectInLayout(element);
+            const content =
+                kind === "tabsetcontent" || kind === "bordercontent";
+            if (
+                content &&
+                (Number.isNaN(rect.x) ||
+                    (kind === "bordercontent" && rect.width <= 0))
+            ) {
+                continue;
+            }
             const previous = this.rects.get(key);
-            if (kind === "tabsetcontent" || kind === "bordercontent") {
-                if (
-                    Number.isNaN(rect.x) ||
-                    (kind === "bordercontent" && rect.width <= 0)
-                ) {
-                    continue;
-                }
-                if (!equalsWhenRounded(previous, rect)) {
-                    const hadSize =
-                        !!previous && previous.width > 0 && previous.height > 0;
-                    this.rects.set(key, rect);
-                    changed = true;
-                    if (!hadSize && rect.width > 0 && rect.height > 0) {
-                        // the content render waits for a sized content area: the first time one
-                        // gets a size, re-render to mount the content
-                        this.reLayout = true;
-                    }
-                }
-            } else if (!equalsWhenRounded(previous, rect)) {
-                this.rects.set(key, rect);
-                changed = true;
+            if (equalsWhenRounded(previous, rect)) {
+                continue;
+            }
+            this.rects.set(key, rect);
+            changed = true;
+            // the content render waits for a sized content area: re-render when one first gets a size
+            if (content && !hasSize(previous) && hasSize(rect)) {
+                this.reLayout = true;
+            }
+            if (
+                kind === "tabstrip" &&
+                (!previous ||
+                    Math.round(previous.height) !== Math.round(rect.height))
+            ) {
+                this.stripsDirty = true;
             }
         }
         return changed;
     }
 
-    /** Whether a tab's panel is shown: selected, and not hidden by a maximize or a hidden border. */
     private isPanelVisible(tabId: string): boolean {
-        const container = this.model.get("node-parent-by", {
-            nodeId: tabId,
-        });
-        if (container?.type !== "tabset" && container?.type !== "border") {
-            return false;
-        }
+        const container = this.tabContainerOf(tabId);
+        return container !== undefined && this.panelShown(tabId, container);
+    }
+
+    private tabContainerOf(tabId: string): TabContainer<T> | undefined {
+        const container = this.model.get("node-parent-by", { nodeId: tabId });
+        return container?.type === "tabset" || container?.type === "border"
+            ? container
+            : undefined;
+    }
+
+    private panelShown(tabId: string, container: TabContainer<T>): boolean {
         if (container.children[container.selected]?.id !== tabId) {
             return false;
         }
-        if (container.type === "tabset") {
-            const layout = this.model.get("layout-id-by", {
-                nodeId: container.id,
-            });
-            const maximized =
-                layout === undefined
-                    ? undefined
-                    : this.model.get("maximized-tabset", {
-                          layoutId: layout,
-                      });
-            return maximized === undefined || maximized.id === container.id;
+        if (container.type === "border") {
+            return container.show !== false;
         }
-        return container.show !== false;
+        const layout = this.model.get("layout-id-by", {
+            nodeId: container.id,
+        });
+        const maximized =
+            layout === undefined
+                ? undefined
+                : this.model.get("maximized-tabset", { layoutId: layout });
+        return maximized === undefined || maximized.id === container.id;
     }
 
-    /**
-     * Positions the tab panels over their container's content area and shows only the visible
-     * ones. Writes only structural style: `position`, `left`, `top`, `width`, `height`, `display`.
-     */
     private positionTabPanels() {
         for (const [tabId, element] of this.tabPanels) {
-            const container = this.model.get("node-parent-by", {
-                nodeId: tabId,
-            });
+            const container = this.tabContainerOf(tabId);
             if (!container) {
                 continue; // the tab left the tree (it is being closed)
             }
-            const rect = this.contentRect(container.id) ?? EMPTY_RECT;
-            positionElement(element, rect);
-            element.style.display = this.isPanelVisible(tabId) ? "" : "none";
+            positionElement(element, this.contentRect(container) ?? EMPTY_RECT);
+            element.style.display = this.panelShown(tabId, container)
+                ? ""
+                : "none";
         }
     }
 
@@ -1694,17 +1698,15 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (shared.rendered.has(tabId)) {
             return true;
         }
-        const container = this.model.get("node-parent-by", {
-            nodeId: tabId,
-        });
-        if (container?.type !== "tabset" && container?.type !== "border") {
+        const container = this.tabContainerOf(tabId);
+        if (!container) {
             return false;
         }
         const selected = container.children[container.selected]?.id === tabId;
         if (!selected && renderOnDemand) {
             return false;
         }
-        const rect = this.engineOf(tabId).contentRect(container.id);
+        const rect = this.engineOf(tabId).contentRect(container);
         if (!rect || rect.width <= 0 || rect.height <= 0) {
             return false;
         }
@@ -1991,7 +1993,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
                 ? this.model.check("tabset.popout", { tabsetId: id })
                 : this.model.run("tabset.popout", {
                       tabsetId: id,
-                      ...this.screenRectOf("tabset", id),
+                      ...this.screenRectOf("tabset", node),
                   });
         }
         if (node?.type !== "tab") {
@@ -2000,23 +2002,23 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         if (dryRun) {
             return this.model.check("tab.popout", { tabId: id });
         }
-        const container = this.model.get("node-parent-by", { nodeId: id });
+        const container = this.tabContainerOf(id);
         return this.model.run("tab.popout", {
             tabId: id,
-            ...(container ? this.screenRectOf("content", container.id) : {}),
+            ...(container ? this.screenRectOf("content", container) : {}),
         });
     }
 
     /** where a tabset, or a container's content area, is on screen (for a window to open there) */
     private screenRectOf(
         kind: "tabset" | "content",
-        id: string,
+        node: TabContainer<T>,
     ): { rect?: Rect } {
-        const engine = this.engineOf(id);
+        const engine = this.engineOf(node.id);
         const rect =
             kind === "tabset"
-                ? engine.rect("tabset", id)
-                : engine.contentRect(id);
+                ? engine.rect("tabset", node.id)
+                : engine.contentRect(node);
         return rect ? { rect: engine.getScreenRect(rect) } : {};
     }
 
@@ -2085,10 +2087,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
 
     /** an element's rect relative to the layout root */
     private rectInLayout(element: HTMLElement): Rect {
-        return relativeTo(
-            toRect(this.measureElement(element)),
-            this.getDomRect(),
-        );
+        return relativeTo(this.measureElement(element), this.getDomRect());
     }
 
     /** the layout root's rect in viewport coordinates, measured now (not the per-pass cache) */

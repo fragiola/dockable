@@ -69,13 +69,13 @@ describe("LayoutEngine measure pass", () => {
             width: 196,
             height: 300,
         });
-        expect(engine.adapter.contentRect("ts0")).toEqual({
+        expect(engine.adapter.rect("tabsetcontent", "ts0")).toEqual({
             x: 0,
             y: 30,
             width: 196,
             height: 270,
         });
-        expect(engine.adapter.contentRect("ts1")).toEqual({
+        expect(engine.adapter.rect("tabsetcontent", "ts1")).toEqual({
             x: 204,
             y: 30,
             width: 196,
@@ -246,6 +246,23 @@ describe("LayoutEngine and the model", () => {
         });
         model.run("row.resize", { rowId: "row", weights: [30, 70] });
         expect(listener).toHaveBeenCalled();
+    });
+
+    it("looks up no tab of the layout on a transient resize", () => {
+        const { model, engine, panels } = setup();
+        engine.run("measure-and-position");
+        for (const [tabId, panel] of Object.entries(panels)) {
+            engine.adapter.attachMoveable(tabId, panel);
+            engine.adapter.shouldRender(tabId, false);
+        }
+        const get = vi.spyOn(model, "get");
+        model.run(
+            "row.resize",
+            { rowId: "row", weights: [30, 70] },
+            { transient: true },
+        );
+        const lookups = get.mock.calls.filter(([key]) => key === "node-by");
+        expect(lookups).toEqual([["node-by", { id: "row" }]]);
     });
 });
 
