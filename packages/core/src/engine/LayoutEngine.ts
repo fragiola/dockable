@@ -1055,18 +1055,40 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         return false;
     }
 
-    /** drops the view state of tabs no longer in the model (a closed tab's moveable is released) */
     private forgetRemoved() {
         const shared = this.shared;
-        for (const id of [...shared.moveables.keys()]) {
-            if (this.model.get("node-by", { id })?.type !== "tab") {
+        const isTab = (id: string) =>
+            this.model.get("node-by", { id })?.type === "tab";
+        for (const [id, element] of shared.moveables) {
+            if (!isTab(id)) {
                 shared.moveables.delete(id);
+                element.remove();
             }
         }
-        for (const id of [...shared.rendered]) {
-            if (this.model.get("node-by", { id })?.type !== "tab") {
+        for (const id of shared.rendered) {
+            if (!isTab(id)) {
                 shared.rendered.delete(id);
                 shared.scroll.delete(id);
+            }
+        }
+        this.forgetRemovedNodes();
+        for (const { id } of this.state().windows) {
+            this.popoutManager?.getLayoutEngine(id)?.forgetRemovedNodes();
+        }
+    }
+
+    private forgetRemovedNodes() {
+        const gone = (id: string) => !this.model.get("node-by", { id });
+        for (const key of this.rects.keys()) {
+            if (gone(key.slice(key.indexOf(":") + 1))) {
+                this.rects.delete(key);
+            }
+        }
+        for (const map of [this.naturalTabSizes, this.triggerSpace]) {
+            for (const id of map.keys()) {
+                if (gone(id)) {
+                    map.delete(id);
+                }
             }
         }
     }

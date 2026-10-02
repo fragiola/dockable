@@ -166,6 +166,18 @@ describe("LayoutEngine measure pass", () => {
             31,
         );
     });
+
+    it("forgets the rects of the nodes that leave the model", () => {
+        const { model, engine } = setup();
+        engine.run("measure-and-position");
+        expect(engine.adapter.rect("tabset", "ts1")).toBeDefined();
+        model.run("tab.move", { tabId: "t2", to: "ts0" });
+        expect(model.get("node-by", { id: "ts1" })).toBeUndefined();
+        expect(engine.adapter.rect("tabset", "ts1")).toBeUndefined();
+        expect(engine.adapter.rect("tabstrip", "ts1")).toBeUndefined();
+        expect(engine.adapter.rect("tabsetcontent", "ts1")).toBeUndefined();
+        expect(engine.adapter.rect("tabset", "ts0")).toBeDefined();
+    });
 });
 
 describe("LayoutEngine panel positioning", () => {
@@ -300,6 +312,18 @@ describe("LayoutEngine moveable elements", () => {
         expect(element.parentElement).toBe(otherPanel);
         expect(element.firstChild).toBe(content);
         expect(content.value).toBe("typed");
+    });
+
+    it("detaches a closed tab's parked moveable, so the home goes with the root", () => {
+        const { model, engine, panels, root } = setup();
+        engine.adapter.attachMoveable("t1", panels.t1);
+        const element = engine.adapter.getMoveableElement("t1");
+        engine.adapter.releaseMoveable("t1", panels.t1);
+        expect(element.isConnected).toBe(true);
+        model.run("tab.close", { tabId: "t1" });
+        expect(element.isConnected).toBe(false);
+        engine.adapter.detachRoot();
+        expect(root.querySelector(`[${MOVEABLES_HOME_ATTRIBUTE}]`)).toBeNull();
     });
 
     it("does not park an element that already moved to another panel", () => {
