@@ -1,5 +1,21 @@
 # @fragiola/dockable
 
+## 0.2.0
+
+### Minor Changes
+
+- [#129](https://github.com/fragiola/dockable/pull/129) [`f11ca8e`](https://github.com/fragiola/dockable/commit/f11ca8e07c43dccc6b26a6747ebd45e8217cf38b) Thanks [@maurodesouza](https://github.com/maurodesouza)! - **Breaking:** the capability flags have short names. They change everywhere: on the nodes, in `defaults`, in the layout JSON and its schema, in command payloads and in the `*-settings-by` results.
+  
+  | node | before | after |
+  |---|---|---|
+  | tab | `enableClose`, `enableDrag`, `enablePopout` | `closable`, `draggable`, `poppable` |
+  | tabset | `enableClose`, `enableDrag`, `enableDrop`, `enableDivide`, `enableMaximize` | `closable`, `draggable`, `droppable`, `splittable`, `maximizable` |
+  | border | `enableDrop` | `droppable` |
+  
+  The React `Tab` state `popoutEnabled` is now `poppable`, and `data-popout-enabled` is now `data-poppable`. JSON stays `version: 1`. A layout that still uses an old name fails validation.
+  
+  **Breaking:** renaming is a tab capability. A tab has a `renamable` field (default `true`, also settable in `defaults.tab`). The new command `tab.rename { tabId, label }` changes a tab's label, and it is refused for a tab that is not renamable. `tab.configure` no longer takes `label`, and `model.can("tab.rename", { tabId, label })` answers a menu or an F2 handler.
+
 ## 0.1.0
 
 ### Minor Changes
