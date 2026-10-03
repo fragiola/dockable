@@ -51,8 +51,8 @@ test("a strip drop marks the tab list with the insertion index", async ({
 }) => {
     await openExample(page, "drop-target-highlight");
     const strip = path(page, "/r1/ts0/tabstrip");
-    // a tab's third span: after its name and its marker
-    const caret = strip.locator('[role="tab"] > span:nth-child(3)');
+    // the caret: a tab's hidden span, beside its name
+    const caret = strip.locator('[role="tab"] > span[aria-hidden="true"]');
     const first = await path(page, "/r1/ts0/tb0").boundingBox();
     if (!first) throw new Error("no box");
     await startDrag(page, path(page, "/ts0/tb0"));

@@ -55,7 +55,7 @@ const json: LayoutJson<Types> = {
                             text: "This tab cannot be closed: Close is disabled in its menu.",
                         },
                         // not closable: `tab.close` refuses it, so Close is disabled in its menu
-                        enableClose: false,
+                        closable: false,
                     },
                     { component: "log", label: "Activity" },
                     {
@@ -193,7 +193,6 @@ function MenuTab({ tab }: { tab: TabOf<Types> }) {
                 className={styles.tab}
             >
                 <span className={styles.tabName}>{tab.label}</span>
-                <span aria-hidden="true" className={styles.tabMarker} />
             </Dockable.Tab>
             <ContextMenu.Content>
                 <ContextMenu.Item

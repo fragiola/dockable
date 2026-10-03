@@ -177,17 +177,21 @@ export const sizeLimitProperties = {
 
 /** The fields of a tab a layout default applies to, described. */
 export const tabDefaultProperties = {
-    enableClose: {
+    closable: {
         ...booleanSchema,
         description: "whether the tab can be closed",
     },
-    enableDrag: {
+    draggable: {
         ...booleanSchema,
         description: "whether the tab can be dragged",
     },
-    enablePopout: {
+    poppable: {
         ...booleanSchema,
         description: "whether the tab can be popped out into a window",
+    },
+    renamable: {
+        ...booleanSchema,
+        description: "whether the tab can be renamed (`tab.rename`)",
     },
     ...sizeLimitProperties,
 } as const satisfies Properties;
@@ -217,23 +221,23 @@ export const tabFieldProperties = {
 
 /** The behaviour fields of a tabset, described: a layout default applies to each. */
 export const tabsetDefaultProperties = {
-    enableDrop: {
+    droppable: {
         ...booleanSchema,
         description: "whether tabs can be dropped into it",
     },
-    enableDrag: {
+    draggable: {
         ...booleanSchema,
         description: "whether the whole tabset can be dragged",
     },
-    enableDivide: {
+    splittable: {
         ...booleanSchema,
         description: "whether a drop on one of its edges can split it",
     },
-    enableMaximize: {
+    maximizable: {
         ...booleanSchema,
         description: "whether it can be maximized",
     },
-    enableClose: {
+    closable: {
         ...booleanSchema,
         description: "whether it can be closed",
     },
@@ -262,7 +266,7 @@ export const borderDefaultProperties = {
         description:
             "hide the strip while the border has no tabs (a drag near its edge reveals it)",
     },
-    enableDrop: {
+    droppable: {
         ...booleanSchema,
         description: "whether tabs can be dropped into it",
     },

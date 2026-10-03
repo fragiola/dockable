@@ -10,7 +10,7 @@ import { MAIN_LAYOUT } from "./types";
  * - a row with no children is removed;
  * - a row with one child is replaced by that child (a tabset takes the row's weight; a row's
  *   children are hoisted, their weights scaled to the row's);
- * - an empty tabset is removed when it may be (`deleteWhenEmpty` and `enableClose`), clearing a
+ * - an empty tabset is removed when it may be (`deleteWhenEmpty` and `closable`), clearing a
  *   maximize that pointed at it;
  * - the main layout keeps a tabset: when tidy would leave it with none, an empty tabset it removed
  *   stays, with its id (caplin/FlexLayout#291; FlexLayout makes a new one): the active one, else
@@ -88,7 +88,7 @@ function tidyRow(draft: Draft, rowId: string, removed: string[]) {
             }
         } else if (child.children.length === 0) {
             const resolved = resolveTabset(draft.getDefaults(), child);
-            if (resolved.deleteWhenEmpty && resolved.enableClose) {
+            if (resolved.deleteWhenEmpty && resolved.closable) {
                 draft.detach(child.id);
                 removed.push(child.id);
             } else {

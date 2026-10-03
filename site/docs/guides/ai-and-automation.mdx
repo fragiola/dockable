@@ -241,8 +241,8 @@ model.use(assistantPolicy);
   why, and can tell the user.
 - A batch cannot slip past it: the batch itself and every command inside it run the chain, and
   one veto cancels the whole batch.
-- The model's own rules still apply underneath: a pinned tab, a tab with `enableClose: false`, or
-  a tabset with `enableDrop: false` refuses the assistant exactly as it refuses a drag.
+- The model's own rules still apply underneath: a pinned tab, a tab with `closable: false`, or
+  a tabset with `droppable: false` refuses the assistant exactly as it refuses a drag.
 
 ### Asking before acting
 

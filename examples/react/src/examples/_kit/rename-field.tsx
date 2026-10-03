@@ -6,7 +6,7 @@ import { cn } from "#/lib/cn";
 /**
  * An inline text field that edits a tab's name: Enter confirms, Escape cancels, leaving the
  * field confirms. An empty name is refused (the field stays open and is marked invalid; leaving
- * it cancels). The caller runs `tab.configure` with the new label in `onCommit`.
+ * it cancels). The caller runs `tab.rename` with the new label in `onCommit`.
  */
 export function RenameField({
     name,

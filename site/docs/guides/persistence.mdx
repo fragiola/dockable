@@ -119,7 +119,7 @@ get a generated one, which a different JSON will not match.
 `createModel(model.get("layout-json"))` gives back the same state. It holds:
 
 - the tree: rows, tabsets and tabs with their ids, weights, `component` and `data`, and every
-  behaviour field set on a node (`enableClose`, `pinned`, `minWidth`, …);
+  behaviour field set on a node (`closable`, `pinned`, `minWidth`, …);
 - the selected tab of each tabset and border, and each layout's active and maximized tabset;
 - the layout `defaults`;
 - popout windows (`windows`), with their screen rect. Restoring reopens them, which the browser
@@ -146,7 +146,7 @@ model.run("tab.set-data", { tabId: tab.id, data: { draft } });
 
 Each such command is an undo step; add `"tab.set-data"` to your
 [undo history](/docs/guides/undo-redo)'s ignored commands if it should not be (renames are
-`tab.configure`, so they stay undoable).
+`tab.rename`, so they stay undoable).
 
 ## Versioning saved layouts
 

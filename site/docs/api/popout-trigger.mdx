@@ -80,8 +80,8 @@ state is what opens the native window: the root's popout manager opens one for e
 
 - In the main layout it renders when `engine.can("popout", { nodeId: id })` is true: popouts are supported
   (`supportsPopout`) and `model.can("tab.popout", { tabId })` (or `tabset.popout`) accepts it. The
-  model refuses a tab whose resolved `enablePopout` is false (the built-in default: popout is
-  opt-in, per tab or with `defaults.tab.enablePopout`), a pinned tab, and a tabset that is empty
+  model refuses a tab whose resolved `poppable` is false (the built-in default: popout is
+  opt-in, per tab or with `defaults.tab.poppable`), a pinned tab, and a tabset that is empty
   or holds a tab that does not allow it. A middleware veto hides it too.
 - In a window (`model.is("node-in-window", { nodeId: id })`) it always renders, in `"dock"` mode.
 - The engine actions it runs are public: `engine.run("popout", { nodeId })` and

@@ -97,7 +97,7 @@ the other examples comment only what they do differently.
 - **No option bags.** A part takes what it renders (`node`, a callback that is the subject of the
   example), not `options` or `renderX` hooks that hide what it renders.
 - **Classes in `styles.ts`**, beside `index.tsx`. It exports one `const` per styled part, named
-  after the part (`root`, `tabset`, `tabList`, `tab`, `tabMarker`, `panel`, `splitter`,
+  after the part (`root`, `tabset`, `tabList`, `tab`, `panel`, `splitter`,
   `dropIndicator`, …): a class string, built with `cn()` when it is long or has conditions, or a
   function of the part's state when the classes depend on it (`(state: DropIndicatorState) =>
   cn(…)`, or a plain argument such as a tone). The `.tsx` files `import * as styles from
@@ -109,7 +109,7 @@ the other examples comment only what they do differently.
   (`{ ok: "palette-green", … }[tone]`).
 - **A class that does a job beyond looks keeps a short comment** in `styles.ts`: the panel's bottom radius
   (panels sit above the tabsets, which cannot clip them), the drop indicator's `z-20` (panels are
-  portalled after it), the splitter's `::after` grab area, `in-data-active:` on the active marker.
+  portalled after it), the splitter's `::after` grab area, the active marker drawn as the tab's `::after` (`in-data-active:`).
   What is not a class stays in the `.tsx`: `aria-*`, `data-*`, structural `style` props (the
   indicator's `transitionDuration` in `drag-and-drop`, which reads the layout's drag speed), what
   renders when. Elsewhere the indicator moves at the theme's pace (`duration-(--dk-motion)`).

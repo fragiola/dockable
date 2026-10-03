@@ -167,10 +167,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 <span className={styles.tabName}>
                                     {tab.label}
                                 </span>
-                                <span
-                                    aria-hidden="true"
-                                    className={styles.tabMarker}
-                                />
                                 {/* the strip's insertion point, before (or after) this tab */}
                                 {(before || after) && (
                                     <span

@@ -205,7 +205,7 @@ function describe(command: CommandName): string {
             return "Resize";
         case "tabset.maximize":
             return "Maximize";
-        case "tab.configure":
+        case "tab.rename":
             return "Rename";
         default:
             return command;
@@ -238,10 +238,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            <span
-                                aria-hidden="true"
-                                className={styles.tabMarker}
-                            />
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>

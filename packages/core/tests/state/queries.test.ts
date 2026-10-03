@@ -14,7 +14,7 @@ import { must } from "./harness";
 // a window w0 holding ts3 (e)
 const json: LayoutJson = {
     version: 1,
-    defaults: { border: { mode: "overlay" }, tab: { enableClose: false } },
+    defaults: { border: { mode: "overlay" }, tab: { closable: false } },
     root: {
         type: "row",
         id: "root",
@@ -25,7 +25,7 @@ const json: LayoutJson = {
                 selected: 1,
                 children: [
                     { id: "a", component: "x", label: "x" },
-                    { id: "b", component: "x", label: "x", enableClose: true },
+                    { id: "b", component: "x", label: "x", closable: true },
                 ],
             },
             {
@@ -47,7 +47,7 @@ const json: LayoutJson = {
                     {
                         type: "tabset",
                         id: "ts2",
-                        enableClose: false,
+                        closable: false,
                         children: [],
                     },
                 ],
@@ -289,15 +289,11 @@ describe("model.get", () => {
 
     it("tab-, tabset- and border-settings-by: the node's own value, else the default", () => {
         const m = model();
-        expect(m.get("tab-settings-by", { tabId: "a" })?.enableClose).toBe(
+        expect(m.get("tab-settings-by", { tabId: "a" })?.closable).toBe(false);
+        expect(m.get("tab-settings-by", { tabId: "b" })?.closable).toBe(true);
+        expect(m.get("tabset-settings-by", { tabsetId: "ts2" })?.closable).toBe(
             false,
         );
-        expect(m.get("tab-settings-by", { tabId: "b" })?.enableClose).toBe(
-            true,
-        );
-        expect(
-            m.get("tabset-settings-by", { tabsetId: "ts2" })?.enableClose,
-        ).toBe(false);
         expect(
             m.get("border-settings-by", { borderId: "start" }),
         ).toMatchObject({

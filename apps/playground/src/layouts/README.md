@@ -8,7 +8,7 @@ auto-hide borders, two of them empty, for the drag reveal.
 All of them are converted to Dockable's JSON v1 (the [Layout JSON](../../../../site/docs/api/json-model.mdx)
 reference; `docs/engine-v2-design.md` §2 and §4 is the historical record, with the old
 `left`/`right` locations): `layout` becomes `root`, the `left`/`right` borders become `start`/`end`, a tab's and a tabset's `name` moves into its `data`, the globals become `defaults`
-(`tabEnablePopout` → `defaults.tab.enablePopout`, `borderEnableAutoHide` →
+(`tabEnablePopout` → `defaults.tab.poppable`, `borderEnableAutoHide` →
 `defaults.border.autoHide`), `borderType` becomes a border's `mode`, and the attributes the model
 dropped (`tabEnablePin`, `tabEnableRename`, `borderEnableTabScrollbar`) are gone: nothing in the
 fixtures read them.

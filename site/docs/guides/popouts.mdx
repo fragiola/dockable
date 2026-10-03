@@ -71,7 +71,7 @@ positioned in its own window.
 
 ## 4. Pop a tab out
 
-Allow it per tab (`enablePopout: true`, or for every tab with `defaults.tab.enablePopout`: the
+Allow it per tab (`poppable: true`, or for every tab with `defaults.tab.poppable`: the
 built-in default is false), then put a `Dockable.PopoutTrigger` in the tabset's header. It pops the
 selected tab out, and in the window the same button docks it back (`data-mode` is `"popout"` or
 `"dock"`). It renders nothing when neither is possible (popouts unsupported, or the model refuses
@@ -85,12 +85,12 @@ it):
 ```
 
 `target="tabset"` moves the whole tabset into one window. `Tab` also exposes
-`data-popout-enabled`, for a button that lives in the tab.
+`data-poppable`, for a button that lives in the tab.
 
 From code, two commands create a window layout:
 
 - `tab.popout` `{ tabId, rect? }` moves a tab into a new window. It is refused when the tab's
-  `enablePopout` resolves to false, when it is pinned, or when it is already in a window.
+  `poppable` resolves to false, when it is pinned, or when it is already in a window.
 - `tabset.popout` `{ tabsetId, rect? }` moves a whole tabset. It is refused when the tabset is empty
   or already in a window, or when any of its tabs does not allow popouts.
 

@@ -61,10 +61,10 @@ export function checkDrop(
 
     if (target.type === "tabset") {
         const flags = resolveTabset(defaults, target);
-        if (location === "center" && !flags.enableDrop) {
+        if (location === "center" && !flags.droppable) {
             return refused(`tabset "${target.id}" does not accept drops`);
         }
-        if (location !== "center" && !flags.enableDivide) {
+        if (location !== "center" && !flags.splittable) {
             return refused(`tabset "${target.id}" cannot be split`);
         }
     } else if (target.type === "border") {
@@ -77,7 +77,7 @@ export function checkDrop(
                 "/location",
             );
         }
-        if (!resolveBorder(defaults, target).enableDrop) {
+        if (!resolveBorder(defaults, target).droppable) {
             return refused(`border "${target.id}" does not accept drops`);
         }
     }
@@ -104,9 +104,9 @@ export function checkDrop(
             return refused(`a tabset cannot be moved into itself`);
         }
         if (tabset && target.type === "tabset" && location === "center") {
-            if (!resolveTabset(defaults, tabset).enableClose) {
+            if (!resolveTabset(defaults, tabset).closable) {
                 return refused(
-                    `tabset "${subject.id}" cannot be merged: its enableClose is false`,
+                    `tabset "${subject.id}" cannot be merged: it is not closable`,
                     "/tabsetId",
                 );
             }
@@ -125,7 +125,7 @@ export function checkDrop(
             subject.kind === "tab"
                 ? [subject.fields]
                 : [...(draft.tabset(subject.id)?.children ?? [])];
-        if (tabs.some((tab) => !resolveTab(defaults, tab).enablePopout)) {
+        if (tabs.some((tab) => !resolveTab(defaults, tab).poppable)) {
             return refused(
                 "a tab that does not allow popouts cannot move into a window",
             );

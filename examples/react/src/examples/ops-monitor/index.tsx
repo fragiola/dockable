@@ -42,7 +42,7 @@ const service = (id: ServiceId): TabInitOf<Types> => ({
 
 const layout: LayoutJson<Types> = {
     version: 1,
-    defaults: { tab: { enableClose: false } },
+    defaults: { tab: { closable: false } },
     root: {
         type: "row",
         children: [

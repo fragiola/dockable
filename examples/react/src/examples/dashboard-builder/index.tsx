@@ -340,10 +340,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                 <span className={styles.tabName}>
                                     {tab.label}
                                 </span>
-                                <span
-                                    aria-hidden="true"
-                                    className={styles.tabMarker}
-                                />
                             </Dockable.Tab>
                         );
                     }}

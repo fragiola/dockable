@@ -4,7 +4,7 @@ import { createModel, type LayoutJson, MAIN_LAYOUT } from "../src";
 // root row: ts0 (tab a) | nested row r1 (ts1 above ts2)
 const json: LayoutJson = {
     version: 1,
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     root: {
         type: "row",
         id: "root",

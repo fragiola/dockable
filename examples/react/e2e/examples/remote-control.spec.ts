@@ -30,7 +30,7 @@ test("the panel drives the layout and disables what the model refuses", async ({
         "Revenue",
     ]);
 
-    // the right tabset cannot close (enableClose: false); it can maximize and restore
+    // the right tabset cannot close (closable: false); it can maximize and restore
     await remote.getByRole("button", { name: "Right", exact: true }).click();
     await expect(
         remote.getByRole("button", { name: "Close tabset" }),

@@ -160,7 +160,7 @@ export const tabSelect = defineCommand({
 export const tabClose = defineCommand({
     name: "tab.close",
     description:
-        "Close a tab and remove it from the layout. Refused for a pinned tab or one whose enableClose is false.",
+        "Close a tab and remove it from the layout. Refused for a pinned tab or one that is not closable.",
     payloadSchema: object({ tabId: describedId("tab") }, ["tabId"]),
     resultSchema: tabIdResult,
     transient: false,
@@ -173,7 +173,7 @@ export const tabClose = defineCommand({
         if (resolved.pinned) {
             return fail("refused", `tab "${tab.id}" is pinned`, "/tabId");
         }
-        if (!resolved.enableClose) {
+        if (!resolved.closable) {
             return fail(
                 "refused",
                 `tab "${tab.id}" cannot be closed`,
@@ -208,7 +208,7 @@ export const tabMove = defineCommand({
         if ("error" in tab) {
             return tab;
         }
-        if (!resolveTab(draft.getDefaults(), tab).enableDrag) {
+        if (!resolveTab(draft.getDefaults(), tab).draggable) {
             return fail("refused", `tab "${tab.id}" cannot be moved`, "/tabId");
         }
         const target = resolveTarget(draft, payload.to);
@@ -394,7 +394,7 @@ export const tabPopout = defineCommand({
             );
         }
         const resolved = resolveTab(draft.getDefaults(), tab);
-        if (!resolved.enablePopout) {
+        if (!resolved.poppable) {
             return fail(
                 "refused",
                 `tab "${tab.id}" does not allow popouts`,
@@ -419,14 +419,43 @@ export const tabPopout = defineCommand({
     },
 });
 
-export const tabConfigure = defineCommand({
-    name: "tab.configure",
+export const tabRename = defineCommand({
+    name: "tab.rename",
     description:
-        "Change a tab's label, behaviour flags and size limits. Absent keys are left as they are. A null flag or limit removes the tab's own value so the layout default applies; the label cannot be removed (a tab always has one).",
+        "Change a tab's label. Refused for a tab that is not renamable (its own `renamable`, else the layout default).",
     payloadSchema: object(
         {
             tabId: describedId("tab"),
             label: { ...labelSchema, description: "the tab's new name" },
+        },
+        ["tabId", "label"],
+    ),
+    resultSchema: tabIdResult,
+    transient: false,
+    reduce(payload, { draft }) {
+        const tab = attachedTab(draft, payload.tabId);
+        if ("error" in tab) {
+            return tab;
+        }
+        if (!resolveTab(draft.getDefaults(), tab).renamable) {
+            return fail(
+                "refused",
+                `tab "${tab.id}" cannot be renamed`,
+                "/tabId",
+            );
+        }
+        draft.set(tab.id, "label", payload.label);
+        return ok({ tabId: tab.id });
+    },
+});
+
+export const tabConfigure = defineCommand({
+    name: "tab.configure",
+    description:
+        "Change a tab's behaviour flags and size limits. Absent keys are left as they are. A null flag or limit removes the tab's own value so the layout default applies. The label changes with `tab.rename`.",
+    payloadSchema: object(
+        {
+            tabId: describedId("tab"),
             ...nullableEach({
                 ...tabDefaultProperties,
                 ...tabBorderSizeProperties,

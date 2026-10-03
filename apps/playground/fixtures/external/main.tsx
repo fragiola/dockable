@@ -37,7 +37,7 @@ function App() {
             onDrop: (tab, dropEvent) => {
                 const file = dropEvent.dataTransfer?.files[0];
                 if (tab && file) {
-                    model.run("tab.configure", {
+                    model.run("tab.rename", {
                         tabId: tab,
                         label: file.name,
                     });

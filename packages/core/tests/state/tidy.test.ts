@@ -160,7 +160,7 @@ describe("tidy", () => {
                     {
                         type: "tabset",
                         id: "c",
-                        enableClose: false,
+                        closable: false,
                         children: [tab("Three")],
                     },
                 ],
@@ -323,7 +323,7 @@ describe("tidy", () => {
 
     it("removes an empty window", () => {
         const { model } = setup(tabsets(["One", "Two"]));
-        must(model.run("tab.configure", { tabId: "Two", enablePopout: true }));
+        must(model.run("tab.configure", { tabId: "Two", poppable: true }));
         const { windowId: window } = must(
             model.run("tab.popout", { tabId: "Two" }),
         );

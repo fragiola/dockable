@@ -52,7 +52,7 @@ their content keeps its state when they move between a border and a tabset. Its 
 side a line of text begins on (the left in LTR, the right in RTL). A border's `id` is
 `border_<location>` (`border_start`) unless you give one. The fields are in the
 [JSON model reference](/docs/api/json-model): `size`, `minSize`, `maxSize`, `show`, `autoHide`,
-`mode`, `enableDrop`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, and `data` (typed by
+`mode`, `droppable`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, and `data` (typed by
 the registry's `border` entry). Each behaviour field falls back to `defaults.border`.
 
 ## 2. Render the frame, the strips and the panels
@@ -179,7 +179,7 @@ model.run("border.resize", { borderId: "border_start", size: 300 }); // clamped 
 model.run("border.configure", { borderId: "border_bottom", show: false }); // hides the whole border
 ```
 
-`border.configure` also changes `mode`, `autoHide`, `enableDrop`, the sizes and `data`; a `null`
+`border.configure` also changes `mode`, `autoHide`, `droppable`, the sizes and `data`; a `null`
 value removes the border's own value so `defaults.border` applies. Opening a border that has no
 tabs is refused.
 
@@ -191,8 +191,8 @@ Borders take part in drag and drop:
 - a tab dropped on an **open panel** joins the border (appended);
 - a border's tab dragged into a tabset (or to a layout edge) leaves the border.
 
-A border takes tabs only (never a whole tabset) and never a pinned tab. `enableDrop: false` on a
-border (or `defaults.border.enableDrop`) refuses drops into it, and a middleware sees border
+A border takes tabs only (never a whole tabset) and never a pinned tab. `droppable: false` on a
+border (or `defaults.border.droppable`) refuses drops into it, and a middleware sees border
 targets like any other (`to` is the border's id; see
 [Restricting drops](/docs/guides/restricting-drops)). `Dockable.Border` carries
 `data-drop-target` while it is the target, and `data-drop-refused` while a rule refuses it.

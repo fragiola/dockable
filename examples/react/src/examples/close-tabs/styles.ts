@@ -45,11 +45,14 @@ export const emptyHint =
 export const emptyIcon = "size-6";
 
 export const tab = cn(
-    "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1 px-3 pe-1.5",
+    "relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1 px-3 pe-1.5",
     "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
     "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
     "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
     "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
+    // the active tabset's marker, drawn as the selected tab's ::after (`in-data-active:` reads
+    // the enclosing TabSet's data-active); the theme sets its colour and display
+    "after:pointer-events-none after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:rounded-full after:bg-(--dk-tab-marker-color) in-data-active:data-selected:after:[display:var(--dk-tab-marker)]",
 );
 
 export const tabName = "truncate";
@@ -65,11 +68,6 @@ export const closeIcon = "size-3.5";
 
 /** In place of the close button on a tab that cannot close. */
 export const lockIcon = "me-1 size-3 text-palette-accent/85";
-
-/** The active tabset's marker: `in-data-active:` reads the enclosing TabSet's data-active,
- * `group-data-selected/tab:` this tab's. */
-export const tabMarker =
-    "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]";
 
 export const button = cn(
     "grid size-6 shrink-0 place-items-center self-center rounded-sm text-palette-accent/85",

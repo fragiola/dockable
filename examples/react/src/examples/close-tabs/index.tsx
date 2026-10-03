@@ -41,7 +41,7 @@ const json: LayoutJson<Types> = {
                         component: "chart",
                         label: "Home",
                         data: { kind: "area", seed: 3 },
-                        enableClose: false,
+                        closable: false,
                     },
                     {
                         component: "chart",
@@ -186,7 +186,7 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
 /** A tab with its own close button, closed by a middle click too. */
 function ClosableTab({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
-    // whether `tab.close` would apply: the tab's `enableClose` (resolved against the layout
+    // whether `tab.close` would apply: the tab's `closable` (resolved against the layout
     // defaults), not pinned, and no middleware veto. A dry run: nothing changes.
     const closeable = model.can("tab.close", { tabId: tab.id });
     const close = () => model.run("tab.close", { tabId: tab.id });
@@ -221,7 +221,6 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
             ) : (
                 <Lock aria-hidden className={styles.lockIcon} />
             )}
-            <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
 }

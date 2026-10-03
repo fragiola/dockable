@@ -10,9 +10,9 @@ afterEach(() => {
 
 function setup(supportsPopout = true) {
     const model = freshModel();
-    // popout is opt-in per tab (enablePopout defaults to false)
+    // popout is opt-in per tab (poppable defaults to false)
     model.run("layout.configure", {
-        defaults: { tab: { enablePopout: true } },
+        defaults: { tab: { poppable: true } },
     });
     const commands = recordCommands(model);
     const engine = createLayoutEngine({ model, popout: { supportsPopout } });
@@ -25,7 +25,7 @@ describe("popout helpers", () => {
         const { model, engine } = setup();
         expect(engine.can("popout", { nodeId: "t0" })).toBe(true);
         expect(engine.can("popout", { nodeId: "ts1" })).toBe(true);
-        model.run("tab.configure", { tabId: "t0", enablePopout: false });
+        model.run("tab.configure", { tabId: "t0", poppable: false });
         expect(engine.can("popout", { nodeId: "t0" })).toBe(false);
         expect(engine.can("popout", { nodeId: "ts0" })).toBe(false); // one tab refuses
         const unsupported = setup(false);
@@ -35,7 +35,7 @@ describe("popout helpers", () => {
     it('get("popout-mode-by"): dock in a window, popout when it can, else none', () => {
         const { model, engine } = setup();
         expect(engine.get("popout-mode-by", { nodeId: "t0" })).toBe("popout");
-        model.run("tab.configure", { tabId: "t0", enablePopout: false });
+        model.run("tab.configure", { tabId: "t0", poppable: false });
         expect(engine.get("popout-mode-by", { nodeId: "t0" })).toBeUndefined();
         engine.run("popout", { nodeId: "t2" });
         expect(engine.get("popout-mode-by", { nodeId: "t2" })).toBe("dock");

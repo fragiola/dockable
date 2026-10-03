@@ -20,7 +20,7 @@ import { Dockable, type DragSubject } from "@fragiola/dockable-react";
 
 <Dockable.DropZone
     model={model} // Model<Types>: the zone's drags are typed by the same registry
-    // take tabs the model would close (not pinned, enableClose, no middleware veto)
+    // take tabs the model would close (not pinned, closable, no middleware veto)
     accepts={(drag) => drag.kind === "tab" && model.can("tab.close", { tabId: drag.tab.id })}
     onDrop={(drag) => {
         if (drag.kind === "tab") model.run("tab.close", { tabId: drag.tab.id });
@@ -82,7 +82,7 @@ tabset changes, so tabsets do not re-render on every pointer move.
 
 Every candidate target is the command the drop would run (`tab.move`, `tabset.move`, or `tab.add`
 for a new tab), and the layout asks the model with `model.can`. A target is refused when the
-model refuses that command: a node flag (`enableDrop`, `enableDivide`, a pinned tab) or a
+model refuses that command: a node flag (`droppable`, `splittable`, a pinned tab) or a
 middleware veto (see [Restricting drops](/docs/guides/restricting-drops)). Over a refused
 target:
 

@@ -190,7 +190,7 @@ export default function DropFiles() {
                 );
                 // no tab: the drop was refused (a rule or a middleware); no file: nothing to read
                 if (!tabId || !first) return;
-                model.run("tab.configure", { tabId, label: first.name });
+                model.run("tab.rename", { tabId, label: first.name });
                 void openFile(model, first, tabId, keep);
                 const tabset = model.get("node-parent-by", { nodeId: tabId });
                 if (tabset) openInto(tabset.id, others);
@@ -304,10 +304,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <span className={styles.tabName}>{tab.label}</span>
-                            <span
-                                aria-hidden="true"
-                                className={styles.tabMarker}
-                            />
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>

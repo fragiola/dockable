@@ -111,7 +111,7 @@ const onExternalDrag: OnExternalDrag<Types> = (event) => {
         onDrop: (id, drop) => {
             const file = drop.dataTransfer?.files[0];
             if (!id || !file) return; // refused by a rule or a middleware
-            model.run("tab.configure", { tabId: id, label: file.name }); // named after the file
+            model.run("tab.rename", { tabId: id, label: file.name }); // named after the file
             files.set(id, file);
         },
     };

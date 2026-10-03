@@ -70,7 +70,5 @@ test("the rewrite tidies names and the log records every command", async ({
     // the log tab lists both commands, newest first
     const log = page.getByRole("list", { name: "Command log" });
     await expect(log.getByRole("listitem")).toHaveCount(2);
-    await expect(log.getByRole("listitem").first()).toContainText(
-        "tab.configure",
-    );
+    await expect(log.getByRole("listitem").first()).toContainText("tab.rename");
 });

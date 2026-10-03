@@ -160,7 +160,7 @@ describe("loading JSON v1", () => {
         const model = createModel({
             version: 1,
             defaults: {
-                tab: { enablePopout: true },
+                tab: { poppable: true },
                 layout: { edgeDockMargin: 4 },
             },
             root: {
@@ -188,7 +188,7 @@ describe("loading JSON v1", () => {
                                 type: "tabset",
                                 id: "c",
                                 children: [tab("Four")],
-                                enableDrop: false,
+                                droppable: false,
                             },
                         ],
                     },
@@ -470,6 +470,57 @@ describe("legacy locations", () => {
                 expect.objectContaining({ path: "/borders/0/location" }),
             ]);
         }
+    });
+
+    it("refuses the enable* flags: they are closable, draggable, droppable, …", () => {
+        const json = {
+            version: 1,
+            defaults: { tabset: { enableClose: false } },
+            root: {
+                type: "row",
+                children: [
+                    {
+                        type: "tabset",
+                        children: [
+                            {
+                                component: "x",
+                                label: "One",
+                                enableClose: false,
+                            },
+                        ],
+                    },
+                ],
+            },
+        };
+        const result = validateLayout(json);
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.issues.map((issue) => issue.path).sort()).toEqual([
+                "/defaults/tabset/enableClose",
+                "/root/children/0/children/0/enableClose",
+            ]);
+        }
+        const renamed = {
+            ...json,
+            defaults: { tabset: { closable: false } },
+            root: {
+                type: "row",
+                children: [
+                    {
+                        type: "tabset",
+                        children: [
+                            {
+                                component: "x",
+                                label: "One",
+                                closable: false,
+                                renamable: false,
+                            },
+                        ],
+                    },
+                ],
+            },
+        };
+        expect(validateLayout(renamed).ok).toBe(true);
     });
 });
 

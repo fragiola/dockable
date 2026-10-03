@@ -17,7 +17,7 @@ its moveable element. The rule is the core's `model.is("node-hidden-by-maximize"
 ## The command
 
 `tabset.maximize` with `value: true` maximizes a tabset (and makes it the active one);
-`value: false` restores it. It is refused when the tabset's `enableMaximize` resolves to false, and for
+`value: false` restores it. It is refused when the tabset's `maximizable` resolves to false, and for
 the only tabset of its layout (there is nothing to hide). `model.can` answers the same question
 without running anything, so a button can hide itself:
 
@@ -64,8 +64,8 @@ presses on the tabs and buttons inside it:
 >
 ```
 
-Maximizing is allowed unless `enableMaximize: false`, per tabset or for every tabset through
-`defaults.tabset.enableMaximize`. Moving the maximized tabset (or a row holding it) elsewhere
+Maximizing is allowed unless `maximizable: false`, per tabset or for every tabset through
+`defaults.tabset.maximizable`. Moving the maximized tabset (or a row holding it) elsewhere
 restores the layout.
 
 ## Styling the state

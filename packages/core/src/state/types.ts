@@ -181,9 +181,10 @@ export interface LayoutSettings {
 
 /** The defaults of a tab's behaviour fields. */
 export interface TabDefaults {
-    enableClose?: boolean;
-    enableDrag?: boolean;
-    enablePopout?: boolean;
+    closable?: boolean;
+    draggable?: boolean;
+    poppable?: boolean;
+    renamable?: boolean;
     minWidth?: number;
     minHeight?: number;
     maxWidth?: number;
@@ -192,11 +193,11 @@ export interface TabDefaults {
 
 /** The defaults of a tabset's behaviour fields. */
 export interface TabsetDefaults {
-    enableDrop?: boolean;
-    enableDrag?: boolean;
-    enableDivide?: boolean;
-    enableMaximize?: boolean;
-    enableClose?: boolean;
+    droppable?: boolean;
+    draggable?: boolean;
+    splittable?: boolean;
+    maximizable?: boolean;
+    closable?: boolean;
     deleteWhenEmpty?: boolean;
     autoSelectTab?: boolean;
     minWidth?: number;
@@ -213,7 +214,7 @@ export interface BorderDefaults {
     mode?: BorderMode;
     /** hide the strip while the border has no tabs (a drag near its edge reveals it) */
     autoHide?: boolean;
-    enableDrop?: boolean;
+    droppable?: boolean;
     autoSelectTabWhenOpen?: boolean;
     autoSelectTabWhenClosed?: boolean;
 }

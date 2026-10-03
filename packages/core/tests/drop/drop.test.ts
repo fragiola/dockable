@@ -171,7 +171,7 @@ describe("drop candidates", () => {
                 {
                     type: "tabset",
                     id: "b",
-                    enableDrop: false,
+                    droppable: false,
                     children: [tab("B1")],
                 },
             ],

@@ -31,7 +31,7 @@ export interface TabState {
     /** the tab is being dragged */
     dragging: boolean;
     /** the tab can be popped out into a window */
-    popoutEnabled: boolean;
+    poppable: boolean;
     /** the tab does not fit in its strip, so it is hidden (tab overflow) */
     overflowHidden: boolean;
 }
@@ -217,7 +217,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const keyShortcuts = toAriaKeyShortcuts(
         keyMap.focusTabToggle,
         // the hint follows the tab's own rule; the key itself asks the model (`closeable`)
-        model.get("tab-settings-by", { tabId: node.id })?.enableClose &&
+        model.get("tab-settings-by", { tabId: node.id })?.closable &&
             node.pinned !== true
             ? keyMap.closeTab
             : undefined,
@@ -229,7 +229,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         pinned: node.pinned === true,
         dragging: drag.state.dragging,
         // supported, and the model accepts `tab.popout` for it now
-        popoutEnabled: engine.can("popout", { nodeId: id }),
+        poppable: engine.can("popout", { nodeId: id }),
         overflowHidden,
     };
     return useRenderElement("div", rest, {
@@ -251,7 +251,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
                 selected,
                 pinned: state.pinned,
                 dragging: state.dragging,
-                "popout-enabled": state.popoutEnabled,
+                poppable: state.poppable,
                 "overflow-hidden": state.overflowHidden,
             }),
             ...dragProps,

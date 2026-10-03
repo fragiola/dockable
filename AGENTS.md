@@ -48,7 +48,7 @@ Do not "fix" these.
    consumer, as a prop on the element it names (`aria-label`, children, or
    `render` with the part's state). With none, no text and no name is rendered.
    A tab's `label` is model data like any other: the model stores the raw string
-   (required, `tab.configure` changes it), and no primitive reads or renders it;
+   (required, `tab.rename` changes it), and no primitive reads or renders it;
    the consumer writes `{tab.label}`.
 9. **No CSS class names in core (D6).** Drop kinds are semantic
    (`kind: "rect" | "edge"`); the moveable element carries

@@ -187,7 +187,7 @@ describe("LayoutEngine measure pass", () => {
     it("forgets the rects of the nodes that leave its layout for a window", () => {
         const { model, rects, engine, root } = setup();
         model.run("layout.configure", {
-            defaults: { tab: { enablePopout: true } },
+            defaults: { tab: { poppable: true } },
         });
         const button = rects.set(
             root.appendChild(document.createElement("div")),

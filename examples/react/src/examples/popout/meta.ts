@@ -11,7 +11,7 @@ export default {
         "Dockable.PopoutTrigger",
         "tab.popout",
         "popoutURL",
-        "defaults.tab.enablePopout",
+        "defaults.tab.poppable",
     ],
     docs: "/docs/guides/popouts",
 } satisfies ExampleMeta;

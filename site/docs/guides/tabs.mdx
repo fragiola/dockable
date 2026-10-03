@@ -13,7 +13,7 @@ a string the model keeps and your markup renders (`{tab.label}`); the packages n
 ```ts
 type Types = {
     tabs: {
-        editor: { path: string; dirty?: boolean; renamable?: boolean };
+        editor: { path: string; dirty?: boolean };
         chart: undefined;
     };
 };
@@ -66,7 +66,7 @@ active one. Outside the root, call `model.run` on the model you created: no engi
 ## Closing a tab
 
 `tab.close` removes a tab. It is **refused** (`error.code === "refused"`) for a pinned tab and for
-one whose `enableClose` resolves to false (on the tab, or through `defaults.tab.enableClose`). Ask
+one whose `closable` resolves to false (on the tab, or through `defaults.tab.closable`). Ask
 before rendering the button: `model.can` answers whether `run` would succeed, middleware included,
 without changing anything (`model.check` returns what it would return).
 
@@ -105,7 +105,7 @@ A focused tab also closes with **`Ctrl+Delete`** (the `closeTab` binding of the
 first.
 
 When the last tab of a tabset closes, the tabset is removed, unless its `deleteWhenEmpty` or
-`enableClose` resolves to false, or it is the main layout's last tabset (that one stays, empty, so
+`closable` resolves to false, or it is the main layout's last tabset (that one stays, empty, so
 there is always somewhere to add a tab). `tabset.close` closes a whole tabset: its closable tabs close, and
 the tabset goes once it is empty (the result lists the closed ids).
 
@@ -144,12 +144,18 @@ middleware in [the command bus](/docs/api/command-bus).
 ## Renaming a tab
 
 A tab's name is its `label`, so renaming is one command, whatever the tab's component:
-`tab.configure` with the new label. Nothing else of the tab changes. Whether a tab may be renamed,
-and what a valid name is, are yours (here `renamable` in its data, and no empty name).
+`tab.rename` with the new label. Nothing else of the tab changes. Whether a tab may be renamed is
+the tab's `renamable` (true unless the tab or `defaults.tab` sets it to false), and `tab.rename`
+refuses a tab that is not; ask `model.can` before you open your rename UI. What a valid name is
+stays yours (here, no empty name).
 
 ```tsx
-if (tab.data?.renamable !== false && value.trim() !== "") {
-    model.run("tab.configure", { tabId: tab.id, label: value.trim() });
+if (model.can("tab.rename", { tabId: tab.id, label: tab.label })) {
+    startRename(tab);
+}
+// on commit
+if (value.trim() !== "") {
+    model.run("tab.rename", { tabId: tab.id, label: value.trim() });
 }
 ```
 
@@ -207,10 +213,10 @@ tab and the controls both read it, so a click inside the tab and one outside sta
 
 Three commands change an existing tab, each taking only what changes:
 
-- `tab.configure` changes the tab's own fields: its `label`, its behaviour flags and its size
-  limits (`enableClose`, `enableDrag`, `enablePopout`, `minWidth`, …). A key you leave out stays as
-  it is. A `null` flag or limit removes the tab's own value, so the layout default applies again;
-  the label cannot be removed.
+- `tab.configure` changes the tab's own fields: its behaviour flags and its size limits
+  (`closable`, `draggable`, `poppable`, `renamable`, `minWidth`, …). A key you leave out stays as
+  it is. A `null` flag or limit removes the tab's own value, so the layout default applies again.
+  Its `label` changes with `tab.rename` (above).
 - `tab.set-data` changes some of its `data`: a shallow patch, whose keys replace the tab's while
   the others stay (`{ tabId, data: { dirty: true } }`).
 - `tab.set-component` switches it to another component, with that component's whole `data`.
@@ -218,7 +224,7 @@ Three commands change an existing tab, each taking only what changes:
 With `dataSchemas` registered on `createModel`, the resulting data is validated first.
 
 ```tsx
-model.run("tab.configure", { tabId: tab.id, label: "notes.md", enableClose: false });
+model.run("tab.configure", { tabId: tab.id, closable: false });
 model.run("tab.set-data", { tabId: tab.id, data: { dirty: true } });
 model.run("tab.set-component", { tabId: tab.id, component: "chart" }); // a chart has no data
 ```

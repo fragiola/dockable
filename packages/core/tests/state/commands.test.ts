@@ -338,7 +338,7 @@ describe("tab commands", () => {
 
     it("tab.close refuses a tab that cannot close (FlexLayout's DELETE_TAB did not)", () => {
         const { model } = setup(tabsets(["One", "Two"]));
-        must(model.run("tab.configure", { tabId: "One", enableClose: false }));
+        must(model.run("tab.configure", { tabId: "One", closable: false }));
         expect(model.run("tab.close", { tabId: "One" })).toEqual({
             ok: false,
             error: {
@@ -349,7 +349,7 @@ describe("tab commands", () => {
         });
         must(
             model.run("layout.configure", {
-                defaults: { tab: { enableClose: false } },
+                defaults: { tab: { closable: false } },
             }),
         );
         expect(model.run("tab.close", { tabId: "Two" }).ok).toBe(false);
@@ -360,43 +360,105 @@ describe("tab commands", () => {
         must(
             model.run("tab.configure", {
                 tabId: "One",
-                enableDrag: false,
+                draggable: false,
                 minWidth: 40,
             }),
         );
         expect(model.get("node-by", { id: "One" })).toMatchObject({
-            enableDrag: false,
+            draggable: false,
             minWidth: 40,
         });
-        must(model.run("tab.configure", { tabId: "One", enableDrag: null }));
+        must(model.run("tab.configure", { tabId: "One", draggable: null }));
         expect(model.get("node-by", { id: "One" })).not.toHaveProperty(
-            "enableDrag",
+            "draggable",
         );
         expect(model.get("node-by", { id: "One" })).toMatchObject({
             minWidth: 40,
         });
     });
 
-    it("tab.configure renames a tab and leaves its data alone", () => {
+    it("tab.rename renames a tab and leaves its data alone", () => {
         const { model, text } = setup(tabsets(["One"]));
         must(model.run("tab.set-data", { tabId: "One", data: { seed: 1 } }));
-        must(model.run("tab.configure", { tabId: "One", label: "Uno" }));
+        expect(
+            must(model.run("tab.rename", { tabId: "One", label: "Uno" })),
+        ).toEqual({ tabId: "One" });
         expect(model.get("node-by", { id: "One" })).toMatchObject({
             label: "Uno",
             data: { seed: 1 },
         });
         expect(text()).toBe("/ts0/t0[Uno]*");
         // any string is a label: refusing an empty one is the app's choice
-        must(model.run("tab.configure", { tabId: "One", label: "" }));
+        must(model.run("tab.rename", { tabId: "One", label: "" }));
         expect(model.get("node-by", { id: "One" })).toMatchObject({
             label: "",
         });
         // a tab always has a label: it cannot be removed
         expect(
-            model.run("tab.configure", {
+            model.run("tab.rename", {
                 tabId: "One",
                 // @ts-expect-error the label is not nullable
                 label: null,
+            }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/label" },
+        });
+        expect(
+            model.run("tab.rename", { tabId: "Nope", label: "x" }),
+        ).toMatchObject({ ok: false, error: { code: "not_found" } });
+    });
+
+    it("tab.rename is refused for a tab that is not renamable", () => {
+        const refused = {
+            ok: false,
+            error: { code: "refused", path: "/tabId" },
+        };
+        const { model } = setup(tabsets(["One", "Two"]));
+        must(model.run("tab.configure", { tabId: "One", renamable: false }));
+        expect(model.get("tab-settings-by", { tabId: "Two" })?.renamable).toBe(
+            true,
+        );
+        expect(
+            model.run("tab.rename", { tabId: "One", label: "x" }),
+        ).toMatchObject(refused);
+        expect(model.can("tab.rename", { tabId: "One", label: "x" })).toBe(
+            false,
+        );
+        expect(
+            model.check("tab.rename", { tabId: "One", label: "x" }),
+        ).toMatchObject(refused);
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            label: "One",
+        });
+        // the layout default applies to a tab that sets nothing; its own value wins
+        must(
+            model.run("layout.configure", {
+                defaults: { tab: { renamable: false } },
+            }),
+        );
+        expect(model.can("tab.rename", { tabId: "Two", label: "x" })).toBe(
+            false,
+        );
+        must(model.run("tab.configure", { tabId: "One", renamable: true }));
+        expect(model.can("tab.rename", { tabId: "One", label: "x" })).toBe(
+            true,
+        );
+        // pinning does not stop a rename
+        must(model.run("tab.pin", { tabId: "One", value: true }));
+        must(model.run("tab.rename", { tabId: "One", label: "Pinned" }));
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            label: "Pinned",
+        });
+    });
+
+    it("tab.configure no longer takes a label", () => {
+        const { model } = setup(tabsets(["One"]));
+        expect(
+            model.run("tab.configure", {
+                tabId: "One",
+                // @ts-expect-error tab.rename changes the label
+                label: "Uno",
             }),
         ).toMatchObject({
             ok: false,
@@ -412,7 +474,7 @@ describe("tab commands", () => {
         });
         must(
             model.run("layout.configure", {
-                defaults: { tab: { enablePopout: true } },
+                defaults: { tab: { poppable: true } },
             }),
         );
         const rect = { x: 10, y: 20, width: 300, height: 200 };
@@ -450,7 +512,7 @@ describe("tabset commands", () => {
         );
     });
 
-    it("tabset.maximize is idempotent and enforces enableMaximize (FlexLayout's toggle did not)", () => {
+    it("tabset.maximize is idempotent and enforces maximizable (FlexLayout's toggle did not)", () => {
         const { model } = setup(tabsets(["One"], ["Two"]));
         must(model.run("tabset.maximize", { tabsetId: "ts1", value: true }));
         must(model.run("tabset.maximize", { tabsetId: "ts1", value: true }));
@@ -461,7 +523,7 @@ describe("tabset commands", () => {
         must(
             model.run("tabset.configure", {
                 tabsetId: "ts0",
-                enableMaximize: false,
+                maximizable: false,
             }),
         );
         expect(
@@ -518,7 +580,7 @@ describe("tabset commands", () => {
         must(
             model.run("tabset.configure", {
                 tabsetId: "ts0",
-                enableClose: false,
+                closable: false,
             }),
         );
         expect(model.run("tabset.close", { tabsetId: "ts0" })).toMatchObject({
@@ -530,7 +592,7 @@ describe("tabset commands", () => {
     it("tabset.popout moves a whole tabset into a window", () => {
         const { model, text } = setup({
             ...tabsets(["One"], ["Two", "Three"]),
-            defaults: { tab: { enablePopout: true } },
+            defaults: { tab: { poppable: true } },
         });
         const { windowId: window } = must(
             model.run("tabset.popout", { tabsetId: "ts1" }),
@@ -755,7 +817,7 @@ describe("window commands", () => {
     const withWindow = () => {
         const context = setup({
             ...tabsets(["One", "Two"], ["Three"]),
-            defaults: { tab: { enablePopout: true } },
+            defaults: { tab: { poppable: true } },
         });
         const { windowId: window } = must(
             context.model.run("tab.popout", { tabId: "Two" }),
@@ -841,18 +903,18 @@ describe("layout commands", () => {
         must(
             model.run("layout.configure", {
                 defaults: {
-                    tab: { enablePopout: true },
+                    tab: { poppable: true },
                     layout: { edgeDockMargin: 4 },
                 },
             }),
         );
         must(
             model.run("layout.configure", {
-                defaults: { tab: { enableDrag: false } },
+                defaults: { tab: { draggable: false } },
             }),
         );
         expect(model.state.defaults).toEqual({
-            tab: { enablePopout: true, enableDrag: false },
+            tab: { poppable: true, draggable: false },
             layout: { edgeDockMargin: 4 },
         });
         expect(model.get("layout-settings")).toEqual({
@@ -863,10 +925,10 @@ describe("layout commands", () => {
         });
         must(
             model.run("layout.configure", {
-                defaults: { tab: { enablePopout: null }, layout: null },
+                defaults: { tab: { poppable: null }, layout: null },
             }),
         );
-        expect(model.state.defaults).toEqual({ tab: { enableDrag: false } });
+        expect(model.state.defaults).toEqual({ tab: { draggable: false } });
     });
 
     it("layout.configure changes the root orientation", () => {
@@ -984,12 +1046,12 @@ describe("key order", () => {
             ...tabsets(["One"]),
             defaults: {
                 layout: { edgeDock: false },
-                tab: { enableClose: false },
+                tab: { closable: false },
             },
         });
         must(
             model.run("layout.configure", {
-                defaults: { tab: { enableDrag: false }, border: { size: 300 } },
+                defaults: { tab: { draggable: false }, border: { size: 300 } },
             }),
         );
         expect(Object.keys(model.state.defaults)).toEqual([
@@ -1004,9 +1066,10 @@ describe("key order", () => {
         expect(
             Object.keys(model.get("tab-settings-by", { tabId: "One" }) ?? {}),
         ).toEqual([
-            "enableClose",
-            "enableDrag",
-            "enablePopout",
+            "closable",
+            "draggable",
+            "poppable",
+            "renamable",
             "pinned",
             "minWidth",
             "minHeight",

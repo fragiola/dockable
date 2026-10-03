@@ -55,19 +55,17 @@ export const tabList =
     "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-(--dk-strip-padding) pt-[calc(var(--dk-strip-padding)/2)]";
 
 export const tab = cn(
-    "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
+    "relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
     "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
     "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
     "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
     "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
+    // the active tabset's marker, drawn as the selected tab's ::after (`in-data-active:` reads
+    // the enclosing TabSet's data-active); the theme sets its colour and display
+    "after:pointer-events-none after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:rounded-full after:bg-(--dk-tab-marker-color) in-data-active:data-selected:after:[display:var(--dk-tab-marker)]",
 );
 
 export const tabName = "truncate";
-
-/** The active tabset's marker: `in-data-active:` reads the enclosing TabSet's data-active,
- * `group-data-selected/tab:` this tab's. */
-export const tabMarker =
-    "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]";
 
 /** `--dk-splitter-size` thick (the engine measures it), with a wider grab area (`::after`). */
 export const splitter = cn(

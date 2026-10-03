@@ -170,11 +170,6 @@ function TabSet({
                 {(tab) => (
                     <Dockable.Tab node={tab} className={styles.tab(bottom)}>
                         <span className={styles.tabName}>{tab.label}</span>
-                        {/* the active tabset's marker, on the edge that meets the content */}
-                        <span
-                            aria-hidden="true"
-                            className={styles.tabMarker(bottom)}
-                        />
                     </Dockable.Tab>
                 )}
             </Dockable.TabList>

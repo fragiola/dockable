@@ -288,7 +288,7 @@ describe("excluded centre", () => {
                     {
                         type: "tabset",
                         id: "ts0",
-                        enableClose: false,
+                        closable: false,
                         children: [{ id: "t0", component: "x", label: "x" }],
                     },
                     {
@@ -403,7 +403,7 @@ describe("enter/leave counting and indicator state", () => {
 /** opens a popout window for `tab` with an injected opener; returns its engine and root */
 function openPopout(s: Setup, tab: string) {
     s.model.run("layout.configure", {
-        defaults: { tab: { enablePopout: true } },
+        defaults: { tab: { poppable: true } },
     });
     const frame = document.body.appendChild(document.createElement("iframe"));
     const win = frame.contentWindow;
@@ -1223,8 +1223,8 @@ describe("refused drops", () => {
                     {
                         type: "tabset",
                         id: "ts1",
-                        enableDrop: false,
-                        enableDivide: false,
+                        droppable: false,
+                        splittable: false,
                         children: [{ id: "t2", component: "x", label: "x" }],
                     },
                 ],

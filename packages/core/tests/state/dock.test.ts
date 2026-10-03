@@ -195,7 +195,7 @@ describe("drop rules", () => {
     });
 
     it("refuses a center drop on a tabset that takes none", () => {
-        const model = createModel(flags({ enableDrop: false }));
+        const model = createModel(flags({ droppable: false }));
         expect(model.run("tab.move", { tabId: "One", to: "ts1" })).toEqual({
             ok: false,
             error: {
@@ -214,7 +214,7 @@ describe("drop rules", () => {
     });
 
     it("refuses an edge drop on a tabset that cannot be split", () => {
-        const model = createModel(flags({ enableDivide: false }));
+        const model = createModel(flags({ splittable: false }));
         const result = model.run("tab.move", {
             tabId: "One",
             to: "ts1",
@@ -228,7 +228,7 @@ describe("drop rules", () => {
 
     it("refuses a tab that cannot be dragged", () => {
         const model = createModel(tabsets(["One", "Two"], ["Three"]));
-        must(model.run("tab.configure", { tabId: "One", enableDrag: false }));
+        must(model.run("tab.configure", { tabId: "One", draggable: false }));
         const result = model.run("tab.move", { tabId: "One", to: "ts1" });
         expect(!result.ok && result.error).toMatchObject({
             code: "refused",
@@ -255,7 +255,7 @@ describe("drop rules", () => {
     });
 
     it("refuses merging a tabset that cannot close or holds pinned tabs", () => {
-        const model = createModel(flags({ enableClose: false }));
+        const model = createModel(flags({ closable: false }));
         expect(
             model.run("tabset.move", { tabsetId: "ts1", to: "ts0" }).ok,
         ).toBe(false);
@@ -289,7 +289,7 @@ describe("drop rules", () => {
             ...tabsets(["One"], ["Two"]),
             borders: [
                 { location: "start", children: [] },
-                { location: "end", enableDrop: false, children: [] },
+                { location: "end", droppable: false, children: [] },
             ],
         });
         expect(
@@ -314,17 +314,17 @@ describe("drop rules", () => {
     it("refuses a tab without popouts in a window", () => {
         const model = createModel({
             ...tabsets(["One", "Two"]),
-            defaults: { tab: { enablePopout: true } },
+            defaults: { tab: { poppable: true } },
         });
         const { windowId: window } = must(
             model.run("tab.popout", { tabId: "One" }),
         );
-        must(model.run("tab.configure", { tabId: "Two", enablePopout: false }));
+        must(model.run("tab.configure", { tabId: "Two", poppable: false }));
         const target = model.get("tabsets", { layoutId: window })[0]?.id ?? "";
         expect(model.run("tab.move", { tabId: "Two", to: target }).ok).toBe(
             false,
         );
-        must(model.run("tab.configure", { tabId: "Two", enablePopout: null }));
+        must(model.run("tab.configure", { tabId: "Two", poppable: null }));
         expect(model.run("tab.move", { tabId: "Two", to: target }).ok).toBe(
             true,
         );

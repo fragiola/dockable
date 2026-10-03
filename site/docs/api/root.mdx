@@ -69,7 +69,7 @@ like any other drop.
                   onDrop: (tabId, drop) => {
                       const file = drop.dataTransfer?.files[0];
                       if (tabId && file) {
-                          model.run("tab.configure", { tabId, label: file.name });
+                          model.run("tab.rename", { tabId, label: file.name });
                       }
                   },
               }

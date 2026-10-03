@@ -9,6 +9,7 @@ import {
     tabMove,
     tabPin,
     tabPopout,
+    tabRename,
     tabSelect,
     tabSetComponent,
     tabSetData,
@@ -27,7 +28,7 @@ import { windowClose, windowConfigure } from "./window";
 /**
  * Every built-in command, in the order `model.get("commands")` lists them. Each definition keeps its
  * schemas' literal types (the type tests read them); the list erases them to `CommandDefinition`
- * once, so code that walks it does not compare 23 literal schemas with `JsonSchema` again.
+ * once, so code that walks it does not compare 24 literal schemas with `JsonSchema` again.
  */
 export const COMMANDS: readonly CommandDefinition[] = [
     tabAdd,
@@ -38,6 +39,7 @@ export const COMMANDS: readonly CommandDefinition[] = [
     tabSetComponent,
     tabPin,
     tabPopout,
+    tabRename,
     tabConfigure,
     tabsetActivate,
     tabsetMaximize,

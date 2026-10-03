@@ -85,7 +85,7 @@ model.run("tab.select", { tabId: "readme" });
 model.run("tab.close", { tabId: "readme" });
 model.run("tab.add", { component: "log", label: "Log", to: "editors", select: true });
 model.run("tab.move", { tabId: "log", to: "editors", location: "end" }); // split beside it
-model.run("tab.configure", { tabId: "log", label: "Build log" }); // rename
+model.run("tab.rename", { tabId: "log", label: "Build log" });
 model.run("tab.set-data", { tabId: "readme", data: { path: "/docs/README.md" } }); // a data patch
 model.run("tabset.maximize", { tabsetId: "editors", value: true });
 ```
@@ -104,7 +104,7 @@ if (result.ok) {
 ```
 
 `refused` means a rule of the layout forbids it: a pinned tab cannot close, a tab whose
-`enableDrag` is false cannot move, a tabset with `enableDrop: false` takes no drop. The permission
+`draggable` is false cannot move, a tabset with `droppable: false` takes no drop. The permission
 flags are enforced by the commands themselves, so code cannot bypass them either.
 
 `run` is bound, so it can be passed around on its own. Inside `Dockable.Root`, `useDockable()`
@@ -238,7 +238,7 @@ model.is("node-hidden-by-maximize", { nodeId: "tools" }); // hidden because anot
 
 Every key is on [the Model reference](/docs/api/model#reading-get). A flag a node does not set
 comes from the layout `defaults` (then from the built-in value), so read it through the
-`*-settings` keys, not from the node: `model.get("tab-settings-by", { tabId: tab.id })?.enableClose`.
+`*-settings` keys, not from the node: `model.get("tab-settings-by", { tabId: tab.id })?.closable`.
 To know whether something is allowed right now (the defaults, the rules and your middleware
 together), ask `model.can("tab.close", { tabId: tab.id })`.
 
