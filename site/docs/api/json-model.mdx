@@ -116,12 +116,13 @@ sources) whose `type` may be omitted:
 | `type` | `"tab"` | optional |
 | `id` | `string` | generated when missing |
 | `component` | `string` | what the tab shows: a component of your registry, which types `data` |
-| `label` | `string` | required: the tab's name, as your app wrote it. The model never translates or renders it; your strip renders it (`{tab.label}`), and `tab.configure` changes it |
+| `label` | `string` | required: the tab's name, as your app wrote it. The model never translates or renders it; your strip renders it (`{tab.label}`), and `tab.rename` changes it |
 | `data` | `TabDataOf<T, K>` | the app's data for the tab (its icon, dirty flag, …); required when the component's data type is |
 | `pinned` | `boolean` | the tab sits at the start of its strip, cannot close and cannot leave its tabset; a border's tabs cannot be pinned |
 | `closable` | `boolean` | it can be closed |
 | `draggable` | `boolean` | it can be dragged or moved |
 | `poppable` | `boolean` | it can be popped out into a window, or dropped into one |
+| `renamable` | `boolean` | it can be renamed (`tab.rename`) |
 | `minWidth`, `minHeight`, `maxWidth`, `maxHeight` | `number` | its size limits in px (`SizeLimits`) |
 | `borderWidth` | `number` | its own panel width in a start or end border (the border's `size` otherwise) |
 | `borderHeight` | `number` | its own panel height in a top or bottom border |
@@ -208,6 +209,7 @@ The rule is `node.x ?? defaults[kind].x ?? BUILT_IN[kind].x`, with no other inhe
 | `closable` | `boolean` | `true` |
 | `draggable` | `boolean` | `true` |
 | `poppable` | `boolean` | `false` |
+| `renamable` | `boolean` | `true` |
 | `minWidth`, `minHeight` | `number` | `1` |
 | `maxWidth`, `maxHeight` | `number` | `99999` |
 
@@ -355,7 +357,8 @@ attributes:
 | `borderWidth`, `borderHeight` of `-1` | omitted |
 | a tab's `name` | `label`: required, rendered by your strip (the packages never render it) |
 | a tab's `altName`, `icon`, `helpText` | moved to `data`: they are your text, rendered by your strip |
-| a tab's `enableRename`, `enablePin` | moved to `data`: they only gate your own menu items; renaming is `tab.configure` with a new `label` |
+| a tab's `enableRename` | `renamable`: `tab.rename` refuses a tab that is not |
+| a tab's `enablePin` | moved to `data`: it only gates your own menu item |
 | a tabset's `name` | moved to `data` (the tab list's accessible name is yours to pass) |
 | `enableRenderOnDemand`, `enableScrollbars`, `enableWindowReMount` | props: `renderOnDemand` on `Dockable.Panels`, `scrollable` and `remountInWindow` on `Dockable.Panel` |
 | `borderLeftTabDirection`, `enableEdgeDockIndicators` | props: `tabDirection` on `Dockable.Border`; render `Dockable.EdgeIndicator` or not |

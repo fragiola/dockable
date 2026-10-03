@@ -146,7 +146,7 @@ model.run("tab.set-data", { tabId: tab.id, data: { draft } });
 
 Each such command is an undo step; add `"tab.set-data"` to your
 [undo history](/docs/guides/undo-redo)'s ignored commands if it should not be (renames are
-`tab.configure`, so they stay undoable).
+`tab.rename`, so they stay undoable).
 
 ## Versioning saved layouts
 

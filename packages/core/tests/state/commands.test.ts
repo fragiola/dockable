@@ -377,26 +377,88 @@ describe("tab commands", () => {
         });
     });
 
-    it("tab.configure renames a tab and leaves its data alone", () => {
+    it("tab.rename renames a tab and leaves its data alone", () => {
         const { model, text } = setup(tabsets(["One"]));
         must(model.run("tab.set-data", { tabId: "One", data: { seed: 1 } }));
-        must(model.run("tab.configure", { tabId: "One", label: "Uno" }));
+        expect(
+            must(model.run("tab.rename", { tabId: "One", label: "Uno" })),
+        ).toEqual({ tabId: "One" });
         expect(model.get("node-by", { id: "One" })).toMatchObject({
             label: "Uno",
             data: { seed: 1 },
         });
         expect(text()).toBe("/ts0/t0[Uno]*");
         // any string is a label: refusing an empty one is the app's choice
-        must(model.run("tab.configure", { tabId: "One", label: "" }));
+        must(model.run("tab.rename", { tabId: "One", label: "" }));
         expect(model.get("node-by", { id: "One" })).toMatchObject({
             label: "",
         });
         // a tab always has a label: it cannot be removed
         expect(
-            model.run("tab.configure", {
+            model.run("tab.rename", {
                 tabId: "One",
                 // @ts-expect-error the label is not nullable
                 label: null,
+            }),
+        ).toMatchObject({
+            ok: false,
+            error: { code: "invalid_payload", path: "/label" },
+        });
+        expect(
+            model.run("tab.rename", { tabId: "Nope", label: "x" }),
+        ).toMatchObject({ ok: false, error: { code: "not_found" } });
+    });
+
+    it("tab.rename is refused for a tab that is not renamable", () => {
+        const refused = {
+            ok: false,
+            error: { code: "refused", path: "/tabId" },
+        };
+        const { model } = setup(tabsets(["One", "Two"]));
+        must(model.run("tab.configure", { tabId: "One", renamable: false }));
+        expect(model.get("tab-settings-by", { tabId: "Two" })?.renamable).toBe(
+            true,
+        );
+        expect(
+            model.run("tab.rename", { tabId: "One", label: "x" }),
+        ).toMatchObject(refused);
+        expect(model.can("tab.rename", { tabId: "One", label: "x" })).toBe(
+            false,
+        );
+        expect(
+            model.check("tab.rename", { tabId: "One", label: "x" }),
+        ).toMatchObject(refused);
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            label: "One",
+        });
+        // the layout default applies to a tab that sets nothing; its own value wins
+        must(
+            model.run("layout.configure", {
+                defaults: { tab: { renamable: false } },
+            }),
+        );
+        expect(model.can("tab.rename", { tabId: "Two", label: "x" })).toBe(
+            false,
+        );
+        must(model.run("tab.configure", { tabId: "One", renamable: true }));
+        expect(model.can("tab.rename", { tabId: "One", label: "x" })).toBe(
+            true,
+        );
+        // pinning does not stop a rename
+        must(model.run("tab.pin", { tabId: "One", value: true }));
+        must(model.run("tab.rename", { tabId: "One", label: "Pinned" }));
+        expect(model.get("node-by", { id: "One" })).toMatchObject({
+            label: "Pinned",
+        });
+    });
+
+    it("tab.configure no longer takes a label", () => {
+        const { model } = setup(tabsets(["One"]));
+        expect(
+            model.run("tab.configure", {
+                tabId: "One",
+                // @ts-expect-error tab.rename changes the label
+                label: "Uno",
             }),
         ).toMatchObject({
             ok: false,
@@ -1007,6 +1069,7 @@ describe("key order", () => {
             "closable",
             "draggable",
             "poppable",
+            "renamable",
             "pinned",
             "minWidth",
             "minHeight",

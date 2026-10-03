@@ -66,7 +66,7 @@ describe("useModelState", () => {
         });
         expect(seen.at(-1)).toBe(first);
         await act(async () => {
-            model.run("tab.configure", { tabId: "t0", label: "Uno" });
+            model.run("tab.rename", { tabId: "t0", label: "Uno" });
         });
         expect(seen.at(-1)).toEqual(["Uno", "Two", "Three"]);
     });

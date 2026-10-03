@@ -242,7 +242,7 @@ There is no other inheritance: a tab does not inherit from its tabset. The `*-se
 
 | type | fields |
 | --- | --- |
-| `ResolvedTab` (`"tab-settings-by"`) | `closable`, `draggable`, `poppable`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedTab` (`"tab-settings-by"`) | `closable`, `draggable`, `poppable`, `renamable`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
 | `ResolvedTabset` (`"tabset-settings-by"`) | `droppable`, `draggable`, `splittable`, `maximizable`, `closable`, `deleteWhenEmpty`, `autoSelectTab`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
 | `ResolvedBorder` (`"border-settings-by"`) | `size`, `minSize`, `maxSize`, `mode`, `autoHide`, `droppable`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, `show` |
 | `ResolvedLayout` | `rootOrientation`, `edgeDock`, `edgeDockMargin`, `edgeDockLength` (from `model.get("layout-settings")`) |
@@ -263,7 +263,7 @@ if (tab && model.get("tab-settings-by", { tabId: tab.id })?.closable) {
 
 | kind | field | built-in |
 | --- | --- | --- |
-| `tab` | `closable`, `draggable` | `true` |
+| `tab` | `closable`, `draggable`, `renamable` | `true` |
 | `tab` | `poppable` | `false` |
 | `tab`, `tabset` | `minWidth`, `minHeight` / `maxWidth`, `maxHeight` | `1` / `99999` |
 | `tabset` | `droppable`, `draggable`, `splittable`, `maximizable`, `closable`, `deleteWhenEmpty`, `autoSelectTab` | `true` |

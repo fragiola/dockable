@@ -40,6 +40,7 @@ export const BUILT_IN = Object.freeze({
         closable: true,
         draggable: true,
         poppable: false,
+        renamable: true,
         minWidth: DEFAULT_MIN_SIZE,
         minHeight: DEFAULT_MIN_SIZE,
         maxWidth: DEFAULT_MAX_SIZE,

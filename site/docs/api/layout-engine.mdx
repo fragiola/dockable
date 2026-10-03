@@ -444,7 +444,7 @@ case-insensitively against `KeyboardEvent.key`); an explicit `undefined` disable
 | field | default | description |
 | --- | --- | --- |
 | `closeTab` | `"Ctrl+Delete"` | closes the focused tab button's tab (when the tab is closeable) |
-| `renameTab` | `"F2"` | starts renaming the focused tab button's tab (when the tab is renameable, tabset tabs only) |
+| `renameTab` | `"F2"` | starts renaming the focused tab button's tab (when `model.can("tab.rename")` allows it, tabset tabs only) |
 | `focusTabToggle` | off | toggles focus between the selected tab button and its content |
 | `focusNextTabset` | off | moves focus to the selected tab button of the next tabset in the layout (wrapping), from anywhere within the layout, tab content included |
 | `focusPreviousTabset` | off | the same, to the previous tabset |

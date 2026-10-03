@@ -128,8 +128,8 @@ function tidy(name: string) {
 
 /** Rewrite: a tab's new label is tidied, then the command runs with the new payload. */
 const tidyNames: Middleware<Types> = (ctx, next) => {
-    // `ctx.command` narrows the payload: a rename is `tab.configure` with a label
-    if (ctx.command === "tab.configure" && ctx.payload.label !== undefined) {
+    // `ctx.command` narrows the payload: a rename is `tab.rename`, with its label
+    if (ctx.command === "tab.rename") {
         ctx.payload = { ...ctx.payload, label: tidy(ctx.payload.label) };
     }
     return next();
@@ -230,7 +230,7 @@ export default function MiddlewareExample() {
         event.preventDefault();
         const tab = model.get("selected-tab-by", { tabsetId: "charts" });
         if (tab?.component !== "chart") return;
-        const result = model.run("tab.configure", {
+        const result = model.run("tab.rename", {
             tabId: tab.id,
             label: name,
         });

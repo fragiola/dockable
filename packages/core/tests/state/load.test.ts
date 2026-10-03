@@ -509,7 +509,12 @@ describe("legacy locations", () => {
                     {
                         type: "tabset",
                         children: [
-                            { component: "x", label: "One", closable: false },
+                            {
+                                component: "x",
+                                label: "One",
+                                closable: false,
+                                renamable: false,
+                            },
                         ],
                     },
                 ],

@@ -189,6 +189,10 @@ export const tabDefaultProperties = {
         ...booleanSchema,
         description: "whether the tab can be popped out into a window",
     },
+    renamable: {
+        ...booleanSchema,
+        description: "whether the tab can be renamed (`tab.rename`)",
+    },
     ...sizeLimitProperties,
 } as const satisfies Properties;
 

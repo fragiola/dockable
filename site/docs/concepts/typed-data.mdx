@@ -129,7 +129,7 @@ model.run("tab.set-data", { tabId: "t1", data: { colour: "red" } });
 ```
 
 A patch never removes a key: set an optional one to its empty value (`false`, `null`, `""`), or
-replace the whole data with `tab.set-component` (its current component, to keep it). Renaming is not a data change: it is `tab.configure` with a new
+replace the whole data with `tab.set-component` (its current component, to keep it). Renaming is not a data change: it is `tab.rename` with a new
 `label`.
 
 A toolbar outside the layout can drive the tab the user is looking at this way: it narrows the
@@ -204,11 +204,10 @@ markup reads them:
 </Dockable.TabList>
 ```
 
-The same goes for UI permissions the model does not enforce: whether a tab may be renamed, or shows
-a pin item in its menu, is a field of its data (`renamable: true`), and renaming it is
-`tab.configure` with the new label. Permissions the model **does** enforce (`closable`, `draggable`,
-`poppable`, `pinned`, a tabset's `droppable`, …) stay node fields, because the commands check
-them.
+The same goes for UI permissions the model does not enforce: whether a tab shows a pin item in its
+menu is a field of its data (`showPin: true`). Permissions the model **does** enforce
+(`closable`, `draggable`, `poppable`, `renamable`, `pinned`, a tabset's `droppable`, …) are node
+fields, because the commands check them: `tab.rename` refuses a tab that is not `renamable`.
 
 ## The type argument on children functions
 

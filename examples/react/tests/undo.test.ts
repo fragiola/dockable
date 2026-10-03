@@ -55,7 +55,7 @@ const canUndo = (undo: UndoManager<Types>) => undo.getSnapshot().canUndo;
 const canRedo = (undo: UndoManager<Types>) => undo.getSnapshot().canRedo;
 
 const rename = (m: Model<Types>, name: string) =>
-    m.run("tab.configure", { tabId: "t1", label: name });
+    m.run("tab.rename", { tabId: "t1", label: name });
 
 const children = (m: Model<Types>, id: string) => {
     const node = m.get("node-by", { id });
@@ -104,7 +104,7 @@ describe("UndoManager", () => {
 
     it("honors custom ignoreCommands", () => {
         const { m, undo } = setup(json, {
-            ignoreCommands: ["tab.configure"],
+            ignoreCommands: ["tab.rename"],
         });
 
         rename(m, "renamed");

@@ -872,6 +872,7 @@ describe("state", () => {
             "tab.set-component",
             "tab.pin",
             "tab.popout",
+            "tab.rename",
             "tab.configure",
             "tabset.activate",
             "tabset.maximize",

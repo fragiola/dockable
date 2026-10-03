@@ -153,7 +153,7 @@ export default function CommandsScenario() {
                       })
                     : undefined;
                 if (!tab) return undefined;
-                return model.run("tab.configure", {
+                return model.run("tab.rename", {
                     tabId: tab.id,
                     label: `${tab.label}*`,
                 });

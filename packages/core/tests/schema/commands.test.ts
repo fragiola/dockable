@@ -86,6 +86,12 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
         path: "/rect/y",
         result: { windowId: "w" },
     },
+    "tab.rename": {
+        valid: { tabId: "t", label: "Notes" },
+        invalid: { tabId: "t", label: 1 },
+        path: "/label",
+        result: { tabId: "t" },
+    },
     "tab.configure": {
         valid: { tabId: "t", closable: false, minWidth: null },
         invalid: { tabId: "t", closable: "no" },

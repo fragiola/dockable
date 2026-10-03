@@ -190,7 +190,7 @@ export default function DropFiles() {
                 );
                 // no tab: the drop was refused (a rule or a middleware); no file: nothing to read
                 if (!tabId || !first) return;
-                model.run("tab.configure", { tabId, label: first.name });
+                model.run("tab.rename", { tabId, label: first.name });
                 void openFile(model, first, tabId, keep);
                 const tabset = model.get("node-parent-by", { nodeId: tabId });
                 if (tabset) openInto(tabset.id, others);

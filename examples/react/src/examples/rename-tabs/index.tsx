@@ -18,14 +18,13 @@ import * as styles from "./styles";
 
 // Inline rename: double-click a tab (or press F2 on it) and type. Enter confirms, Escape cancels,
 // an empty name is refused. The package has no rename UI: the name is the tab's `label`, and
-// renaming is one command, `tab.configure` with the new label, whatever the tab's component.
-// Whether a tab may be renamed is the app's choice (`renamable` in its data).
+// renaming is one command, `tab.rename` with the new label, whatever the tab's component.
+// Whether a tab may be renamed is the tab's `renamable` (true unless set), and the model enforces it.
 
-// A note's data may say it keeps its name.
 // The chart's title and the KPI's caption are the tab's label: a rename shows in the content too.
 type Types = {
     tabs: {
-        note: { text: string; renamable?: boolean };
+        note: { text: string };
         chart: { kind: ChartKind; seed: number };
         kpi: { seed: number };
     };
@@ -55,10 +54,10 @@ const json: LayoutJson<Types> = {
                     {
                         component: "note",
                         label: "Fixed name",
-                        // this one cannot be renamed
+                        // this one cannot be renamed: tab.rename refuses it
+                        renamable: false,
                         data: {
-                            text: "This tab keeps its name: its data says renamable: false.",
-                            renamable: false,
+                            text: "This tab keeps its name: it is renamable: false.",
                         },
                     },
                 ],
@@ -175,8 +174,9 @@ function RenamableTab({
     setEditing: (id: string | null) => void;
 }) {
     const { model } = useDockable<Types>();
+    // ask the model whether this tab may be renamed (its `renamable`, and any middleware)
     const start = () => {
-        if (tab.component !== "note" || tab.data.renamable !== false) {
+        if (model.can("tab.rename", { tabId: tab.id, label: tab.label })) {
             setEditing(tab.id);
         }
     };
@@ -197,7 +197,7 @@ function RenamableTab({
                 <RenameField
                     name={tab.label}
                     onCommit={(name) => {
-                        model.run("tab.configure", {
+                        model.run("tab.rename", {
                             tabId: tab.id,
                             label: name,
                         });

@@ -85,7 +85,7 @@ model.run("tab.select", { tabId: "readme" });
 model.run("tab.close", { tabId: "readme" });
 model.run("tab.add", { component: "log", label: "Log", to: "editors", select: true });
 model.run("tab.move", { tabId: "log", to: "editors", location: "end" }); // split beside it
-model.run("tab.configure", { tabId: "log", label: "Build log" }); // rename
+model.run("tab.rename", { tabId: "log", label: "Build log" });
 model.run("tab.set-data", { tabId: "readme", data: { path: "/docs/README.md" } }); // a data patch
 model.run("tabset.maximize", { tabsetId: "editors", value: true });
 ```

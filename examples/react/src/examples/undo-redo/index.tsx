@@ -205,7 +205,7 @@ function describe(command: CommandName): string {
             return "Resize";
         case "tabset.maximize":
             return "Maximize";
-        case "tab.configure":
+        case "tab.rename":
             return "Rename";
         default:
             return command;

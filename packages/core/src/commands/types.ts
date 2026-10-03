@@ -77,8 +77,6 @@ export type TabSetComponentPayload<T extends DockableTypes> = {
 
 export type TabConfigurePayload = {
     tabId: string;
-    /** the tab's new name (a tab always has one: it cannot be removed) */
-    label?: string;
 } & Nullable<Required<TabDefaults & Omit<TabOwnFields, "pinned">>>;
 
 export type TabsetConfigurePayload<T extends DockableTypes> = {
@@ -132,6 +130,10 @@ export interface CommandMap<T extends DockableTypes = AnyTypes> {
     "tab.popout": {
         payload: { tabId: string; rect?: Rect };
         result: { windowId: string };
+    };
+    "tab.rename": {
+        payload: { tabId: string; label: string };
+        result: { tabId: string };
     };
     "tab.configure": {
         payload: TabConfigurePayload;

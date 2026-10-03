@@ -64,7 +64,7 @@ in the trigger instead.
 | Close others | `batch` of `tab.close`, one per other closable tab | at least one |
 | Close to the right | `batch` of `tab.close` for the closable tabs after it | at least one |
 | Close all | `tabset.close` `{ tabsetId }`, or a `batch` of `tab.close` | `model.can("tabset.close", …)` |
-| Rename | start your rename UI, then `tab.configure` `{ tabId, label }` | your own rule (in `data`), and `model.can("tab.configure", …)` |
+| Rename | start your rename UI, then `tab.rename` `{ tabId, label }` | `model.can("tab.rename", { tabId, label: tab.label })` (the tab's `renamable`) |
 | Pin / Unpin | `tab.pin` `{ tabId, value }` | `model.can("tab.pin", …)` (refused in a border) |
 | Pop out | `tab.popout` `{ tabId }` | `engine.is("popout-supported")` and `model.can("tab.popout", …)` |
 | Pop out the tabset | `tabset.popout` `{ tabsetId }` | as Pop out, with `tabset.popout` |

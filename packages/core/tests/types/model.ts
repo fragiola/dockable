@@ -120,10 +120,19 @@ export function commands(model: Model<Types>): void {
         component: "editor",
         data: { dirty: true },
     });
-    // tab.configure renames; a label cannot be removed
-    model.run("tab.configure", { tabId: "t", label: "New name" });
+    // tab.rename renames; a label cannot be removed
+    model.run("tab.rename", { tabId: "t", label: "New name" });
     // @ts-expect-error: a tab always has a label
-    model.run("tab.configure", { tabId: "t", label: null });
+    model.run("tab.rename", { tabId: "t", label: null });
+    // @ts-expect-error: a rename names the new label
+    model.run("tab.rename", { tabId: "t" });
+    // @ts-expect-error: tab.configure does not rename (tab.rename does)
+    model.run("tab.configure", { tabId: "t", label: "New name" });
+    model.run("tab.configure", { tabId: "t", renamable: false });
+    const renamable: boolean | undefined = model.get("tab-settings-by", {
+        tabId: "t",
+    })?.renamable;
+    use(renamable, model.can("tab.rename", { tabId: "t", label: "x" }));
     // @ts-expect-error: a tab is created with its label
     model.run("tab.add", { component: "empty", to: "ts0" });
     // @ts-expect-error: maximize takes an explicit value, it is not a toggle

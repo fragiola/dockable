@@ -28,7 +28,7 @@ test("double-click renames: Enter confirms, empty is refused, Escape cancels", a
     await expect(field).toHaveCount(0);
     await expect(tab).toHaveText("Plan");
 
-    // F2 on a focused tab also renames; a tab with enableRename: false does not
+    // F2 on a focused tab also renames; a tab with renamable: false does not
     await tab.press("F2");
     await expect(field).toBeFocused();
     await field.press("Escape");

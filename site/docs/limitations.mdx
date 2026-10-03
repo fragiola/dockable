@@ -36,7 +36,7 @@ use and the Epic that will remove it, when one is scheduled.
 | **Cross-window tab drag** (a tab dragged to another browser tab or window of the app) | not built: a drag crosses the layouts and popouts of one page, not separate pages | not scheduled yet |
 | **Several open tabs per border** | not built: a border shows one selected tab at a time | not scheduled yet |
 | **A popout document hook** for libraries that portal into the global `document` | not built: give such a library the content's `ownerDocument` yourself ([Popouts](/docs/guides/popouts#what-works-across-windows-and-what-does-not)) | not scheduled yet |
-| **Inline rename on `F2`** | the `renameTab` binding exists in the key map but the primitives do not act on it; build the rename UI, which runs `tab.configure` with the new `label` ([Tabs](/docs/guides/tabs)) | not scheduled yet |
+| **Inline rename on `F2`** | the `renameTab` binding exists in the key map but the primitives do not act on it; build the rename UI, which asks `model.can("tab.rename", …)` and runs `tab.rename` with the new `label` ([Tabs](/docs/guides/tabs)) | not scheduled yet |
 | **Adapters for Angular and Vue** | the core is framework-agnostic so they can follow | not scheduled yet |
 
 ## RTL

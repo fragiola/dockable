@@ -184,6 +184,7 @@ export interface TabDefaults {
     closable?: boolean;
     draggable?: boolean;
     poppable?: boolean;
+    renamable?: boolean;
     minWidth?: number;
     minHeight?: number;
     maxWidth?: number;
