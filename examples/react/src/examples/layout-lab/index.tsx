@@ -275,10 +275,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                                     className={styles.tabCloseIcon}
                                 />
                             </button>
-                            <span
-                                aria-hidden="true"
-                                className={styles.tabMarker}
-                            />
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>

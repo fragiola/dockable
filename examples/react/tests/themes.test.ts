@@ -31,6 +31,7 @@ const TOKENS = [
     "motion",
     "tab-divider",
     "tab-marker",
+    "tab-marker-color",
     "panel-texture",
     // per palette: they read the palette the element sits in
     "tab-selected-bg",

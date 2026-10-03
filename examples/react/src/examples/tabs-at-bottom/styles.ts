@@ -64,23 +64,19 @@ export const tabList =
 /** Below the content, the tabs hang from the strip's rule. */
 export const tab = (bottom: boolean) =>
     cn(
-        "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
+        "relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
         "font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
         "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
         "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
         "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
         bottom ? "rounded-b-(--dk-tab-radius)" : "rounded-t-(--dk-tab-radius)",
+        // the active tabset's marker, drawn as the selected tab's ::after (`in-data-active:` reads
+        // the enclosing TabSet's data-active); the theme sets its colour and display
+        "after:pointer-events-none after:absolute after:inset-x-2 after:hidden after:h-0.5 after:rounded-full after:bg-(--dk-tab-marker-color) in-data-active:data-selected:after:[display:var(--dk-tab-marker)]",
+        bottom ? "after:top-0" : "after:bottom-0",
     );
 
 export const tabName = "truncate";
-
-/** The active tabset's marker, on the edge that meets the content: `in-data-active:` reads the
- * enclosing TabSet's data-active, `group-data-selected/tab:` this tab's. */
-export const tabMarker = (bottom: boolean) =>
-    cn(
-        "palette-blue pointer-events-none absolute inset-x-2 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]",
-        bottom ? "top-0" : "bottom-0",
-    );
 
 /** `--dk-splitter-size` thick (the engine measures it), with a wider grab area (`::after`). */
 export const splitter = cn(

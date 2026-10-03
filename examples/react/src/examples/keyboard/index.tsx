@@ -185,7 +185,6 @@ function KeyboardTab({ tab }: { tab: TabOf<Types> }) {
                 render={
                     <Dockable.Tab node={tab} className={styles.tab}>
                         <span className={styles.tabName}>{tab.label}</span>
-                        <span aria-hidden="true" className={styles.tabMarker} />
                     </Dockable.Tab>
                 }
             />

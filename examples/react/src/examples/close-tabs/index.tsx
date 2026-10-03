@@ -221,7 +221,6 @@ function ClosableTab({ tab }: { tab: TabOf<Types> }) {
             ) : (
                 <Lock aria-hidden className={styles.lockIcon} />
             )}
-            <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
 }

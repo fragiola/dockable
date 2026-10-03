@@ -101,7 +101,6 @@ function WorkbenchTab({
                         />
                     </button>
                 ) : null}
-                <span aria-hidden="true" className={styles.tabMarker} />
             </Dockable.Tab>
             <ContextMenu.Content>
                 <ContextMenu.Item disabled={!canClose} onClick={close}>

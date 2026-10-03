@@ -9,8 +9,9 @@
         tabset's border and shadow (--dk-border, --dk-shadow), the splitter
         (--dk-splitter-size, --dk-splitter-grab, --dk-splitter-bg, --dk-grip), the
         drop indicator's line (--dk-indicator-style), motion (--dk-motion), the line
-        between tabs (--dk-tab-divider), the active-tab marker's display
-        (--dk-tab-marker) and the panels' background image (--dk-panel-texture);
+        between tabs (--dk-tab-divider), the active-tab marker's display and colour
+        (--dk-tab-marker, --dk-tab-marker-color, the selected tab's ::after) and the
+        panels' background image (--dk-panel-texture);
      2. the Fragiola palettes the examples use, each with all SIX roles
         (base, soft, line, contrast, accent, ring). A palette that omitted one
         would inherit it from the page and leak across the theme boundary;
@@ -46,6 +47,7 @@
     --dk-motion: 150ms;
     --dk-tab-divider: 0px;
     --dk-tab-marker: block;
+    --dk-tab-marker-color: oklch(0.55 0.2 250); /* the blue palette's base */
     --dk-panel-texture: none;
 }
 

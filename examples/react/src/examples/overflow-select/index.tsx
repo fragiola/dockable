@@ -372,7 +372,6 @@ function Tab({ tab, ref }: { tab: TabOf<Types>; ref?: Ref<HTMLElement> }) {
     return (
         <Dockable.Tab node={tab} ref={ref} className={styles.tab}>
             <span className={styles.tabName}>{tab.label}</span>
-            <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
 }

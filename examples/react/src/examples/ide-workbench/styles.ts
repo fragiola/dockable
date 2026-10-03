@@ -152,6 +152,9 @@ export const tab = cn(
     "border-e-(length:--dk-tab-divider) border-palette-line outline-none transition-colors duration-(--dk-motion) hover:bg-palette-soft",
     "focus-visible:ring-2 focus-visible:ring-palette-ring focus-visible:ring-inset",
     "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
+    // the active tabset's marker, drawn as the selected tab's ::after (`in-data-active:` reads
+    // the enclosing TabSet's data-active); the theme sets its colour and display
+    "after:pointer-events-none after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:rounded-full after:bg-(--dk-tab-marker-color) in-data-active:data-selected:after:[display:var(--dk-tab-marker)]",
 );
 
 export const tabIcon = "size-3.5 shrink-0";
@@ -174,11 +177,6 @@ export const closeIcon = (dirty: boolean) =>
             ? "hidden group-hover/tab:block"
             : "opacity-0 group-hover/tab:opacity-100 group-data-selected/tab:opacity-100",
     );
-
-/** The active tabset's marker: `in-data-active:` reads the enclosing TabSet's data-active,
- * `group-data-selected/tab:` this tab's. */
-export const tabMarker =
-    "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]";
 
 // ─── explorer (explorer.tsx) ───
 

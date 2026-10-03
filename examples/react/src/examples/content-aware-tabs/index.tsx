@@ -171,7 +171,6 @@ function StatusTab({ tab }: { tab: TabOf<Types> }) {
                 <status.Icon aria-hidden className={styles.tabIcon} />
             ) : null}
             <span className={styles.tabName}>{tab.label}</span>
-            <span aria-hidden="true" className={styles.tabMarker} />
             {incidents ? (
                 <Badge
                     variant="solid"

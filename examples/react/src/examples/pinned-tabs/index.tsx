@@ -165,10 +165,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                     {(tab) => (
                         <Dockable.Tab node={tab} className={styles.tab}>
                             <TabLabel tab={tab} />
-                            <span
-                                aria-hidden="true"
-                                className={styles.tabMarker}
-                            />
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>

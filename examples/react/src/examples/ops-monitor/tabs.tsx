@@ -65,7 +65,6 @@ function MonitorTab({ tab }: { tab: TabOf<Types> }) {
                 </span>
             ) : null}
             <span aria-hidden="true" className={styles.statusLine(status)} />
-            <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
 }

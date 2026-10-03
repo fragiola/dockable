@@ -208,7 +208,6 @@ function RenamableTab({
             ) : (
                 <span className={styles.tabName}>{tab.label}</span>
             )}
-            <span aria-hidden="true" className={styles.tabMarker} />
         </Dockable.Tab>
     );
 }

@@ -193,7 +193,6 @@ function MenuTab({ tab }: { tab: TabOf<Types> }) {
                 className={styles.tab}
             >
                 <span className={styles.tabName}>{tab.label}</span>
-                <span aria-hidden="true" className={styles.tabMarker} />
             </Dockable.Tab>
             <ContextMenu.Content>
                 <ContextMenu.Item

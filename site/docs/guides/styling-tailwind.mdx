@@ -29,17 +29,19 @@ Valued attributes take the bracket form: `data-[orientation=vertical]:w-px`,
 
 `Tab` does not know whether its tabset is active (gap 1 in [Limitations](/docs/limitations)).
 Read it from the ancestor instead. `in-data-active:` matches when **any ancestor** has
-`data-active`, so a marker inside the selected tab of the active tabset is:
+`data-active`. A marker under the selected tab of the active tabset needs no element of its own:
+draw it as the tab's `::after`, shown when the tab is `data-selected` inside an active tabset:
 
 ```tsx
-<Dockable.Tab node={tab} className="group/tab relative …">
+<Dockable.Tab
+    node={tab}
+    className="relative … after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:bg-palette-ring in-data-active:data-selected:after:block"
+>
     {tab.label}
-    <span
-        aria-hidden="true"
-        className="absolute inset-x-2 bottom-0 hidden h-0.5 bg-palette-ring in-data-active:group-data-selected/tab:block"
-    />
 </Dockable.Tab>
 ```
+
+In plain CSS, the same rule is `[data-active] [role="tab"][data-selected]::after { … }`.
 
 `group` on the `TabSet` and `group-data-active:` on a descendant work the same way. The
 [`focused-tab`](/examples/focused-tab) example is built on this.

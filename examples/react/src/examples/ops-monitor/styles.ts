@@ -118,6 +118,9 @@ export const tab = cn(
     "data-selected:bg-(--dk-tab-selected-bg) data-selected:text-(--dk-tab-selected-fg) data-dragging:opacity-40",
     // a pinned tab is only its icon: a narrower button
     "data-pinned:px-2.5",
+    // the active tabset's marker, drawn as the selected tab's ::after (`in-data-active:` reads
+    // the enclosing TabSet's data-active); the theme sets its colour and display
+    "after:pointer-events-none after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:rounded-full after:bg-(--dk-tab-marker-color) in-data-active:data-selected:after:[display:var(--dk-tab-marker)]",
 );
 
 /** Coloured by the tab's `data-status` (warning, critical), pulsing while critical. */
@@ -148,11 +151,6 @@ export const statusLine = (status: Level | undefined) =>
         "pointer-events-none absolute inset-x-0 top-0 hidden h-0.5 bg-palette-base",
         "group-data-[status=warning]/tab:block group-data-[status=critical]/tab:block",
     );
-
-/** The active tabset's marker: `in-data-active:` reads the enclosing TabSet's data-active,
- * `group-data-selected/tab:` this tab's. */
-export const tabMarker =
-    "palette-blue pointer-events-none absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-palette-base in-data-active:group-data-selected/tab:[display:var(--dk-tab-marker)]";
 
 /** The tabset's buttons, at the end of the strip. */
 export const tabsetButtons = "flex items-center gap-0.5 pe-1";

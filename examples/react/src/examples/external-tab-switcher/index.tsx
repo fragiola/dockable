@@ -218,10 +218,6 @@ function TabSet({ node }: { node: TabsetNode<Types> }) {
                             <span className={styles.tabCount}>
                                 {tab.data.count}
                             </span>
-                            <span
-                                aria-hidden="true"
-                                className={styles.tabMarker}
-                            />
                         </Dockable.Tab>
                     )}
                 </Dockable.TabList>
