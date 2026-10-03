@@ -172,7 +172,7 @@ describe("refused drops", () => {
         // no tabset takes a drop into it or beside it
         const viaRules = freshModel({
             ...twoTabsets,
-            defaults: { tabset: { enableDrop: false, enableDivide: false } },
+            defaults: { tabset: { droppable: false, splittable: false } },
         });
         render(
             <Layout model={viaRules}>

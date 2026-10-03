@@ -66,7 +66,7 @@ active one. Outside the root, call `model.run` on the model you created: no engi
 ## Closing a tab
 
 `tab.close` removes a tab. It is **refused** (`error.code === "refused"`) for a pinned tab and for
-one whose `enableClose` resolves to false (on the tab, or through `defaults.tab.enableClose`). Ask
+one whose `closable` resolves to false (on the tab, or through `defaults.tab.closable`). Ask
 before rendering the button: `model.can` answers whether `run` would succeed, middleware included,
 without changing anything (`model.check` returns what it would return).
 
@@ -105,7 +105,7 @@ A focused tab also closes with **`Ctrl+Delete`** (the `closeTab` binding of the
 first.
 
 When the last tab of a tabset closes, the tabset is removed, unless its `deleteWhenEmpty` or
-`enableClose` resolves to false, or it is the main layout's last tabset (that one stays, empty, so
+`closable` resolves to false, or it is the main layout's last tabset (that one stays, empty, so
 there is always somewhere to add a tab). `tabset.close` closes a whole tabset: its closable tabs close, and
 the tabset goes once it is empty (the result lists the closed ids).
 
@@ -208,7 +208,7 @@ tab and the controls both read it, so a click inside the tab and one outside sta
 Three commands change an existing tab, each taking only what changes:
 
 - `tab.configure` changes the tab's own fields: its `label`, its behaviour flags and its size
-  limits (`enableClose`, `enableDrag`, `enablePopout`, `minWidth`, …). A key you leave out stays as
+  limits (`closable`, `draggable`, `poppable`, `minWidth`, …). A key you leave out stays as
   it is. A `null` flag or limit removes the tab's own value, so the layout default applies again;
   the label cannot be removed.
 - `tab.set-data` changes some of its `data`: a shallow patch, whose keys replace the tab's while
@@ -218,7 +218,7 @@ Three commands change an existing tab, each taking only what changes:
 With `dataSchemas` registered on `createModel`, the resulting data is validated first.
 
 ```tsx
-model.run("tab.configure", { tabId: tab.id, label: "notes.md", enableClose: false });
+model.run("tab.configure", { tabId: tab.id, label: "notes.md", closable: false });
 model.run("tab.set-data", { tabId: tab.id, data: { dirty: true } });
 model.run("tab.set-component", { tabId: tab.id, component: "chart" }); // a chart has no data
 ```

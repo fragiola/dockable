@@ -60,7 +60,7 @@ const json: LayoutJson<Types> = {
                 type: "tabset",
                 id: "right",
                 weight: 50,
-                enableClose: false,
+                closable: false,
                 children: [
                     {
                         component: "chart",

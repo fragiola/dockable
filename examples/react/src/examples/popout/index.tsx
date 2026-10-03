@@ -25,7 +25,7 @@ type Types = { tabs: { card: undefined } };
 const json: LayoutJson<Types> = {
     version: 1,
     // tabs may be popped out (off by default)
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     root: {
         type: "row",
         children: [
@@ -46,7 +46,7 @@ const json: LayoutJson<Types> = {
                         component: "card",
                         label: "Pinned here",
                         // this one stays in the main window
-                        enablePopout: false,
+                        poppable: false,
                     },
                 ],
             },

@@ -33,7 +33,7 @@ test("Close does not take a tab that cannot be closed", async ({ page }) => {
         .locator("div")
         .filter({ hasText: /^Close$/ })
         .first();
-    await startDrag(page, path(page, "/ts0/tb2")); // "Pinned note": enableClose false
+    await startDrag(page, path(page, "/ts0/tb2")); // "Pinned note": closable false
     await expect(close).not.toHaveAttribute("data-drop-active");
     await moveDragTo(page, await centre(close));
     await expect(close).not.toHaveAttribute("data-drop-over");

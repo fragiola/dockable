@@ -32,8 +32,8 @@ import * as styles from "./styles";
 //    tabset and the root get `data-drop-refused`; a drop, or a command run from code, is vetoed
 //    the same way. Each tabset styles its own `data-drop-refused`: the whole region turns red,
 //    with a lock in its middle, for as long as the drag hovers it.
-// 2. Node flags: the "Console" tabset has `enableDrop: false` (nothing merges into it) and
-//    `enableDivide: false` (nothing splits it), and its tabs `enableDrag: false`.
+// 2. Node flags: the "Console" tabset has `droppable: false` (nothing merges into it) and
+//    `splittable: false` (nothing splits it), and its tabs `draggable: false`.
 //
 
 type Types = {
@@ -86,18 +86,18 @@ const json: LayoutJson<Types> = {
                 id: CONSOLE,
                 data: { name: "Console" },
                 weight: 25,
-                enableDrop: false,
-                enableDivide: false,
+                droppable: false,
+                splittable: false,
                 children: [
                     {
                         component: "console",
                         label: "Console",
-                        enableDrag: false,
+                        draggable: false,
                     },
                     {
                         component: "console",
                         label: "Output",
-                        enableDrag: false,
+                        draggable: false,
                     },
                 ],
             },

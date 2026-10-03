@@ -55,7 +55,7 @@ const json: LayoutJson<Types> = {
                         data: {
                             text: "MIT. Permission is hereby granted, free of charge, to any person obtaining a copy of this software, to deal in the software without restriction.",
                         },
-                        enableClose: false,
+                        closable: false,
                     },
                 ],
             },

@@ -89,7 +89,7 @@ describe("pinned tabs", () => {
     it("cannot be closed, popped out or pinned in a border", () => {
         const { model } = setup({
             ...tabsets(["One", "Two"]),
-            defaults: { tab: { enablePopout: true } },
+            defaults: { tab: { poppable: true } },
             borders: [{ location: "start", children: [tab("B")] }],
         });
         must(model.run("tab.pin", { tabId: "One", value: true }));

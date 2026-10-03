@@ -14,7 +14,7 @@ import { ADOPTED_STYLES_ATTRIBUTE, StyleMirror } from "../../src/popout/styles";
 
 const json: LayoutJson = {
     version: 1,
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     root: {
         type: "row",
         children: [

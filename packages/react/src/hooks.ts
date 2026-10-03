@@ -503,7 +503,7 @@ export interface UseDragNodeResult {
         /** this node is being dragged */
         dragging: boolean;
     };
-    /** what goes on the dragged element (`draggable` is the node's `enableDrag`) */
+    /** what goes on the dragged element (the DOM `draggable` follows the node's `draggable` setting) */
     props: DragProps;
 }
 
@@ -523,7 +523,7 @@ export function useDragNode<T extends DockableTypes>(
         (node.type === "tab"
             ? model.get("tab-settings-by", { tabId: id })
             : model.get("tabset-settings-by", { tabsetId: id })
-        )?.enableDrag ?? false;
+        )?.draggable ?? false;
 
     const onDragStart = (event: React.DragEvent<HTMLElement>) => {
         if (!enabled()) {

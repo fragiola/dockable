@@ -4,7 +4,7 @@ description: How tabs are dragged and dropped, which command a drop runs, and ho
 ---
 
 Drag and drop works out of the box: every `Dockable.Tab` is draggable (when its tab's
-`enableDrag` allows it), and every tabset, tab strip and layout edge is a drop target. What you
+`draggable` allows it), and every tabset, tab strip and layout edge is a drop target. What you
 add is the **look**: the drop indicator, and the dragged tab's state.
 
 <Example id="drag-and-drop" />
@@ -112,7 +112,7 @@ outside** the layout into it (a widget sidebar, files) is covered in
 
 ## Controlling where drops go
 
-Node flags (`enableDrag`, `enableDrop`, `enableDivide`, and pinned tabs) and a middleware on
+Node flags (`draggable`, `droppable`, `splittable`, and pinned tabs) and a middleware on
 `tab.move`, `tabset.move` and `tab.add` decide what may be dropped where. The indicator refuses a
 target exactly when `model.can` refuses its command, so both show the same way; see
 [Restricting drops](/docs/guides/restricting-drops).

@@ -120,7 +120,7 @@ apply returns a structured error instead of doing nothing.
 
 The model does create structure, as FlexLayout does, and says so: after every command and on load,
 **tidy** removes empty rows, replaces a row of one child by that child, removes an empty tabset
-that allows it (`deleteWhenEmpty` and `enableClose`), removes an empty window, and keeps a tabset
+that allows it (`deleteWhenEmpty` and `closable`), removes an empty window, and keeps a tabset
 in the main layout. Since the fix for [caplin/FlexLayout#291](https://github.com/caplin/FlexLayout/issues/291), the main layout keeps the empty tabset it
 already has, with its id, so a layout loaded with an empty tabset can receive a `tab.add` to that
 id; a new tabset is made only when the main layout has none, which is by design
@@ -195,7 +195,7 @@ whether anything reads them.
 
 **Verdict: solved.** The model keeps the layout's data and its rules, and nothing cosmetic: class
 names, titles and icons are the app's, in its typed `data` or in primitive props. Most fields are
-rules the commands enforce (`enableDrag`, `enableDrop`, `enableClose`, `pinned`, …). Some are read
+rules the commands enforce (`draggable`, `droppable`, `closable`, `pinned`, …). Some are read
 only by the engine, and the docs say so: the size limits (`minWidth`, `maxWidth`, `minHeight`,
 `maxHeight`) by the split math, `defaults.layout.edgeDock`, `edgeDockMargin` and `edgeDockLength`
 by the drag, a border's `mode` and `autoHide` by the rendering and the drag, and a window's `rect`

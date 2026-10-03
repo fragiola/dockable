@@ -160,7 +160,7 @@ export const tabSelect = defineCommand({
 export const tabClose = defineCommand({
     name: "tab.close",
     description:
-        "Close a tab and remove it from the layout. Refused for a pinned tab or one whose enableClose is false.",
+        "Close a tab and remove it from the layout. Refused for a pinned tab or one that is not closable.",
     payloadSchema: object({ tabId: describedId("tab") }, ["tabId"]),
     resultSchema: tabIdResult,
     transient: false,
@@ -173,7 +173,7 @@ export const tabClose = defineCommand({
         if (resolved.pinned) {
             return fail("refused", `tab "${tab.id}" is pinned`, "/tabId");
         }
-        if (!resolved.enableClose) {
+        if (!resolved.closable) {
             return fail(
                 "refused",
                 `tab "${tab.id}" cannot be closed`,
@@ -208,7 +208,7 @@ export const tabMove = defineCommand({
         if ("error" in tab) {
             return tab;
         }
-        if (!resolveTab(draft.getDefaults(), tab).enableDrag) {
+        if (!resolveTab(draft.getDefaults(), tab).draggable) {
             return fail("refused", `tab "${tab.id}" cannot be moved`, "/tabId");
         }
         const target = resolveTarget(draft, payload.to);
@@ -394,7 +394,7 @@ export const tabPopout = defineCommand({
             );
         }
         const resolved = resolveTab(draft.getDefaults(), tab);
-        if (!resolved.enablePopout) {
+        if (!resolved.poppable) {
             return fail(
                 "refused",
                 `tab "${tab.id}" does not allow popouts`,

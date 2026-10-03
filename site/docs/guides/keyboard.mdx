@@ -63,7 +63,7 @@ prefer function keys or modifier combinations.
 
 `closeTab` goes through the model like any other close. The tab asks
 `model.can("tab.close", { tabId })` (a dry run: nothing changes) and, when it is accepted, runs
-`tab.close`. A pinned tab, a tab whose `enableClose` resolves to false, and a tab a middleware
+`tab.close`. A pinned tab, a tab whose `closable` resolves to false, and a tab a middleware
 vetoes are all left alone, and their `aria-keyshortcuts` omit the binding. Your own close
 buttons and hints can ask the same question:
 

@@ -206,8 +206,8 @@ markup reads them:
 
 The same goes for UI permissions the model does not enforce: whether a tab may be renamed, or shows
 a pin item in its menu, is a field of its data (`renamable: true`), and renaming it is
-`tab.configure` with the new label. Permissions the model **does** enforce (`enableClose`, `enableDrag`,
-`enablePopout`, `pinned`, a tabset's `enableDrop`, …) stay node fields, because the commands check
+`tab.configure` with the new label. Permissions the model **does** enforce (`closable`, `draggable`,
+`poppable`, `pinned`, a tabset's `droppable`, …) stay node fields, because the commands check
 them.
 
 ## The type argument on children functions

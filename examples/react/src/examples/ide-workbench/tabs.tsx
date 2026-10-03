@@ -21,11 +21,9 @@ import { editorData, type Types } from "./workspace";
 // one always stays), and a maximize button.
 // Everything is a consumer choice made of Dockable primitives, commands and data-*.
 
-/** Whether a tab may be closed at all (its `enableClose`, else the layout default). */
+/** Whether a tab may be closed at all (its `closable`, else the layout default). */
 function closable(model: Model<Types>, tab: TabOf<Types>) {
-    return (
-        model.get("tab-settings-by", { tabId: tab.id })?.enableClose === true
-    );
+    return model.get("tab-settings-by", { tabId: tab.id })?.closable === true;
 }
 
 function closeAll(model: Model<Types>, tabs: readonly TabOf<Types>[]) {

@@ -74,7 +74,7 @@ interface DropContext extends DropQuery {
 function excludesCenter(state: AnyState, subject: DragSubject): boolean {
     return (
         subject.kind === "tabset" &&
-        (!resolveTabset(state.defaults, subject.tabset).enableClose ||
+        (!resolveTabset(state.defaults, subject.tabset).closable ||
             subject.tabset.children.some((tab) => tab.pinned === true))
     );
 }
@@ -104,12 +104,12 @@ function tabsetCandidate(
     const content = geometry.content(tabset.id);
     if (content && contains(content, x, y)) {
         const flags = resolveTabset(state.defaults, tabset);
-        const center = !ctx.excludeCenter && flags.enableDrop;
+        const center = !ctx.excludeCenter && flags.droppable;
         // with neither center nor edges, the model refuses whichever location this is
         const location: DockLocation =
-            maximized || (center && !flags.enableDivide)
+            maximized || (center && !flags.splittable)
                 ? "center"
-                : dockLocationAt(content, x, y, !center && flags.enableDivide);
+                : dockLocationAt(content, x, y, !center && flags.splittable);
         return {
             target: tabset.id,
             location,

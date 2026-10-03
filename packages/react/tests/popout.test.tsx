@@ -49,7 +49,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 /** the fixture layout, with popouts allowed on every tab */
 const popoutJson = (): LayoutJson<Types> => ({
     ...structuredClone(twoTabsets),
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
 });
 
 const popoutModel = () => createModel<Types>(popoutJson());
@@ -298,13 +298,13 @@ describe("Dockable.Popout", () => {
                                 component: "test",
                                 label: "A",
                                 data: { name: "A" },
-                                enablePopout: true,
+                                poppable: true,
                             },
                             {
                                 component: "test",
                                 label: "B",
                                 data: { name: "B" },
-                                enablePopout: false,
+                                poppable: false,
                             },
                             {
                                 component: "test",
@@ -319,13 +319,13 @@ describe("Dockable.Popout", () => {
         render(<App model={model} />);
         expect(
             document.querySelector('[data-layout-path="/ts0/tb0"]'),
-        ).toHaveAttribute("data-popout-enabled", "");
+        ).toHaveAttribute("data-poppable", "");
         expect(
             document.querySelector('[data-layout-path="/ts0/tb1"]'),
-        ).not.toHaveAttribute("data-popout-enabled");
-        // popouts are opt-in: a tab without enablePopout (and no default) cannot pop out
+        ).not.toHaveAttribute("data-poppable");
+        // popouts are opt-in: a tab without poppable (and no default) cannot pop out
         expect(
             document.querySelector('[data-layout-path="/ts0/tb2"]'),
-        ).not.toHaveAttribute("data-popout-enabled");
+        ).not.toHaveAttribute("data-poppable");
     });
 });

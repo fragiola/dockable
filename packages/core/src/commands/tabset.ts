@@ -85,7 +85,7 @@ export const tabsetMaximize = defineCommand({
             return ok({ tabsetId: tabset.id });
         }
         if (!maximized) {
-            if (!resolveTabset(draft.getDefaults(), tabset).enableMaximize) {
+            if (!resolveTabset(draft.getDefaults(), tabset).maximizable) {
                 return fail(
                     "refused",
                     `tabset "${tabset.id}" cannot be maximized`,
@@ -115,7 +115,7 @@ export const tabsetMaximize = defineCommand({
 export const tabsetClose = defineCommand({
     name: "tabset.close",
     description:
-        "Close a tabset: its closable tabs close, and the tabset is removed once empty. Refused when the tabset's enableClose is false.",
+        "Close a tabset: its closable tabs close, and the tabset is removed once empty. Refused when the tabset is not closable.",
     payloadSchema: object({ tabsetId: describedId("tabset") }, ["tabsetId"]),
     resultSchema: object(
         {
@@ -134,7 +134,7 @@ export const tabsetClose = defineCommand({
             return tabset;
         }
         const defaults = draft.getDefaults();
-        if (!resolveTabset(defaults, tabset).enableClose) {
+        if (!resolveTabset(defaults, tabset).closable) {
             return fail(
                 "refused",
                 `tabset "${tabset.id}" cannot be closed`,
@@ -144,7 +144,7 @@ export const tabsetClose = defineCommand({
         const closed: string[] = [];
         for (const tab of [...tabset.children]) {
             const resolved = resolveTab(defaults, tab);
-            if (resolved.enableClose && !resolved.pinned) {
+            if (resolved.closable && !resolved.pinned) {
                 const where = draft.detach(tab.id);
                 if (where) {
                     adjustSelectedIndex(draft, where.parent, where.index);
@@ -190,7 +190,7 @@ export const tabsetMove = defineCommand({
         if ("error" in tabset) {
             return tabset;
         }
-        if (!resolveTabset(draft.getDefaults(), tabset).enableDrag) {
+        if (!resolveTabset(draft.getDefaults(), tabset).draggable) {
             return fail(
                 "refused",
                 `tabset "${tabset.id}" cannot be moved`,
@@ -268,9 +268,7 @@ export const tabsetPopout = defineCommand({
         }
         const defaults = draft.getDefaults();
         if (
-            tabset.children.some(
-                (tab) => !resolveTab(defaults, tab).enablePopout,
-            )
+            tabset.children.some((tab) => !resolveTab(defaults, tab).poppable)
         ) {
             return fail(
                 "refused",

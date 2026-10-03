@@ -732,7 +732,7 @@ describe("panels and content", () => {
     it("moves a panel between two layers in one document without remounting the content", () => {
         const model = createModel<Types>({
             ...structuredClone(twoTabsets),
-            defaults: { tab: { enablePopout: true } },
+            defaults: { tab: { poppable: true } },
         });
         const layerHost = document.body.appendChild(
             document.createElement("div"),

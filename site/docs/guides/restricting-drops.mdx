@@ -14,32 +14,32 @@ a drop (or a command from your own code) is refused by the same rules.
 ## 1. Flags
 
 Set them per node in the JSON, or for every node of a kind through the layout's `defaults`
-(`defaults.tab.enableDrag`, `defaults.tabset.enableDrop`, …):
+(`defaults.tab.draggable`, `defaults.tabset.droppable`, …):
 
 | field | on | effect |
 | --- | --- | --- |
-| `enableDrag` | tab | whether the tab can move (`tab.move` refuses it, and the `Tab` is not `draggable` when false) |
-| `enableDrag` | tabset | whether the whole tabset can move (`tabset.move`) |
-| `enableDrop` | tabset, border | whether tabs can be dropped into it (a center drop) |
-| `enableDivide` | tabset | whether dropping on an edge of this tabset splits it to create a new tabset |
-| `enableClose` | tabset | false also refuses merging the whole tabset into another one |
+| `draggable` | tab | whether the tab can move (`tab.move` refuses it, and the `Tab` is not `draggable` when false) |
+| `draggable` | tabset | whether the whole tabset can move (`tabset.move`) |
+| `droppable` | tabset, border | whether tabs can be dropped into it (a center drop) |
+| `splittable` | tabset | whether dropping on an edge of this tabset splits it to create a new tabset |
+| `closable` | tabset | false also refuses merging the whole tabset into another one |
 | `pinned` | tab | a pinned tab cannot be dragged out of its tabset, nor into a border |
-| `enablePopout` | tab | false refuses moving the tab into a popout window |
+| `poppable` | tab | false refuses moving the tab into a popout window |
 | `edgeDock` | `defaults.layout` | whether a drag offers docking to the edges of the layout |
 
 ```json
 {
     "type": "tabset",
     "id": "console",
-    "enableDrop": false,
-    "enableDivide": false,
-    "children": [{ "component": "console", "label": "Console", "enableDrag": false }]
+    "droppable": false,
+    "splittable": false,
+    "children": [{ "component": "console", "label": "Console", "draggable": false }]
 }
 ```
 
-Change them at runtime with commands: `tabset.configure` `{ tabsetId, enableDrop: false }` for one
+Change them at runtime with commands: `tabset.configure` `{ tabsetId, droppable: false }` for one
 tabset (a "lock layout" toggle), `tab.configure` for a tab, `border.configure` for a border, or
-`layout.configure` `{ defaults: { tabset: { enableDrop: false } } }` for all. A `null` value
+`layout.configure` `{ defaults: { tabset: { droppable: false } } }` for all. A `null` value
 removes a node's own value, so the default applies again.
 
 ## 2. A middleware veto

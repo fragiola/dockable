@@ -22,7 +22,7 @@ type Types = { tabs: { card: undefined } };
 
 function CloseButton({ tab }: { tab: TabOf<Types> }) {
     const { model } = useDockable<Types>();
-    // a dry run: whether `tab.close` would apply (enableClose, pinned, middleware)
+    // a dry run: whether `tab.close` would apply (closable, pinned, middleware)
     if (!model.can("tab.close", { tabId: tab.id })) return null;
     return (
         <button type="button" onClick={() => model.run("tab.close", { tabId: tab.id })}>
@@ -243,7 +243,7 @@ The [example above](#part-hooks) is a tabset drag handle.
 | field | type | description |
 | --- | --- | --- |
 | `state` | `{ dragging }` | `dragging`: this node (of this model) is being dragged |
-| `props` | `DragProps` | see below; `draggable` is the node's effective `enableDrag` |
+| `props` | `DragProps` | see below; `draggable` is the node's effective `draggable` |
 
 `DragProps`, the props of a draggable element:
 

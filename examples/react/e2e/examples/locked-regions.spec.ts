@@ -61,7 +61,7 @@ test("drops into a locked region are refused and change nothing", async ({
     await expect(overlay("/ts0")).toBeHidden();
     expect(await tabs(page)).toEqual(before);
 
-    // the console takes nothing: no merge (enableDrop) and no split (enableDivide)
+    // the console takes nothing: no merge (droppable) and no split (splittable)
     const console = await box(page, "/ts2/content");
     await startDrag(page, path(page, "/ts1/tb0"));
     for (const point of [
@@ -75,7 +75,7 @@ test("drops into a locked region are refused and change nothing", async ({
     await page.mouse.up();
     await expect(overlay("/ts2")).toBeHidden();
     expect(await tabs(page)).toEqual(before);
-    // and its tabs cannot be dragged (enableDrag)
+    // and its tabs cannot be dragged (draggable)
     await expect(path(page, "/ts2/tb0")).toHaveAttribute("draggable", "false");
 
     // the middleware vetoes a move that does not come from a drag

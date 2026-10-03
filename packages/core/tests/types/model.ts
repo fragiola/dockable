@@ -185,7 +185,7 @@ export function queries(model: Model<Types>): void {
     });
     const closable: boolean | undefined = model.get("tab-settings-by", {
         tabId: "t0",
-    })?.enableClose;
+    })?.closable;
     const json: number = model.get("layout-json").version;
     const commands: number = model.get("commands").length;
     use(layout, closable, json, commands, model.get("layout-settings"));

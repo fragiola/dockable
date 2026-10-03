@@ -70,12 +70,12 @@ docks a whole window back. The engine wraps them by node id, for a tab or a tabs
 `engine.can("popout", { nodeId })` answers with a boolean, `engine.run("popout", { nodeId })` and
 `engine.run("dock-back", { nodeId })` return the command's result, and
 `model.is("node-in-window", { nodeId })` says whether the node lives in a window. Popout stays opt-in per tab:
-`enablePopout: true` on a tab, or for every tab in the layout's defaults:
+`poppable: true` on a tab, or for every tab in the layout's defaults:
 
 ```ts
 const json: LayoutJson<Types> = {
     version: 1,
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     root: { type: "row", children: [/* … */] },
 };
 ```
@@ -137,8 +137,8 @@ in the source model, each through its own model's middleware.
    While the drag hovers, the target is asked `model.can("tab.add", …)` with the same
    `meta.transfer`, so a rule on it also hides the outline over a target it refuses.
 3. **The target model's rules apply.** Hit testing runs in the target layout, and every candidate
-   drop is the `tab.add` it would run, asked with `model.can`: the target's `enableDrop` and
-   `enableDivide` flags and its middleware decide where the tab may land.
+   drop is the `tab.add` it would run, asked with `model.can`: the target's `droppable` and
+   `splittable` flags and its middleware decide where the tab may land.
 4. **The content moves with it.** The new tab adopts the old one's moveable element, and the group
    renders every tab's content in one place keyed by tab id, so components under the tab keep
    their state.

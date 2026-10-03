@@ -29,7 +29,7 @@ const tab = (label: string) => ({ component: "testing" as const, label });
 
 const layout: LayoutJson<Types> = {
     version: 1,
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     root: {
         type: "row",
         children: [

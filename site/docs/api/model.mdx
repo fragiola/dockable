@@ -242,9 +242,9 @@ There is no other inheritance: a tab does not inherit from its tabset. The `*-se
 
 | type | fields |
 | --- | --- |
-| `ResolvedTab` (`"tab-settings-by"`) | `enableClose`, `enableDrag`, `enablePopout`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
-| `ResolvedTabset` (`"tabset-settings-by"`) | `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose`, `deleteWhenEmpty`, `autoSelectTab`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
-| `ResolvedBorder` (`"border-settings-by"`) | `size`, `minSize`, `maxSize`, `mode`, `autoHide`, `enableDrop`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, `show` |
+| `ResolvedTab` (`"tab-settings-by"`) | `closable`, `draggable`, `poppable`, `pinned`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedTabset` (`"tabset-settings-by"`) | `droppable`, `draggable`, `splittable`, `maximizable`, `closable`, `deleteWhenEmpty`, `autoSelectTab`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight` |
+| `ResolvedBorder` (`"border-settings-by"`) | `size`, `minSize`, `maxSize`, `mode`, `autoHide`, `droppable`, `autoSelectTabWhenOpen`, `autoSelectTabWhenClosed`, `show` |
 | `ResolvedLayout` | `rootOrientation`, `edgeDock`, `edgeDockMargin`, `edgeDockLength` (from `model.get("layout-settings")`) |
 
 A resolved border's `size`, `minSize` and `maxSize` are its panel's effective values: the
@@ -254,7 +254,7 @@ the border sets it to `false`.
 
 ```ts
 const tab = model.get("selected-tab-by", { tabsetId: "editors" });
-if (tab && model.get("tab-settings-by", { tabId: tab.id })?.enableClose) {
+if (tab && model.get("tab-settings-by", { tabId: tab.id })?.closable) {
     // render a close button
 }
 ```
@@ -263,13 +263,13 @@ if (tab && model.get("tab-settings-by", { tabId: tab.id })?.enableClose) {
 
 | kind | field | built-in |
 | --- | --- | --- |
-| `tab` | `enableClose`, `enableDrag` | `true` |
-| `tab` | `enablePopout` | `false` |
+| `tab` | `closable`, `draggable` | `true` |
+| `tab` | `poppable` | `false` |
 | `tab`, `tabset` | `minWidth`, `minHeight` / `maxWidth`, `maxHeight` | `1` / `99999` |
-| `tabset` | `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose`, `deleteWhenEmpty`, `autoSelectTab` | `true` |
+| `tabset` | `droppable`, `draggable`, `splittable`, `maximizable`, `closable`, `deleteWhenEmpty`, `autoSelectTab` | `true` |
 | `border` | `size` / `minSize` / `maxSize` | `200` / `1` / `99999` |
 | `border` | `mode` | `"docked"` |
-| `border` | `autoHide`, `autoSelectTabWhenClosed` / `enableDrop`, `autoSelectTabWhenOpen` | `false` / `true` |
+| `border` | `autoHide`, `autoSelectTabWhenClosed` / `droppable`, `autoSelectTabWhenOpen` | `false` / `true` |
 | `layout` | `rootOrientation` | `"horizontal"` |
 | `layout` | `edgeDock` / `edgeDockMargin` / `edgeDockLength` | `true` / `10` / `100` |
 

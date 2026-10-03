@@ -81,7 +81,7 @@ describe("Dockable.Tab dragging", () => {
                                 component: "test",
                                 label: "B",
                                 data: { name: "B" },
-                                enableDrag: false,
+                                draggable: false,
                             },
                         ],
                     },
@@ -120,7 +120,7 @@ describe("Dockable.Tab dragging", () => {
     it("cancels the dragstart of a tab that cannot be dragged", () => {
         const model = freshModel({
             version: 1,
-            defaults: { tab: { enableDrag: false } },
+            defaults: { tab: { draggable: false } },
             root: {
                 type: "row",
                 children: [

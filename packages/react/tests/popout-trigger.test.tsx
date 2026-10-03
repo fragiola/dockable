@@ -11,7 +11,7 @@ import { recordCommands, type Types } from "./layout";
 
 const json: LayoutJson<Types> = {
     version: 1,
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     root: {
         type: "row",
         children: [
@@ -30,7 +30,7 @@ const json: LayoutJson<Types> = {
                         component: "test",
                         label: "B",
                         data: { name: "B" },
-                        enablePopout: false,
+                        poppable: false,
                     },
                 ],
             },
@@ -171,7 +171,7 @@ describe("Dockable.PopoutTrigger", () => {
         expect(screen.queryByTestId("trigger")).toBeNull(); // "B" refuses
         unmount();
 
-        model.run("tab.configure", { tabId: "b", enablePopout: true });
+        model.run("tab.configure", { tabId: "b", poppable: true });
         render(<Layout model={model} target="tabset" />);
         const trigger = screen.getByTestId("trigger");
         expect(trigger).toHaveAttribute("data-target", "tabset");

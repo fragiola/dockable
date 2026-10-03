@@ -8,7 +8,7 @@ test("tabs close by button and middle click; empty tabsets show a hint", async (
     const tab = (name: string) =>
         stage.locator('[role="tab"]', { hasText: name });
 
-    // enableClose: false: no close button
+    // closable: false: no close button
     await expect(tab("Home").getByRole("button")).toHaveCount(0);
 
     await tab("Draft").getByRole("button", { name: "Close Draft" }).click();

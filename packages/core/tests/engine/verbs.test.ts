@@ -29,7 +29,7 @@ afterEach(() => {
 
 const withBorder: LayoutJson = {
     ...structuredClone(twoTabsets),
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     borders: [
         {
             id: "start",

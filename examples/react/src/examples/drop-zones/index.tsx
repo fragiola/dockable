@@ -39,7 +39,7 @@ type Types = {
 
 const json: LayoutJson<Types> = {
     version: 1,
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     root: {
         type: "row",
         children: [
@@ -62,7 +62,7 @@ const json: LayoutJson<Types> = {
                         data: {
                             text: "This tab cannot be closed: the trash does not take it.",
                         },
-                        enableClose: false,
+                        closable: false,
                     },
                 ],
             },

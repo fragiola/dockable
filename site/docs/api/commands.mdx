@@ -26,9 +26,9 @@ Add a new tab. `component` names what the tab shows, `label` is its name (the ap
 | `label` | `string` | yes | the tab's name (the app renders it; the packages never do) |
 | `data` | `JSON` | no | the app's data (any JSON value) |
 | `pinned` | `boolean` | no | a pinned tab sits at the start of its strip, cannot close and cannot leave its tabset |
-| `enableClose` | `boolean` | no | whether the tab can be closed |
-| `enableDrag` | `boolean` | no | whether the tab can be dragged |
-| `enablePopout` | `boolean` | no | whether the tab can be popped out into a window |
+| `closable` | `boolean` | no | whether the tab can be closed |
+| `draggable` | `boolean` | no | whether the tab can be dragged |
+| `poppable` | `boolean` | no | whether the tab can be popped out into a window |
 | `minWidth` | `number` | no | the smallest width, in px |
 | `minHeight` | `number` | no | the smallest height, in px |
 | `maxWidth` | `number` | no | the largest width, in px |
@@ -93,7 +93,7 @@ model.run("tab.select", {
 
 ### `tab.close`
 
-Close a tab and remove it from the layout. Refused for a pinned tab or one whose enableClose is false.
+Close a tab and remove it from the layout. Refused for a pinned tab or one that is not closable.
 
 **Payload** (`{ tabId: string }`)
 
@@ -288,9 +288,9 @@ Change a tab's label, behaviour flags and size limits. Absent keys are left as t
 | --- | --- | --- | --- |
 | `tabId` | `string` | yes | the tab's id |
 | `label` | `string` | no | the tab's new name |
-| `enableClose` | `boolean \| null` | no | whether the tab can be closed (null removes it: the layout default applies) |
-| `enableDrag` | `boolean \| null` | no | whether the tab can be dragged (null removes it: the layout default applies) |
-| `enablePopout` | `boolean \| null` | no | whether the tab can be popped out into a window (null removes it: the layout default applies) |
+| `closable` | `boolean \| null` | no | whether the tab can be closed (null removes it: the layout default applies) |
+| `draggable` | `boolean \| null` | no | whether the tab can be dragged (null removes it: the layout default applies) |
+| `poppable` | `boolean \| null` | no | whether the tab can be popped out into a window (null removes it: the layout default applies) |
 | `minWidth` | `number \| null` | no | the smallest width, in px (null removes it: the layout default applies) |
 | `minHeight` | `number \| null` | no | the smallest height, in px (null removes it: the layout default applies) |
 | `maxWidth` | `number \| null` | no | the largest width, in px (null removes it: the layout default applies) |
@@ -310,12 +310,12 @@ Change a tab's label, behaviour flags and size limits. Absent keys are left as t
 model.run("tab.configure", {
     tabId: "tab-1",
     label: "b.ts",
-    enableClose: false
+    closable: false
 });
 ```
 
 ```json
-{ "command": "tab.configure", "payload": {"tabId":"tab-1","label":"b.ts","enableClose":false} }
+{ "command": "tab.configure", "payload": {"tabId":"tab-1","label":"b.ts","closable":false} }
 ```
 
 ## Tabsets
@@ -380,7 +380,7 @@ model.run("tabset.maximize", {
 
 ### `tabset.close`
 
-Close a tabset: its closable tabs close, and the tabset is removed once empty. Refused when the tabset's enableClose is false.
+Close a tabset: its closable tabs close, and the tabset is removed once empty. Refused when the tabset is not closable.
 
 **Payload** (`{ tabsetId: string }`)
 
@@ -477,11 +477,11 @@ Change a tabset's behaviour flags, size limits or data. A null value removes the
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `tabsetId` | `string` | yes | the tabset's id |
-| `enableDrop` | `boolean \| null` | no | whether tabs can be dropped into it (null removes it: the layout default applies) |
-| `enableDrag` | `boolean \| null` | no | whether the whole tabset can be dragged (null removes it: the layout default applies) |
-| `enableDivide` | `boolean \| null` | no | whether a drop on one of its edges can split it (null removes it: the layout default applies) |
-| `enableMaximize` | `boolean \| null` | no | whether it can be maximized (null removes it: the layout default applies) |
-| `enableClose` | `boolean \| null` | no | whether it can be closed (null removes it: the layout default applies) |
+| `droppable` | `boolean \| null` | no | whether tabs can be dropped into it (null removes it: the layout default applies) |
+| `draggable` | `boolean \| null` | no | whether the whole tabset can be dragged (null removes it: the layout default applies) |
+| `splittable` | `boolean \| null` | no | whether a drop on one of its edges can split it (null removes it: the layout default applies) |
+| `maximizable` | `boolean \| null` | no | whether it can be maximized (null removes it: the layout default applies) |
+| `closable` | `boolean \| null` | no | whether it can be closed (null removes it: the layout default applies) |
 | `deleteWhenEmpty` | `boolean \| null` | no | whether it is removed when its last tab leaves (null removes it: the layout default applies) |
 | `autoSelectTab` | `boolean \| null` | no | whether a tab added to it is selected (null removes it: the layout default applies) |
 | `minWidth` | `number \| null` | no | the smallest width, in px (null removes it: the layout default applies) |
@@ -501,12 +501,12 @@ Change a tabset's behaviour flags, size limits or data. A null value removes the
 ```ts
 model.run("tabset.configure", {
     tabsetId: "tabset-1",
-    enableMaximize: false
+    maximizable: false
 });
 ```
 
 ```json
-{ "command": "tabset.configure", "payload": {"tabsetId":"tabset-1","enableMaximize":false} }
+{ "command": "tabset.configure", "payload": {"tabsetId":"tabset-1","maximizable":false} }
 ```
 
 ## Rows
@@ -629,7 +629,7 @@ Open or close a border's panel (open), switch it between docked and overlay (mod
 | `maxSize` | `number \| null` | no | its panel's largest size, in px (null removes it: the layout default applies) |
 | `mode` | `"docked" \| "overlay" \| null` | no | docked (beside the layout) or overlay (over it) (null removes it: the layout default applies) |
 | `autoHide` | `boolean \| null` | no | hide the strip while the border has no tabs (a drag near its edge reveals it) (null removes it: the layout default applies) |
-| `enableDrop` | `boolean \| null` | no | whether tabs can be dropped into it (null removes it: the layout default applies) |
+| `droppable` | `boolean \| null` | no | whether tabs can be dropped into it (null removes it: the layout default applies) |
 | `autoSelectTabWhenOpen` | `boolean \| null` | no | whether a tab added while its panel is open is selected (null removes it: the layout default applies) |
 | `autoSelectTabWhenClosed` | `boolean \| null` | no | whether a tab added while its panel is closed is selected (which opens it) (null removes it: the layout default applies) |
 | `data` | `JSON` | no | the app's data (any JSON value) |
@@ -742,14 +742,14 @@ No fields.
 model.run("layout.configure", {
     defaults: {
         tab: {
-            enableClose: false
+            closable: false
         }
     }
 });
 ```
 
 ```json
-{ "command": "layout.configure", "payload": {"defaults":{"tab":{"enableClose":false}}} }
+{ "command": "layout.configure", "payload": {"defaults":{"tab":{"closable":false}}} }
 ```
 
 ### `layout.load`

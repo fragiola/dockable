@@ -10,7 +10,7 @@ state the model holds has the same shape, with the omitted fields filled in.
 ```json
 {
     "version": 1,
-    "defaults": { "tab": { "enablePopout": true }, "border": { "size": 220 } },
+    "defaults": { "tab": { "poppable": true }, "border": { "size": 220 } },
     "root": {
         "type": "row",
         "id": "root",
@@ -27,7 +27,7 @@ state the model holds has the same shape, with the omitted fields filled in.
                 "type": "tabset",
                 "id": "tools",
                 "weight": 30,
-                "enableDrop": false,
+                "droppable": false,
                 "children": [{ "id": "log", "component": "log", "label": "Log", "pinned": true }]
             }
         ]
@@ -94,11 +94,11 @@ each, and each must name a tabset of that layout.
 | `selected` | `number` | the index of the selected tab; default `0`, `-1` when empty; clamped to the tabs |
 | `data` | `TabsetDataOf<T>` | the app's data for the tabset (its accessible name, for example), typed by the registry's `tabset` |
 | `children` | `TabJson<T>[]` | its tabs, pinned ones first; default `[]` |
-| `enableDrop` | `boolean` | tabs can be dropped into it (its strip and center) |
-| `enableDrag` | `boolean` | the whole tabset can be dragged (`tabset.move`) |
-| `enableDivide` | `boolean` | dropping on one of its edges splits it |
-| `enableMaximize` | `boolean` | it can be maximized |
-| `enableClose` | `boolean` | it can be closed (`tabset.close`), or merged away into another tabset |
+| `droppable` | `boolean` | tabs can be dropped into it (its strip and center) |
+| `draggable` | `boolean` | the whole tabset can be dragged (`tabset.move`) |
+| `splittable` | `boolean` | dropping on one of its edges splits it |
+| `maximizable` | `boolean` | it can be maximized |
+| `closable` | `boolean` | it can be closed (`tabset.close`), or merged away into another tabset |
 | `deleteWhenEmpty` | `boolean` | it is removed when its last tab leaves |
 | `autoSelectTab` | `boolean` | a tab added or moved into it is selected |
 | `minWidth`, `minHeight`, `maxWidth`, `maxHeight` | `number` | its size limits in px, used by the splitters |
@@ -119,9 +119,9 @@ sources) whose `type` may be omitted:
 | `label` | `string` | required: the tab's name, as your app wrote it. The model never translates or renders it; your strip renders it (`{tab.label}`), and `tab.configure` changes it |
 | `data` | `TabDataOf<T, K>` | the app's data for the tab (its icon, dirty flag, …); required when the component's data type is |
 | `pinned` | `boolean` | the tab sits at the start of its strip, cannot close and cannot leave its tabset; a border's tabs cannot be pinned |
-| `enableClose` | `boolean` | it can be closed |
-| `enableDrag` | `boolean` | it can be dragged or moved |
-| `enablePopout` | `boolean` | it can be popped out into a window, or dropped into one |
+| `closable` | `boolean` | it can be closed |
+| `draggable` | `boolean` | it can be dragged or moved |
+| `poppable` | `boolean` | it can be popped out into a window, or dropped into one |
 | `minWidth`, `minHeight`, `maxWidth`, `maxHeight` | `number` | its size limits in px (`SizeLimits`) |
 | `borderWidth` | `number` | its own panel width in a start or end border (the border's `size` otherwise) |
 | `borderHeight` | `number` | its own panel height in a top or bottom border |
@@ -164,7 +164,7 @@ const readme: TabJson<Types> = {
 | `minSize`, `maxSize` | `number` | the limits of `size` |
 | `mode` | `BorderMode` | `"docked"` (the panel sits beside the layout and shrinks it) or `"overlay"` (the panel opens over it) |
 | `autoHide` | `boolean` | hide the strip while the border has no tabs (a drag near its edge reveals it) |
-| `enableDrop` | `boolean` | tabs can be dropped into it |
+| `droppable` | `boolean` | tabs can be dropped into it |
 | `autoSelectTabWhenOpen` | `boolean` | a tab added while the panel is open is selected |
 | `autoSelectTabWhenClosed` | `boolean` | a tab added while the panel is closed is selected (which opens it) |
 
@@ -205,9 +205,9 @@ The rule is `node.x ?? defaults[kind].x ?? BUILT_IN[kind].x`, with no other inhe
 
 | field | type | built-in |
 | --- | --- | --- |
-| `enableClose` | `boolean` | `true` |
-| `enableDrag` | `boolean` | `true` |
-| `enablePopout` | `boolean` | `false` |
+| `closable` | `boolean` | `true` |
+| `draggable` | `boolean` | `true` |
+| `poppable` | `boolean` | `false` |
 | `minWidth`, `minHeight` | `number` | `1` |
 | `maxWidth`, `maxHeight` | `number` | `99999` |
 
@@ -215,7 +215,7 @@ The rule is `node.x ?? defaults[kind].x ?? BUILT_IN[kind].x`, with no other inhe
 
 | field | type | built-in |
 | --- | --- | --- |
-| `enableDrop`, `enableDrag`, `enableDivide`, `enableMaximize`, `enableClose` | `boolean` | `true` |
+| `droppable`, `draggable`, `splittable`, `maximizable`, `closable` | `boolean` | `true` |
 | `deleteWhenEmpty`, `autoSelectTab` | `boolean` | `true` |
 | `minWidth`, `minHeight` | `number` | `1` |
 | `maxWidth`, `maxHeight` | `number` | `99999` |
@@ -229,7 +229,7 @@ The rule is `node.x ?? defaults[kind].x ?? BUILT_IN[kind].x`, with no other inhe
 | `maxSize` | `number` | `99999` |
 | `mode` | `BorderMode` | `"docked"` |
 | `autoHide` | `boolean` | `false` |
-| `enableDrop` | `boolean` | `true` |
+| `droppable` | `boolean` | `true` |
 | `autoSelectTabWhenOpen` | `boolean` | `true` |
 | `autoSelectTabWhenClosed` | `boolean` | `false` |
 
@@ -269,7 +269,7 @@ queries return.
 A node's behaviour fields stay as the document set them (absent means "use the defaults"), so
 `model.get("layout-json")` writes back exactly what was set. `selected` is an index into
 `children`, `-1` for none. Loading also tidies the tree, as every command does: an empty tabset is removed when it
-allows it (`deleteWhenEmpty` and `enableClose`), an empty nested row is removed, a nested row with one child is
+allows it (`deleteWhenEmpty` and `closable`), an empty nested row is removed, a nested row with one child is
 replaced by that child, and an empty window is removed. The main layout always keeps a tabset: when
 tidying would leave it with none, one of its empty tabsets stays, with its id: the active one,
 else the first (so
@@ -347,7 +347,7 @@ attributes:
 | old | now |
 | --- | --- |
 | `layout` (the root row), `subLayouts` | `root`; `windows`, an array of window layouts with an `id` and a `root` |
-| `global` | `defaults`, by kind: `tabEnableClose` is `defaults.tab.enableClose`, `tabSetMinWidth` is `defaults.tabset.minWidth`, `borderSize` is `defaults.border.size`, `enableEdgeDock` is `defaults.layout.edgeDock` |
+| `global` | `defaults`, by kind: `tabEnableClose` is `defaults.tab.closable`, `tabSetMinWidth` is `defaults.tabset.minWidth`, `borderSize` is `defaults.border.size`, `enableEdgeDock` is `defaults.layout.edgeDock` |
 | `rootOrientationVertical` | `defaults.layout.rootOrientation` |
 | a tabset's `active`, `maximized` | the layout's `active` and `maximized` |
 | `enableDeleteWhenEmpty` | `deleteWhenEmpty` |

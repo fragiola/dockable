@@ -55,7 +55,7 @@ const json: LayoutJson<Types> = {
                             text: "This tab cannot be closed: Close is disabled in its menu.",
                         },
                         // not closable: `tab.close` refuses it, so Close is disabled in its menu
-                        enableClose: false,
+                        closable: false,
                     },
                     { component: "log", label: "Activity" },
                     {

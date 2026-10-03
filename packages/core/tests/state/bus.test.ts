@@ -949,7 +949,7 @@ describe("review regressions", () => {
 
     it("copies the data and defaults it is given: never freezes or shares them", () => {
         const data = { name: "One", nested: { count: 1 } };
-        const defaults = { tab: { enablePopout: true } };
+        const defaults = { tab: { poppable: true } };
         const model = createModel({
             version: 1,
             defaults,
@@ -969,11 +969,11 @@ describe("review regressions", () => {
         expect(Object.isFrozen(data)).toBe(false);
         expect(Object.isFrozen(defaults)).toBe(false);
         data.nested.count = 2;
-        defaults.tab.enablePopout = false;
+        defaults.tab.poppable = false;
         expect(model.get("node-by", { id: "a" })).toMatchObject({
             data: { nested: { count: 1 } },
         });
-        expect(model.state.defaults.tab?.enablePopout).toBe(true);
+        expect(model.state.defaults.tab?.poppable).toBe(true);
 
         const added = { name: "Two" };
         must(

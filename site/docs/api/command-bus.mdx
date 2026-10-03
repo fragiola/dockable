@@ -196,7 +196,7 @@ return.
 | `unknown_command` | the name is not a command. From `dispatch` the path is `/command`; inside a batch, `/commands/<i>/command` |
 | `invalid_payload` | the payload does not match the command's JSON Schema (the first problem's path, and all of them in `issues`); a registered data schema rejects a tab's `data` (`tab.add`, `tab.set-data`, `tab.set-component`, `layout.load`); a `layout.load` document is invalid (every issue, under `/layout`); a command-specific shape check fails (`row.resize` without one weight per child); `transient: true` on a command that cannot be transient; the `dispatch` envelope is malformed; or a middleware rewrote the payload into an invalid one |
 | `not_found` | a node or window the payload names does not exist, or is not of the kind the command needs (a tab id given as `tabset`) |
-| `refused` | a rule of the layout forbids it: a permission flag resolves to false (`enableClose`, `enableDrag`, `enableDrop`, `enableDivide`, `enableMaximize`, `enablePopout`), the tab is pinned, the target refuses the drop, the id is already in use, the tabset is the only one of its layout, the border has no tab to open |
+| `refused` | a rule of the layout forbids it: a permission flag resolves to false (`closable`, `draggable`, `droppable`, `splittable`, `maximizable`, `poppable`), the tab is pinned, the target refuses the drop, the id is already in use, the tabset is the only one of its layout, the border has no tab to open |
 | `vetoed` | a middleware returned an error without calling `next()` (usually `veto(message)`), or returned `undefined` without calling it |
 | `queued` | the command was issued from a middleware while another command was running: it has not run yet and will run after that command commits (see [Re-entrancy](#re-entrancy)) |
 | `middleware_error` | a middleware threw; the message is the thrown error's message, and nothing is committed |
@@ -466,7 +466,7 @@ defaults; a `null` field removes it, and a `null` part removes the whole part.
 ```ts
 model.run("layout.configure", {
     defaults: {
-        tab: { enablePopout: true, minWidth: 120 },
+        tab: { poppable: true, minWidth: 120 },
         border: { size: null }, // borders without their own size: the built-in 200
         layout: null, // every layout setting back to its built-in value
     },

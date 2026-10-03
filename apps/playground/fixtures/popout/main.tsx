@@ -96,7 +96,7 @@ function App() {
         const created = createModel<Types>(layoutFromQuery());
         // every layout of this fixture can pop out (popout is opt-in per tab)
         created.run("layout.configure", {
-            defaults: { tab: { enablePopout: true } },
+            defaults: { tab: { poppable: true } },
         });
         return created;
     });

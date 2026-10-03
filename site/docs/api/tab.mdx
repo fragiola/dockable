@@ -40,7 +40,7 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | `selected` | `boolean` | the tab is its tabset's selected tab (`model.is("tab-selected", { tabId })`) |
 | `pinned` | `boolean` | the tab is pinned (`tab.pinned === true`) |
 | `dragging` | `boolean` | the tab is being dragged |
-| `popoutEnabled` | `boolean` | the tab can be popped out into a window: popouts are supported and `model.can("tab.popout", { tabId })` accepts it now |
+| `poppable` | `boolean` | the tab can be popped out into a window: popouts are supported and `model.can("tab.popout", { tabId })` accepts it now |
 | `overflowHidden` | `boolean` | the tab does not fit in its strip, so it is hidden (tab overflow) |
 
 ## Data attributes and ARIA
@@ -51,15 +51,15 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | `data-selected` | the selected tab |
 | `data-pinned` | pinned |
 | `data-dragging` | being dragged |
-| `data-popout-enabled` | popouts are supported and the model accepts `tab.popout` for it (`model.can`: its resolved `enablePopout`, and every middleware) |
+| `data-poppable` | popouts are supported and the model accepts `tab.popout` for it (`model.can`: its resolved `poppable`, and every middleware) |
 | `data-overflow-hidden` | the tab does not fit in its strip, so it is hidden (tab overflow); it also gets `display: none` |
 | `id` | `engine.get("tab-button-dom-id-by", { tabId: tab.id })`, unique on the page (`getTabButtonId(id, scope)`: `dockable-<scope>tabbutton-<id>`) |
 | `role` | `"tab"` |
 | `aria-selected` | `true` or `false` |
 | `aria-controls` | its panel's id (`engine.get("tab-panel-dom-id-by", { tabId: tab.id })`) |
-| `aria-keyshortcuts` | `focusTabToggle` and, when its resolved `enableClose` is true and it is not pinned, `closeTab` |
+| `aria-keyshortcuts` | `focusTabToggle` and, when its resolved `closable` is true and it is not pinned, `closeTab` |
 | `tabIndex` | `0` on the tab stop (the selected tab, or the first tab when none is: `engine.is("tab-tabbable", { tabId })`), else `-1` |
-| `draggable` | the tab's resolved `enableDrag` (`model.get("tab-settings-by", { tabId })?.enableDrag`) |
+| `draggable` | the tab's resolved `draggable` (`model.get("tab-settings-by", { tabId })?.draggable`) |
 
 ## Keyboard
 

@@ -179,7 +179,7 @@ export const WIDGETS: { label: string; tab: TabInitOf<Types> }[] = [
 
 export const layout: LayoutJson<Types> = {
     version: 1,
-    defaults: { tab: { enablePopout: true } },
+    defaults: { tab: { poppable: true } },
     root: {
         type: "row",
         children: [

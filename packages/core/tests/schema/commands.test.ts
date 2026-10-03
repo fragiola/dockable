@@ -87,9 +87,9 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
         result: { windowId: "w" },
     },
     "tab.configure": {
-        valid: { tabId: "t", enableClose: false, minWidth: null },
-        invalid: { tabId: "t", enableClose: "no" },
-        path: "/enableClose",
+        valid: { tabId: "t", closable: false, minWidth: null },
+        invalid: { tabId: "t", closable: "no" },
+        path: "/closable",
         result: { tabId: "t" },
     },
     "tabset.activate": {
@@ -125,7 +125,7 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
     "tabset.configure": {
         valid: {
             tabsetId: "ts",
-            enableDrop: false,
+            droppable: false,
             data: { name: "x" },
             maxWidth: null,
         },
@@ -177,7 +177,7 @@ const fixtures: { [C in CommandName]: Fixture<C> } = {
     "layout.configure": {
         valid: {
             defaults: {
-                tab: { enablePopout: true, minWidth: null },
+                tab: { poppable: true, minWidth: null },
                 border: null,
                 layout: { rootOrientation: "vertical" },
             },
@@ -256,7 +256,7 @@ describe("command schemas", () => {
             validate(layoutSchema, {
                 version: 1,
                 defaults: {
-                    tab: { enableClose: false },
+                    tab: { closable: false },
                     tabset: { deleteWhenEmpty: false },
                     border: { size: 100, mode: "overlay" },
                     layout: {
@@ -276,7 +276,7 @@ describe("command schemas", () => {
                             type: "tabset",
                             id: "ts",
                             selected: 0,
-                            enableDrop: false,
+                            droppable: false,
                             minWidth: 10,
                             children: [
                                 {

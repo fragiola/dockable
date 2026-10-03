@@ -10,7 +10,7 @@ export default {
         "tab.close",
         "tabset.close",
         "model.can",
-        "enableClose",
+        "closable",
         "data-empty",
     ],
     docs: "/docs/guides/tabs",
