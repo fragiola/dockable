@@ -18,7 +18,7 @@ This repo is the first of a family (React, Vue and Angular today), so
 | `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | `@fragiola/dockable-react` (the core through it), `examples/react`, `examples-shared` |
 | `examples/react` | private, `examples-react` | the React examples of the site (the embed app, Vite): only what a reader copies | `@fragiola/dockable-react`, `examples-shared` |
 | `examples/vue` | private, `examples-vue` | the Vue examples of the site (the embed app, Vite, single-file components typechecked by `vue-tsc` on TypeScript 6.0.3, pinned in this app only): every React one, with a kit of its own (`src/components`: Fragiola UI's pieces over Reka UI, the React kit's classes) | `@fragiola/dockable-vue`, `examples-shared` |
-| `examples/angular` | private, `examples-angular` | the Angular examples of the site (the embed app, Vite with `@analogjs/vite-plugin-angular`, zoneless, standalone components with inline templates, typechecked by `ngc` on TypeScript 6.0.3, pinned in this app only): `hello-layout` and `unstyled` so far (Epic #143 ports the others); `src/styles` and `src/lib/cn.ts` copied from examples/react (tests/vendored.test.ts) | `@fragiola/dockable-angular`, `examples-shared` |
+| `examples/angular` | private, `examples-angular` | the Angular examples of the site (the embed app, Vite with `@analogjs/vite-plugin-angular`, zoneless, standalone components with inline templates, typechecked by `ngc` on TypeScript 6.0.3, pinned in this app only): every React one, with a kit of its own (`src/components`: Fragiola UI's pieces over Angular CDK, the React kit's classes); `src/styles`, `src/lib` and the class families copied from examples/react (tests/vendored.test.ts) | `@fragiola/dockable-angular`, `examples-shared` |
 | `examples/shared` | private, `examples-shared` | what every framework's examples share and no reader copies: each example's metadata, the themes, the embed protocol, the manifest builder, the loader generator, every e2e spec | no framework (a test enforces it) |
 
 A framework app is `examples/<framework>` (package `examples-<framework>`; `Framework` is
@@ -145,6 +145,9 @@ examples/vue/       src/examples/<slug>/      the site's Vue examples: index.vue
 examples/angular/   src/examples/<slug>/      the site's Angular examples: index.ts (a standalone
                                               component, default-exported, inline template), styles.ts
                     src/styles, src/lib       copied from examples/react (tests/vendored.test.ts)
+                    src/components            the kit: Fragiola UI's pieces over Angular CDK (class
+                                              families copied from examples/react; popups open in
+                                              their trigger's document, components/floating.ts)
 examples/shared/    src/meta/<slug>.ts        each example's metadata, for every framework
                     src/themes/, src/embed/   the themes; the embed's messages to the site
                     scripts/                  examples finder, manifest builder, loader generator
@@ -166,8 +169,8 @@ the gallery configuration (`examples.json`) and one examples app per framework o
 `site/project.json` (`examples/react`, `examples/vue` and `examples/angular`, built for
 `<base>/embed/<framework>/`). Every framework's app shares one metadata source and one e2e suite
 (`examples/shared`): an example has the same id in every framework, and a framework may ship a
-subset of them while it is being written (the specs of an example it lacks are skipped); React and
-Vue ship every one (`COMPLETE_FRAMEWORKS`: a spec of an example they lack fails). `www` owns the shell, the
+subset of them while it is being written (the specs of an example it lacks are skipped); React,
+Vue and Angular ship every one (`COMPLETE_FRAMEWORKS`: a spec of an example they lack fails). `www` owns the shell, the
 gallery chrome, the code panel and search. Examples import internal modules through `#/…`
 (never `@/…`).
 
