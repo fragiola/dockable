@@ -30,10 +30,8 @@ const ALLOWED = [
 describe("examples-angular", () => {
     const slugs = listExampleSlugs(APP);
 
-    it("has examples, every one of examples/react's", () => {
-        expect(slugs.length).toBeGreaterThan(0);
-        const react = listExampleSlugs(examplesApp("react"));
-        expect(slugs.filter((slug) => !react.includes(slug))).toEqual([]);
+    it("has every example of examples/react, and no other", () => {
+        expect(slugs).toEqual(listExampleSlugs(examplesApp("react")));
     });
 
     it.each(slugs)("%s imports only what a consumer copies", (slug) => {
