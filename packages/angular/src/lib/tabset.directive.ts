@@ -171,17 +171,22 @@ export function injectTabContainer<T extends DockableTypes = AnyTypes>(
             `${part} must be used inside [dockableTabSet] or [dockableBorder]`,
         );
     }
+    // the last node found: a command that removes the container (`layout.load`, a close) changes
+    // the model before the view that renders it is destroyed, and its parts may read it once more
+    let last: TabContainer<T> | undefined;
     return computed(() => {
         context.revision();
         const node = context
             .model()
             .get("node-by", { id: container.containerId() });
-        if (node?.type !== "tabset" && node?.type !== "border") {
-            throw new Error(
-                `${part} must be used inside [dockableTabSet] or [dockableBorder]`,
-            );
+        if (node?.type === "tabset" || node?.type === "border") {
+            last = node as unknown as TabContainer<T>;
+            return last;
         }
-        return node as unknown as TabContainer<T>;
+        if (node === undefined && last !== undefined) return last;
+        throw new Error(
+            `${part} must be used inside [dockableTabSet] or [dockableBorder]`,
+        );
     });
 }
 
