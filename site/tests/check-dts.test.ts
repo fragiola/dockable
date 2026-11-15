@@ -18,4 +18,18 @@ describe("the built declarations check", () => {
         ).toEqual([]);
         expect(codeOnly('type A = "any"; // any')).not.toMatch(/\bany\b/);
     });
+
+    it("ignores the Angular compiler's metadata on a compiled class, and only it", () => {
+        expect(
+            anyUses(
+                [
+                    "declare class DockableTab<T> {",
+                    "    static ɵfac: i0.ɵɵFactoryDeclaration<DockableTab<any>, never>;",
+                    '    static ɵdir: i0.ɵɵDirectiveDeclaration<DockableTab<any>, "[dockableTab]", never, {}, {}, never, never, true, never>;',
+                    "    readonly node: any;",
+                    "}",
+                ].join("\n"),
+            ),
+        ).toEqual(["readonly node: any;"]);
+    });
 });
