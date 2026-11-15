@@ -11,7 +11,8 @@ import { describe, expect, it } from "vitest";
 // The Angular side of the example contract: an example is standalone components in TypeScript
 // (`index.ts` its entry, default-exporting the example's component; templates inline) and
 // `styles.ts`, importing only what a consumer can copy: Angular, the Angular package, the icons,
-// `#/lib/cn` and relative files inside examples/. Every example assembles Dockable itself.
+// ECharts' types, the kit (`#/components/…`, `#/hooks/…`, `#/lib/cn`) and relative files inside
+// examples/. Every example assembles Dockable itself.
 
 const APP = examplesApp("angular");
 
@@ -20,7 +21,10 @@ const ALLOWED = [
     /^@angular\/(core|common)$/,
     /^@fragiola\/dockable-angular$/,
     /^@lucide\/angular$/,
+    /^echarts$/,
+    /^#\/components\/(ui|atoms)\/[a-z-]+$/,
     /^#\/lib\/cn$/,
+    /^#\/hooks\/[a-z-]+$/,
 ];
 
 describe("examples-angular", () => {
