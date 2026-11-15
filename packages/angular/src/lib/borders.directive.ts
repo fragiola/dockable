@@ -54,7 +54,7 @@ import {
     px,
     type StructuralStyle,
 } from "./utils";
-import { signalContext } from "./views";
+import { DetachedViews, signalContext } from "./views";
 
 /** What a border shows: `[dockableBorderContent]`'s state (`[dockableBorder]` adds its tab direction). */
 export interface BorderContentState {
@@ -372,9 +372,6 @@ export class DockableBorderContent<T extends DockableTypes = AnyTypes> {
                   update: (node: BorderNode) => void;
               }
             | undefined;
-        const container = computed(
-            () => this.splitterTemplate()?.viewContainer,
-        );
         effect(() => {
             const template = this.splitterTemplate();
             const node = this.node();
@@ -383,7 +380,6 @@ export class DockableBorderContent<T extends DockableTypes = AnyTypes> {
                 node.location === "start" || node.location === "top"
                     ? after
                     : before;
-            const vcr = container();
             untracked(() => {
                 const key = open
                     ? `${template ? "template" : "default"}:${anchor === after ? "after" : "before"}`
@@ -401,10 +397,7 @@ export class DockableBorderContent<T extends DockableTypes = AnyTypes> {
                               template as unknown as TemplateSource,
                               node,
                           )
-                        : createDefaultSplitter(
-                              this.defaultContainer(vcr),
-                              node,
-                          );
+                        : createDefaultSplitter(this.detached, node);
                     current.key = key;
                 }
                 current.update(node);
@@ -414,12 +407,8 @@ export class DockableBorderContent<T extends DockableTypes = AnyTypes> {
         onDestroy(() => current?.view.destroy());
     }
 
-    /** where a default splitter is created (any container of this element's view) */
-    private defaultContainer(given: ViewContainerRef | undefined) {
-        return given ?? this.ownContainer;
-    }
-
-    private readonly ownContainer = inject(ViewContainerRef);
+    /** where a default splitter is created: in no container (its node is placed here) */
+    private readonly detached = new DetachedViews();
 }
 
 function viewRoots(view: ViewRef): Node[] {
@@ -449,9 +438,10 @@ function createTemplateSplitter(template: TemplateSource, node: BorderNode) {
     };
 }
 
-function createDefaultSplitter(container: ViewContainerRef, node: BorderNode) {
-    const ref: ComponentRef<DockableDefaultSplitter> =
-        container.createComponent(DockableDefaultSplitter);
+function createDefaultSplitter(detached: DetachedViews, node: BorderNode) {
+    const ref: ComponentRef<DockableDefaultSplitter> = detached.component(
+        DockableDefaultSplitter,
+    );
     ref.setInput("dockableSplitter", node);
     return {
         key: "",

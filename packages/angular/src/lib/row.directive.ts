@@ -9,9 +9,11 @@ import {
     Directive,
     type EmbeddedViewRef,
     effect,
+    inject,
     input,
     type Signal,
     type TemplateRef,
+    type Type,
     untracked,
     type ViewContainerRef,
     type ViewRef,
@@ -37,7 +39,12 @@ import {
     injectHost,
     px,
 } from "./utils";
-import { type KeyedItem, KeyedViews, signalContext } from "./views";
+import {
+    DetachedViews,
+    type KeyedItem,
+    KeyedViews,
+    signalContext,
+} from "./views";
 
 export interface RowState {
     orientation: "horizontal" | "vertical";
@@ -47,12 +54,21 @@ export interface RowState {
     hidden: boolean;
 }
 
+/** The templates a row renders its children and its splitters with. */
+interface RowTemplates {
+    /** the row's own child template, or its parent's */
+    own: boolean;
+    child: { template: TemplateRef<unknown>; viewContainer: ViewContainerRef };
+    splitter: { template: TemplateRef<unknown> } | undefined;
+}
+
 /**
  * A row (or column) of the layout: `<div dockableRow>` (the layout's root row) or
  * `<div [dockableRow]="node">`. Lays its children out with flex, sized by their weights, renders
  * its `<ng-template dockableRowChild let-node>` per child and inserts a splitter between children
  * (a `<ng-template dockableRowSplitter>` replaces the default one; `[splitter]="false"` renders
- * none).
+ * none). A nested row with no child template of its own renders with its parent row's templates,
+ * so the recursion is one template: `@if (node.type === "row") { <div [dockableRow]="node"></div> }`.
  */
 @Directive({
     selector: "[dockableRow]",
@@ -79,6 +95,31 @@ export class DockableRow<T extends DockableTypes = AnyTypes> {
     private readonly splitterTemplate = contentChild(DockableRowSplitter, {
         descendants: false,
     });
+    private readonly parent = inject(DockableRow, {
+        optional: true,
+        skipSelf: true,
+    });
+    private readonly detached = new DetachedViews();
+    /** its own templates, else the enclosing row's */
+    private readonly templates: Signal<RowTemplates | undefined> = computed(
+        () => {
+            const child = this.childTemplate();
+            if (child) {
+                return {
+                    own: true,
+                    child: {
+                        template: child.template as TemplateRef<unknown>,
+                        viewContainer: child.viewContainer,
+                    },
+                    splitter: this.splitterTemplate() as
+                        | { template: TemplateRef<unknown> }
+                        | undefined,
+                };
+            }
+            const inherited = this.parent?.templates();
+            return inherited ? { ...inherited, own: false } : undefined;
+        },
+    );
 
     /** the row rendered now */
     readonly node: Signal<RowNode> = computed(() => {
@@ -161,29 +202,34 @@ export class DockableRow<T extends DockableTypes = AnyTypes> {
 
         // a view per child, with a splitter view before every child but the first
         let views: KeyedViews | undefined;
-        let container: unknown;
+        let container: ViewContainerRef | null | undefined;
         effect(() => {
-            const child = this.childTemplate();
+            const templates = this.templates();
             const row = this.node();
             const splitter = this.splitter();
-            const splitterTemplate = this.splitterTemplate();
             untracked(() => {
-                if (!child) {
+                if (!templates) {
                     views?.clear();
                     views = undefined;
                     return;
                 }
-                if (container !== child.viewContainer) {
+                const { child, splitter: splitterTemplate } = templates;
+                // its own template's container is inside the row; an inherited template renders
+                // into no container, its views' nodes are placed inside the row
+                const own = templates.own;
+                const target = own ? child.viewContainer : null;
+                if (container !== target) {
                     views?.clear();
-                    container = child.viewContainer;
-                    views = new KeyedViews(child.viewContainer);
+                    container = target;
+                    views = new KeyedViews(target);
                 }
+                const create = this.creator(target);
                 const items: KeyedItem[] = [];
                 for (const [index, node] of row.children.entries()) {
                     if (index > 0 && splitter) {
                         items.push(
                             splitterItem(
-                                child,
+                                create,
                                 splitterTemplate,
                                 `splitter:${node.id}`,
                                 row,
@@ -194,13 +240,13 @@ export class DockableRow<T extends DockableTypes = AnyTypes> {
                     items.push({
                         key: node.id,
                         create: (at) =>
-                            child.viewContainer.createEmbeddedView(
+                            create.embedded(
                                 child.template as unknown as TemplateRef<RowChildContext>,
                                 signalContext<RowChildContext>({
                                     $implicit: node,
                                     node,
                                 }),
-                                { index: at },
+                                at,
                             ),
                         update: (view) =>
                             contextOf<RowChildContext>(view).update({
@@ -210,12 +256,66 @@ export class DockableRow<T extends DockableTypes = AnyTypes> {
                     });
                 }
                 views?.sync(items);
+                if (!own && views) {
+                    this.placeInside(items.map((item) => views?.get(item.key)));
+                }
             });
         });
+    }
+
+    /** How the row's views are created: in its template's container, or in none. */
+    private creator(container: ViewContainerRef | null): ViewCreator {
+        if (container) {
+            return {
+                embedded: (template, context, index) =>
+                    container.createEmbeddedView(template, context, { index }),
+                component: (type, index) =>
+                    container.createComponent(type, { index }),
+            };
+        }
+        return {
+            embedded: (template, context) =>
+                this.detached.embedded(template, context),
+            component: (type) => this.detached.component(type),
+        };
+    }
+
+    /** Puts the views' nodes inside the row, in order, when they are not already. */
+    private placeInside(views: readonly (ViewRef | undefined)[]) {
+        const nodes = views.flatMap(rootNodes);
+        const inside = [...this.host.childNodes].filter((node) =>
+            nodes.includes(node),
+        );
+        if (
+            inside.length === nodes.length &&
+            inside.every((node, index) => node === nodes[index])
+        ) {
+            return;
+        }
+        for (const node of nodes) {
+            this.host.appendChild(node);
+        }
     }
 }
 
 type Updatable<C> = C & { update(next: C): void };
+
+/** Creates a row's views at an index (of a container, or of none). */
+interface ViewCreator {
+    embedded<C>(
+        template: TemplateRef<C>,
+        context: C,
+        index: number,
+    ): EmbeddedViewRef<C>;
+    component<C>(type: Type<C>, index: number): ComponentRef<C>;
+}
+
+/** The root nodes of a view (an embedded view's, or a component's host element). */
+function rootNodes(view: ViewRef | undefined): Node[] {
+    return view
+        ? ((view as unknown as EmbeddedViewRef<unknown>).rootNodes as Node[])
+        : [];
+}
 
 function contextOf<C>(view: ViewRef): Updatable<C> {
     return (view as EmbeddedViewRef<Updatable<C>>).context;
@@ -223,13 +323,12 @@ function contextOf<C>(view: ViewRef): Updatable<C> {
 
 /** The splitter before child `index`: the consumer's template, or a bare `[dockableSplitter]`. */
 function splitterItem(
-    child: { viewContainer: ViewContainerRef },
+    create: ViewCreator,
     template: { template: TemplateRef<unknown> } | undefined,
     key: string,
     row: RowNode,
     index: number,
 ): KeyedItem {
-    const container = child.viewContainer;
     if (template) {
         const value = (): RowSplitterContext => ({
             $implicit: { node: row, index },
@@ -239,10 +338,10 @@ function splitterItem(
         return {
             key: `${key}:template`,
             create: (at) =>
-                container.createEmbeddedView(
+                create.embedded(
                     template.template as TemplateRef<RowSplitterContext>,
                     signalContext(value()),
-                    { index: at },
+                    at,
                 ),
             update: (view) =>
                 contextOf<RowSplitterContext>(view).update(value()),
@@ -251,9 +350,7 @@ function splitterItem(
     return {
         key: `${key}:default`,
         create: (at) => {
-            const ref = container.createComponent(DockableDefaultSplitter, {
-                index: at,
-            });
+            const ref = create.component(DockableDefaultSplitter, at);
             ref.setInput("dockableSplitter", row);
             ref.setInput("index", index);
             defaultSplitters.set(ref.hostView, ref);

@@ -1,6 +1,14 @@
 import {
+    ApplicationRef,
+    type ComponentRef,
+    createComponent,
     type EmbeddedViewRef,
+    EnvironmentInjector,
+    Injector,
+    inject,
     signal,
+    type TemplateRef,
+    type Type,
     untracked,
     type ViewContainerRef,
     type ViewRef,
@@ -59,7 +67,8 @@ export interface KeyedItem<R extends ViewRef = ViewRef> {
 export class KeyedViews<R extends ViewRef = ViewRef> {
     private readonly views = new Map<string, R>();
 
-    constructor(private readonly container: ViewContainerRef) {}
+    /** `null`: the views are in no container (their nodes are placed by the caller) */
+    constructor(private readonly container: ViewContainerRef | null) {}
 
     sync(items: readonly KeyedItem<R>[]): void {
         untracked(() => {
@@ -75,7 +84,10 @@ export class KeyedViews<R extends ViewRef = ViewRef> {
                 if (!view) {
                     view = item.create(index);
                     this.views.set(item.key, view);
-                } else if (this.container.indexOf(view) !== index) {
+                } else if (
+                    this.container &&
+                    this.container.indexOf(view) !== index
+                ) {
                     this.container.move(view, index);
                 }
                 item.update?.(view);
@@ -98,4 +110,30 @@ export class KeyedViews<R extends ViewRef = ViewRef> {
 /** The root nodes of an embedded view (its elements, text and anchors), as they are now. */
 export function rootNodesOf(view: EmbeddedViewRef<unknown>): Node[] {
     return view.rootNodes as Node[];
+}
+
+/**
+ * Creates views in no container, checked with the application: their nodes go where the caller
+ * puts them. A container would add its anchor and its views to the root nodes of the view its
+ * element is in, and a move of that view would take them along.
+ */
+export class DetachedViews {
+    private readonly app = inject(ApplicationRef);
+    private readonly environment = inject(EnvironmentInjector);
+    private readonly injector = inject(Injector);
+
+    embedded<C>(template: TemplateRef<C>, context: C): EmbeddedViewRef<C> {
+        const view = template.createEmbeddedView(context, this.injector);
+        this.app.attachView(view);
+        return view;
+    }
+
+    component<C>(type: Type<C>): ComponentRef<C> {
+        const ref = createComponent(type, {
+            environmentInjector: this.environment,
+            elementInjector: this.injector,
+        });
+        this.app.attachView(ref.hostView);
+        return ref;
+    }
 }

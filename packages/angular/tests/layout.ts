@@ -65,6 +65,9 @@ export const mounts = new Map<string, number>();
             count {{ count() }}
         </button>
         <input [attr.data-testid]="'input-' + id()" [attr.aria-label]="'input ' + id()" />
+        @if (count() >= 0) {
+            <span [attr.data-testid]="'live-' + id()"></span>
+        }
     </div>`,
 })
 export class Counter implements OnInit {

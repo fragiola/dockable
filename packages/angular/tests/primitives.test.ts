@@ -377,6 +377,32 @@ describe("panels and content", () => {
         expect(mustPath("/ts0/t1")).not.toHaveAttribute("data-visible");
     });
 
+    it("puts the panels after the root's other children, wherever their template is", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <ng-template dockablePanels let-tab><div [dockablePanel]="tab"></div></ng-template>
+                    <div dockableRow>
+                        <ng-template dockableRowChild let-node>
+                            @if (node.type === "tabset") {
+                                <div [dockableTabSet]="node"><div dockableTabSetContent></div></div>
+                            }
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class PanelsFirst {
+            readonly model = input.required<Model<Types>>();
+        }
+        await render(PanelsFirst, { model: model() });
+        const children = [...mustPath("/layout").children];
+        expect(children.indexOf(mustPath("/row"))).toBeLessThan(
+            children.indexOf(mustPath("/ts0/t0")),
+        );
+    });
+
     it("registers each tab panel with the engine once", async () => {
         @Component({
             imports: [DOCKABLE],
@@ -469,6 +495,55 @@ describe("rows", () => {
             "horizontal",
         );
         expect(mustPath("/s0")).toBeTruthy();
+    });
+
+    it("renders a nested row with its parent's templates when it has none", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <div dockableRow>
+                        <ng-template [dockableRowChild]="model()" let-node>
+                            @if (node.type === "row") {
+                                <div [dockableRow]="node"></div>
+                            } @else {
+                                <div [dockableTabSet]="node"><div dockableTabSetContent></div></div>
+                            }
+                        </ng-template>
+                        <ng-template dockableRowSplitter let-node="node" let-index="index">
+                            <div [dockableSplitter]="node" [index]="index" aria-label="Resize"></div>
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class Recursive {
+            readonly model = input.required<Model<Types>>();
+        }
+        const m = nested();
+        await render(Recursive, { model: m });
+        const row = mustPath("/r1");
+        expect(mustPath("/r1/ts0").parentElement).toBe(row);
+        expect(mustPath("/r1/s0").parentElement).toBe(row);
+        expect(mustPath("/r1/s0")).toHaveAttribute("aria-label", "Resize");
+        expect(
+            [...row.children].map((child) =>
+                child.getAttribute("data-layout-path"),
+            ),
+        ).toEqual(["/r1/ts0", "/r1/s0", "/r1/ts1"]);
+        // a reorder inside the nested row keeps its children inside it, in order
+        m.run("tabset.move", { tabsetId: "ts2", to: "ts1", location: "top" });
+        await settle();
+        expect(
+            [...mustPath("/r1").children].map((child) =>
+                child.getAttribute("data-layout-path"),
+            ),
+        ).toEqual(["/r1/ts0", "/r1/s0", "/r1/ts1"]);
+        expect(mustPath("/r1/ts0")).toHaveAttribute(
+            "data-layout-path",
+            "/r1/ts0",
+        );
+        expect(document.querySelectorAll('[role="separator"]')).toHaveLength(2);
     });
 
     it('renders no splitter with [splitter]="false"', async () => {

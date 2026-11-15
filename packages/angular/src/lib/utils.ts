@@ -136,10 +136,25 @@ export function optionalBoolean(value: unknown): boolean | undefined {
         : booleanInput(value);
 }
 
-/** Moves `nodes` before `anchor` (into `anchor`'s parent), keeping their order. */
+/**
+ * Moves `nodes` right before `anchor` (into `anchor`'s parent), keeping their order; nodes already
+ * in place are not touched (moving an attached node drops its focus and its scroll position).
+ */
 export function moveBefore(nodes: readonly Node[], anchor: Node): void {
     const parent = anchor.parentNode;
     if (!parent) {
+        return;
+    }
+    let cursor = anchor.previousSibling;
+    let inPlace = true;
+    for (let i = nodes.length - 1; i >= 0; i--) {
+        if (nodes[i] !== cursor) {
+            inPlace = false;
+            break;
+        }
+        cursor = cursor?.previousSibling ?? null;
+    }
+    if (inPlace) {
         return;
     }
     for (const node of nodes) {

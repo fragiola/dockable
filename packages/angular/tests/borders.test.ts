@@ -218,6 +218,25 @@ describe("[dockableBorders]", () => {
         expect(path("/border/start")).not.toHaveAttribute("data-open");
     });
 
+    it("keeps the focus on a border's tab and splitter used with the keyboard", async () => {
+        await renderBorders();
+        const tab = mustPath("/border/start/tb1");
+        tab.focus();
+        keyDown(tab, { key: "Enter" });
+        await settle();
+        expect(path("/border/start")).toHaveAttribute("data-open", "");
+        expect(document.activeElement).toBe(tab);
+        // every key resizes and renders again: the splitter is never moved, so it keeps the focus
+        const splitter = mustPath("/border/start/s-1");
+        splitter.focus();
+        for (let i = 0; i < 3; i++) {
+            keyDown(splitter, { key: "ArrowRight" });
+            await settle();
+        }
+        expect(mustPath("/border/start/s-1")).toBe(splitter);
+        expect(document.activeElement).toBe(splitter);
+    });
+
     it("resizes a border with its splitter's keyboard, in px", async () => {
         const fixture = await renderBorders();
         const model = fixture.componentInstance.model();

@@ -94,6 +94,8 @@ function delegate<V extends object>(target: Signal<V>): V {
 interface PanelsOwner {
     readonly container: ViewContainerRef;
     readonly views: Map<string, PanelView>;
+    /** renders the view again from its template */
+    remount(entry: PanelView): void;
 }
 
 /** A rendered panel view and what it was rendered with. */
@@ -151,8 +153,8 @@ export class DockablePanels<T extends DockableTypes = AnyTypes> {
 
     /** @internal the views this layer renders, by key */
     readonly views = new Map<string, PanelView>();
-    /** a remount version per tab id: a new version renders a new view */
-    private readonly remounts = signal<ReadonlyMap<string, number>>(new Map());
+    /** bumped when a view is destroyed to be rendered again (`remountInWindow`) */
+    private readonly remounts = signal(0);
     private engine: LayoutEngine | undefined;
 
     constructor() {
@@ -160,7 +162,7 @@ export class DockablePanels<T extends DockableTypes = AnyTypes> {
             this.context.revision();
             const engine = this.context.engine();
             const layers = this.context.layers();
-            const remounts = this.remounts();
+            this.remounts();
             const renderOnDemand = this.renderOnDemand();
             untracked(() => {
                 if (engine !== this.engine) {
@@ -185,34 +187,31 @@ export class DockablePanels<T extends DockableTypes = AnyTypes> {
                         ),
                     );
                 tabs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-                this.sync(tabs, engine, remounts);
+                this.sync(tabs, engine);
             });
         });
         onDestroy(() => this.clear());
     }
 
-    private keyOf(
-        tab: TabOf<AnyTypes>,
-        engine: LayoutEngine,
-        remounts: ReadonlyMap<string, number>,
-    ): string {
-        const version = remounts.get(tab.id) ?? 0;
+    private keyOf(tab: TabOf<AnyTypes>, engine: LayoutEngine): string {
         // in a drag group a view follows the tab's moveable element, which a transferred tab
         // adopts (two models' tabs may share an id)
-        const base = this.group
+        return this.group
             ? keyOfMoveable(engine.adapter.getMoveableElement(tab.id))
             : tab.id;
-        return `${base}:${version}`;
     }
 
-    private sync(
-        tabs: readonly TabOf<AnyTypes>[],
-        engine: LayoutEngine,
-        remounts: ReadonlyMap<string, number>,
-    ) {
-        const keep = new Map(
-            tabs.map((tab) => [this.keyOf(tab, engine, remounts), tab]),
-        );
+    /** views to render again from the template on the next pass */
+    private readonly stale = new Set<PanelView>();
+
+    /** @internal renders a view again from the template, on the next pass */
+    remount(entry: PanelView): void {
+        this.stale.add(entry);
+        this.remounts.update((value) => value + 1);
+    }
+
+    private sync(tabs: readonly TabOf<AnyTypes>[], engine: LayoutEngine) {
+        const keep = new Map(tabs.map((tab) => [this.keyOf(tab, engine), tab]));
         for (const [key, entry] of this.views) {
             if (!keep.has(key)) {
                 this.views.delete(key);
@@ -220,6 +219,12 @@ export class DockablePanels<T extends DockableTypes = AnyTypes> {
             }
         }
         for (const [key, tab] of keep) {
+            const current = this.views.get(key);
+            if (current && this.stale.has(current)) {
+                this.stale.delete(current);
+                this.views.delete(key);
+                current.view.destroy();
+            }
             const entry =
                 this.views.get(key) ?? this.adopt(key) ?? this.create(key, tab);
             entry.tabId = tab.id;
@@ -256,13 +261,8 @@ export class DockablePanels<T extends DockableTypes = AnyTypes> {
     private create(key: string, tab: TabOf<AnyTypes>): PanelView {
         const dockable = signal(this.context);
         const layout = signal(this.layout);
-        const host: PanelHost = {
-            remount: () => {
-                const next = new Map(untracked(this.remounts));
-                next.set(entry.tabId, (next.get(entry.tabId) ?? 0) + 1);
-                this.remounts.set(next);
-            },
-        };
+        // the layer that renders the view now (another root's, after a drag group transfer)
+        const host: PanelHost = { remount: () => entry.owner.remount(entry) };
         const providers = [{ provide: DOCKABLE_PANEL_HOST, useValue: host }];
         if (this.group) {
             providers.push(

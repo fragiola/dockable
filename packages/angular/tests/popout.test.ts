@@ -144,6 +144,10 @@ describe("[dockablePopout]", () => {
             win.document.querySelectorAll('[data-testid="content-t2"]'),
         ).toHaveLength(1);
         expect(document.querySelector('[data-testid="content-t2"]')).toBeNull();
+        // the blocks the old content rendered later went with it
+        expect(
+            win.document.querySelectorAll('[data-testid="live-t2"]'),
+        ).toHaveLength(1);
     });
 
     it("keeps the content on a window change without remountInWindow", async () => {

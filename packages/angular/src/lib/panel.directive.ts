@@ -84,11 +84,17 @@ export class DockablePanel<T extends DockableTypes = AnyTypes> {
     });
     /** the engine of the layout the tab is in */
     private readonly layoutEngine = computed(() => {
+        // a window's engine comes and goes with its window, not only with the tab's layout
+        this.context.revision();
         this.layoutId();
         return this.context.engine().adapter.engineOf(this.id());
     });
     /** the content nodes moved into the moveable element */
     private content: Node[] | undefined;
+    /** the moveable element the content was moved into */
+    private moveable: HTMLElement | undefined;
+    /** the layer the panel was put in last */
+    private placedIn: HTMLElement | undefined;
 
     /** what the panel shows as `data-*` */
     readonly state: Signal<PanelState> = computed(() => {
@@ -160,16 +166,19 @@ export class DockablePanel<T extends DockableTypes = AnyTypes> {
                     );
                     moveable.append(...this.content);
                 }
+                this.moveable = moveable;
                 if (!layer) {
                     main.adapter.releaseMoveable(tabId, this.host, {
                         remountInWindow,
                     });
                     this.host.remove();
+                    this.placedIn = undefined;
                     return;
                 }
-                if (this.host.parentNode !== layer) {
+                if (this.placedIn !== layer || this.host.parentNode !== layer) {
                     // after the layout's other children: panels paint above them
                     layer.appendChild(this.host);
+                    this.placedIn = layer;
                 }
                 engine.adapter.registerTabPanel(tabId, this.host);
                 main.adapter.attachMoveable(tabId, this.host, { scrollable });
@@ -181,16 +190,10 @@ export class DockablePanel<T extends DockableTypes = AnyTypes> {
         onDestroy(() => {
             const tabId = untracked(this.id);
             const main = untracked(this.context.engine);
-            // the content is this view's: it goes with it
-            for (const node of this.content ?? []) {
-                if (
-                    node.parentNode &&
-                    (node.parentNode as Element).hasAttribute?.(
-                        MOVEABLE_ATTRIBUTE,
-                    )
-                ) {
-                    node.parentNode.removeChild(node);
-                }
+            // the content is this view's, the blocks it rendered later included: it goes with it
+            // (only this view renders into the tab's moveable element)
+            if (this.moveable?.hasAttribute(MOVEABLE_ATTRIBUTE)) {
+                this.moveable.replaceChildren();
             }
             main.adapter.releaseMoveable(tabId, this.host, {
                 remountInWindow: untracked(this.remountInWindow),
