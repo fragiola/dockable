@@ -194,7 +194,8 @@ export function injectTabContainer<T extends DockableTypes = AnyTypes>(
         );
     }
     // the last node found: a command that removes the container (`layout.load`, a close) changes
-    // the model before the view that renders it is destroyed, and its parts may read it once more
+    // the model before the view that renders it is destroyed (a row folds away), and its parts may
+    // read it once more
     let last: TabContainer<T> | undefined;
     return computed(() => {
         context.revision();
@@ -205,7 +206,7 @@ export function injectTabContainer<T extends DockableTypes = AnyTypes>(
             last = node as unknown as TabContainer<T>;
             return last;
         }
-        if (node === undefined && last !== undefined) return last;
+        if (last) return last;
         throw new Error(
             `${part} must be used inside [dockableTabSet] or [dockableBorder]`,
         );

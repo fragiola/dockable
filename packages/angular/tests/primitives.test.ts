@@ -601,6 +601,46 @@ describe("rows", () => {
             },
         });
 
+    it("folds a nested row that rendered with its parent's templates, without an error", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <div dockableRow>
+                        <ng-template [dockableRowChild]="model()" let-node>
+                            @if (node.type === "row") {
+                                <div [dockableRow]="node"></div>
+                            } @else {
+                                <div [dockableTabSet]="node">
+                                    <div dockableTabList>
+                                        <ng-template dockableTabListItem let-tab>
+                                            <div [dockableTab]="tab">{{ tab.label }}</div>
+                                        </ng-template>
+                                    </div>
+                                    <div dockableTabSetContent></div>
+                                </div>
+                            }
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class Recursive {
+            readonly model = input.required<Model<Types>>();
+        }
+        const m = nested();
+        await render(Recursive, { model: m });
+        // t2's tabset empties and goes, and r1 (one child left) folds into its parent
+        m.run("tab.move", { tabId: "t2", to: MAIN_LAYOUT, location: "start" });
+        await settle();
+        expect(m.get("node-by", { id: "ts2" })).toBeUndefined();
+        expect(
+            [...document.querySelectorAll('[role="tab"]')].map(
+                (tab) => tab.textContent,
+            ),
+        ).toEqual(["Three", "One", "Two"]);
+    });
+
     it("renders nested rows through the child template, with their paths and splitters", async () => {
         await renderLayout(nested());
         expect(mustPath("/r1")).toHaveAttribute("data-orientation", "vertical");
