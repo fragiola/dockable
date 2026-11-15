@@ -75,4 +75,5 @@ export const Panels: DockableComponent<PanelsProps, PanelsSlots> =
                 );
             };
         },
+        ["renderOnDemand"],
     );

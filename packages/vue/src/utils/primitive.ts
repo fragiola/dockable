@@ -1,6 +1,8 @@
 import {
     type DefineSetupFnComponent,
     defineComponent,
+    type Prop,
+    type PropType,
     type SlotsType,
     type VNode,
     type VNodeChild,
@@ -37,18 +39,44 @@ export interface PrimitiveContext<Slots> {
 }
 
 /**
+ * The Vue props options of a primitive's props. The names in `booleans` are cast the way Vue casts
+ * a boolean prop, so a bare attribute is `true` (`<Dockable.Root popout-mirror-root>`, not the
+ * empty string); absent, they stay `undefined`, so the core's default applies. Their other forms
+ * (`popoutMirrorRoot`'s list, `renderOnDemand`'s function) pass through.
+ */
+export function primitiveProps<Name extends string>(
+    names: readonly Name[],
+    booleans: readonly Name[] = [],
+): Record<Name, Prop<unknown> | null> {
+    // a type-erased record (the primitive's public type comes from `DockableComponent`)
+    return Object.fromEntries(
+        names.map((name) => [
+            name,
+            booleans.includes(name)
+                ? {
+                      type: [Boolean, Array, Function] as PropType<unknown>,
+                      default: undefined,
+                  }
+                : null,
+        ]),
+    ) as Record<Name, Prop<unknown> | null>;
+}
+
+/**
  * Defines a primitive: a component with `inheritAttrs: false` (it merges the fallthrough attributes
- * itself, under its structural style) and the props named in `props`.
+ * itself, under its structural style) and the props named in `props` (`booleans`: those that take
+ * a bare attribute as `true`).
  */
 export function definePrimitive<Props extends object, Slots extends object>(
     name: string,
     props: readonly (keyof Props & string)[],
     setup: (props: Props, context: PrimitiveContext<Slots>) => () => VNodeChild,
+    booleans: readonly (keyof Props & string)[] = [],
 ): DockableComponent<Props, Slots> {
     return defineComponent({
         name: `Dockable${name}`,
         inheritAttrs: false,
-        props: [...props],
+        props: primitiveProps(props, booleans),
         setup(componentProps, { attrs, slots }) {
             return setup(componentProps as unknown as Props, {
                 attrs,

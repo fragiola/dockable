@@ -153,4 +153,5 @@ export const BorderContent: DockableComponent<
             });
         };
     },
+    ["splitter"],
 );

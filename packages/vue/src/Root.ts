@@ -121,6 +121,13 @@ const ROOT_PROPS = [
     "as",
 ] as const satisfies readonly (keyof RootProps)[];
 
+/** the props a bare attribute turns on (`<Dockable.Root popout-mirror-root>`) */
+const ROOT_BOOLEANS = [
+    "realtimeResize",
+    "supportsPopout",
+    "popoutMirrorRoot",
+] as const satisfies readonly (keyof RootProps)[];
+
 /** a key per model: another model remounts the layout, with a new engine */
 const modelKeys = new WeakMap<object, number>();
 let nextModelKey = 0;
@@ -302,6 +309,7 @@ const RootLayout = definePrimitive<RootProps, RootSlots>(
             });
         };
     },
+    ROOT_BOOLEANS,
 );
 
 /**
@@ -312,6 +320,7 @@ const RootLayout = definePrimitive<RootProps, RootSlots>(
 export const Root: DockableComponent<RootProps, RootSlots> = defineComponent({
     name: "DockableRoot",
     inheritAttrs: false,
+    // a bare boolean attribute reaches RootLayout as it came, which casts it
     props: [...ROOT_PROPS],
     setup(props, { attrs, slots }) {
         return () =>

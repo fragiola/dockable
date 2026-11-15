@@ -7,7 +7,7 @@ import {
 } from "@playwright/test";
 import { examplesApp, listExampleSlugs } from "../scripts/examples-lib.ts";
 import { THEMES, type ThemeName } from "../src/themes/themes.ts";
-import { embedBase, frameworkOf, skipReason } from "./available.ts";
+import { embedBase, frameworkOf, skipOrFail } from "./available.ts";
 
 // The examples run in a framework's embed app, addressed by its directory URL (`…/?id=`, §5.1 of
 // the site export contract), alone on the page: the stage is the page's own `data-testid="stage"`,
@@ -28,10 +28,11 @@ export { THEMES };
 
 /**
  * Skips the running test (or, at the top of a spec file, the whole file) when the framework has
- * not every one of these examples: a framework may ship a subset of them.
+ * not every one of these examples: a framework may ship a subset of them. A complete framework
+ * (React, Vue) fails instead.
  */
 export function requireExamples(...slugs: string[]) {
-    const reason = skipReason(FRAMEWORK, AVAILABLE, slugs);
+    const reason = skipOrFail(FRAMEWORK, AVAILABLE, slugs);
     test.skip(reason !== undefined, reason);
 }
 

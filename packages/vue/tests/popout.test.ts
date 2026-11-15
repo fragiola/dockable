@@ -291,6 +291,25 @@ describe("Dockable.Popout", () => {
         expect(window.open).not.toHaveBeenCalled();
     });
 
+    it("takes a bare boolean attribute as true, as a template writes it", async () => {
+        // `<Dockable.Root supports-popout popout-mirror-root>` passes empty strings
+        document.body.setAttribute("data-theme-test", "night");
+        try {
+            const model = popoutModel();
+            const bare = {
+                "supports-popout": "",
+                "popout-mirror-root": "",
+            } as unknown as Partial<RootProps<Types>>;
+            await render(app(model, { root: { ...bare } }));
+            const { win } = await popOut(model, "t2");
+            expect(win.document.body.getAttribute("data-theme-test")).toBe(
+                "night",
+            );
+        } finally {
+            document.body.removeAttribute("data-theme-test");
+        }
+    });
+
     it("opens the window of a window layout already in the model at mount", async () => {
         const model = popoutModel();
         model.run("tab.popout", { tabId: "t2" });

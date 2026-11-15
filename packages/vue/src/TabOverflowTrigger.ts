@@ -8,6 +8,7 @@ import {
     type PrimitiveProps,
     type SlotFunction,
 } from "./utils/primitive";
+import { registerElement } from "./utils/registration";
 import {
     dataAttributes,
     elementRef,
@@ -50,8 +51,13 @@ export const TabOverflowTrigger: DockableComponent<
         const ref = elementRef(
             (element) => {
                 const id = container.value.id;
-                engine.adapter.registerOverflowTrigger(id, element);
-                return () => engine.adapter.registerOverflowTrigger(id, null);
+                return registerElement(
+                    engine,
+                    `overflowtrigger:${id}`,
+                    element,
+                    (registered) =>
+                        engine.adapter.registerOverflowTrigger(id, registered),
+                );
             },
             () => [container.value.id],
         );

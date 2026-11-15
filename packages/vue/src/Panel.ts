@@ -283,4 +283,5 @@ export const Panel: DockableComponent<PanelProps, PanelSlots> = definePrimitive<
             ]);
         };
     },
+    ["scrollable", "remountInWindow"],
 );

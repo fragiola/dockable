@@ -45,6 +45,7 @@ import {
     useDockableContext,
     useLayoutContext,
 } from "./context";
+import { registerElement } from "./utils/registration";
 import { type ElementRef, elementRef, useExternal } from "./utils/render";
 
 export interface UseDockableResult<T extends DockableTypes = AnyTypes> {
@@ -179,8 +180,13 @@ export function useMeasurable(
     return elementRef(
         (element) => {
             const nodeId = id();
-            engine.adapter.registerMeasurable(nodeId, kind, element);
-            return () => engine.adapter.registerMeasurable(nodeId, kind, null);
+            return registerElement(
+                engine,
+                `${kind}:${nodeId}`,
+                element,
+                (registered) =>
+                    engine.adapter.registerMeasurable(nodeId, kind, registered),
+            );
         },
         () => [id()],
     );

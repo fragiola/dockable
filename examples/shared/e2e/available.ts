@@ -3,9 +3,13 @@
 //
 // One suite for every framework: each app's playwright.config.ts (`examplesE2eConfig`) sets
 // `EXAMPLES_FRAMEWORK`, and a spec that opens an example the framework does not have is skipped,
-// not failed: a framework may ship a subset of the examples (contract §5).
+// not failed: a framework may ship a subset of the examples (contract §5) while it is being
+// written. A framework of `COMPLETE_FRAMEWORKS` ships every example: a missing one fails.
 
 import { FRAMEWORKS, type Framework, isFramework } from "../src/framework.ts";
+
+/** The frameworks whose app has every example: for them, a spec never skips. */
+export const COMPLETE_FRAMEWORKS: readonly Framework[] = ["react", "vue"];
 
 /** The framework of `EXAMPLES_FRAMEWORK`; anything else throws (a config that forgot to set it). */
 export function frameworkOf(value: string | undefined): Framework {
@@ -35,4 +39,22 @@ export function skipReason(
     return missing.length === 0
         ? undefined
         : `${framework} has no ${missing.join(", ")} example`;
+}
+
+/**
+ * Why a test that needs `slugs` is skipped in `framework`, or nothing when it runs. Throws when
+ * the framework is one of `COMPLETE_FRAMEWORKS` and lacks one of them: the test fails instead.
+ */
+export function skipOrFail(
+    framework: Framework,
+    available: readonly string[],
+    slugs: readonly string[],
+): string | undefined {
+    const reason = skipReason(framework, available, slugs);
+    if (reason !== undefined && COMPLETE_FRAMEWORKS.includes(framework)) {
+        throw new Error(
+            `${reason}, but every ${framework} example is required (COMPLETE_FRAMEWORKS)`,
+        );
+    }
+    return reason;
 }
