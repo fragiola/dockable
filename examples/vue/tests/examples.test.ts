@@ -29,10 +29,8 @@ const ALLOWED = [
 describe("examples-vue", () => {
     const slugs = listExampleSlugs(APP);
 
-    it("has the first examples", () => {
-        expect(slugs).toEqual(
-            expect.arrayContaining(["hello-layout", "unstyled"]),
-        );
+    it("has every example of examples/react, and no other", () => {
+        expect(slugs).toEqual(listExampleSlugs(examplesApp("react")));
     });
 
     it.each(slugs)("%s imports only what a consumer copies", (slug) => {

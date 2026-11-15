@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { embedBase, frameworkOf, skipReason } from "../e2e/available.ts";
+import {
+    COMPLETE_FRAMEWORKS,
+    embedBase,
+    frameworkOf,
+    skipOrFail,
+    skipReason,
+} from "../e2e/available.ts";
 
 // The shared e2e suite runs against every framework's embed; a spec that opens an example the
-// framework does not have is skipped with this reason, never failed (e2e/helpers.ts).
+// framework does not have is skipped with this reason, unless the framework ships every example
+// (e2e/helpers.ts).
 describe("the e2e suite's framework", () => {
     it("comes from EXAMPLES_FRAMEWORK, and a missing or unknown one throws", () => {
         expect(frameworkOf("vue")).toBe("vue");
@@ -28,5 +35,26 @@ describe("a spec's examples", () => {
         expect(
             skipReason("vue", available, ["popout", "maximize", "borders"]),
         ).toBe("vue has no maximize, borders example");
+    });
+});
+
+describe("a complete framework", () => {
+    const available = ["hello-layout"];
+
+    it("is React or Vue", () => {
+        expect(COMPLETE_FRAMEWORKS).toEqual(["react", "vue"]);
+    });
+
+    it("fails a spec whose example it lacks, instead of skipping it", () => {
+        expect(() => skipOrFail("vue", available, ["popout"])).toThrow(
+            /vue has no popout example, but every vue example is required/,
+        );
+        expect(skipOrFail("vue", available, ["hello-layout"])).toBeUndefined();
+    });
+
+    it("leaves the others skipping", () => {
+        expect(skipOrFail("angular", available, ["popout"])).toBe(
+            "angular has no popout example",
+        );
     });
 });
