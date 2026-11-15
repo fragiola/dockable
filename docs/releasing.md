@@ -116,7 +116,10 @@ package is versioned with the others from its first release. What it does need:
 2. **Before merging that PR, the stub.** npm trusts a publisher only for a package that exists, so
    publish the new package once by hand at `0.0.0`, as in step 4 of *The first release*, but for
    that package only (`pnpm --filter @fragiola/dockable-vue publish --access public`, from a clean
-   checkout of the PR's branch, with 2FA).
+   checkout of the PR's branch, with 2FA). A package published from its build output
+   (`@fragiola/dockable-angular`: `publishConfig.directory` is `dist`) is built first
+   (`pnpm --filter @fragiola/dockable-angular build`): pnpm publishes that directory, with the
+   manifest its build writes there.
 3. **Its trusted publisher,** as in step 5: `npm trust github @fragiola/dockable-vue --file
    release.yml --repo fragiola/dockable --environment npm --allow-publish`.
 4. **After its first release,** lock it down as in step 8.
