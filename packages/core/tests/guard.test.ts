@@ -282,7 +282,7 @@ describe("core package guard", () => {
             "utf8",
         );
         expect(rootLicence).toContain("Copyright (c) 2017 Caplin Systems Ltd");
-        for (const pkg of ["core", "react"]) {
+        for (const pkg of ["core", "react", "vue"]) {
             expect(readFileSync(join(root, "..", pkg, "LICENSE"), "utf8")).toBe(
                 rootLicence,
             );
