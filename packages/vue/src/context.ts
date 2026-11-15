@@ -1,6 +1,7 @@
 import type {
     AnyTypes,
     DockableTypes,
+    KeyMap,
     LayoutEngine,
     Model,
 } from "@fragiola/dockable";
@@ -23,6 +24,11 @@ export interface DockableContextValue {
     readonly model: Model;
     /** the render revision: every part reads it in its render, so it re-renders with the layout */
     readonly revision: Readonly<Ref<number>>;
+    /**
+     * the root's `keyMap` prop: the parts that advertise or answer its keys read it in their
+     * render, so a new key map re-renders them (the engine holds the resolved one)
+     */
+    readonly keyMap: Readonly<Ref<KeyMap | undefined>>;
     /** the element each layout's panels are rendered in, keyed by layout id */
     readonly layers: Readonly<ShallowRef<ReadonlyMap<string, HTMLElement>>>;
     /** sets (or, with `null`, removes) the element a layout's panels are rendered in */

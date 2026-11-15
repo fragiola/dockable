@@ -68,7 +68,7 @@ export const TabList: DockableComponent<TabListProps, TabListSlots> =
         ["orientation", "overflow", "as"],
         (props, { attrs, slots }) => {
             const container = useTabContainer("TabList");
-            const { revision } = useDockableContext("TabList");
+            const { revision, keyMap } = useDockableContext("TabList");
             const { engine } = useLayoutContext("TabList");
             const orientation = computed(() => {
                 const current = container.value;
@@ -124,6 +124,7 @@ export const TabList: DockableComponent<TabListProps, TabListSlots> =
             const drop = useDropState(engine, id);
             return () => {
                 revision.value;
+                keyMap.value;
                 const current = container.value;
                 const state: TabListState = {
                     orientation: orientation.value,

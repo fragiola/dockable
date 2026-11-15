@@ -245,6 +245,7 @@ const RootLayout = definePrimitive<RootProps, RootSlots>(
             engine,
             model,
             revision,
+            keyMap: computed(() => props.keyMap),
             layers,
             setLayer,
             scheduleMeasure,

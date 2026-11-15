@@ -101,7 +101,13 @@ export const Panel: DockableComponent<PanelProps, PanelSlots> = definePrimitive<
     (props, { attrs, slots }) => {
         const dockable = useDockableContext("Panel");
         const layout = useLayoutContext("Panel");
-        const { engine: mainEngine, model, layers, revision } = dockable;
+        const {
+            engine: mainEngine,
+            model,
+            layers,
+            revision,
+            keyMap,
+        } = dockable;
         const dragGroup = inject(DragGroupKey, null);
         const id = () => props.node.id;
         const scrollable = () => props.scrollable !== false;
@@ -215,6 +221,7 @@ export const Panel: DockableComponent<PanelProps, PanelSlots> = definePrimitive<
 
         return () => {
             revision.value;
+            keyMap.value;
             const tabId = id();
             const layoutId = layoutIdOf();
             const layer = layers.value.get(layoutId);

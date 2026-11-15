@@ -46,6 +46,18 @@ export interface PopoutSlots<T extends DockableTypes = AnyTypes>
     default?: SlotFunction<{ layout: WindowLayout<T> }>;
 }
 
+/** a key per engine, so a window that gets another engine remounts its layout */
+const engineKeys = new WeakMap<LayoutEngine, number>();
+let nextEngineKey = 0;
+function keyOfEngine(engine: LayoutEngine): number {
+    let key = engineKeys.get(engine);
+    if (key === undefined) {
+        key = nextEngineKey++;
+        engineKeys.set(engine, key);
+    }
+    return key;
+}
+
 /** the root of a window layout, inside the popout document */
 const PopoutLayout = defineComponent({
     name: "DockablePopoutLayout",
@@ -147,6 +159,8 @@ export const Popout: DockableComponent<PopoutProps, PopoutSlots> =
                             { to: contentRoot, key: layout.id },
                             [
                                 h(PopoutLayout, {
+                                    // a new engine for the window is a new layout root
+                                    key: keyOfEngine(layoutEngine),
                                     layout,
                                     engine: layoutEngine,
                                     as: props.as,

@@ -56,7 +56,7 @@ export const Tab: DockableComponent<TabProps, TabSlots> = definePrimitive<
     TabProps,
     TabSlots
 >("Tab", ["node", "as"], (props, { attrs, slots }) => {
-    const { model, revision } = useDockableContext("Tab");
+    const { model, revision, keyMap } = useDockableContext("Tab");
     const { engine } = useLayoutContext("Tab");
     const list = inject(TabListKey, null);
     const orientation = computed(() => list?.value ?? "horizontal");
@@ -98,6 +98,7 @@ export const Tab: DockableComponent<TabProps, TabSlots> = definePrimitive<
 
     return () => {
         revision.value;
+        keyMap.value;
         const tabId = id();
         const selected = model.is("tab-selected", { tabId });
         const { ref: _dragRef, ...dragProps } = drag.props.value;
