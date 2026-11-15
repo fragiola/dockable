@@ -11,7 +11,7 @@
     ],
     "commit": false,
     "ignore": [],
-    "fixed": [["@fragiola/dockable", "@fragiola/dockable-react"]],
+    "fixed": [["@fragiola/*"]],
     "linked": [],
     "updateInternalDependencies": "patch",
     "changedFilePatterns": [
