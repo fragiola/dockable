@@ -52,9 +52,9 @@ describe("examples-angular", () => {
         const sources = files
             .filter((file) => file.startsWith(`${slug}/`))
             .map((file) => readFileSync(join(APP.examplesDir, file), "utf8"));
-        expect(sources.some((source) => source.includes("[dockableRoot]"))).toBe(
-            true,
-        );
+        expect(
+            sources.some((source) => source.includes("[dockableRoot]")),
+        ).toBe(true);
     });
 
     it.each(slugs)("%s default-exports its component", (slug) => {
@@ -67,7 +67,9 @@ describe("examples-angular", () => {
 
     it.each(slugs)("%s keeps class strings out of its templates", (slug) => {
         const { files } = collectFiles(APP, slug);
-        for (const file of files.filter((name) => name.startsWith(`${slug}/`))) {
+        for (const file of files.filter((name) =>
+            name.startsWith(`${slug}/`),
+        )) {
             const source = readFileSync(join(APP.examplesDir, file), "utf8");
             // looks go in styles.ts and are bound (`[class]="styles.part"`)
             expect(/\sclass="/.test(source), file).toBe(false);
