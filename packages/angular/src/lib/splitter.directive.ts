@@ -158,7 +158,12 @@ export class DockableSplitter<T extends DockableTypes = AnyTypes> {
      */
     protected onKeyDown(event: KeyboardEvent) {
         this.controller().onKeyDown(event);
-        if (event.defaultPrevented) this.app.tick();
+        if (!event.defaultPrevented) return;
+        try {
+            this.app.tick();
+        } catch {
+            // a key dispatched while the application is already rendering: that render shows it
+        }
     }
 
     constructor() {

@@ -197,6 +197,7 @@ export function injectTabContainer<T extends DockableTypes = AnyTypes>(
     // the model before the view that renders it is destroyed (a row folds away), and its parts may
     // read it once more
     let last: TabContainer<T> | undefined;
+    let lastId: string | undefined;
     return computed(() => {
         context.revision();
         const node = context
@@ -204,9 +205,11 @@ export function injectTabContainer<T extends DockableTypes = AnyTypes>(
             .get("node-by", { id: container.containerId() });
         if (node?.type === "tabset" || node?.type === "border") {
             last = node as unknown as TabContainer<T>;
+            lastId = node.id;
             return last;
         }
-        if (last) return last;
+        // only for the container it was found under: another id gets its own node or the error
+        if (last && container.containerId() === lastId) return last;
         throw new Error(
             `${part} must be used inside [dockableTabSet] or [dockableBorder]`,
         );

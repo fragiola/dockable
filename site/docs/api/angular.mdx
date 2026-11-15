@@ -42,6 +42,9 @@ Each directive's state is a signal, through `exportAs`:
 </div>
 ```
 
+A splitter also exposes its ARIA values, `aria()` (`SplitterAria`: `valueNow`, `valueMin`,
+`valueMax`, `valueText`), for a readout next to it (`#s="dockableSplitter"`, `s.aria().valueText`).
+
 ## The recursion: template directives
 
 React's children functions are `<ng-template>`s, placed directly inside the part that renders
