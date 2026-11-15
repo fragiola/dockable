@@ -59,6 +59,12 @@ export {
     type NewTabDropped,
 } from "./dnd/session";
 export type { LayoutEngineAdapter } from "./engine/adapter";
+export type {
+    ContainerDropState,
+    KeyEventInput,
+    KeyShortcutsPart,
+    PressInput,
+} from "./engine/interaction";
 export {
     createLayoutEngine,
     type LayoutEngine,
