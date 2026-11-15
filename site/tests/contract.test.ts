@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
+import { existingApps } from "../../examples/shared/scripts/examples-lib.ts";
 import {
     anchorsOf,
     noindexProblem,
@@ -530,12 +531,27 @@ describe("the v1.2 checks", () => {
         ).toBe(`embed/react/index.html:6: ${message}`);
     });
 
-    it("find noindex in the examples app's HTML: index.html and popout.html (§5.1)", () => {
-        const app = join(import.meta.dirname, "../../examples/react");
-        for (const file of ["index.html", "public/popout.html"]) {
-            expect(
-                noindexProblem(file, readFileSync(join(app, file), "utf-8")),
-            ).toBeUndefined();
+    it("find noindex in every examples app's HTML: index.html and public/ (§5.1)", () => {
+        const apps = existingApps();
+        expect(apps.length).toBeGreaterThan(0);
+        for (const app of apps) {
+            const pages = [
+                "index.html",
+                ...(existsSync(join(app.root, "public"))
+                    ? readdirSync(join(app.root, "public"))
+                    : []
+                )
+                    .filter((name) => name.endsWith(".html"))
+                    .map((name) => `public/${name}`),
+            ];
+            for (const file of pages) {
+                expect(
+                    noindexProblem(
+                        `${app.framework}/${file}`,
+                        readFileSync(join(app.root, file), "utf-8"),
+                    ),
+                ).toBeUndefined();
+            }
         }
     });
 });
