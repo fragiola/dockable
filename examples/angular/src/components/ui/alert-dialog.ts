@@ -22,6 +22,7 @@
 
 import { CdkTrapFocus } from "@angular/cdk/a11y";
 import {
+    afterNextRender,
     Component,
     computed,
     Directive,
@@ -117,9 +118,10 @@ export class AlertDialogContent {
     );
 
     constructor() {
-        // focus moves into the dialog when it opens, and back where it was when it closes
+        // focus moves into the dialog when it opens and stays in it; the popup gives it back to
+        // what had it, read in the dialog's own document (CDK's capture reads the main one)
         const trap = inject(CdkTrapFocus);
-        trap.autoCapture = true;
+        afterNextRender(() => trap.focusTrap.focusInitialElementWhenReady());
     }
 }
 

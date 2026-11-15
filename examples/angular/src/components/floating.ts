@@ -65,12 +65,17 @@ export const POPUP = new InjectionToken<PopupContext>("kit-popup");
 
 const GUTTER = 8;
 
+/** The open popups, last opened last: Escape closes only the top one. */
+const stack: Floating[] = [];
+
 /** One popup at a time, opened from a template next to its trigger. */
 export class Floating {
     private view: EmbeddedViewRef<unknown> | undefined;
     private host: HTMLElement | undefined;
     private options: FloatingOptions | undefined;
     private placement: Placement = {};
+    /** What had the focus when the popup opened: it gets it back when the popup closes. */
+    private returnFocus: Element | null = null;
     private readonly cleanups: (() => void)[] = [];
 
     get isOpen() {
@@ -97,6 +102,7 @@ export class Floating {
         this.options = options;
         this.placement = {};
         const doc = options.owner.ownerDocument;
+        this.returnFocus = doc.activeElement;
         const view = container.createEmbeddedView(template, context, {
             injector,
         });
@@ -176,20 +182,21 @@ export class Floating {
                 : which === "top"
                   ? rect.top - sideOffset - GUTTER
                   : height - 2 * GUTTER;
-        element.style.setProperty("--available-height", `${room(physical)}px`);
-        let box = element.getBoundingClientRect();
+        // its natural height first (bounded by the viewport only), to choose the side
+        element.style.setProperty(
+            "--available-height",
+            `${height - 2 * GUTTER}px`,
+        );
         if (vertical) {
             // flip to the other side when it does not fit and the other side has more room
+            const natural = element.getBoundingClientRect().height;
             const other = physical === "bottom" ? "top" : "bottom";
-            if (box.height > room(physical) && room(other) > room(physical)) {
+            if (natural > room(physical) && room(other) > room(physical)) {
                 physical = other;
-                element.style.setProperty(
-                    "--available-height",
-                    `${room(physical)}px`,
-                );
-                box = element.getBoundingClientRect();
             }
         }
+        element.style.setProperty("--available-height", `${room(physical)}px`);
+        const box = element.getBoundingClientRect();
 
         let left: number;
         let top: number;
@@ -234,43 +241,71 @@ export class Floating {
         );
     }
 
-    /** Destroys the view and removes the host; focus inside goes back to the owner. */
+    /**
+     * Destroys the view and removes the host; a focus inside goes back to what had it when the
+     * popup opened (else to the owner).
+     */
     close() {
         const view = this.view;
         const host = this.host;
         const owner = this.options?.owner;
+        const previous = this.returnFocus;
         this.view = undefined;
         this.host = undefined;
         this.options = undefined;
+        this.returnFocus = null;
         for (const cleanup of this.cleanups.splice(0)) cleanup();
         if (!view || !host) return;
         const focused = host.contains(host.ownerDocument.activeElement);
         if (!view.destroyed) view.destroy();
         host.remove();
-        if (focused && owner?.isConnected) owner.focus({ preventScroll: true });
+        if (!focused) return;
+        for (const target of [previous, owner]) {
+            if (
+                target?.isConnected &&
+                target !== target.ownerDocument.body &&
+                typeof (target as HTMLElement).focus === "function"
+            ) {
+                (target as HTMLElement).focus({ preventScroll: true });
+                return;
+            }
+        }
     }
 
     private listen(doc: Document) {
         const win = doc.defaultView;
         const dismiss = (reason: DismissReason) =>
             this.options?.onDismiss?.(reason);
+        const outside = (target: Node | null) =>
+            target !== null &&
+            !this.host?.contains(target) &&
+            !this.options?.owner.contains(target);
         const onPointerDown = (event: PointerEvent) => {
-            const target = event.target as Node | null;
-            if (!target) return;
-            if (this.host?.contains(target)) return;
-            if (this.options?.owner.contains(target)) return;
-            dismiss("outside");
+            if (outside(event.target as Node | null)) dismiss("outside");
+        };
+        // the focus left (Tab past the popup, a click elsewhere): Base UI closes then too
+        const onFocusIn = (event: FocusEvent) => {
+            if (outside(event.target as Node | null)) dismiss("outside");
         };
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Escape") dismiss("escape");
+            const top = stack
+                .filter((popup) => popup.host?.ownerDocument === doc)
+                .at(-1);
+            if (event.key === "Escape" && top === this) {
+                dismiss("escape");
+            }
         };
         const onMove = () => this.position();
+        stack.push(this);
         doc.addEventListener("pointerdown", onPointerDown, true);
+        doc.addEventListener("focusin", onFocusIn);
         doc.addEventListener("keydown", onKeyDown);
         win?.addEventListener("resize", onMove);
         win?.addEventListener("scroll", onMove, true);
         this.cleanups.push(() => {
+            stack.splice(stack.indexOf(this), 1);
             doc.removeEventListener("pointerdown", onPointerDown, true);
+            doc.removeEventListener("focusin", onFocusIn);
             doc.removeEventListener("keydown", onKeyDown);
             win?.removeEventListener("resize", onMove);
             win?.removeEventListener("scroll", onMove, true);

@@ -26,6 +26,8 @@ import { cn } from "#/lib/cn";
     host: {
         "data-slot": "input",
         "[attr.id]": "root?.controlId ?? null",
+        "[attr.aria-describedby]": "root?.describedBy()?.join(' ') || null",
+        "[attr.aria-invalid]": "root?.invalid() ? 'true' : null",
         "[class]": "classes()",
     },
 })

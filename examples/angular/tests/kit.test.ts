@@ -413,6 +413,68 @@ describe("AlertDialog", () => {
 });
 
 @Component({
+    imports: [ALERT_DIALOG, ClickableButton],
+    template: `
+        <button data-testid="opener" (click)="open.set(true)">Close tab</button>
+        <ng-template [kitAlertDialog]="open()" (openChange)="open.set($event)">
+            <div kitAlertDialogContent>
+                <h2 kitAlertDialogTitle>Save changes?</h2>
+                <button kitClickable (click)="open.set(false)">Cancel</button>
+            </div>
+        </ng-template>
+    `,
+})
+class ReopenHost {
+    readonly open = signal(false);
+}
+
+describe("AlertDialog focus", () => {
+    it("moves the focus in, gives it back on close, and opens again", async () => {
+        const { root, fixture, stable } = await render(ReopenHost);
+        const opener = root.querySelector<HTMLElement>(
+            '[data-testid="opener"]',
+        );
+        for (let round = 0; round < 2; round++) {
+            opener?.focus();
+            opener?.click();
+            await stable();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            const dialog = document.querySelector('[role="alertdialog"]');
+            expect(dialog).not.toBeNull();
+            dialog?.querySelector<HTMLElement>("button")?.focus();
+            fixture.componentInstance.open.set(false);
+            await stable();
+            expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+            expect(document.activeElement).toBe(opener);
+        }
+    });
+});
+
+@Component({
+    imports: [DROPDOWN_MENU],
+    template: `
+        <button [kitDropdownMenuTrigger]="menu" aria-label="Menu">+</button>
+        <button data-testid="next">Next</button>
+        <ng-template #menu>
+            <div kitDropdownMenuContent><div kitDropdownMenuItem>One</div></div>
+        </ng-template>
+    `,
+})
+class FocusOutHost {}
+
+describe("a popup", () => {
+    it("closes when the focus leaves it and its trigger", async () => {
+        const { root, stable } = await render(FocusOutHost);
+        root.querySelector<HTMLElement>('[aria-label="Menu"]')?.click();
+        await stable();
+        expect(document.querySelector('[role="menu"]')).not.toBeNull();
+        root.querySelector<HTMLElement>('[data-testid="next"]')?.focus();
+        await stable();
+        expect(document.querySelector('[role="menu"]')).toBeNull();
+    });
+});
+
+@Component({
     imports: [TABLE, Badge, ClickableButton, InputSimple, Chart],
     template: `
         <kit-table>
@@ -421,7 +483,7 @@ describe("AlertDialog", () => {
         </kit-table>
         <span kitBadge variant="solid" aria-label="3 incidents">3</span>
         <button kitClickable variant="ghost">Don't save</button>
-        <kit-input-simple label="Email" type="email" />
+        <kit-input-simple label="Email" type="email" description="Work address" />
         <kit-chart [option]="{ series: [] }" class="h-24" />
     `,
 })
@@ -443,6 +505,10 @@ describe("the native parts", () => {
         expect(input.getAttribute("type")).toBe("email");
         expect(text(input.labels?.[0])).toBe("Email");
         expectFamily(input, field.control());
+        const described = input.getAttribute("aria-describedby") ?? "";
+        expect(text(root.querySelector(`[id="${described}"]`))).toBe(
+            "Work address",
+        );
         expectFamily(root.querySelector('[data-slot="chart"]'), "w-full h-24");
     });
 });

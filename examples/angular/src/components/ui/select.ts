@@ -72,6 +72,8 @@ function labelOf(items: SelectItems | undefined, value: unknown) {
         : undefined;
 }
 
+let nextId = 0;
+
 /** The select an open list belongs to (its trigger). */
 const SELECT = new InjectionToken<SelectTrigger>("kit-select");
 
@@ -86,6 +88,7 @@ const SELECT = new InjectionToken<SelectTrigger>("kit-select");
         "aria-haspopup": "listbox",
         "data-slot": "select-trigger",
         "[attr.aria-expanded]": "popup.open()",
+        "[attr.aria-controls]": "popup.open() ? listId : null",
         "[attr.data-popup-open]": "popup.open() ? '' : null",
         "[class]": "classes()",
         "(click)": "toggle()",
@@ -104,6 +107,8 @@ export class SelectTrigger {
     protected readonly popup = injectPopup(undefined, [
         { provide: SELECT, useFactory: () => this },
     ]);
+    /** The id of the open list. */
+    readonly listId = `kit-select-list-${++nextId}`;
     /** The chosen value's label, when `items` has it. */
     readonly label = computed(() => labelOf(this.items(), this.value()));
     // The trigger IS a field row. The box (border, background, focus ring) comes from field.row;
@@ -160,6 +165,7 @@ export class SelectValue {
     host: {
         "data-slot": "select-content",
         "data-open": "",
+        "[id]": "select.listId",
         "[class]": "classes()",
     },
 })
@@ -170,7 +176,7 @@ export class SelectContent implements OnInit {
     readonly sideOffset = input(4);
     readonly alignOffset = input(0);
     private readonly popup = inject(POPUP);
-    private readonly select = inject(SELECT);
+    protected readonly select = inject(SELECT);
     private readonly listbox = inject(CdkListbox);
     protected readonly classes = computed(() =>
         cn(popup.content("z-50 outline-none"), this.class()),

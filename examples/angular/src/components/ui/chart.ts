@@ -66,33 +66,42 @@ export class Chart {
     });
     private chart: echarts.ECharts | undefined;
     private resizeObserver: ResizeObserver | undefined;
+    /** The window whose ResizeObserver follows the chart's size. */
+    private sizeWindow: Window | undefined;
 
     constructor() {
         const destroyRef = inject(DestroyRef);
-        let frame = 0;
+        let destroyed = false;
+        // the window a pending frame was requested from, to cancel it there
+        let frame: { view: Window; id: number } | undefined;
         let observer: MutationObserver | undefined;
+        const later = (view: Window, callback: () => void) => {
+            if (frame) frame.view.cancelAnimationFrame(frame.id);
+            frame = { view, id: view.requestAnimationFrame(callback) };
+        };
         afterNextRender(() => {
             // Tokens live on the DOM: nothing to draw until they are read. Rendering with empty
             // colours is the silent failure this replaces (every series drawn in "").
             const start = () => {
+                if (destroyed) return;
                 const view = this.element.ownerDocument.defaultView;
                 if (!this.element.isConnected || !view) {
-                    frame = requestAnimationFrame(start);
+                    later(view ?? window, start);
                     return;
                 }
                 this.tokens.set(readThemeTokens(this.element));
+                this.observeSize();
                 observer?.disconnect();
-                observer = new view.MutationObserver(() => {
-                    view.cancelAnimationFrame(frame);
-                    frame = view.requestAnimationFrame(() => {
+                observer = new view.MutationObserver(() =>
+                    later(view, () => {
                         // a chart moved to another window follows that window's theme
                         if (this.element.ownerDocument.defaultView !== view) {
                             start();
                         } else {
                             this.tokens.set(readThemeTokens(this.element));
                         }
-                    });
-                });
+                    }),
+                );
                 const doc = this.element.ownerDocument;
                 observer.observe(doc.documentElement, { attributes: true });
                 observer.observe(doc.body, { attributes: true });
@@ -110,24 +119,35 @@ export class Chart {
                 this.chart = echarts.init(element, undefined, {
                     renderer: "svg",
                 });
-                const View = element.ownerDocument.defaultView?.ResizeObserver;
-                if (View) {
-                    this.resizeObserver = new View(() => this.chart?.resize());
-                    this.resizeObserver.observe(element);
-                }
             }
+            this.observeSize();
             this.chart.setOption(option, { notMerge: true, lazyUpdate: true });
         });
         destroyRef.onDestroy(() => {
-            cancelAnimationFrame(frame);
+            destroyed = true;
+            if (frame) frame.view.cancelAnimationFrame(frame.id);
             observer?.disconnect();
             this.dispose();
         });
     }
 
+    /** Follows the canvas's size with a ResizeObserver of the window it is in now. */
+    private observeSize() {
+        const element = this.canvas()?.nativeElement;
+        const view = element?.ownerDocument.defaultView ?? undefined;
+        if (!element || !view || view === this.sizeWindow) return;
+        this.resizeObserver?.disconnect();
+        this.sizeWindow = view;
+        this.resizeObserver = new view.ResizeObserver(() =>
+            this.chart?.resize(),
+        );
+        this.resizeObserver.observe(element);
+    }
+
     private dispose() {
         this.resizeObserver?.disconnect();
         this.resizeObserver = undefined;
+        this.sizeWindow = undefined;
         this.chart?.dispose();
         this.chart = undefined;
     }

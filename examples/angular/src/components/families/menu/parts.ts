@@ -167,9 +167,12 @@ export class MenuRadioItem {
             this.item.checked = this.checked();
             this.item.disabled = this.disabled();
         });
-        this.item.triggered.subscribe(() =>
-            this.group.value.set(this.ownValue()),
-        );
+        const subscription = this.item.triggered.subscribe(() => {
+            this.group.value.set(this.ownValue());
+            // CDK toggles the item itself: keep it what the group says
+            this.item.checked = this.checked();
+        });
+        inject(DestroyRef).onDestroy(() => subscription.unsubscribe());
         closeAfterTrigger(this.item);
     }
 }

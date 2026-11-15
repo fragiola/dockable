@@ -3,7 +3,14 @@
 // UI's Field links the label, the control and the description by id; here the root makes one id,
 // the label points at it (`for`) and `kitInput` takes it.
 
-import { computed, Directive, inject, input } from "@angular/core";
+import {
+    computed,
+    DestroyRef,
+    Directive,
+    inject,
+    input,
+    signal,
+} from "@angular/core";
 import { TEXT } from "#/components/atoms/text";
 import { field } from "#/components/families/field";
 import { cn } from "#/lib/cn";
@@ -19,6 +26,21 @@ export class FieldRoot {
     readonly class = input<string>();
     /** The id of the field's control. */
     readonly controlId = `kit-field-${++nextId}`;
+    /** The ids of the description and the error shown, which describe the control. */
+    readonly describedBy = signal<readonly string[]>([]);
+    /** Whether an error is shown. */
+    readonly invalid = computed(() =>
+        this.describedBy().some((id) => id.endsWith("-error")),
+    );
+
+    /** Registers a description or error while it is rendered. */
+    describe(id: string) {
+        this.describedBy.update((ids) => [...ids, id]);
+        return () =>
+            this.describedBy.update((ids) =>
+                ids.filter((other) => other !== id),
+            );
+    }
     protected readonly classes = computed(() => cn(field.root(), this.class()));
 }
 
@@ -74,11 +96,25 @@ export class FieldAddon {
     );
 }
 
+/** Registers an element's id with its field (it describes the control while it is rendered). */
+function describes(kind: "description" | "error") {
+    const id = `kit-field-${kind}-${++nextId}-${kind}`;
+    const root = inject(FieldRoot, { optional: true });
+    const remove = root?.describe(id);
+    if (remove) inject(DestroyRef).onDestroy(remove);
+    return id;
+}
+
 @Directive({
     selector: "[kitFieldDescription]",
-    host: { "data-slot": "field-description", "[class]": "classes()" },
+    host: {
+        "data-slot": "field-description",
+        "[id]": "id",
+        "[class]": "classes()",
+    },
 })
 export class FieldDescription {
+    protected readonly id = describes("description");
     readonly class = input<string>();
     protected readonly classes = computed(() =>
         cn(TEXT.paragraph, field.description(), this.class()),
@@ -87,9 +123,10 @@ export class FieldDescription {
 
 @Directive({
     selector: "[kitFieldError]",
-    host: { "data-slot": "field-error", "[class]": "classes()" },
+    host: { "data-slot": "field-error", "[id]": "id", "[class]": "classes()" },
 })
 export class FieldError {
+    protected readonly id = describes("error");
     readonly class = input<string>();
     protected readonly classes = computed(() =>
         cn(TEXT.error, field.error(), this.class()),
