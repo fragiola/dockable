@@ -1,13 +1,22 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+    mkdirSync,
+    mkdtempSync,
+    readdirSync,
+    rmSync,
+    writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+    ADAPTERS,
+    corePinProblem,
     exportProblems,
     findTarballs,
     publishedExportsProblems,
     servedImports,
     tarballsOption,
+    unlistedPackages,
     withoutSource,
 } from "../../scripts/check-package.ts";
 import { SOURCE_CONDITION } from "../../scripts/source-condition.ts";
@@ -107,5 +116,47 @@ describe("the packed package check", () => {
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }
+    });
+});
+
+// Every package under packages/ but the core is an adapter, and each adapter is checked the same
+// way: its exact core pin and its own smoke app.
+describe("the adapters the package check covers", () => {
+    it("are every package of packages/ but the core, React first", () => {
+        const dirs = readdirSync(join(import.meta.dirname, "../../packages"));
+        expect(unlistedPackages(dirs)).toEqual([]);
+        expect(ADAPTERS.map((adapter) => adapter.dir).sort()).toEqual(
+            dirs.filter((dir) => dir !== "core").sort(),
+        );
+        expect(ADAPTERS[0]?.dir).toBe("react");
+    });
+
+    it("finds a package that is neither the core nor a listed adapter", () => {
+        expect(unlistedPackages(["core", "react", "vue"])).toEqual(["vue"]);
+        expect(
+            unlistedPackages(
+                ["core", "react", "vue"],
+                [
+                    ...ADAPTERS,
+                    {
+                        dir: "vue",
+                        framework: "vue",
+                        smoke: async () => {},
+                    },
+                ],
+            ),
+        ).toEqual([]);
+    });
+
+    it("require each adapter to pin the core at its exact version", () => {
+        const adapter = (pin?: string) => ({
+            name: "@fragiola/dockable-vue",
+            ...(pin ? { dependencies: { "@fragiola/dockable": pin } } : {}),
+        });
+        expect(corePinProblem(adapter("1.2.3"), "1.2.3")).toBeUndefined();
+        expect(corePinProblem(adapter("^1.2.3"), "1.2.3")).toBe(
+            '@fragiola/dockable-vue depends on the core at "^1.2.3", not at 1.2.3',
+        );
+        expect(corePinProblem(adapter(), "1.2.3")).toMatch(/"undefined"/);
     });
 });
