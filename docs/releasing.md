@@ -1,8 +1,8 @@
 # Releasing
 
-Releasing is a merge. [Changesets](https://changesets.dev) versions `@fragiola/dockable` and
-`@fragiola/dockable-react` together (one `fixed` group, so they always share a version) and writes
-their changelogs. The release workflow, [`.github/workflows/release.yml`](../.github/workflows/release.yml),
+Releasing is a merge. [Changesets](https://changesets.dev) versions every package under
+`packages/` (`@fragiola/dockable` and `@fragiola/dockable-react` today) together (one `fixed`
+group, `@fragiola/*`, so they always share a version) and writes their changelogs. The release workflow, [`.github/workflows/release.yml`](../.github/workflows/release.yml),
 publishes them with pnpm through npm **trusted publishing** (OIDC, with provenance): there is no
 npm token anywhere.
 
@@ -91,7 +91,7 @@ this runbook (the release PR): its merge starts the release.
   `.changeset/config.json`: its `src`, `package.json`, `README.md`, `LICENSE` and build configs.
   A PR that touches only tests, docs, examples, the playground or the tooling needs none. CI's
   *Changesets* job fails a PR that should have one (the Version Packages PR is skipped).
-- **The bump.** The two packages are one `fixed` group: a changeset for either bumps both. While
+- **The bump.** The packages are one `fixed` group: a changeset for any of them bumps them all. While
   Dockable is `0.x`, a breaking change is a `minor` (`0.1` → `0.2`), anything else a `patch`.
 - **Releasing.** Merging such PRs keeps the Version Packages PR up to date. Merge it when you want
   to release (re-trigger its CI first, as in step 7). Never bump the versions or edit the
@@ -100,6 +100,29 @@ this runbook (the release PR): its merge starts the release.
   pushed with a GitHub App's token (the `github-token` input of `changesets/action/version`)
   instead of the workflow's. That needs an App installed on the repository and its key as a
   secret.
+
+## Adding a package
+
+A new adapter (`packages/vue` as `@fragiola/dockable-vue`, `packages/angular` as
+`@fragiola/dockable-angular`) needs nothing in the release workflow: it builds and packs
+`./packages/*`, and the `fixed` group of `.changeset/config.json` is `@fragiola/*`, so the new
+package is versioned with the others from its first release. What it does need:
+
+1. **In the PR that adds it:** the package at version `0.0.0`, depending on the core with
+   `workspace:*` (published as the exact version); its entry in `ADAPTERS` in
+   `scripts/check-package.ts` with its smoke app (`check:package` fails on a package under
+   `packages/` that is neither the core nor listed); and a changeset that names it, so the
+   Version Packages PR brings it to the family's next version.
+2. **Before merging that PR, the stub.** npm trusts a publisher only for a package that exists, so
+   publish the new package once by hand at `0.0.0`, as in step 4 of *The first release*, but for
+   that package only (`pnpm --filter @fragiola/dockable-vue publish --access public`, from a clean
+   checkout of the PR's branch, with 2FA).
+3. **Its trusted publisher,** as in step 5: `npm trust github @fragiola/dockable-vue --file
+   release.yml --repo fragiola/dockable --environment npm --allow-publish`.
+4. **After its first release,** lock it down as in step 8.
+
+Without steps 2 and 3, the first publish of the new package fails with `E404` or `ENEEDAUTH`
+while the others publish: the release is then half published (see *When a publish fails*).
 
 ## While a release runs
 

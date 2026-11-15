@@ -1,12 +1,13 @@
-// The embed's manifest.json (site export contract v1, §5.3): what the site's gallery lists and
+// A framework embed's manifest.json (site export contract v1, §5.3): what the site's gallery lists and
 // its code panel shows. Every file is stored once under `files`; an example lists the paths it
 // is made of, entry first (examples-lib.ts follows its relative imports, so the code panel shows
 // exactly what the example is compiled from). A file used by more than one example is `shared`.
 
 import { readFileSync } from "node:fs";
 import { extname, join } from "node:path";
-import { DEFAULT_HEIGHT } from "../src/examples/meta-types.ts";
-import { EXAMPLES_DIR, loadExamples } from "./examples-lib.ts";
+import { ADAPTER_PACKAGES } from "../src/framework.ts";
+import { DEFAULT_HEIGHT } from "../src/meta-types.ts";
+import { type ExamplesApp, loadExamples } from "./examples-lib.ts";
 
 export interface ManifestFile {
     lang: string;
@@ -36,13 +37,11 @@ export interface Manifest {
 }
 
 /**
- * The packages every example needs, besides the npm packages it imports itself: the React
- * package, which brings the core and re-exports it.
+ * The manifest of one framework's app. Every example lists, besides the npm packages it imports
+ * itself, its framework's adapter package, which brings the core and re-exports it.
  */
-const BASE_PACKAGES = ["@fragiola/dockable-react"];
-
-export async function buildManifest(): Promise<Manifest> {
-    const entries = await loadExamples();
+export async function buildManifest(app: ExamplesApp): Promise<Manifest> {
+    const entries = await loadExamples(app);
     const uses = new Map<string, number>();
     for (const entry of entries) {
         for (const file of entry.files) {
@@ -55,7 +54,7 @@ export async function buildManifest(): Promise<Manifest> {
     )) {
         files[path] = {
             lang: extname(path).slice(1),
-            content: readFileSync(join(EXAMPLES_DIR, path), "utf-8"),
+            content: readFileSync(join(app.examplesDir, path), "utf-8"),
             ...(count > 1 ? { shared: true as const } : {}),
         };
     }
@@ -72,7 +71,7 @@ export async function buildManifest(): Promise<Manifest> {
             height: meta.height ?? DEFAULT_HEIGHT[meta.category],
             files,
             registry,
-            packages: [...BASE_PACKAGES, ...packages],
+            packages: [ADAPTER_PACKAGES[app.framework], ...packages],
         }),
     );
     return { files, examples };

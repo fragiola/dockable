@@ -4,14 +4,14 @@
 //
 // - its packed `exports` (from `publishConfig.exports`) are the repo's `exports` without the source
 //   condition, and use only the `types`, `import` and `default` conditions, with targets in `dist`;
-// - the React package depends on the core at its exact version;
 // - publint (strict) and attw (`esm-only` profile) pass on the tarball;
-// - the smoke test: a scratch Vite + React app outside the workspace installs the React tarball
+// - every adapter (`ADAPTERS`: each package under packages/ but the core, React only today)
+//   depends on the core at its exact version;
+// - each adapter's smoke test: a scratch app outside the workspace installs that adapter's tarball
 //   (the core tarball comes as its dependency) and imports everything from it, typechecks with the
-//   repo's TypeScript, builds, and its dev server serves the entry with every import resolved.
-//   A consumer's dev server adds
-//   the `development` condition, which once pointed the published `exports` at sources that are
-//   not in the tarball.
+//   repo's TypeScript, builds, and its dev server serves the entry with every import resolved. For
+//   React, a Vite + React app. A consumer's dev server adds the `development` condition, which once
+//   pointed the published `exports` at sources that are not in the tarball.
 //
 // `--tarballs <dir>` checks the tarballs found in `dir` (at any depth) instead of packing: the
 // release workflow passes the directory `changeset pack` wrote, so what is checked is what is
@@ -29,6 +29,7 @@ import {
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import type { Framework } from "../examples/shared/src/framework.ts";
 import { SOURCE_CONDITION } from "./source-condition.ts";
 
 const root = join(import.meta.dirname, "..");
@@ -159,18 +160,18 @@ function lint(name: string, tarball: string): string[] {
     return problems;
 }
 
-/** The versions the examples app pins, so the smoke app installs nothing new. */
-function examplesVersion(name: string): string {
+/** The versions a framework's examples app pins, so its smoke app installs nothing new. */
+function examplesVersion(framework: Framework, name: string): string {
     const manifest = JSON.parse(
-        readFileSync(join(root, "examples/react/package.json"), "utf8"),
+        readFileSync(join(root, "examples", framework, "package.json"), "utf8"),
     ) as {
-        dependencies: Record<string, string>;
-        devDependencies: Record<string, string>;
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
     };
     const version =
-        manifest.dependencies[name] ?? manifest.devDependencies[name];
+        manifest.dependencies?.[name] ?? manifest.devDependencies?.[name];
     if (version === undefined) {
-        throw new Error(`examples/react does not depend on ${name}`);
+        throw new Error(`examples/${framework} does not depend on ${name}`);
     }
     return version;
 }
@@ -238,22 +239,23 @@ if (container) {
  * A scratch Vite + React app in `dir` that depends on the React tarball only: the core tarball is
  * installed as its dependency, never declared by the app.
  */
-function writeSmokeApp(dir: string, core: string, react: string): void {
+function writeReactSmokeApp(dir: string, core: string, react: string): void {
+    const version = (name: string) => examplesVersion("react", name);
     const manifest = {
         name: "dockable-smoke",
         private: true,
         type: "module",
         dependencies: {
             "@fragiola/dockable-react": `file:${react}`,
-            react: examplesVersion("react"),
-            "react-dom": examplesVersion("react-dom"),
+            react: version("react"),
+            "react-dom": version("react-dom"),
         },
         devDependencies: {
-            "@types/react": examplesVersion("@types/react"),
-            "@types/react-dom": examplesVersion("@types/react-dom"),
-            "@vitejs/plugin-react": examplesVersion("@vitejs/plugin-react"),
-            typescript: examplesVersion("typescript"),
-            vite: examplesVersion("vite"),
+            "@types/react": version("@types/react"),
+            "@types/react-dom": version("@types/react-dom"),
+            "@vitejs/plugin-react": version("@vitejs/plugin-react"),
+            typescript: version("typescript"),
+            vite: version("vite"),
         },
     };
     writeFileSync(
@@ -377,6 +379,68 @@ async function loadThroughDevServer(dir: string): Promise<void> {
     }
 }
 
+/**
+ * The React smoke test: the scratch Vite + React app installs the React tarball, typechecks,
+ * builds and loads its dev server.
+ */
+async function reactSmoke(
+    app: string,
+    tarballs: { core: string; adapter: string },
+): Promise<void> {
+    writeReactSmokeApp(app, tarballs.core, tarballs.adapter);
+    run("pnpm", ["install", "--no-frozen-lockfile"], app);
+    run("pnpm", ["exec", "tsc", "--noEmit"], app);
+    run("pnpm", ["exec", "vite", "build"], app);
+    await loadThroughDevServer(app);
+}
+
+/** What `check:package` checks of an adapter, besides what every package gets. */
+export interface AdapterCheck {
+    /** its directory, `packages/<dir>` */
+    dir: string;
+    /** the framework whose examples app (`examples/<framework>`) pins the smoke app's versions */
+    framework: Framework;
+    /**
+     * Its smoke test, in an empty scratch directory outside the workspace: an app that installs
+     * the adapter's tarball only (the core tarball comes as its dependency), typechecks, builds and
+     * loads its dev server. Throws on any failure.
+     */
+    smoke: (
+        app: string,
+        tarballs: { core: string; adapter: string },
+    ) => Promise<void>;
+}
+
+/** Every adapter, one per package under packages/ but the core (`unlistedPackages` checks it). */
+export const ADAPTERS: readonly AdapterCheck[] = [
+    { dir: "react", framework: "react", smoke: reactSmoke },
+];
+
+/** The packages/ directories that are neither the core nor an adapter of `adapters`. */
+export function unlistedPackages(
+    dirs: readonly string[],
+    adapters: readonly AdapterCheck[] = ADAPTERS,
+): string[] {
+    return dirs.filter(
+        (dir) =>
+            dir !== "core" && !adapters.some((adapter) => adapter.dir === dir),
+    );
+}
+
+/**
+ * Why an adapter's packed manifest does not pin the core at its exact version, or nothing: one
+ * core per page (the drag state is page-wide), whatever the adapters a page loads.
+ */
+export function corePinProblem(
+    adapter: { name: string; dependencies?: Record<string, string> },
+    coreVersion: string,
+): string | undefined {
+    const pinned = adapter.dependencies?.["@fragiola/dockable"];
+    return pinned === coreVersion
+        ? undefined
+        : `${adapter.name} depends on the core at "${pinned}", not at ${coreVersion}`;
+}
+
 /** The name of `packages/<name>/package.json` (`@fragiola/…`). */
 function packageName(name: string): string {
     const manifest = JSON.parse(
@@ -425,7 +489,7 @@ function tarballsFor(
 async function main() {
     const given = tarballsOption(process.argv.slice(2));
     const packs = mkdtempSync(join(tmpdir(), "dockable-pack-"));
-    const app = mkdtempSync(join(tmpdir(), "dockable-smoke-"));
+    const apps: string[] = [];
     try {
         const names = readdirSync(join(root, "packages"));
         const tarballs = tarballsFor(names, packs, given);
@@ -437,29 +501,37 @@ async function main() {
                 `The packed exports are wrong:\n${problems.join("\n")}`,
             );
         }
-        const core = tarballs.get("core");
-        const react = tarballs.get("react");
-        if (core === undefined || react === undefined) {
-            throw new Error("packages/core and packages/react are expected");
-        }
-        // one core per page (the drag state is page-wide): the React package pins its exact version
-        const coreVersion = packedManifest(core).version;
-        const pinned =
-            packedManifest(react).dependencies?.["@fragiola/dockable"];
-        if (pinned !== coreVersion) {
+        const unlisted = unlistedPackages(names);
+        if (unlisted.length > 0) {
             throw new Error(
-                `@fragiola/dockable-react depends on the core at "${pinned}", not at ${coreVersion}`,
+                `packages/${unlisted.join(", packages/")}: not the core and not in ADAPTERS (scripts/check-package.ts)`,
             );
         }
-        writeSmokeApp(app, core, react);
-        run("pnpm", ["install", "--no-frozen-lockfile"], app);
-        run("pnpm", ["exec", "tsc", "--noEmit"], app);
-        run("pnpm", ["exec", "vite", "build"], app);
-        await loadThroughDevServer(app);
-        console.log("check-package: both packages can be published");
+        const core = tarballs.get("core");
+        if (core === undefined) throw new Error("packages/core is expected");
+        const coreVersion = packedManifest(core).version;
+        for (const adapter of ADAPTERS) {
+            const tarball = tarballs.get(adapter.dir);
+            if (tarball === undefined) {
+                throw new Error(`packages/${adapter.dir} is expected`);
+            }
+            const problem = corePinProblem(
+                packedManifest(tarball),
+                coreVersion,
+            );
+            if (problem) throw new Error(problem);
+            const app = mkdtempSync(
+                join(tmpdir(), `dockable-smoke-${adapter.dir}-`),
+            );
+            apps.push(app);
+            await adapter.smoke(app, { core, adapter: tarball });
+            console.log(`check-package: ${adapter.dir}: the smoke app passes`);
+        }
+        console.log("check-package: every package can be published");
     } finally {
-        rmSync(packs, { recursive: true, force: true, maxRetries: 5 });
-        rmSync(app, { recursive: true, force: true, maxRetries: 5 });
+        for (const dir of [packs, ...apps]) {
+            rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
+        }
     }
 }
 

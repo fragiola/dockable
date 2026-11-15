@@ -1,4 +1,6 @@
-# Release: Changesets versions both packages, and npm trusted publishing (OIDC) publishes them.
+# Release: Changesets versions every package under packages/ (one `fixed` group), and npm trusted
+# publishing (OIDC) publishes them. No step names a package: a new one under packages/ is built,
+# packed, checked and published like the others (docs/releasing.md, "Adding a package").
 # Based on Changesets' trusted-publishing template, with pnpm in place of npm. The maintainer's
 # steps (the first publish, the `npm` environment, `npm trust`, the repository setting) are in
 # docs/releasing.md.
@@ -8,7 +10,7 @@
 #
 # On every push to main, `select-mode` decides what to do:
 #
-#   version   pending changesets: `pnpm release:version` bumps both packages (one `fixed` group)
+#   version   pending changesets: `pnpm release:version` bumps every package (one `fixed` group)
 #             and writes their changelogs, then the "Version Packages" PR is opened or updated.
 #   publish   no changeset, and a version npm does not have yet (the Version Packages PR was
 #             merged): `pack` builds the packages and packs them with pnpm (so `publishConfig`
@@ -135,7 +137,7 @@ jobs:
           publish-plan-artifact-id: ${{ needs.select-mode.outputs.publish-plan-artifact-id }}
 
       # The tarballs the publish job will publish, checked as `pnpm check:package` checks its own:
-      # dist-only exports, publint, attw, the exact core pin, and the scratch Vite + React app.
+      # dist-only exports, publint, attw, each adapter's exact core pin and its scratch smoke app.
       # A failure here fails the job, so the publish job never runs.
       - name: Check the packed tarballs
         run: |

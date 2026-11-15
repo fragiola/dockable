@@ -1,25 +1,29 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import {
+    collectFiles,
+    type ExampleEntry,
+    examplesApp,
+    importsOf,
+    listExampleSlugs as listSlugs,
+    loadExamples,
+} from "examples-shared/scripts/examples-lib";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
     exportedNames,
     specifierNames,
 } from "../../../scripts/exported-names.ts";
-import {
-    collectFiles,
-    EXAMPLES_DIR,
-    type ExampleEntry,
-    importsOf,
-    listExampleSlugs,
-    loadExamples,
-    validateMeta,
-} from "../scripts/examples-lib.ts";
-import { CATEGORIES } from "../src/examples/meta-types.ts";
 
-// The example contract (DD6–DD8, and `#/` imports per §6 of the site export contract): every example has a valid meta.ts, is in
-// the manifest, imports only what a consumer can copy, the code panel lists exactly the
-// files it is compiled from, and each example assembles Dockable itself (README, "Anatomy of
-// an example"): `_kit/` is shared demo content and app logic only.
+// The React side of the example contract (DD6–DD8, and `#/` imports per §6 of the site export
+// contract): every example is in the manifest, imports only what a consumer can copy, the code
+// panel lists exactly the files it is compiled from, and each example assembles Dockable itself
+// (README, "Anatomy of an example"): `_kit/` is shared demo content and app logic only. What every
+// framework shares (the metadata, its categories and its consistency with the folders) is checked
+// in examples/shared/tests.
+
+const APP = examplesApp("react");
+const EXAMPLES_DIR = APP.examplesDir;
+const listExampleSlugs = () => listSlugs(APP);
 
 /**
  * The names a source imports (or re-exports) from @fragiola/dockable-react, as the package
@@ -59,14 +63,7 @@ const ALLOWED = [
 ];
 
 /** Site files under examples/ that are not example code. */
-const SITE_FILES = [
-    /^[a-z-]+\/meta\.ts$/,
-    /^meta-types\.ts$/,
-    /\.generated\.ts$/,
-    /^_themes\/themes\.ts$/,
-    /\.md$/,
-    /\.css$/,
-];
+const SITE_FILES = [/\.generated\.ts$/, /\.md$/, /\.css$/];
 
 /** What `_kit/` may hold: demo content and app logic, never a Dockable assembly or a style layer. */
 const KIT_FILES = [
@@ -120,42 +117,12 @@ function walk(dir: string): string[] {
 let examples: ExampleEntry[] = [];
 
 beforeAll(async () => {
-    examples = await loadExamples();
+    examples = await loadExamples(APP);
 });
 
 describe("the examples", () => {
-    it("are all in the manifest, each with a valid meta", () => {
+    it("are all in the manifest, each with a valid metadata file", () => {
         expect(examples.map((e) => e.slug).sort()).toEqual(listExampleSlugs());
-    });
-
-    it("each belong to a category, and a meta with an unknown one is rejected", () => {
-        for (const example of examples) {
-            expect(CATEGORIES, example.slug).toContain(example.meta.category);
-        }
-        const meta = { title: "T", description: "D", order: 1, features: [] };
-        expect(() =>
-            validateMeta("x", { ...meta, category: "intermediate" }),
-        ).toThrow(/category must be one of/);
-        expect(() =>
-            validateMeta("x", { ...meta, category: "tabs" }),
-        ).not.toThrow();
-    });
-
-    it("have unique titles and orders within a category", () => {
-        const titles = examples.map((e) => e.meta.title);
-        expect(new Set(titles).size).toBe(titles.length);
-        const orders = examples.map(
-            (e) => `${e.meta.category}:${e.meta.order}`,
-        );
-        expect(new Set(orders).size).toBe(orders.length);
-    });
-
-    it("link their guide under /docs/ when they name one", () => {
-        for (const example of examples) {
-            if (example.meta.docs) {
-                expect(example.meta.docs, example.slug).toMatch(/^\/docs\//);
-            }
-        }
     });
 
     it("import only what a consumer can copy (DD8)", () => {
@@ -179,7 +146,7 @@ describe("the examples", () => {
 
     it("show in the code panel exactly the files they are compiled from (DD7)", () => {
         for (const example of examples) {
-            const { files } = collectFiles(example.slug);
+            const { files } = collectFiles(APP, example.slug);
             expect(example.files).toEqual(files);
             expect(files[0]).toBe(`${example.slug}/index.tsx`);
             // closure: every relative import of a listed file is listed too
@@ -273,7 +240,7 @@ const COUNTER_EXAMPLES = [
 describe("the app", () => {
     // a React app installs one package: the React package brings the core and re-exports it
     const APP_ROOT = join(import.meta.dirname, "..");
-    const SOURCES = ["src", "tests", "scripts", "e2e"];
+    const SOURCES = ["src", "tests", "scripts"];
 
     it("depends on @fragiola/dockable-react only", () => {
         const manifest = readFileSync(join(APP_ROOT, "package.json"), "utf-8");

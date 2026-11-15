@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { openExample, path } from "./helpers";
 
-// The example themes (src/examples/_themes) belong to this app, so their shape checks run here.
+// The example themes (examples/shared/src/themes) are values every framework's examples read, so
+// their shape checks run against each framework's embed.
 //
 // The themes change shape, not only colour: checked on computed styles (verify
 // by compiling, not by reading class names).

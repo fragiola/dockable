@@ -26,7 +26,7 @@
         "check:package": "pnpm --filter \"./packages/*\" build && node scripts/check-package.ts",
         "changeset": "changeset",
         "release:version": "changeset version",
-        "e2e": "pnpm --workspace-concurrency=1 --filter playground --filter examples-react e2e",
+        "e2e": "pnpm --workspace-concurrency=1 --filter playground --filter \"./examples/*\" e2e",
         "dev": "pnpm --filter playground dev",
         "site:export": "node site/export.ts",
         "site:dev": "node site/dev.ts"

@@ -1,5 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
-import { moveDragTo, openExample, path, startDrag } from "../helpers";
+import {
+    moveDragTo,
+    openExample,
+    openHosted,
+    path,
+    startDrag,
+} from "../helpers";
 
 async function box(page: Page, layoutPath: string) {
     const b = await path(page, layoutPath).boundingBox();
@@ -91,8 +97,7 @@ test("flipping the direction moves the panels and the borders, with no manual me
 test("in a frame, as the site shows it, the keys follow the direction", async ({
     page,
 }) => {
-    await page.goto(`/host.html?${new URLSearchParams({ id: "rtl-layout" })}`);
-    const frame = page.frameLocator('[data-testid="frame"]');
+    const frame = await openHosted(page, { id: "rtl-layout" });
     const tab = (i: number) =>
         frame.locator(`[data-layout-path="/ts0/tb${i}"]`);
     await expect(tab(0)).toBeVisible();

@@ -13,7 +13,15 @@ This repo is the first of a family (Angular and Vue adapters will follow), so
 |---|---|---|---|
 | `packages/core` | `@fragiola/dockable` | the typed model and its command bus, JSON v1 and its JSON Schemas, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | DOM only |
 | `packages/react` | `@fragiola/dockable-react` | composable primitives over the core, and the whole core re-exported (`export *`): the one package a React app installs and imports from | the core (`workspace:*`, published as the exact version); peer `react`, `react-dom` (^19) |
-| `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | `@fragiola/dockable-react` (the core through it), `examples/react` |
+| `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | `@fragiola/dockable-react` (the core through it), `examples/react`, `examples-shared` |
+| `examples/react` | private, `examples-react` | the React examples of the site (the embed app, Vite): only what a reader copies | `@fragiola/dockable-react`, `examples-shared` |
+| `examples/shared` | private, `examples-shared` | what every framework's examples share and no reader copies: each example's metadata, the themes, the embed protocol, the manifest builder, the loader generator, every e2e spec | no framework (a test enforces it) |
+
+A framework app is `examples/<framework>` (package `examples-<framework>`; `Framework` is
+`"react" | "vue" | "angular"` in `examples/shared/src/framework.ts`), with the scripts `generate`,
+`dev` (`EMBED_BASE`, `PORT`), `build` (`EMBED_BASE`, `EMBED_OUT_DIR`), `typecheck` and `e2e`
+(`playwright.config.ts` is `examplesE2eConfig("<framework>")`). An adapter is `packages/<framework>`
+with its entry in `ADAPTERS` (`scripts/check-package.ts`).
 
 ## Non-negotiable rules
 
@@ -95,20 +103,20 @@ Do not "fix" these.
 | `pnpm check` | Biome lint + format + assist (non-mutating), then builds the core and checks that `site/docs/api/commands.mdx` matches the registry (`check:commands`) |
 | `pnpm check:fix` | Biome check with auto-fix |
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit) |
-| `pnpm test` | Vitest: `core` (node), `react` (jsdom), `playground`, `examples-react`, `site` |
+| `pnpm test` | Vitest: `core` (node), `react` (jsdom), `playground`, `examples-shared`, `examples-react`, `site` |
 | `pnpm build` | `pnpm -r build` (tsdown for the packages, Vite for the playground) |
-| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are the repo's without the source condition (only `types`/`import`/`default`, targets in `dist`), runs `publint` and `attw --profile esm-only` on the tarballs, checks the React package pins the core's exact version, then a smoke test: a scratch Vite + React app outside the workspace installs the React tarball only (the core comes as its dependency), typechecks, builds and loads its dev server (`scripts/check-package.ts`; with `--tarballs <dir>` it checks the tarballs in `dir` instead of packing, which the release workflow does on what `changeset pack` wrote) |
-| `pnpm changeset` | adds a changeset (`.changeset/*.md`): every PR that changes what a package ships (`changedFilePatterns` in `.changeset/config.json`) carries one, and CI's Changesets job fails one that does not; the two packages are one `fixed` group, so they always share a version |
-| `pnpm release:version` | `changeset version`: bumps both packages and writes their `CHANGELOG.md`. Only the release workflow runs it (the Version Packages PR); never commit a version bump by hand |
-| `pnpm e2e` | Playwright (Chromium) against the playground and the examples app |
+| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are the repo's without the source condition (only `types`/`import`/`default`, targets in `dist`), runs `publint` and `attw --profile esm-only` on the tarballs, then for each adapter of `ADAPTERS` (every package but the core; React only today) checks it pins the core's exact version and runs its smoke test: a scratch app outside the workspace (Vite + React for React) installs that adapter's tarball only (the core comes as its dependency), typechecks, builds and loads its dev server (`scripts/check-package.ts`; with `--tarballs <dir>` it checks the tarballs in `dir` instead of packing, which the release workflow does on what `changeset pack` wrote) |
+| `pnpm changeset` | adds a changeset (`.changeset/*.md`): every PR that changes what a package ships (`changedFilePatterns` in `.changeset/config.json`) carries one, and CI's Changesets job fails one that does not; every package is in one `fixed` group (`@fragiola/*`), so they always share a version |
+| `pnpm release:version` | `changeset version`: bumps every package and writes their `CHANGELOG.md`. Only the release workflow runs it (the Version Packages PR); never commit a version bump by hand |
+| `pnpm e2e` | Playwright (Chromium) against the playground, then the shared examples specs (`examples/shared/e2e`) against each framework's examples app, one after the other |
 | `pnpm dev` | the playground on <http://localhost:5173>: every example and scenario live, the Inspector, the fixtures (`PLAYGROUND_PORT` moves it) |
-| `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.2, `../www/CONTRACT.md`), self-validated |
-| `pnpm site:dev --base /dockable --port <n>` | the examples app with hot reload, under the base `www` proxies in dev |
+| `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.2, `../www/CONTRACT.md`), self-validated: one embed and one manifest per framework of `site/project.json` |
+| `pnpm site:dev --base /dockable --port <n>` | every framework's examples app with hot reload, under the base `www` proxies in dev: one Vite dev server per framework on a free port, behind a Node proxy on `--port` (`site/dev-proxy.ts`) |
 
 Releasing is a merge: `.github/workflows/release.yml` opens the Version Packages PR, and merging it
-publishes both packages with pnpm through npm trusted publishing (OIDC, no token). After the
-maintainer's first `0.0.0` stub, nobody but that workflow publishes; the maintainer's steps are in
-[`docs/releasing.md`](docs/releasing.md).
+publishes every package with pnpm through npm trusted publishing (OIDC, no token). After the
+maintainer's first `0.0.0` stub, nobody but that workflow publishes; the maintainer's steps,
+including a new package's own stub and trust, are in [`docs/releasing.md`](docs/releasing.md).
 
 ## Repository layout
 
@@ -120,11 +128,16 @@ apps/playground/    src/                      the shell: catalog, sidebar, toolb
                     fixtures/<name>/          unstyled pages Playwright drives
                     public/popout.html        popout host page
                     e2e/, tests/              Playwright specs, unit tests
-examples/react/     src/examples/<slug>/      the site's examples (the embed app, Vite)
+examples/react/     src/examples/<slug>/      the site's React examples (the embed app, Vite)
                     src/components, lib, …    Fragiola UI, vendored (scripts/vendor-fragiola.ts)
-                    e2e/                      Playwright specs, also inside an iframe
+examples/shared/    src/meta/<slug>.ts        each example's metadata, for every framework
+                    src/themes/, src/embed/   the themes; the embed's messages to the site
+                    scripts/                  examples finder, manifest builder, loader generator
+                    e2e/                      every Playwright spec, run against each framework's
+                                              embed (also inside an iframe)
 site/               docs/                     the pages fragiola.com/dockable serves
                     export.ts, contract.ts    `pnpm site:export` and its validation
+                    dev.ts, dev-proxy.ts      `pnpm site:dev`: one port for every framework
 docs/                                         reports
 ```
 
@@ -132,8 +145,11 @@ docs/                                         reports
 
 The docs and examples are served by `fragiola.com`, built by the `www` repo from this repo's
 **site export** (`../www/CONTRACT.md`, v1.2). This repo only provides: the pages (`site/docs`,
-base-free links, the v1.1 MDX vocabulary), the gallery configuration (`examples.json`) and the
-examples app (`examples/react`, built for `<base>/embed/react/`). `www` owns the shell, the
+base-free links, the v1.1 MDX vocabulary), the gallery configuration (`examples.json`) and one
+examples app per framework of `site/project.json` (`examples/react`, built for
+`<base>/embed/react/`). Every framework's app shares one metadata source and one e2e suite
+(`examples/shared`): an example has the same id in every framework, and a framework may ship a
+subset of them (the specs of an example it lacks are skipped). `www` owns the shell, the
 gallery chrome, the code panel and search. Examples import internal modules through `#/…`
 (never `@/…`).
 
@@ -163,9 +179,9 @@ the state is in the URL (`?example=<slug>` or `?scenario=<area>/<id>`, `&theme=<
 It shows three things, which are not interchangeable:
 
 - **Examples** live in `examples/react/src/examples` and are public: the site embeds them,
-  `site:export` ships them, readers copy them. The playground reads them in place
-  (`import.meta.glob`, the `#/` alias and the pre-paint theme from `examples/react/vite.shared.ts`);
-  it never keeps a second list. The stage follows the embed's contract (`data-example-theme` on
+  `site:export` ships them, readers copy them. The playground reads them in place, with their
+  metadata from `examples/shared/src/meta` (`import.meta.glob`, the `#/` alias and the pre-paint
+  theme from `examples/react/vite.shared.ts`); it never keeps a second list. It stays React-only. The stage follows the embed's contract (`data-example-theme` on
   `<body>`, the scheme on `<html>`, `fill`/`flow`), so an example renders as the site shows it; the
   shell keeps its own palette (`palette-shell`), which no example theme overrides.
 - **Scenarios** live in `apps/playground/src/scenarios/<area>/<id>.tsx` and are dev-only: new

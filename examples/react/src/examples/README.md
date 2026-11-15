@@ -6,17 +6,37 @@ rendered alone by this app at `index.html?id=<folder>`.
 ```
 src/examples/
   <slug>/index.tsx     the example (default export, "use client")
-  <slug>/meta.ts       title, description, category, order, features, docs link, layout, height
   <slug>/styles.ts     how it looks: one class string (or state function) per part
   <slug>/*.ts(x)       optional sibling files, shown in the code panel
   _kit/                shared demo content and app logic (cards, charts, tables, the rename
                        field, the undo manager); no Dockable assembly, no styles
-  _themes/             the five themes (one CSS file each, values only) and their list
 ```
+
+What every framework's examples share, and no reader copies, lives once in
+`examples/shared` (`examples-shared`, private), so a Vue or Angular app of the same examples
+reuses it:
+
+```
+examples/shared/
+  src/meta/<slug>.ts   each example's metadata: title, description, category, order, features,
+                       docs link, layout, height (one file per example, for every framework)
+  src/meta-types.ts    its shape, the categories and the default heights
+  src/themes/          the five themes (one CSS file each, values only) and their list
+  src/embed/messages.ts  the embed's messages to the site (`fragiola:example:*`)
+  scripts/             the examples finder, the manifest builder, the loader generator
+  e2e/                 every Playwright spec (smoke, themes, iframe, examples/<slug>.spec.ts),
+                       run against each framework's embed (`examplesE2eConfig`)
+  tests/               the metadata, themes, contrast and e2e-helper checks
+```
+
+An example of this app is a folder `src/examples/<slug>/` with an `index.tsx`, and its metadata is
+found by its slug. A folder without metadata, or metadata that no framework app has a folder for,
+fails `examples/shared/tests/meta.test.ts`.
 
 ## Categories
 
-The gallery groups examples by the feature they show (`CATEGORIES` in `meta-types.ts`, in sidebar
+The gallery groups examples by the feature they show (`CATEGORIES` in
+`examples/shared/src/meta-types.ts`, in sidebar
 order; the site export contract calls a category a `level`). An example belongs where a reader
 looking for its feature would search, and `order` is its place inside the category.
 
@@ -35,15 +55,18 @@ looking for its feature would search, and `order` is its place inside the catego
 
 ## Adding an example
 
-1. Create `src/examples/<slug>/index.tsx` and `src/examples/<slug>/meta.ts` (see
-   `meta-types.ts`).
+1. Create `src/examples/<slug>/index.tsx`, and its metadata in
+   `examples/shared/src/meta/<slug>.ts` (see `meta-types.ts`) unless another framework already
+   has the example.
 2. `pnpm dev` at the root lists it in the playground (`apps/playground`), with hot reload, the five
    themes and its source: `http://localhost:5173/?example=<slug>`. The embed alone is
    `pnpm --filter examples-react dev` (`http://localhost:5180/?id=<slug>`, it regenerates the
    loaders); `pnpm site:dev --base /dockable` serves it the way the site proxies it.
 3. The smoke e2e visits it in the reference theme (every theme only for the representative
-   examples in `e2e/smoke.spec.ts`; `E2E_ALL_THEMES=1` runs them all), and inside an iframe. Add
-   a spec for its main behaviour in `e2e/examples/<slug>.spec.ts`.
+   examples in `examples/shared/e2e/smoke.spec.ts`; `E2E_ALL_THEMES=1` runs them all), and inside
+   an iframe. Add a spec for its main behaviour in `examples/shared/e2e/examples/<slug>.spec.ts`:
+   it reaches the example only through `data-layout-path`, roles, accessible names and test ids,
+   so every framework's embed runs it unchanged (a framework without the example skips it).
 
 ## Anatomy of an example
 
@@ -121,7 +144,8 @@ the other examples comment only what they do differently.
 - **Accessible names inline**: `aria-label="Resize"` on each splitter (through `renderSplitter`),
   on each icon button, on each tab list.
 - **Tokens, not values that differ per theme**: radius, sizes, fonts, the selected tab and the
-  strip read the `--dk-*` tokens each theme declares (listed in `_themes/<name>.css`).
+  strip read the `--dk-*` tokens each theme declares (listed in
+  `examples/shared/src/themes/<name>.css`).
 
 ## Rules (the docs Epic, DD6–DD12)
 

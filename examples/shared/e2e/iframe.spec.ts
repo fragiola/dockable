@@ -3,8 +3,10 @@ import {
     centre,
     collectErrors,
     dragAcrossWindows,
+    EMBED_BASE,
     EXAMPLES,
     moveDragTo,
+    openHosted,
     startDrag,
     waitForPopout,
 } from "./helpers";
@@ -13,21 +15,10 @@ import {
 // /host.html), talking to it with the site export's messages (contract v1, §5.2). The popout
 // window and the drag between windows start from inside the frame.
 
-const BASE = "/dockable/embed/react/";
-
 interface Message {
     type: string;
     id?: string;
     height?: number;
-}
-
-async function openHosted(page: Page, query: Record<string, string>) {
-    await page.goto(`/host.html?${new URLSearchParams(query)}`);
-    const frame = page.frameLocator('[data-testid="frame"]');
-    await expect(
-        frame.locator('[data-layout-path="/layout"]').first(),
-    ).toBeVisible();
-    return frame;
 }
 
 const messages = (page: Page) =>
@@ -114,7 +105,7 @@ test("the theme is applied before the first paint, and follows the site's messag
 test("a missing or unknown theme falls back to the first light theme", async ({
     page,
 }) => {
-    const queries: Record<string, string>[] = [
+    const queries: { id: string; theme?: string }[] = [
         { id: "hello-layout" },
         { id: "hello-layout", theme: "nope" },
     ];
@@ -153,7 +144,7 @@ test("a popout opened from the frame lives under the embed's base and keeps the 
         .click();
     const [popout] = await waitForPopout(page);
     if (!popout) throw new Error("no popout");
-    expect(new URL(popout.url()).pathname).toBe(`${BASE}popout.html`);
+    expect(new URL(popout.url()).pathname).toBe(`${EMBED_BASE}popout.html`);
     await expect(popout.locator("body")).toHaveAttribute(
         "data-example-theme",
         "terminal",
