@@ -123,6 +123,20 @@ function delegate<V extends object>(current: () => V): V {
     });
 }
 
+/** Renders every content of the group's registry, each teleported into its moveable element. */
+const ContentHost = defineComponent({
+    name: "DockableContentHost",
+    props: {
+        registry: { type: Object as PropType<ContentRegistry>, required: true },
+    },
+    setup(props) {
+        return () => {
+            props.registry.version.value;
+            return h(Fragment, props.registry.render());
+        };
+    },
+});
+
 export interface DragGroupContextValue {
     group: CoreDragGroup;
     registry: ContentRegistry;
@@ -167,13 +181,13 @@ export const DragGroup: DockableComponent<DragGroupProps, DragGroupSlots> =
                 ),
             );
             provide(DragGroupKey, value);
-            return () => {
-                value.registry.version.value;
-                return h(Fragment, [
+            // the host is a component of its own: a change of the content re-renders it alone, not
+            // the layouts (whose panels register their content again on every update)
+            return () =>
+                h(Fragment, [
                     slots.default?.(),
-                    ...value.registry.render(),
+                    h(ContentHost, { registry: value.registry }),
                 ]);
-            };
         },
     }) as unknown as DockableComponent<DragGroupProps, DragGroupSlots>;
 

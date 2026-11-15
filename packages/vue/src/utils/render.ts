@@ -4,6 +4,7 @@ import {
     type CSSProperties,
     camelize,
     computed,
+    type FunctionalComponent,
     h,
     mergeProps,
     normalizeStyle,
@@ -69,7 +70,8 @@ export function elementRef(
     let cleanup: (() => void) | undefined;
     return (value: unknown) => {
         const element = toElement(value);
-        const next = deps();
+        // an element going away needs no deps: its node may be gone from the model already
+        const next = element ? deps() : [];
         if (
             element === current &&
             next.length === currentDeps.length &&
@@ -120,9 +122,18 @@ export interface RenderSlotProps<State> {
     props: Record<string, unknown>;
     /** the primitive's state */
     state: State;
-    /** the primitive's content, as a component: `<component :is="children" />` */
-    children: () => VNodeChild;
+    /**
+     * the primitive's content, as a node of one stable component (`<component :is="children" />`,
+     * or `h(children)`): its type never changes between renders, so the content never remounts
+     */
+    children: VNode;
 }
+
+/** Renders a primitive's content inside its `render` slot: one component type for every render. */
+const PrimitiveChildren: FunctionalComponent<{
+    content?: (() => VNodeChild) | undefined;
+}> = (props) => props.content?.();
+PrimitiveChildren.props = ["content"];
 
 /** The slots every primitive accepts: `render` replaces its element. */
 export interface RenderSlot<State> {
@@ -184,7 +195,7 @@ export function renderElement<State>(
         return options.render({
             props: merged,
             state,
-            children: () => children?.(),
+            children: h(PrimitiveChildren, { content: children }),
         } satisfies RenderSlotProps<State>);
     }
     const as = options.as ?? options.tag;
