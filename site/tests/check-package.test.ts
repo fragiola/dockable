@@ -14,6 +14,7 @@ import {
     exportProblems,
     findTarballs,
     publishedExportsProblems,
+    relativeTo,
     servedImports,
     tarballsOption,
     unlistedPackages,
@@ -83,6 +84,38 @@ describe("the packed package check", () => {
         ).toHaveLength(1);
     });
 
+    it("takes a package packed from its build output as publishing that directory's files", () => {
+        // ng-packagr's output: packed from dist (publishConfig.directory), targets relative to it
+        const angularRepo = {
+            ".": {
+                [SOURCE_CONDITION]: "./src/public-api.ts",
+                types: "./dist/types/x.d.ts",
+                default: "./dist/fesm2022/x.mjs",
+            },
+            "./package.json": "./package.json",
+        };
+        const packed = {
+            ".": { types: "./types/x.d.ts", default: "./fesm2022/x.mjs" },
+            "./package.json": "./package.json",
+        };
+        expect(
+            publishedExportsProblems(relativeTo(angularRepo, "dist"), packed),
+        ).toEqual([]);
+        const files = new Set(["./types/x.d.ts", "./fesm2022/x.mjs"]);
+        expect(
+            exportProblems(packed, "exports", (target) => files.has(target)),
+        ).toEqual([]);
+        expect(
+            exportProblems(
+                { ".": { default: "./src/public-api.ts" } },
+                "exports",
+                (target) => files.has(target),
+            ),
+        ).toHaveLength(1);
+        // a package packed from its folder keeps its dist targets
+        expect(relativeTo(published, "out")).toEqual(published);
+    });
+
     it("lists the absolute imports of a module the dev server served", () => {
         expect(
             servedImports(
@@ -132,21 +165,13 @@ describe("the adapters the package check covers", () => {
     });
 
     it("finds a package that is neither the core nor a listed adapter", () => {
-        expect(unlistedPackages(["core", "react", "vue", "angular"])).toEqual([
-            "angular",
-        ]);
+        const dirs = ["core", "react", "vue", "angular", "solid"];
+        expect(unlistedPackages(dirs)).toEqual(["solid"]);
         expect(
-            unlistedPackages(
-                ["core", "react", "vue", "angular"],
-                [
-                    ...ADAPTERS,
-                    {
-                        dir: "angular",
-                        framework: "angular",
-                        smoke: async () => {},
-                    },
-                ],
-            ),
+            unlistedPackages(dirs, [
+                ...ADAPTERS,
+                { dir: "solid", framework: "react", smoke: async () => {} },
+            ]),
         ).toEqual([]);
     });
 

@@ -258,6 +258,16 @@
             ]
         },
         {
+            "label": "API: Angular (@fragiola/dockable-angular)",
+            "collapsible": true,
+            "pages": [
+                {
+                    "label": "Angular directives",
+                    "path": "api/angular"
+                }
+            ]
+        },
+        {
             "label": "API: core (@fragiola/dockable)",
             "collapsible": true,
             "pages": [

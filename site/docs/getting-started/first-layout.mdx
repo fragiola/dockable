@@ -101,6 +101,37 @@ export const json: LayoutJson<Types> = {
 
 </Framework>
 
+<Framework name="angular">
+
+```ts title="layout.ts"
+import type { LayoutJson } from "@fragiola/dockable-angular";
+import type { Types } from "./types";
+
+export const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
+        type: "row",
+        children: [
+            {
+                type: "tabset",
+                weight: 60,
+                children: [
+                    { component: "welcome", label: "Welcome" },
+                    { component: "notes", label: "Notes", data: { text: "" } },
+                ],
+            },
+            {
+                type: "tabset",
+                weight: 40,
+                children: [{ component: "inspector", label: "Inspector" }],
+            },
+        ],
+    },
+};
+```
+
+</Framework>
+
 This is **JSON v1**: `version: 1` and a `root` row. Nodes without an `id` get one when the layout
 loads. A tab whose `data` does not match its `component` does not compile. Every field is listed in
 [the JSON model reference](/docs/api/json-model).
@@ -127,6 +158,15 @@ const [model] = useState(() => createModel<Types>(json));
 // in <script setup>: it runs once per component. Never in ref() or reactive(): their proxy is
 // not the model the engine knows
 const model = createModel<Types>(json);
+```
+
+</Framework>
+
+<Framework name="angular">
+
+```ts
+// a field of the component: it is created once, with the component
+readonly model = createModel<Types>(json);
 ```
 
 </Framework>
@@ -212,6 +252,35 @@ defineProps<{ node: TabsetNode<Types> | RowNode<Types> }>();
 
 </Framework>
 
+<Framework name="angular">
+
+An Angular template owns the recursion with template directives. `<ng-template dockableRowChild>`,
+placed in `[dockableRow]`, renders every child of the row; a nested row with no template of its
+own renders with the same one. Giving a template directive the model types its `let-` variable by
+your registry, since a template cannot pass a type argument:
+
+```html title="app.html (the structure)"
+<div dockableRow>
+    <ng-template [dockableRowChild]="model" let-node>
+        @if (node.type === "tabset") {
+            <div [dockableTabSet]="node" class="tabset">
+                <div dockableTabList aria-label="Tabs" class="tabs">
+                    <ng-template [dockableTabListItem]="model" let-tab>
+                        <div [dockableTab]="tab" class="tab">{{ tab.label }}</div>
+                    </ng-template>
+                </div>
+                <div dockableTabSetContent></div>
+            </div>
+        } @else {
+            <!-- a nested row: the same template renders its children -->
+            <div [dockableRow]="node"></div>
+        }
+    </ng-template>
+</div>
+```
+
+</Framework>
+
 </Step>
 
 <Step>
@@ -249,9 +318,21 @@ area. That is how content survives moves: the element is re-parented, never remo
 
 </Framework>
 
+<Framework name="angular">
+
+```html
+<ng-template [dockablePanels]="model" let-tab>
+    <div [dockablePanel]="tab" class="panel">
+        <tab-content [tab]="tab" />
+    </div>
+</ng-template>
+```
+
+</Framework>
+
 The parts that call a children function (`Row`, `TabList`, `Panels`) take your registry as a type
-argument (in Vue, from `typedDockable<Types>()`): a child cannot infer it from the root. With it,
-`tab` is a `TabOf<Types>`.
+argument (in Vue, from `typedDockable<Types>()`; in Angular, from the model you give the template
+directive): a child cannot infer it from the root. With it, `tab` is a `TabOf<Types>`.
 
 Pick the content from the tab's `component`, as a factory would. The switch narrows `tab.data` to
 that component's data, with no cast:
@@ -291,6 +372,32 @@ defineProps<{ tab: TabOf<Types> }>();
     <textarea v-if="tab.component === 'notes'" :aria-label="tab.label" :value="tab.data.text" />
     <p v-else>{{ tab.label }}</p>
 </template>
+```
+
+</Framework>
+
+<Framework name="angular">
+
+```ts title="tab-content.ts"
+import { Component, input } from "@angular/core";
+import type { TabOf } from "@fragiola/dockable-angular";
+import type { Types } from "./types";
+
+@Component({
+    selector: "tab-content",
+    template: `
+        @let current = tab();
+        @if (current.component === "notes") {
+            <!-- current.data is { text: string } in this branch -->
+            <textarea [attr.aria-label]="current.label" [value]="current.data.text"></textarea>
+        } @else {
+            <p>{{ current.label }}</p>
+        }
+    `,
+})
+export class TabContent {
+    readonly tab = input.required<TabOf<Types>>();
+}
 ```
 
 </Framework>
@@ -364,6 +471,38 @@ const model = createModel<Types>(json);
 
 </Framework>
 
+<Framework name="angular">
+
+```ts title="app.ts"
+import { Component } from "@angular/core";
+import { createModel, DOCKABLE } from "@fragiola/dockable-angular";
+import { json } from "./layout";
+import { TabContent } from "./tab-content";
+import type { Types } from "./types";
+
+@Component({
+    selector: "app-root",
+    imports: [DOCKABLE, TabContent],
+    // the structure and the panels of the steps above, in the root
+    templateUrl: "./app.html",
+})
+export class App {
+    readonly model = createModel<Types>(json);
+}
+```
+
+```html title="app.html"
+<div [dockableRoot]="model" style="height: 100vh">
+    <div dockableRow>…</div>
+    <ng-template [dockablePanels]="model" let-tab>…</ng-template>
+    <div dockableDropIndicator class="drop-indicator"></div>
+</div>
+```
+
+Bootstrap it zoneless, Angular's default: `bootstrapApplication(App)`.
+
+</Framework>
+
 The root **must have a size**: it has no intrinsic size, and an unsized root renders nothing
 visible. See [Sizing the root](/docs/getting-started/sizing).
 
@@ -403,7 +542,8 @@ same with utilities.
   `model.use`.
 - **Splitters**: drag with the pointer, or focus and use the arrow keys (10px per press). They
   have no name yet: [Accessible names](/docs/getting-started/accessible-names) shows how to give
-  them one with `renderSplitter` (the `#splitter` slot in Vue).
+  them one with `renderSplitter` (the `#splitter` slot in Vue, `<ng-template dockableRowSplitter>`
+  in Angular).
 - **Keyboard**: arrow keys, Home and End move between tabs; Enter or Space selects; `Ctrl+Delete`
   closes a closeable tab.
 - **Content that survives**: type in the Notes tab, then drag it to the other tabset. The text is

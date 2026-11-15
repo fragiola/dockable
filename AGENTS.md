@@ -6,7 +6,7 @@ composable primitives. It ships **no CSS, no icons, no rendered menus and no
 text**. Styling belongs 100% to the consuming developer; the package never
 assumes Tailwind, shadcn, daisy or anything else.
 
-This repo is the first of a family (React and Vue today, Angular next), so
+This repo is the first of a family (React, Vue and Angular today), so
 **every piece of logic that isn't rendering lives in the core**.
 
 | package | name | contains | depends on |
@@ -14,9 +14,11 @@ This repo is the first of a family (React and Vue today, Angular next), so
 | `packages/core` | `@fragiola/dockable` | the typed model and its command bus, JSON v1 and its JSON Schemas, drop hit-testing, splitter math, the measure-and-position cycle, the drag-and-drop machine, popout window lifecycle | DOM only |
 | `packages/react` | `@fragiola/dockable-react` | composable primitives over the core, and the whole core re-exported (`export *`): the one package a React app installs and imports from | the core (`workspace:*`, published as the exact version); peer `react`, `react-dom` (^19) |
 | `packages/vue` | `@fragiola/dockable-vue` | the same primitives as Vue 3 components (plain `.ts` render functions, no SFCs: tsdown builds them with TypeScript 7) and composables, and the whole core re-exported: the one package a Vue app installs | the core (`workspace:*`, published as the exact version); peer `vue` (^3.5) |
+| `packages/angular` | `@fragiola/dockable-angular` | the same primitives as Angular standalone attribute directives on the consumer's elements (signals, `host` bindings, zoneless), template directives for the recursion, injection functions, and the whole core re-exported: the one package an Angular app installs. Built by ng-packagr (Angular Package Format, partial compilation, ESM only) on TypeScript 6.0.3, pinned in this package (the Angular compiler supports `>=6.0 <6.1`); published from its `dist` (`publishConfig.directory`, its manifest written by `scripts/publish-manifest.ts`) | the core (`workspace:*`, published as the exact version); peer `@angular/core` (^22) |
 | `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | `@fragiola/dockable-react` (the core through it), `examples/react`, `examples-shared` |
 | `examples/react` | private, `examples-react` | the React examples of the site (the embed app, Vite): only what a reader copies | `@fragiola/dockable-react`, `examples-shared` |
 | `examples/vue` | private, `examples-vue` | the Vue examples of the site (the embed app, Vite, single-file components typechecked by `vue-tsc` on TypeScript 6.0.3, pinned in this app only): every React one, with a kit of its own (`src/components`: Fragiola UI's pieces over Reka UI, the React kit's classes) | `@fragiola/dockable-vue`, `examples-shared` |
+| `examples/angular` | private, `examples-angular` | the Angular examples of the site (the embed app, Vite with `@analogjs/vite-plugin-angular`, zoneless, standalone components with inline templates, typechecked by `ngc` on TypeScript 6.0.3, pinned in this app only): `hello-layout` and `unstyled` so far (Epic #143 ports the others); `src/styles` and `src/lib/cn.ts` copied from examples/react (tests/vendored.test.ts) | `@fragiola/dockable-angular`, `examples-shared` |
 | `examples/shared` | private, `examples-shared` | what every framework's examples share and no reader copies: each example's metadata, the themes, the embed protocol, the manifest builder, the loader generator, every e2e spec | no framework (a test enforces it) |
 
 A framework app is `examples/<framework>` (package `examples-<framework>`; `Framework` is
@@ -104,14 +106,14 @@ Do not "fix" these.
 | `pnpm install` | install dependencies |
 | `pnpm check` | Biome lint + format + assist (non-mutating), then builds the core and checks that `site/docs/api/commands.mdx` matches the registry (`check:commands`) |
 | `pnpm check:fix` | Biome check with auto-fix |
-| `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit; `examples/vue` runs `vue-tsc` on its own TypeScript 6.0.3) |
-| `pnpm test` | Vitest: `core` (node), `react` (jsdom), `vue` (jsdom, `@vue/test-utils`), `playground`, `examples-shared`, `examples-react`, `examples-vue`, `site` |
-| `pnpm build` | `pnpm -r build` (tsdown for the packages, Vite for the playground) |
-| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are the repo's without the source condition (only `types`/`import`/`default`, targets in `dist`), runs `publint` and `attw --profile esm-only` on the tarballs, then for each adapter of `ADAPTERS` (every package but the core: React and Vue) checks it pins the core's exact version and runs its smoke test: a scratch app outside the workspace (Vite + React for React; Vite + Vue with a single-file component checked by `vue-tsc` for Vue) installs that adapter's tarball only (the core comes as its dependency), typechecks, builds and loads its dev server (`scripts/check-package.ts`; with `--tarballs <dir>` it checks the tarballs in `dir` instead of packing, which the release workflow does on what `changeset pack` wrote) |
+| `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit; `examples/vue` runs `vue-tsc` on its own TypeScript 6.0.3; `packages/angular` and `examples/angular` run `ngc` with strict templates on their own TypeScript 6.0.3) |
+| `pnpm test` | Vitest: `core` (node), `react` (jsdom), `vue` (jsdom, `@vue/test-utils`), `angular` (jsdom, `@analogjs/vitest-angular`, zoneless TestBed), `playground`, `examples-shared`, `examples-react`, `examples-vue`, `examples-angular`, `site` |
+| `pnpm build` | `pnpm -r build` (tsdown for the packages, ng-packagr for the Angular one, Vite for the playground), then `scripts/check-dts.ts` (no `any` in the built declarations; the Angular compiler's `ɵ` metadata is ignored) |
+| `pnpm check:package` | builds the packages, packs them with pnpm, checks the packed `exports` are the repo's without the source condition (only `types`/`import`/`default`, targets in `dist`; a package packed from its `publishConfig.directory`, the Angular one, has them relative to it, each a file of the tarball), runs `publint` and `attw --profile esm-only` on the tarballs, then for each adapter of `ADAPTERS` (every package but the core: React, Vue and Angular) checks it pins the core's exact version and runs its smoke test: a scratch app outside the workspace (Vite + React for React; Vite + Vue with a single-file component checked by `vue-tsc` for Vue; Vite + `@analogjs/vite-plugin-angular` with a standalone component checked by `ngc` for Angular) installs that adapter's tarball only (the core comes as its dependency), typechecks, builds and loads its dev server (`scripts/check-package.ts`; with `--tarballs <dir>` it checks the tarballs in `dir` instead of packing, which the release workflow does on what `changeset pack` wrote) |
 | `pnpm changeset` | adds a changeset (`.changeset/*.md`): every PR that changes what a package ships (`changedFilePatterns` in `.changeset/config.json`) carries one, and CI's Changesets job fails one that does not; every package is in one `fixed` group (`@fragiola/*`), so they always share a version |
 | `pnpm release:version` | `changeset version`: bumps every package and writes their `CHANGELOG.md`. Only the release workflow runs it (the Version Packages PR); never commit a version bump by hand |
 | `pnpm e2e` | Playwright (Chromium) against the playground, then the shared examples specs (`examples/shared/e2e`) against each framework's examples app, one after the other |
-| `pnpm --filter examples-vue dev` | the Vue examples app alone on <http://localhost:5181> (`?id=<slug>&theme=<name>`; `PORT` moves it). `pnpm --filter examples-react dev` is the React one (5180) |
+| `pnpm --filter examples-vue dev` | the Vue examples app alone on <http://localhost:5181> (`?id=<slug>&theme=<name>`; `PORT` moves it). `pnpm --filter examples-react dev` is the React one (5180), `pnpm --filter examples-angular dev` the Angular one (5182) |
 | `pnpm dev` | the playground on <http://localhost:5173>: every example and scenario live, the Inspector, the fixtures (`PLAYGROUND_PORT` moves it) |
 | `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.2, `../www/CONTRACT.md`), self-validated: one embed and one manifest per framework of `site/project.json` |
 | `pnpm site:dev --base /dockable --port <n>` | every framework's examples app with hot reload, under the base `www` proxies in dev: one Vite dev server per framework on a free port, behind a Node proxy on `--port` (`site/dev-proxy.ts`) |
@@ -127,6 +129,8 @@ including a new package's own stub and trust, are in [`docs/releasing.md`](docs/
 packages/core/      @fragiola/dockable        src/, tests/
 packages/react/     @fragiola/dockable-react  src/, tests/
 packages/vue/       @fragiola/dockable-vue    src/ (plain .ts, render functions), tests/
+packages/angular/   @fragiola/dockable-angular  src/lib/ (directives, templates.ts, inject.ts),
+                                              src/public-api.ts, tests/, scripts/publish-manifest.ts
 apps/playground/    src/                      the shell: catalog, sidebar, toolbar, stage, source
                     src/scenarios/<area>/     dev-only scenarios; src/inspector/ the Inspector
                     fixtures/<name>/          unstyled pages Playwright drives
@@ -138,6 +142,9 @@ examples/vue/       src/examples/<slug>/      the site's Vue examples: index.vue
                     src/styles, src/lib       copied from examples/react (tests/vendored.test.ts)
                     src/components            the kit: Fragiola UI's pieces over Reka UI (class
                                               families copied from examples/react)
+examples/angular/   src/examples/<slug>/      the site's Angular examples: index.ts (a standalone
+                                              component, default-exported, inline template), styles.ts
+                    src/styles, src/lib       copied from examples/react (tests/vendored.test.ts)
 examples/shared/    src/meta/<slug>.ts        each example's metadata, for every framework
                     src/themes/, src/embed/   the themes; the embed's messages to the site
                     scripts/                  examples finder, manifest builder, loader generator
@@ -153,9 +160,11 @@ docs/                                         reports
 
 The docs and examples are served by `fragiola.com`, built by the `www` repo from this repo's
 **site export** (`../www/CONTRACT.md`, v1.2). This repo only provides: the pages (`site/docs`,
-base-free links, the v1.1 MDX vocabulary; `<Framework name="vue">` blocks where the code differs),
+base-free links, the v1.1 MDX vocabulary; `<Framework name="vue">` and `<Framework name="angular">`
+blocks where the code differs),
 the gallery configuration (`examples.json`) and one examples app per framework of
-`site/project.json` (`examples/react` and `examples/vue`, built for `<base>/embed/<framework>/`). Every framework's app shares one metadata source and one e2e suite
+`site/project.json` (`examples/react`, `examples/vue` and `examples/angular`, built for
+`<base>/embed/<framework>/`). Every framework's app shares one metadata source and one e2e suite
 (`examples/shared`): an example has the same id in every framework, and a framework may ship a
 subset of them while it is being written (the specs of an example it lacks are skipped); React and
 Vue ship every one (`COMPLETE_FRAMEWORKS`: a spec of an example they lack fails). `www` owns the shell, the
@@ -232,6 +241,10 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 - TypeScript strict with `noUncheckedIndexedAccess` and `verbatimModuleSyntax`.
   Do not relax it; a blanket `!` on every index access is not a fix.
 - Pin dependencies to exact versions published at least 7 days ago.
+- TypeScript is 7.0.2 everywhere but `examples/vue`, `packages/angular` and `examples/angular`,
+  which pin 6.0.3 (vue-tsc and the Angular compiler do not run on TypeScript 7). In the Angular
+  folders `@analogjs/vite-plugin-angular` gets that TypeScript through a `packageExtensions` peer
+  (`pnpm-workspace.yaml`).
 - Commits are gitmoji-conventional: `✨ feat(core): …`, `🐛 fix(react): …`,
   `✅ test(core): …`, `🔧 chore: …`, `📝 docs: …`.
 
@@ -251,7 +264,7 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 - `site/docs/api/commands.mdx` is generated from the registry
   (`packages/core/scripts/generate-command-docs.ts`); `pnpm check` fails when it drifts.
 
-## The primitive contract (`@fragiola/dockable-react`, `@fragiola/dockable-vue`)
+## The primitive contract (`@fragiola/dockable-react`, `@fragiola/dockable-vue`, `@fragiola/dockable-angular`)
 
 Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetContent`, `Panel`,
 `Splitter`, …) follows the same rules. Tests enforce them; keep it that way.
@@ -303,6 +316,26 @@ slot's `state`); listener names are Vue's (`onPointerdown`, `onKeydown`); compos
 give a type argument; content is teleported into the moveable element; a new `model` remounts
 the root (a new engine, as React's new engine does). Every part reads the engine's revision in its
 render, and the measure cycle runs once per flush, after every part rendered (`nextTick`).
+
+**In Angular** (`packages/angular`, tests in `packages/angular/tests`, the same contract): each
+primitive is a standalone attribute directive on the consumer's element (`[dockableTabSet]="node"`;
+the element replaces `render`), with signal inputs, outputs for the callbacks (`(popoutOpen)`,
+`(transfer)`, `(dropped)`), `host` bindings for the ARIA, the `data-*` and the listeners, and the
+structural style applied by an effect (it wins over a static `style`; the consumer's `class` and
+other keys are untouched); each part's `state()` is a signal through `exportAs`. Template
+directives replace children functions (`<ng-template dockableRowChild let-node>`,
+`dockableTabListItem`, `dockablePanels`, `dockablePopout`, `dockableBordersBar`,
+`dockableBordersContent`; `dockableRowSplitter`/`dockableBorderSplitter` replace
+`renderSplitter`), typed by the model given to them (`[dockablePanels]="model"`,
+`ngTemplateContextGuard`); a nested row with no template renders with its parent's. Injection
+functions replace hooks (`injectDockable()` gives signals; a part's, `injectTabSet()`, …, reads
+the enclosing directive's `state`). The root provides the context (the `DOCKABLE` and
+`DOCKABLE_LAYOUT` tokens); the revision is a signal fed by `engine.adapter.subscribe`, and the
+measure cycle runs in an `afterRenderEffect`. A panel's content is moved into the tab's moveable
+element and its view is never re-created on a move (in a drag group the receiving
+`[dockablePanels]` adopts the view); views a part places itself live in no `ViewContainerRef` of
+its element (`DetachedViews`), since a container's anchor and views join the root nodes of the
+view the element is in. Nothing relies on zone.js.
 
 ## Drag and drop contract
 

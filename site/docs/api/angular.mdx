@@ -1,0 +1,189 @@
+---
+title: Angular directives
+description: The same primitives and hooks for Angular, from @fragiola/dockable-angular, and how each React prop maps onto directives, inputs and templates.
+---
+
+`@fragiola/dockable-angular` has every primitive of the React package, as a standalone attribute
+directive on an element you write, and every hook as an injection function, over the same core
+(re-exported whole). The behaviour, the `data-*` attributes, the ARIA and the `data-layout-path`
+of every element are the same: the React pages of this reference describe each part, and this
+page says how its React API is written in Angular.
+
+```ts
+import {
+    createModel,
+    DOCKABLE,
+    injectDockable,
+    injectModelState,
+    type LayoutJson,
+} from "@fragiola/dockable-angular";
+
+@Component({ imports: [DOCKABLE], template: `…` })
+export class Layout {}
+```
+
+`DOCKABLE` lists every directive, for a standalone component's `imports`. The package is
+standalone only (no NgModule) and built on signals and `host` bindings: it needs no zone.js
+(zoneless is Angular's default since version 21). It needs `@angular/core` **^22**.
+
+## The element is yours
+
+A directive goes on the element you choose: `<section [dockableTabSet]="node" class="…">`. It adds
+the part's ARIA, its `data-*` state, its listeners and its structural inline style; your `class`,
+your other attributes and your listeners stay as they are (a part's own listener runs first). The
+structural style keys win over a static `style` you write on the element; a `[style.x]` binding
+of yours on a structural key would fight the part, so leave those keys to it.
+
+Each directive's state is a signal, through `exportAs`:
+
+```html
+<div [dockableTab]="tab" #part="dockableTab" [class.italic]="part.state().pinned">
+    {{ tab.label }}
+</div>
+```
+
+## The recursion: template directives
+
+React's children functions are `<ng-template>`s, placed directly inside the part that renders
+them, with the node as the template's `let-` variable:
+
+```html
+<div [dockableRoot]="model">
+    <div dockableRow>
+        <ng-template [dockableRowChild]="model" let-node>
+            @if (node.type === "row") {
+                <!-- a nested row with no template of its own renders with these ones -->
+                <div [dockableRow]="node"></div>
+            } @else {
+                <div [dockableTabSet]="node">
+                    <div dockableTabList aria-label="Tabs">
+                        <ng-template dockableTabListItem let-tab>
+                            <div [dockableTab]="tab">{{ tab.label }}</div>
+                        </ng-template>
+                    </div>
+                    <div dockableTabSetContent></div>
+                </div>
+            }
+        </ng-template>
+        <ng-template dockableRowSplitter let-node="node" let-index="index">
+            <div [dockableSplitter]="node" [index]="index" aria-label="Resize"></div>
+        </ng-template>
+    </div>
+    <ng-template [dockablePanels]="model" let-tab>
+        <div [dockablePanel]="tab">…</div>
+    </ng-template>
+</div>
+```
+
+| template directive | inside | context (`let-…`) |
+| --- | --- | --- |
+| `DockableRowChild` (`dockableRowChild`) | `[dockableRow]` | `$implicit` and `node`: a tabset or a row, a `RowChildContext` |
+| `DockableRowSplitter` (`dockableRowSplitter`) | `[dockableRow]` | `node` and `index`, and `$implicit` as `RowSplitterProps`: a `RowSplitterContext` |
+| `DockableTabListItem` (`dockableTabListItem`) | `[dockableTabList]` | `$implicit` and `tab`: a `TabListItemContext` |
+| `DockablePanels` (`dockablePanels`) | `[dockableRoot]`, once | `$implicit` and `tab`: a `PanelsContext` |
+| `DockablePopout` (`dockablePopout`) | `[dockableRoot]`, once | `$implicit` and `layout`: a `PopoutContext` (its root element is a `[dockablePopoutLayout]`) |
+| `DockableBordersBar` (`dockableBordersBar`) | `[dockableBorders]` | `$implicit` and `border`: a `BorderTemplateContext` |
+| `DockableBordersContent` (`dockableBordersContent`) | `[dockableBorders]` | the same; with none, the frame renders a bare `[dockableBorderContent]` |
+| `DockableBorderSplitter` (`dockableBorderSplitter`) | `[dockableBorderContent]` | `$implicit` and `node`: a `BorderSplitterContext` |
+
+**Typing by your registry.** A template cannot pass a type argument. Give a template directive
+the model instead (`[dockableRowChild]="model"`, `[dockablePanels]="model"`): its context is then
+typed by the model's registry, and `tab.data` narrows on `tab.component` under `strictTemplates`.
+A bare `dockableRowChild` types it by `AnyTypes` (`TypedBy<T>` is what the input takes).
+
+## How React's props map
+
+| React | Angular |
+| --- | --- |
+| `<Dockable.TabSet node={node}>` | `<div [dockableTabSet]="node">`: the directive's main input is its node (or the model, for `[dockableRoot]`, `[dockableDragSource]` and `[dockableDropZone]`) |
+| `render={<section />}` | the element you put the directive on |
+| `render={(props, state) => …}` | the directive's `state()` through `exportAs` (`#part="dockableTab"`) |
+| `className`, `style` | your `class` and `style`, untouched; structural keys win. `className={(state) => …}` is a `[class]` binding on the state, or a `data-*` selector |
+| `onKeyDown`, `onPointerDown`, … | your listeners (`(keydown)`, `(pointerdown)`), run after the part's own |
+| children functions (`Row`, `TabList`, `Panels`, `Popout`) | the template directives above |
+| `renderSplitter` (`Row`, `BorderContent`) | `<ng-template dockableRowSplitter>`, `<ng-template dockableBorderSplitter>` |
+| `splitter={false}` | `[splitter]="false"` |
+| `renderBar`, `renderContent` (`Borders`) | `<ng-template dockableBordersBar>`, `<ng-template dockableBordersContent>`; the frame's other children are the main layout |
+| `onPopoutOpen`, `onPopoutClose` | the outputs `(popoutOpen)` and `(popoutClose)`, with a `PopoutEvent` (`layout`, `window`, `document`) |
+| `onExternalDrag` | the input `[externalDrag]` |
+| `onTransfer` (`DragGroup`) | the output `(transfer)` |
+| `onDrop` (`DragSource`) | the output `(dropped)`, with a `NewTabDrop` (`tabId`, `event`) |
+| `onDrop` (`DropZone`) | the output `(dropped)`, with a `DropZoneDrop` (`drag`, `event`) |
+| a part that renders nothing (`PopoutTrigger`, `TabOverflowTrigger`) | the element stays, hidden (`display: none`) |
+| `useDragNode(node)` spread on a handle | `<div [dockableDragNode]="tabset">` |
+
+## Directives
+
+| directive | selector | inputs | outputs |
+| --- | --- | --- | --- |
+| `DockableRoot` | `[dockableRoot]` | `dockableRoot` (the model), `keyMap`, `realtimeResize`, `tabDragSpeed`, `popoutURL`, `supportsPopout`, `popoutTitle`, `openWindow`, `popoutMirrorRoot`, `externalDrag` | `popoutOpen`, `popoutClose` |
+| `DockableRow` | `[dockableRow]` | `dockableRow` (a row; none is the root row), `splitter` | |
+| `DockableTabSet` | `[dockableTabSet]` | `dockableTabSet` | |
+| `DockableTabList` | `[dockableTabList]` | `orientation`, `overflow` | |
+| `DockableTab` | `[dockableTab]` | `dockableTab` | |
+| `DockableTabOverflowTrigger` | `[dockableTabOverflowTrigger]` | none | |
+| `DockableTabSetContent` | `[dockableTabSetContent]` | none | |
+| `DockablePanels` | `ng-template[dockablePanels]` | `dockablePanels` (typing), `renderOnDemand` | |
+| `DockablePanel` | `[dockablePanel]` | `dockablePanel`, `scrollable`, `remountInWindow` | |
+| `DockableSplitter` | `[dockableSplitter]` | `dockableSplitter`, `index` | |
+| `DockableBorders` | `[dockableBorders]` | none | |
+| `DockableBorder` | `[dockableBorder]` | `dockableBorder`, `tabDirection` | |
+| `DockableBorderContent` | `[dockableBorderContent]` | `dockableBorderContent`, `splitter` | |
+| `DockableDropIndicator` | `[dockableDropIndicator]` | none | |
+| `DockableEdgeIndicator` | `[dockableEdgeIndicator]` | `dockableEdgeIndicator` (the edge) | |
+| `DockableDragGroup` | `[dockableDragGroup]` | none | `transfer` |
+| `DockableDragSource` | `[dockableDragSource]` | `dockableDragSource` (the model), `tab`, `disabled` | `dropped` |
+| `DockableDropZone` | `[dockableDropZone]` | `dockableDropZone` (the model), `accepts` | `dropped` |
+| `DockablePopout` | `ng-template[dockablePopout]` | `dockablePopout` (typing) | |
+| `DockablePopoutLayout` | `[dockablePopoutLayout]` | `dockablePopoutLayout` (the window layout) | |
+| `DockablePopoutTrigger` | `[dockablePopoutTrigger]` | `target`, `node` | |
+| `DockableDragNode` | `[dockableDragNode]` | `dockableDragNode` (a tab or a tabset) | |
+
+A boolean input takes a bare attribute as `true` (`<div [dockableRoot]="model" supportsPopout>`).
+A `button` with no `type` of its own gets `type="button"` from the triggers.
+
+**Panel content.** The content of a `[dockablePanel]` element is moved into the tab's moveable
+element, which the engine re-parents: moving a tab between tabsets, borders, popout windows and the
+layouts of a drag group never re-creates its content, which keeps its state, and Angular keeps
+checking it where it is. The panel element itself goes into its layout's layer (the root, or a
+popout window's `[dockablePopoutLayout]`), after the layer's other children. A popout's elements are
+created by the main document and adopted by the window's: content that checks
+`instanceof HTMLElement` must use `nodeType` instead.
+
+## Injection functions
+
+The hooks of [the React reference](/docs/api/hooks), as injection functions: call them in an
+injection context (a constructor or a field initializer) and read their signals once the inputs
+are set (in a template, a `computed`, `ngOnInit`). A part's function reads the enclosing part's
+state: the directive puts its props on its element.
+
+| function | returns |
+| --- | --- |
+| `injectDockable<T>()` | `{ model, engine, layoutId }` as signals, an `InjectDockableResult<T>` |
+| `injectModelState(selector, options?)` | a signal of the selection, changed only when `isEqual` says it changed (`InjectModelStateOptions`: `model`, a model or a signal of one, and `isEqual`) |
+| `injectTabSet()` | the enclosing `[dockableTabSet]`'s `{ state }` (`TabSetState`), an `InjectPartResult` |
+| `injectBorder()` | the enclosing `[dockableBorder]`'s `{ state }` (`BorderState`) |
+| `injectSplitter()` | the enclosing `[dockableSplitter]`'s `{ state }` (`SplitterState`) |
+| `injectTabOverflow(container?)` | `InjectTabOverflowResult`: `overflowing` and `hiddenTabs`, signals, for the enclosing tabset or border (or `container`) |
+| `injectDragNode()` | the enclosing `[dockableDragNode]`'s (or `[dockableTab]`'s) `{ state }` (`DragNodeState`: `dragging`) |
+| `injectDragSource()` | the enclosing `[dockableDragSource]`'s `{ state }` (`DragSourceState`) |
+| `injectDropZone()` | the enclosing `[dockableDropZone]`'s `{ state }` (`DropZoneState`) |
+| `injectDragGroup()` | the core's `DragGroup` of the enclosing `[dockableDragGroup]` |
+
+`DockableContext` and `LayoutContext` are the types of what the root and a window layout provide
+to the parts.
+
+## Types
+
+Each part's state is named as in React: `RootState`, `RowState`, `TabSetState`, `TabListState`,
+`TabState`, `TabOverflowTriggerState`, `TabSetContentState`, `PanelState`, `SplitterState`,
+`BordersState`, `BorderState`, `BorderContentState`, `DropIndicatorState`, `EdgeIndicatorState`,
+`DragSourceState`, `DropZoneState`, `PopoutState`, `PopoutTriggerState` (`undefined` while the
+trigger is hidden), and `DragNodeState`. `RenderOnDemand` is what `renderOnDemand` takes: a
+boolean, or a decision per tab.
+
+## Building
+
+The package is in the Angular Package Format (partial compilation, ESM only), built with
+ng-packagr: an app's Angular compiler links it, whatever builds the app (the Angular CLI, or Vite
+with `@analogjs/vite-plugin-angular`). The Angular compiler runs on TypeScript `>=6.0 <6.1`.

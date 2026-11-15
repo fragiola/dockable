@@ -574,3 +574,29 @@ describe("the Vue reference", () => {
         }
     });
 });
+
+describe("the Angular reference", () => {
+    const ANGULAR_SRC = join(ROOT, "packages/angular/src");
+    const angularIndex = read(join(ANGULAR_SRC, "public-api.ts"));
+    const mdx = page("angular");
+
+    it("re-exports the core", () => {
+        expect(angularIndex).toMatch(
+            /^export \* from "@fragiola\/dockable";$/m,
+        );
+    });
+
+    it("mentions every named export on api/angular.mdx", () => {
+        const names = namedExports(angularIndex).map((entry) => entry.name);
+        expect(names.length).toBeGreaterThan(0);
+        expect(names.filter((name) => !mentions(mdx, name))).toEqual([]);
+    });
+
+    it("lists a directive for every part in its directives table", () => {
+        for (const { name } of partExports) {
+            expect(mdx, `Dockable${name}`).toMatch(
+                new RegExp(`^\\| \`Dockable${name}\` \\|`, "m"),
+            );
+        }
+    });
+});

@@ -138,3 +138,32 @@ elements, attributes and structural style ([Vue primitives](/docs/api/vue)).
 - **Vue never patches what the engine writes**: panels get their geometry from the engine after
   each render, and their content is teleported into the tab's moveable element, so moving a tab
   never remounts it.
+
+## In Angular
+
+`@fragiola/dockable-angular` follows the same contract with Angular's own means; the parts put the
+same attributes and structural style on the same elements ([Angular directives](/docs/api/angular)).
+
+- **The element is yours, never `asChild`.** Each primitive is an attribute directive on the
+  element you write (`<section [dockableTabSet]="tabset">`): Angular's equivalent of `render`. Its
+  state is a signal through `exportAs`.
+
+```html
+<section [dockableTabSet]="tabset" #part="dockableTabSet"
+         [attr.aria-current]="part.state().active ? 'true' : null">
+    …
+</section>
+```
+
+- **Your `class` and `style` are untouched**: the directive adds only its structural keys, which
+  win over a static `style` you write (on `[dockablePanel]` the engine writes the geometry). Style
+  the state with the `data-*` attributes, or bind on `part.state()`.
+- **Listeners compose**: the part's own listener runs first, then yours (`(keydown)`,
+  `(pointerdown)`, `(contextmenu)`).
+- **Recursion is template directives**: `<ng-template dockableRowChild let-node>`,
+  `<ng-template dockableTabListItem let-tab>` and `<ng-template dockablePanels let-tab>` are the
+  children functions, `<ng-template dockableRowSplitter>` replaces `renderSplitter`, and
+  `[splitter]="false"` renders none. A nested row with no template renders with its parent's.
+- **Angular never re-creates what the engine moves**: panels get their geometry from the engine
+  after each render, and their content is moved into the tab's moveable element, so moving a tab
+  never re-creates it.

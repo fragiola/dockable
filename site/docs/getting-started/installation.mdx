@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Add Dockable to a React 19 or a Vue 3.5 app with one package, the primitives for your framework, which bring the core with them.
+description: Add Dockable to a React 19, Vue 3.5 or Angular 22 app with one package, the primitives for your framework, which bring the core.
 ---
 
 <Framework name="react">
@@ -53,6 +53,31 @@ whole framework-agnostic core, re-exported.
 
 </Framework>
 
+<Framework name="angular">
+
+An Angular app installs one package, `@fragiola/dockable-angular`: the directives, the injection
+functions and the whole framework-agnostic core, re-exported.
+
+<Tabs items={["pnpm", "npm", "yarn"]}>
+    <Tab value="pnpm">
+        ```sh
+        pnpm add @fragiola/dockable-angular
+        ```
+    </Tab>
+    <Tab value="npm">
+        ```sh
+        npm install @fragiola/dockable-angular
+        ```
+    </Tab>
+    <Tab value="yarn">
+        ```sh
+        yarn add @fragiola/dockable-angular
+        ```
+    </Tab>
+</Tabs>
+
+</Framework>
+
 <Callout type="info" title="Stability">
     Dockable is `0.x`: until `1.0`, the API may break between minor versions (`0.1` to `0.2`), and
     the changelog says what changed and how to update.
@@ -64,11 +89,12 @@ whole framework-agnostic core, re-exported.
 | --- | --- |
 | `react` and `react-dom` **^19** (React) | peer dependencies of `@fragiola/dockable-react`. The primitives use React 19 features: `ref` as a plain prop and ref cleanup functions. |
 | `vue` **^3.5** (Vue) | the peer dependency of `@fragiola/dockable-vue`. The primitives use `useId` and `Teleport`. |
+| `@angular/core` **^22** (Angular) | the peer dependency of `@fragiola/dockable-angular`: standalone directives on signals, with no zone.js. Its Angular Package Format output is linked by your app's Angular compiler, which runs on TypeScript `>=6.0 <6.1`. |
 | A browser DOM | the engine measures elements with `getBoundingClientRect` and `ResizeObserver`. The **model** loads in plain Node (for tests or server-side JSON handling), but a layout renders only on the client. |
-| ES modules | both packages are ESM only (`"type": "module"`). |
+| ES modules | every package is ESM only (`"type": "module"`). |
 
-`@fragiola/dockable` has **zero runtime dependencies**. `@fragiola/dockable-react` and
-`@fragiola/dockable-vue` depend only on the core, at the exact same version (one copy of the core
+`@fragiola/dockable` has **zero runtime dependencies**. `@fragiola/dockable-react`,
+`@fragiola/dockable-vue` and `@fragiola/dockable-angular` depend only on the core, at the exact same version (one copy of the core
 per page: a drag between layouts and windows relies on it), and on their framework's peers.
 
 The core ships its own types, and is best used with TypeScript in `strict` mode: the layout JSON,
@@ -126,6 +152,30 @@ fallthrough attributes): [Vue primitives](/docs/api/vue) maps each React prop.
 
 </Framework>
 
+<Framework name="angular">
+
+Everything comes from `@fragiola/dockable-angular`:
+
+```ts
+import {
+    // every directive, for a component's `imports`, and the injection functions
+    DOCKABLE,
+    injectDockable,
+    injectModelState,
+    // the core: the model, its types and helpers
+    createModel,
+    type LayoutJson,
+    type TabOf,
+} from "@fragiola/dockable-angular";
+```
+
+The Angular package re-exports the whole core too, so the pages on [the core API](/docs/api/model)
+apply as they are. The primitives are the React package's, written the Angular way (attribute
+directives on your elements, template directives, signals): [Angular directives](/docs/api/angular)
+maps each React prop.
+
+</Framework>
+
 ## Without a framework
 
 The core is published on its own as `@fragiola/dockable`, for code that renders nothing: handling
@@ -140,13 +190,15 @@ pnpm add @fragiola/dockable
 import { createModel, type LayoutJson } from "@fragiola/dockable";
 ```
 
-An app never needs it: it comes with `@fragiola/dockable-react` and `@fragiola/dockable-vue`.
+An app never needs it: it comes with `@fragiola/dockable-react`, `@fragiola/dockable-vue` and
+`@fragiola/dockable-angular`.
 
 ## Server rendering
 
 The layout needs the DOM: the engine measures the elements you render and positions the panels
 after every commit. In a server-rendering framework (Next.js, Remix, Nuxt, …), mount the layout on
-the client only. With Nuxt, wrap it in `<ClientOnly>`. With Next.js, mark the file `"use client"` and load the component with
+the client only. With Nuxt, wrap it in `<ClientOnly>`; with Angular SSR, render it in an
+`@defer` block or behind `afterNextRender`. With Next.js, mark the file `"use client"` and load the component with
 `next/dynamic` and `ssr: false`, or render it behind a mounted guard. Pre-rendering the layout
 would produce markup without geometry and a hydration flash.
 
