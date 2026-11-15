@@ -39,6 +39,8 @@ A layout is a tree: a **row** splits its space between its children, a **tabset*
 **tabs**. `weight` is a relative size. A row nested in a row takes the opposite orientation, so
 it acts as a column.
 
+<Framework name="react">
+
 ```tsx title="layout.ts"
 import type { LayoutJson } from "@fragiola/dockable-react";
 import type { Types } from "./types";
@@ -66,6 +68,39 @@ export const json: LayoutJson<Types> = {
 };
 ```
 
+</Framework>
+
+<Framework name="vue">
+
+```ts title="layout.ts"
+import type { LayoutJson } from "@fragiola/dockable-vue";
+import type { Types } from "./types";
+
+export const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
+        type: "row",
+        children: [
+            {
+                type: "tabset",
+                weight: 60,
+                children: [
+                    { component: "welcome", label: "Welcome" },
+                    { component: "notes", label: "Notes", data: { text: "" } },
+                ],
+            },
+            {
+                type: "tabset",
+                weight: 40,
+                children: [{ component: "inspector", label: "Inspector" }],
+            },
+        ],
+    },
+};
+```
+
+</Framework>
+
 This is **JSON v1**: `version: 1` and a `root` row. Nodes without an `id` get one when the layout
 loads. A tab whose `data` does not match its `component` does not compile. Every field is listed in
 [the JSON model reference](/docs/api/json-model).
@@ -78,9 +113,23 @@ loads. A tab whose `data` does not match its `component` does not compile. Every
 
 The model is the source of truth. Create it once (not on every render) and keep it:
 
+<Framework name="react">
+
 ```tsx
 const [model] = useState(() => createModel<Types>(json));
 ```
+
+</Framework>
+
+<Framework name="vue">
+
+```ts
+// in <script setup>: it runs once per component. Never in ref() or reactive(): their proxy is
+// not the model the engine knows
+const model = createModel<Types>(json);
+```
+
+</Framework>
 
 The model keeps its identity for the life of the layout: loading a saved layout or undoing a step
 replaces its state in place (`layout.load`), never the model. Recreating it on every render would
@@ -95,6 +144,8 @@ reset the layout each time.
 You own the recursion. `Dockable.Row` calls its child function for every child of the row: a
 tabset or a nested row. A tabset renders its tab strip (`TabList` › `Tab`) and marks its content
 area (`TabSetContent`). `Row` inserts the splitters between children by itself.
+
+<Framework name="react">
 
 ```tsx title="render-node.tsx"
 import { Dockable, type RowNode, type TabsetNode } from "@fragiola/dockable-react";
@@ -121,6 +172,46 @@ export function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode
 }
 ```
 
+</Framework>
+
+<Framework name="vue">
+
+A Vue template owns the recursion with a component that renders itself for a nested row. The
+default slot of `Dockable.Row` is called for every child; `typedDockable<Types>()` types the
+parts, since a template cannot pass a type argument:
+
+```ts title="dockable.ts"
+import { typedDockable } from "@fragiola/dockable-vue";
+import type { Types } from "./types";
+
+export const Dockable = typedDockable<Types>();
+```
+
+```vue title="LayoutNode.vue"
+<script setup lang="ts">
+import type { RowNode, TabsetNode } from "@fragiola/dockable-vue";
+import { Dockable } from "./dockable";
+import type { Types } from "./types";
+
+defineProps<{ node: TabsetNode<Types> | RowNode<Types> }>();
+</script>
+
+<template>
+    <Dockable.TabSet v-if="node.type === 'tabset'" :node="node" class="tabset">
+        <Dockable.TabList v-slot="{ tab }" aria-label="Tabs" class="tabs">
+            <Dockable.Tab :node="tab" class="tab">{{ tab.label }}</Dockable.Tab>
+        </Dockable.TabList>
+        <Dockable.TabSetContent />
+    </Dockable.TabSet>
+    <!-- a nested row: the same component renders its children -->
+    <Dockable.Row v-else :node="node" v-slot="{ node: child }">
+        <LayoutNode :node="child" />
+    </Dockable.Row>
+</template>
+```
+
+</Framework>
+
 </Step>
 
 <Step>
@@ -132,6 +223,8 @@ the root) calls its child function for every tab whose content should render, an
 `Dockable.Panel` puts the content in an element the engine positions over the tabset's content
 area. That is how content survives moves: the element is re-parented, never remounted.
 
+<Framework name="react">
+
 ```tsx
 <Dockable.Panels<Types>>
     {(tab) => (
@@ -142,11 +235,28 @@ area. That is how content survives moves: the element is re-parented, never remo
 </Dockable.Panels>
 ```
 
+</Framework>
+
+<Framework name="vue">
+
+```vue
+<Dockable.Panels v-slot="{ tab }">
+    <Dockable.Panel :node="tab" class="panel">
+        <TabContent :tab="tab" />
+    </Dockable.Panel>
+</Dockable.Panels>
+```
+
+</Framework>
+
 The parts that call a children function (`Row`, `TabList`, `Panels`) take your registry as a type
-argument: a child cannot infer it from the root. With it, `tab` is a `TabOf<Types>`.
+argument (in Vue, from `typedDockable<Types>()`): a child cannot infer it from the root. With it,
+`tab` is a `TabOf<Types>`.
 
 Pick the content from the tab's `component`, as a factory would. The switch narrows `tab.data` to
 that component's data, with no cast:
+
+<Framework name="react">
 
 ```tsx title="tab-content.tsx"
 import type { TabOf } from "@fragiola/dockable-react";
@@ -164,11 +274,34 @@ export function TabContent({ tab }: { tab: TabOf<Types> }) {
 }
 ```
 
+</Framework>
+
+<Framework name="vue">
+
+```vue title="TabContent.vue"
+<script setup lang="ts">
+import type { TabOf } from "@fragiola/dockable-vue";
+import type { Types } from "./types";
+
+defineProps<{ tab: TabOf<Types> }>();
+</script>
+
+<template>
+    <!-- tab.data is { text: string } in this branch -->
+    <textarea v-if="tab.component === 'notes'" :aria-label="tab.label" :value="tab.data.text" />
+    <p v-else>{{ tab.label }}</p>
+</template>
+```
+
+</Framework>
+
 </Step>
 
 <Step>
 
 ## Put it together, and give the root a size
+
+<Framework name="react">
 
 ```tsx title="app.tsx"
 "use client";
@@ -197,6 +330,39 @@ export function App() {
     );
 }
 ```
+
+</Framework>
+
+<Framework name="vue">
+
+```vue title="App.vue"
+<script setup lang="ts">
+import { createModel } from "@fragiola/dockable-vue";
+import { Dockable } from "./dockable";
+import { json } from "./layout";
+import LayoutNode from "./LayoutNode.vue";
+import TabContent from "./TabContent.vue";
+import type { Types } from "./types";
+
+const model = createModel<Types>(json);
+</script>
+
+<template>
+    <Dockable.Root :model="model" :style="{ height: '100vh' }">
+        <Dockable.Row v-slot="{ node }">
+            <LayoutNode :node="node" />
+        </Dockable.Row>
+        <Dockable.Panels v-slot="{ tab }">
+            <Dockable.Panel :node="tab" class="panel">
+                <TabContent :tab="tab" />
+            </Dockable.Panel>
+        </Dockable.Panels>
+        <Dockable.DropIndicator class="drop-indicator" />
+    </Dockable.Root>
+</template>
+```
+
+</Framework>
 
 The root **must have a size**: it has no intrinsic size, and an unsized root renders nothing
 visible. See [Sizing the root](/docs/getting-started/sizing).
@@ -237,7 +403,7 @@ same with utilities.
   `model.use`.
 - **Splitters**: drag with the pointer, or focus and use the arrow keys (10px per press). They
   have no name yet: [Accessible names](/docs/getting-started/accessible-names) shows how to give
-  them one with `renderSplitter`.
+  them one with `renderSplitter` (the `#splitter` slot in Vue).
 - **Keyboard**: arrow keys, Home and End move between tabs; Enter or Space selects; `Ctrl+Delete`
   closes a closeable tab.
 - **Content that survives**: type in the Notes tab, then drag it to the other tabset. The text is

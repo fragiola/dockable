@@ -248,6 +248,16 @@
             ]
         },
         {
+            "label": "API: Vue (@fragiola/dockable-vue)",
+            "collapsible": true,
+            "pages": [
+                {
+                    "label": "Vue primitives",
+                    "path": "api/vue"
+                }
+            ]
+        },
+        {
             "label": "API: core (@fragiola/dockable)",
             "collapsible": true,
             "pages": [

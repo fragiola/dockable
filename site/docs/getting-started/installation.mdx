@@ -1,7 +1,9 @@
 ---
 title: Installation
-description: Add Dockable to a React 19 app with one package, the React primitives, which bring the core with them.
+description: Add Dockable to a React 19 or a Vue 3.5 app with one package, the primitives for your framework, which bring the core with them.
 ---
+
+<Framework name="react">
 
 A React app installs one package, `@fragiola/dockable-react`: the primitives, the hooks and the
 whole framework-agnostic core, re-exported.
@@ -24,6 +26,33 @@ whole framework-agnostic core, re-exported.
     </Tab>
 </Tabs>
 
+</Framework>
+
+<Framework name="vue">
+
+A Vue app installs one package, `@fragiola/dockable-vue`: the primitives, the composables and the
+whole framework-agnostic core, re-exported.
+
+<Tabs items={["pnpm", "npm", "yarn"]}>
+    <Tab value="pnpm">
+        ```sh
+        pnpm add @fragiola/dockable-vue
+        ```
+    </Tab>
+    <Tab value="npm">
+        ```sh
+        npm install @fragiola/dockable-vue
+        ```
+    </Tab>
+    <Tab value="yarn">
+        ```sh
+        yarn add @fragiola/dockable-vue
+        ```
+    </Tab>
+</Tabs>
+
+</Framework>
+
 <Callout type="info" title="Stability">
     Dockable is `0.x`: until `1.0`, the API may break between minor versions (`0.1` to `0.2`), and
     the changelog says what changed and how to update.
@@ -33,13 +62,14 @@ whole framework-agnostic core, re-exported.
 
 | requirement | why |
 | --- | --- |
-| `react` and `react-dom` **^19** | peer dependencies of `@fragiola/dockable-react`. The primitives use React 19 features: `ref` as a plain prop and ref cleanup functions. |
+| `react` and `react-dom` **^19** (React) | peer dependencies of `@fragiola/dockable-react`. The primitives use React 19 features: `ref` as a plain prop and ref cleanup functions. |
+| `vue` **^3.5** (Vue) | the peer dependency of `@fragiola/dockable-vue`. The primitives use `useId` and `Teleport`. |
 | A browser DOM | the engine measures elements with `getBoundingClientRect` and `ResizeObserver`. The **model** loads in plain Node (for tests or server-side JSON handling), but a layout renders only on the client. |
 | ES modules | both packages are ESM only (`"type": "module"`). |
 
-`@fragiola/dockable` has **zero runtime dependencies**. `@fragiola/dockable-react` depends only
-on the core, at the exact same version (one copy of the core per page: a drag between layouts and
-windows relies on it), and on its React peers.
+`@fragiola/dockable` has **zero runtime dependencies**. `@fragiola/dockable-react` and
+`@fragiola/dockable-vue` depend only on the core, at the exact same version (one copy of the core
+per page: a drag between layouts and windows relies on it), and on their framework's peers.
 
 The core ships its own types, and is best used with TypeScript in `strict` mode: the layout JSON,
 the command payloads and each tab's data are typed by your registry
@@ -47,6 +77,8 @@ the command payloads and each tab's data are typed by your registry
 command's payload at runtime either way.
 
 ## What to import from where
+
+<Framework name="react">
 
 Everything comes from `@fragiola/dockable-react`:
 
@@ -68,10 +100,36 @@ The React package re-exports the whole core (`createModel`, `Model`, `LayoutJson
 [the core API](/docs/api/model) apply as they are: in a React app, import those names from
 `@fragiola/dockable-react` too.
 
-## Without React
+</Framework>
+
+<Framework name="vue">
+
+Everything comes from `@fragiola/dockable-vue`:
+
+```ts
+import {
+    // the primitives (one namespace), typed by your registry, and the composables
+    Dockable,
+    typedDockable,
+    useDockable,
+    useModelState,
+    // the core: the model, its types and helpers
+    createModel,
+    type LayoutJson,
+    type TabOf,
+} from "@fragiola/dockable-vue";
+```
+
+The Vue package re-exports the whole core too, so the pages on [the core API](/docs/api/model)
+apply as they are. The primitives are the React package's, written the Vue way (slots, `as`,
+fallthrough attributes): [Vue primitives](/docs/api/vue) maps each React prop.
+
+</Framework>
+
+## Without a framework
 
 The core is published on its own as `@fragiola/dockable`, for code that renders nothing: handling
-layout JSON on a server, a script or a test that runs no React, or an adapter for another
+layout JSON on a server, a script or a test that runs no framework, or an adapter for another
 framework.
 
 ```sh
@@ -82,13 +140,13 @@ pnpm add @fragiola/dockable
 import { createModel, type LayoutJson } from "@fragiola/dockable";
 ```
 
-A React app never needs it: it comes with `@fragiola/dockable-react`.
+An app never needs it: it comes with `@fragiola/dockable-react` and `@fragiola/dockable-vue`.
 
 ## Server rendering
 
 The layout needs the DOM: the engine measures the elements you render and positions the panels
-after every commit. In a server-rendering framework (Next.js, Remix, …), mount the layout on the
-client only. With Next.js, mark the file `"use client"` and load the component with
+after every commit. In a server-rendering framework (Next.js, Remix, Nuxt, …), mount the layout on
+the client only. With Nuxt, wrap it in `<ClientOnly>`. With Next.js, mark the file `"use client"` and load the component with
 `next/dynamic` and `ssr: false`, or render it behind a mounted guard. Pre-rendering the layout
 would produce markup without geometry and a hydration flash.
 

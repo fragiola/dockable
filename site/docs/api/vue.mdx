@@ -1,0 +1,138 @@
+---
+title: Vue primitives
+description: The same primitives and hooks for Vue 3, from @fragiola/dockable-vue, and how each React prop maps onto Vue props, slots and attributes.
+---
+
+`@fragiola/dockable-vue` has every primitive of the React package, as a Vue 3.5 component, and
+every hook as a composable, over the same core (re-exported whole). The behaviour, the `data-*`
+attributes, the ARIA and the `data-layout-path` of every element are the same: the React pages of
+this reference describe each part, and this page says how its React API is written in Vue.
+
+```ts
+import {
+    createModel,
+    Dockable,
+    typedDockable,
+    useDockable,
+    useModelState,
+    type LayoutJson,
+} from "@fragiola/dockable-vue";
+```
+
+## Typing by your registry
+
+A React part takes the registry as a type argument (`<Dockable.Panels<Types>>`); a Vue template
+cannot pass one. `typedDockable<Types>()` returns the same components, typed by `Types`: a node
+or a tab in a slot is then of your registry, and `tab.data` narrows on `tab.component`.
+
+```ts title="dockable.ts"
+import { typedDockable } from "@fragiola/dockable-vue";
+
+export type Types = { tabs: { note: { text: string } } };
+export const Dockable = typedDockable<Types>();
+```
+
+| export | description |
+| --- | --- |
+| `typedDockable<T>()` | the `Dockable` components typed by the registry `T`, as a `TypedDockable<T>` (the same objects as `Dockable`) |
+| `Dockable` | the components, typed by `AnyTypes`: enough for a part that takes its node as a prop |
+
+## How React's props map
+
+| React | Vue |
+| --- | --- |
+| `render={<section />}` | `as="section"` (a tag or a component) |
+| `render={(props, state) => …}` | the `render` scoped slot, `#render="{ props, state, children }"`: bind `v-bind="props"` on your element and render `<component :is="children" />` inside it |
+| `className`, `style` | the `class` and `style` attributes, merged under the structural style (structural keys win; `Panel` drops the geometry keys). State-dependent looks use the `data-*` attributes, or the `render` slot's `state` |
+| `className={(state) => …}`, `style={(state) => …}` | no function form: a `data-*` selector, or the `render` slot |
+| `onKeyDown`, `onPointerDown`, … | listeners (`@keydown`, `@pointerdown`), run after the primitive's own |
+| `ref` | a template ref on a part is its component instance; the element is its `$el` |
+| children functions (`Row`, `TabList`, `Panels`, `Popout`) | the default scoped slot: `v-slot="{ node }"`, `v-slot="{ tab }"`, `v-slot="{ layout }"` |
+| `renderSplitter` (`Row`, `BorderContent`) | the `#splitter="{ props }"` slot: `<Dockable.Splitter v-bind="props" aria-label="Resize" />` |
+| `splitter={false}` | `:splitter="false"` |
+| `renderBar`, `renderContent` (`Borders`) | the `#bar="{ border }"` and `#content="{ border }"` slots; the default slot is the main layout |
+| `<Dockable.Panels<Types>>` and the other type arguments | `typedDockable<Types>().Panels` |
+
+## Components
+
+Every part is `Dockable.<Part>`, with the props of its React page except `render`, `className`,
+`style`, `ref` and `children` (see the table above). Each accepts `as` and the `render` slot.
+
+| part | Vue props | slots |
+| --- | --- | --- |
+| `Dockable.Root` | `model`, `keyMap`, `realtimeResize`, `tabDragSpeed`, `popoutURL`, `supportsPopout`, `popoutTitle`, `onPopoutOpen`, `onPopoutClose`, `openWindow`, `popoutMirrorRoot`, `onExternalDrag` | default |
+| `Dockable.Row` | `node`, `splitter` | default `{ node }`, `splitter` `{ props }` |
+| `Dockable.TabSet` | `node` | default |
+| `Dockable.TabList` | `orientation`, `overflow` | default `{ tab }` |
+| `Dockable.Tab` | `node` | default `{ state }` |
+| `Dockable.TabOverflowTrigger` | none | default `{ state }` |
+| `Dockable.TabSetContent` | none | none |
+| `Dockable.Panels` | `renderOnDemand` | default `{ tab }` |
+| `Dockable.Panel` | `node`, `scrollable`, `remountInWindow` | default (the tab's content) |
+| `Dockable.Splitter` | `node`, `index` | default |
+| `Dockable.Borders` | none | default, `bar` `{ border }`, `content` `{ border }` |
+| `Dockable.Border` | `node`, `tabDirection` | default |
+| `Dockable.BorderContent` | `node`, `splitter` | `splitter` `{ props }` |
+| `Dockable.DropIndicator` | none | default `{ state }` |
+| `Dockable.EdgeIndicator` | `edge` | default `{ state }` |
+| `Dockable.DragGroup` | `onTransfer` | default |
+| `Dockable.DragSource` | `model`, `tab`, `onDrop`, `disabled` | default `{ state }` |
+| `Dockable.DropZone` | `model`, `accepts`, `onDrop` | default `{ state }` |
+| `Dockable.Popout` | none | default `{ layout }` |
+| `Dockable.PopoutTrigger` | `target`, `node` | default `{ state }` |
+
+The panel content renders with a `Teleport` into the tab's moveable element, which the engine
+re-parents: moving a tab between tabsets, borders and popout windows never remounts it, and Vue
+never patches the geometry the engine writes. A popout's layout is teleported into the window's
+document; the elements are created by the main document and adopted by the window's, so content
+that checks `instanceof HTMLElement` must use `nodeType` instead.
+
+## Composables
+
+The hooks of [the React reference](/docs/api/hooks), as composables. Call them in `setup`. A
+part composable takes its node (a value, a ref or a getter) and returns `{ state, props }` as
+computed refs: bind `props.value` on your element (its listeners are Vue's: `onPointerdown`,
+`onKeydown`, `onDragstart`, `onDragend`; its `ref` is a function template ref).
+
+| composable | returns |
+| --- | --- |
+| `useDockable<T>()` | `{ model, engine, layoutId }`, a `UseDockableResult<T>` (plain values: another model remounts the root) |
+| `useModelState(selector, options?)` | a read-only ref of the selection, changed only when `isEqual` says it changed (`UseModelStateOptions`: `model`, `isEqual`) |
+| `useTabSet(node)` | `UseTabSetResult`: `state` (`TabSetState`), `props` (`TabSetElementProps`: `ref`, `onPointerdown`) |
+| `useBorder(node)` | `UseBorderResult`: `state` (`BorderContentState`), `props` (`ref`) |
+| `useSplitter(node, index?)` | `UseSplitterResult`: `state` (`SplitterState`), `props` (`SplitterElementProps`: the ARIA, `tabindex`, the listeners and the structural style) |
+| `useTabOverflow(container)` | `UseTabOverflowResult`: `overflowing` and `hiddenTabs`, computed refs |
+| `useDragNode(node)` | `UseDragNodeResult`: `state` (`dragging`), `props` (`DragProps`) |
+| `useDragSource(options)` | `UseDragSourceResult` from `UseDragSourceOptions` (`model`, `tab`, `onDrop`, `disabled`) |
+| `useDropZone(options)` | `UseDropZoneResult` (`state` is a `DropZoneState`) from `UseDropZoneOptions` (`model`, `accepts`, `onDrop`) |
+| `useDragGroup()` | the core's `DragGroup` of the enclosing `Dockable.DragGroup` |
+
+Keep the model out of Vue's reactivity: create it once (`const model = createModel(json)` in
+`setup`, or a `shallowRef`), never in `ref()` or `reactive()`, whose proxy would not be the model
+the engine knows.
+
+## Types
+
+Each part exports its props, its slots and its state, named as in React: `RootProps`,
+`RootSlots`, `RootState`, `RowProps`, `RowSlots`, `RowSplitterProps`, `RowState`,
+`TabSetProps`, `TabSetSlots`, `TabListProps`, `TabListSlots`, `TabListState`, `TabProps`,
+`TabSlots`, `TabState`, `TabOverflowTriggerProps`, `TabOverflowTriggerSlots`,
+`TabOverflowTriggerState`, `TabSetContentProps`, `TabSetContentSlots`, `TabSetContentState`,
+`PanelsProps`, `PanelsSlots`, `PanelProps`, `PanelSlots`, `PanelState`, `SplitterProps`,
+`SplitterSlots`, `BordersProps`, `BordersSlots`, `BordersState`, `BorderProps`, `BorderSlots`,
+`BorderState`, `BorderContentProps`, `BorderContentSlots`, `DropIndicatorProps`,
+`DropIndicatorSlots`, `DropIndicatorState`, `EdgeIndicatorProps`, `EdgeIndicatorSlots`,
+`EdgeIndicatorState`, `DragGroupProps`, `DragGroupSlots`, `DragSourceProps`, `DragSourceSlots`,
+`DragSourceState`, `DropZoneProps`, `DropZoneSlots`, `PopoutProps`, `PopoutSlots`,
+`PopoutState`, `PopoutTriggerProps`, `PopoutTriggerSlots`, `PopoutTriggerState`.
+
+| type | description |
+| --- | --- |
+| `DockableComponent<Props, Slots>` | a part's component type: its props, plus any fallthrough attribute, and its scoped slots |
+| `TypedDockable<T>` | what `typedDockable<T>()` returns: every part typed by `T` |
+| `PrimitiveProps` | what every part accepts: `as` |
+| `AsProp` | a tag name or a component |
+| `RenderSlot<State>` | the `render` slot every part accepts |
+| `RenderSlotProps<State>` | what it receives: `props`, `state`, `children` |
+| `SlotFunction<Scope>` | a scoped slot: its scope in, the nodes it renders out |
+| `ElementRef` | a function template ref, as a part's `props.ref` |
