@@ -163,4 +163,5 @@ export const TabList: DockableComponent<TabListProps, TabListSlots> =
                 });
             };
         },
+        ["overflow"],
     );

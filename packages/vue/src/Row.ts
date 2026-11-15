@@ -68,85 +68,94 @@ export interface RowSlots<T extends DockableTypes = AnyTypes>
 export const Row: DockableComponent<RowProps, RowSlots> = definePrimitive<
     RowProps,
     RowSlots
->("Row", ["node", "splitter", "as"], (props, { attrs, slots }) => {
-    const { model, revision } = useDockableContext("Row");
-    const { engine, layoutId } = useLayoutContext("Row");
-    const current = () => {
-        const row = props.node ?? model.get("root-row", { layoutId });
-        if (!row) {
-            throw new Error(
-                `Dockable.Row: layout "${layoutId}" has no root row`,
-            );
-        }
-        return row;
-    };
-    const ref = useMeasurable(engine, () => current().id, "row");
-    return () => {
-        revision.value;
-        const row = current();
-        const id = row.id;
-        const root = props.node === undefined;
-        const horizontal = engine.adapter.rowOrientation(id) === "horizontal";
-        const items: VNodeChild[] = [];
-        for (const [index, child] of row.children.entries()) {
-            if (index > 0 && props.splitter !== false) {
-                const splitterProps: RowSplitterProps = { node: row, index };
+>(
+    "Row",
+    ["node", "splitter", "as"],
+    (props, { attrs, slots }) => {
+        const { model, revision } = useDockableContext("Row");
+        const { engine, layoutId } = useLayoutContext("Row");
+        const current = () => {
+            const row = props.node ?? model.get("root-row", { layoutId });
+            if (!row) {
+                throw new Error(
+                    `Dockable.Row: layout "${layoutId}" has no root row`,
+                );
+            }
+            return row;
+        };
+        const ref = useMeasurable(engine, () => current().id, "row");
+        return () => {
+            revision.value;
+            const row = current();
+            const id = row.id;
+            const root = props.node === undefined;
+            const horizontal =
+                engine.adapter.rowOrientation(id) === "horizontal";
+            const items: VNodeChild[] = [];
+            for (const [index, child] of row.children.entries()) {
+                if (index > 0 && props.splitter !== false) {
+                    const splitterProps: RowSplitterProps = {
+                        node: row,
+                        index,
+                    };
+                    items.push(
+                        h(
+                            Fragment,
+                            { key: `splitter:${child.id}` },
+                            slots.splitter
+                                ? slots.splitter({ props: splitterProps })
+                                : [h(Splitter, splitterProps)],
+                        ),
+                    );
+                }
                 items.push(
                     h(
                         Fragment,
-                        { key: `splitter:${child.id}` },
-                        slots.splitter
-                            ? slots.splitter({ props: splitterProps })
-                            : [h(Splitter, splitterProps)],
+                        { key: child.id },
+                        slots.default?.({ node: child }),
                     ),
                 );
             }
-            items.push(
-                h(
-                    Fragment,
-                    { key: child.id },
-                    slots.default?.({ node: child }),
-                ),
-            );
-        }
-        const state: RowState = {
-            orientation: horizontal ? "horizontal" : "vertical",
-            root,
-            // a maximized tabset fills the layout: the rows off its path give up their space
-            hidden: model.is("node-hidden-by-maximize", { nodeId: id }),
-        };
-        const flex = engine.get("flex-by", { nodeId: id });
-        const structural: CSSProperties = {
-            display: state.hidden ? "none" : "flex",
-            flexDirection: horizontal ? "row" : "column",
-            flexBasis: 0,
-            flexGrow: flex.grow,
-            minWidth: px(flex.minWidth),
-            minHeight: px(flex.minHeight),
-            maxWidth: px(flex.maxWidth),
-            maxHeight: px(flex.maxHeight),
-            overflow: "hidden",
-        };
-        if (root) {
-            // the root row fills the layout root
-            Object.assign(structural, { position: "absolute", inset: 0 });
-        }
-        return renderElement({
-            tag: "div",
-            as: props.as,
-            attrs,
-            render: slots.render,
-            state,
-            ref,
-            props: dataAttributes({
-                "layout-path": root
-                    ? "/row"
-                    : engine.get("layout-path-by", { nodeId: id }),
-                orientation: state.orientation,
+            const state: RowState = {
+                orientation: horizontal ? "horizontal" : "vertical",
                 root,
-            }),
-            style: structural,
-            children: () => items,
-        });
-    };
-});
+                // a maximized tabset fills the layout: the rows off its path give up their space
+                hidden: model.is("node-hidden-by-maximize", { nodeId: id }),
+            };
+            const flex = engine.get("flex-by", { nodeId: id });
+            const structural: CSSProperties = {
+                display: state.hidden ? "none" : "flex",
+                flexDirection: horizontal ? "row" : "column",
+                flexBasis: 0,
+                flexGrow: flex.grow,
+                minWidth: px(flex.minWidth),
+                minHeight: px(flex.minHeight),
+                maxWidth: px(flex.maxWidth),
+                maxHeight: px(flex.maxHeight),
+                overflow: "hidden",
+            };
+            if (root) {
+                // the root row fills the layout root
+                Object.assign(structural, { position: "absolute", inset: 0 });
+            }
+            return renderElement({
+                tag: "div",
+                as: props.as,
+                attrs,
+                render: slots.render,
+                state,
+                ref,
+                props: dataAttributes({
+                    "layout-path": root
+                        ? "/row"
+                        : engine.get("layout-path-by", { nodeId: id }),
+                    orientation: state.orientation,
+                    root,
+                }),
+                style: structural,
+                children: () => items,
+            });
+        };
+    },
+    ["splitter"],
+);
