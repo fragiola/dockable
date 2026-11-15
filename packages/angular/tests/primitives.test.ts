@@ -191,6 +191,38 @@ describe("composition and ARIA", () => {
         expect(splitter.previousElementSibling).toBe(mustPath("/ts0"));
         expect(splitter.nextElementSibling).toBe(mustPath("/ts1"));
     });
+
+    it("hands a splitter's ARIA values to its template (aria-valuetext in a readout)", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <div dockableRow>
+                        <ng-template dockableRowChild let-node>
+                            @if (node.type === "tabset") {
+                                <div [dockableTabSet]="node"><div dockableTabSetContent></div></div>
+                            }
+                        </ng-template>
+                        <ng-template dockableRowSplitter let-node="node" let-index="index">
+                            <div [dockableSplitter]="node" [index]="index" #s="dockableSplitter" aria-label="Resize">
+                                <span data-testid="readout">{{ s.aria().valueText }}</span>
+                            </div>
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class Readout {
+            readonly model = input.required<Model<Types>>();
+        }
+        const m = model();
+        await render(Readout, { model: m });
+        const splitter = mustPath("/s0");
+        const readout = () => mustTestId("readout").textContent;
+        const before = readout();
+        expect(before).toMatch(/%$/);
+        expect(before).toBe(splitter.getAttribute("aria-valuetext"));
+    });
 });
 
 describe("the consumer's element", () => {

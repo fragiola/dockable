@@ -21,6 +21,7 @@ import {
     type DockableTypes,
     getSplitterPath,
     type RowNode,
+    type SplitterAria,
     type SplitterController,
     type SplitterControllerState,
 } from "@fragiola/dockable";
@@ -58,10 +59,10 @@ export interface SplitterState extends SplitterControllerState {
         role: "separator",
         tabindex: "0",
         "[attr.aria-orientation]": "aria().orientation",
-        "[attr.aria-valuenow]": "aria().valueNow",
-        "[attr.aria-valuemin]": "aria().valueMin",
-        "[attr.aria-valuemax]": "aria().valueMax",
-        "[attr.aria-valuetext]": "aria().valueText",
+        "[attr.aria-valuenow]": "aria().valueNow ?? null",
+        "[attr.aria-valuemin]": "aria().valueMin ?? null",
+        "[attr.aria-valuemax]": "aria().valueMax ?? null",
+        "[attr.aria-valuetext]": "aria().valueText ?? null",
         "[attr.data-layout-path]": "data().path",
         "[attr.data-orientation]": "data().orientation",
         "[attr.data-dragging]": "data().dragging",
@@ -104,16 +105,14 @@ export class DockableSplitter<T extends DockableTypes = AnyTypes> {
         };
     });
 
-    protected readonly aria = computed(() => {
+    /**
+     * The separator's ARIA values, as its `aria-*` attributes carry them: a template reads them
+     * (`#s="dockableSplitter"`, `s.aria().valueText`) to show where the splitter sits, as React's
+     * `render` and Vue's `#render` hand them over.
+     */
+    readonly aria: Signal<SplitterAria> = computed(() => {
         this.state();
-        const aria = this.controller().getAria();
-        return {
-            orientation: aria.orientation,
-            valueNow: aria.valueNow ?? null,
-            valueMin: aria.valueMin ?? null,
-            valueMax: aria.valueMax ?? null,
-            valueText: aria.valueText ?? null,
-        };
+        return this.controller().getAria();
     });
 
     protected readonly data = computed(() => {

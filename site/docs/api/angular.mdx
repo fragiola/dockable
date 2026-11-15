@@ -98,6 +98,7 @@ A bare `dockableRowChild` types it by `AnyTypes` (`TypedBy<T>` is what the input
 | `<Dockable.TabSet node={node}>` | `<div [dockableTabSet]="node">`: the directive's main input is its node (or the model, for `[dockableRoot]`, `[dockableDragSource]` and `[dockableDropZone]`) |
 | `render={<section />}` | the element you put the directive on |
 | `render={(props, state) => …}` | the directive's `state()` through `exportAs` (`#part="dockableTab"`) |
+| a splitter's `render={(separator) => …}` reading `separator["aria-valuetext"]` | its `aria()` through `exportAs` (`#s="dockableSplitter"`, `s.aria().valueText`) |
 | `className`, `style` | your `class` and `style`, untouched; structural keys win. `className={(state) => …}` is a `[class]` binding on the state, or a `data-*` selector |
 | `onKeyDown`, `onPointerDown`, … | your listeners (`(keydown)`, `(pointerdown)`), run after the part's own |
 | children functions (`Row`, `TabList`, `Panels`, `Popout`) | the template directives above |
