@@ -199,56 +199,18 @@ export interface TabSetDropState {
     refused: boolean;
 }
 
-const NO_DROP: TabSetDropState = {
-    target: false,
-    location: undefined,
-    index: undefined,
-    refused: false,
-};
-
-const DROP_LOCATIONS: readonly DropLocation[] = [
-    "center",
-    "top",
-    "bottom",
-    "start",
-    "end",
-];
-
 /**
  * Whether the current drag targets (or is refused by) `tabsetId`, from the engine's indicator
- * state. The snapshot is a string, so tabsets re-render only when their own answer changes, not
- * on every pointer move.
+ * state. The core keeps the answer the same object until it changes, so tabsets re-render only
+ * when their own answer changes, not on every pointer move.
  */
 export function useTabSetDropState(
     engine: LayoutEngine,
     tabsetId: string,
 ): TabSetDropState {
-    const key = useIndicator(engine, (indicator) => {
-        if (indicator.refused && indicator.refusedTabsetId === tabsetId) {
-            return "refused";
-        }
-        if (indicator.visible && indicator.targetTabsetId === tabsetId) {
-            const strip =
-                indicator.location === "center" &&
-                indicator.index >= 0 &&
-                indicator.targetNodeId === tabsetId;
-            return strip
-                ? `${indicator.location}:${indicator.index}`
-                : indicator.location;
-        }
-        return "";
-    });
-    return React.useMemo(() => {
-        if (key === "") return NO_DROP;
-        if (key === "refused") return { ...NO_DROP, refused: true };
-        const [name, index] = key.split(":");
-        return {
-            target: true,
-            location: DROP_LOCATIONS.find((l) => l === name),
-            index: index === undefined ? undefined : Number(index),
-            refused: false,
-        };
-    }, [key]);
+    const manager = engine.adapter.getDragDropManager();
+    const snapshot = () => engine.adapter.getDropState(tabsetId);
+    return React.useSyncExternalStore(manager.subscribe, snapshot, snapshot);
 }
 
 export interface UseTabSetResult {
@@ -261,23 +223,6 @@ export interface UseTabSetResult {
         /** makes the tabset active on a primary pointer press */
         onPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
     };
-}
-
-/** @internal makes a tabset its layout's active tabset, unless it already is */
-export function activateTabset(model: Model, tabsetId: string) {
-    if (!model.is("tabset-active", { tabsetId })) {
-        model.run("tabset.activate", { tabsetId });
-    }
-}
-
-function isAuxEvent(event: React.PointerEvent | React.MouseEvent) {
-    return (
-        event.button !== 0 ||
-        event.ctrlKey ||
-        event.altKey ||
-        event.metaKey ||
-        event.shiftKey
-    );
 }
 
 /**
@@ -303,9 +248,7 @@ export function useTabSet<T extends DockableTypes>(
     };
     const ref = useMeasurable(engine, id, "tabset");
     const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
-        if (!isAuxEvent(event)) {
-            activateTabset(model, id);
-        }
+        engine.adapter.handleTabSetPointerDown(id, event);
     };
     return { state, props: { ref, onPointerDown } };
 }
@@ -519,11 +462,7 @@ export function useDragNode<T extends DockableTypes>(
     const imageRef = React.useRef<HTMLElement | null>(null);
     const dragState = useDragState();
     const id = node.id;
-    const enabled = () =>
-        (node.type === "tab"
-            ? model.get("tab-settings-by", { tabId: id })
-            : model.get("tabset-settings-by", { tabsetId: id })
-        )?.draggable ?? false;
+    const enabled = () => engine.adapter.isDraggable(id);
 
     const onDragStart = (event: React.DragEvent<HTMLElement>) => {
         if (!enabled()) {

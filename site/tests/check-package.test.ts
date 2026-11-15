@@ -132,15 +132,17 @@ describe("the adapters the package check covers", () => {
     });
 
     it("finds a package that is neither the core nor a listed adapter", () => {
-        expect(unlistedPackages(["core", "react", "vue"])).toEqual(["vue"]);
+        expect(unlistedPackages(["core", "react", "vue", "angular"])).toEqual([
+            "angular",
+        ]);
         expect(
             unlistedPackages(
-                ["core", "react", "vue"],
+                ["core", "react", "vue", "angular"],
                 [
                     ...ADAPTERS,
                     {
-                        dir: "vue",
-                        framework: "vue",
+                        dir: "angular",
+                        framework: "angular",
                         smoke: async () => {},
                     },
                 ],

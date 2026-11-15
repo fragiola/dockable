@@ -5,12 +5,13 @@
 // - its packed `exports` (from `publishConfig.exports`) are the repo's `exports` without the source
 //   condition, and use only the `types`, `import` and `default` conditions, with targets in `dist`;
 // - publint (strict) and attw (`esm-only` profile) pass on the tarball;
-// - every adapter (`ADAPTERS`: each package under packages/ but the core, React only today)
+// - every adapter (`ADAPTERS`: each package under packages/ but the core: React and Vue)
 //   depends on the core at its exact version;
 // - each adapter's smoke test: a scratch app outside the workspace installs that adapter's tarball
 //   (the core tarball comes as its dependency) and imports everything from it, typechecks with the
 //   repo's TypeScript, builds, and its dev server serves the entry with every import resolved. For
-//   React, a Vite + React app. A consumer's dev server adds the `development` condition, which once
+//   React, a Vite + React app; for Vue, a Vite + Vue app with a single-file component, checked by
+//   vue-tsc on examples/vue's TypeScript (vue-tsc does not run on TypeScript 7 yet). A consumer's dev server adds the `development` condition, which once
 //   pointed the published `exports` at sources that are not in the tarball.
 //
 // `--tarballs <dir>` checks the tarballs found in `dir` (at any depth) instead of packing: the
@@ -329,8 +330,14 @@ export function servedImports(code: string): string[] {
     );
 }
 
-/** Starts the app's dev server, loads the entry and every module it imports, then stops it. */
-async function loadThroughDevServer(dir: string): Promise<void> {
+/**
+ * Starts the app's dev server, loads its entry (`/src/main.tsx`, `/src/main.ts`, …) and every
+ * module it imports, then stops it.
+ */
+async function loadThroughDevServer(
+    dir: string,
+    entryPath: string,
+): Promise<void> {
     const port = await freePort();
     const base = `http://127.0.0.1:${port}`;
     const server = spawn(
@@ -359,7 +366,7 @@ async function loadThroughDevServer(dir: string): Promise<void> {
                 await new Promise((resolve) => setTimeout(resolve, 250));
             }
         }
-        const entry = await fetchOk(`${base}/src/main.tsx`);
+        const entry = await fetchOk(`${base}${entryPath}`);
         const imports = servedImports(entry);
         if (!imports.some((path) => path.includes("@fragiola"))) {
             throw new Error(
@@ -391,7 +398,138 @@ async function reactSmoke(
     run("pnpm", ["install", "--no-frozen-lockfile"], app);
     run("pnpm", ["exec", "tsc", "--noEmit"], app);
     run("pnpm", ["exec", "vite", "build"], app);
-    await loadThroughDevServer(app);
+    await loadThroughDevServer(app, "/src/main.tsx");
+}
+
+// The Vue smoke app: its entry builds the model from the Vue package (the core included), and a
+// single-file component renders it with the typed primitives, checked by vue-tsc.
+const VUE_SMOKE_MAIN = `import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
+import { createApp } from "vue";
+import App, { type Types } from "./App.vue";
+
+const json: LayoutJson<Types> = {
+    version: 1,
+    root: {
+        type: "row",
+        children: [
+            { type: "tabset", children: [{ component: "note", label: "One" }] },
+            { type: "tabset", children: [{ component: "note", label: "Two" }] },
+        ],
+    },
+};
+
+createApp(App, { model: createModel<Types>(json) }).mount("#root");
+`;
+
+const VUE_SMOKE_APP = `<script lang="ts">
+export type Types = { tabs: { note: undefined } };
+</script>
+
+<script setup lang="ts">
+import { type Model, typedDockable } from "@fragiola/dockable-vue";
+
+const Dockable = typedDockable<Types>();
+defineProps<{ model: Model<Types> }>();
+</script>
+
+<template>
+    <Dockable.Root :model="model" :style="{ height: '100vh' }">
+        <Dockable.Row>
+            <template #default="{ node }">
+                <Dockable.TabSet v-if="node.type === 'tabset'" :node="node">
+                    <Dockable.TabList v-slot="{ tab }" aria-label="Tabs">
+                        <Dockable.Tab :node="tab">{{ tab.label }}</Dockable.Tab>
+                    </Dockable.TabList>
+                    <Dockable.TabSetContent />
+                </Dockable.TabSet>
+            </template>
+            <template #splitter="{ props }">
+                <Dockable.Splitter v-bind="props" aria-label="Resize" />
+            </template>
+        </Dockable.Row>
+        <Dockable.Panels v-slot="{ tab }">
+            <Dockable.Panel :node="tab">{{ tab.label }}</Dockable.Panel>
+        </Dockable.Panels>
+    </Dockable.Root>
+</template>
+`;
+
+/**
+ * A scratch Vite + Vue app in `dir` that depends on the Vue tarball only (the core tarball comes
+ * as its dependency). It typechecks with vue-tsc on the TypeScript examples/vue pins (vue-tsc does
+ * not run on TypeScript 7 yet).
+ */
+function writeVueSmokeApp(dir: string, core: string, vue: string): void {
+    const version = (name: string) => examplesVersion("vue", name);
+    const manifest = {
+        name: "dockable-smoke",
+        private: true,
+        type: "module",
+        dependencies: {
+            "@fragiola/dockable-vue": `file:${vue}`,
+            vue: version("vue"),
+        },
+        devDependencies: {
+            "@vitejs/plugin-vue": version("@vitejs/plugin-vue"),
+            typescript: version("typescript"),
+            vite: version("vite"),
+            "vue-tsc": version("vue-tsc"),
+        },
+    };
+    writeFileSync(
+        join(dir, "package.json"),
+        `${JSON.stringify(manifest, null, 4)}\n`,
+    );
+    writeFileSync(
+        join(dir, "pnpm-workspace.yaml"),
+        `overrides:\n  "@fragiola/dockable": "file:${core}"\n`,
+    );
+    writeFileSync(
+        join(dir, "vite.config.js"),
+        `import vue from "@vitejs/plugin-vue";\nimport { defineConfig } from "vite";\n\nexport default defineConfig({ plugins: [vue()] });\n`,
+    );
+    writeFileSync(
+        join(dir, "index.html"),
+        `<!doctype html>\n<html lang="en">\n<body>\n<div id="root"></div>\n<script type="module" src="/src/main.ts"></script>\n</body>\n</html>\n`,
+    );
+    // strict, with the published declarations checked too (no skipLibCheck)
+    const tsconfig = {
+        compilerOptions: {
+            target: "ES2022",
+            lib: ["ES2022", "DOM", "DOM.Iterable"],
+            module: "ESNext",
+            moduleResolution: "bundler",
+            jsx: "preserve",
+            strict: true,
+            noUncheckedIndexedAccess: true,
+            verbatimModuleSyntax: true,
+            noEmit: true,
+            types: [],
+        },
+        include: ["src/**/*.ts", "src/**/*.vue"],
+    };
+    writeFileSync(
+        join(dir, "tsconfig.json"),
+        `${JSON.stringify(tsconfig, null, 4)}\n`,
+    );
+    mkdirSync(join(dir, "src"));
+    writeFileSync(join(dir, "src/main.ts"), VUE_SMOKE_MAIN);
+    writeFileSync(join(dir, "src/App.vue"), VUE_SMOKE_APP);
+}
+
+/**
+ * The Vue smoke test: the scratch Vite + Vue app installs the Vue tarball, typechecks (vue-tsc),
+ * builds and loads its dev server.
+ */
+async function vueSmoke(
+    app: string,
+    tarballs: { core: string; adapter: string },
+): Promise<void> {
+    writeVueSmokeApp(app, tarballs.core, tarballs.adapter);
+    run("pnpm", ["install", "--no-frozen-lockfile"], app);
+    run("pnpm", ["exec", "vue-tsc", "--noEmit"], app);
+    run("pnpm", ["exec", "vite", "build"], app);
+    await loadThroughDevServer(app, "/src/main.ts");
 }
 
 /** What `check:package` checks of an adapter, besides what every package gets. */
@@ -414,6 +552,7 @@ export interface AdapterCheck {
 /** Every adapter, one per package under packages/ but the core (`unlistedPackages` checks it). */
 export const ADAPTERS: readonly AdapterCheck[] = [
     { dir: "react", framework: "react", smoke: reactSmoke },
+    { dir: "vue", framework: "vue", smoke: vueSmoke },
 ];
 
 /** The packages/ directories that are neither the core nor an adapter of `adapters`. */

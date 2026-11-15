@@ -40,10 +40,12 @@ const problemsOf = (body: string) =>
     validateSite(withPage("limitations", page(body)));
 
 describe("the site export", () => {
-    it("has the landing, every page in the sidebar and all 47 examples", () => {
+    it("has the landing, every page in the sidebar, all 47 React examples and the Vue ones", () => {
         expect(site.pages.has("index")).toBe(true);
-        expect(site.pages.size).toBe(63);
+        expect(site.pages.size).toBe(64);
         expect(site.manifests.get("react")?.examples).toHaveLength(47);
+        // a framework ships a subset of the examples
+        expect(site.manifests.get("vue")?.examples).toHaveLength(2);
     });
 
     it("passes the contract checks", () => {

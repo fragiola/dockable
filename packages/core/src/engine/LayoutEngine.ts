@@ -8,6 +8,7 @@
 import type { CommandEvent, CommandResult } from "../commands/types";
 import { DragDropManager, type OnExternalDrag } from "../dnd/DragDropManager";
 import type { DragGroup } from "../dnd/DragGroup";
+import type { KeyMap } from "../keyboard/keymap";
 import { PopoutManager, type PopoutOptions } from "../popout/PopoutManager";
 import { flexGrow } from "../split/split";
 import type { Model } from "../state/model";
@@ -15,6 +16,7 @@ import type { QueryArgs } from "../state/queries";
 import { type AnyTypes, type DockableTypes, MAIN_LAYOUT } from "../state/types";
 import type { LayoutEngineAdapter } from "./adapter";
 import { Derived } from "./derived";
+import { Interaction } from "./interaction";
 import { defaultMeasure, Measure, type MeasureFunction } from "./measure";
 import { Moveables } from "./moveables";
 import { Overflow } from "./overflow";
@@ -51,6 +53,12 @@ export interface LayoutEngineOptions<T extends DockableTypes = AnyTypes> {
      * stable one (React's `useId`) so server and client agree. Main engine only.
      */
     idScope?: string | undefined;
+    /**
+     * keyboard bindings, merged over `defaultKeyMap`: the keys the parts' handlers answer to
+     * (`adapter.handleTabKeyDown`, …) and advertise (`adapter.getKeyShortcuts`). Main engine only:
+     * a popout's engine uses the main one's
+     */
+    keyMap?: KeyMap | undefined;
 }
 
 /** Options of the engine an adapter may change on every render. */
@@ -61,6 +69,7 @@ export type LayoutEngineSettings<T extends DockableTypes = AnyTypes> = Pick<
     | "popout"
     | "onExternalDrag"
     | "dragGroup"
+    | "keyMap"
 >;
 
 /** The handler a verb's table holds for `key`, if it is one of its own keys. */
@@ -123,6 +132,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
     private readonly moveables: Moveables<T>;
     private readonly overlay: Overlay<T>;
     private readonly windows: Windows<T>;
+    private readonly interaction: Interaction<T>;
 
     private currentDocument: Document | undefined;
     private currentWindow: Window | undefined;
@@ -190,6 +200,21 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             ownerWindow: () => this.currentWindow,
             windowsOf: (id) => this.engineOf(id).windows,
         });
+        this.interaction = new Interaction(
+            this.model,
+            this.derived,
+            this.dragDropManager,
+            {
+                main: () =>
+                    this.main
+                        .interaction as unknown as Interaction<DockableTypes>,
+                direction: () => this.measure.direction,
+                focusTabset: (direction) =>
+                    this.run("focus-tabset", { direction }).ok,
+                handleOverlayKeyDown: (event, key) =>
+                    this.overlay.handleOverlayKeyDown(event, key),
+            },
+        );
         this.popoutManager = main ? undefined : new PopoutManager<T>(this);
         this.setOptions(options);
     }
@@ -393,6 +418,23 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             getOnExternalDrag: () => this.getOnExternalDrag(),
             getTabDragSpeed: () => this.getTabDragSpeed(),
             getPopoutManager: () => this.getPopoutManager(),
+            getKeyMap: () => this.interaction.getKeyMap(),
+            getKeyShortcuts: (part, tabId) =>
+                this.interaction.getKeyShortcuts(part, tabId),
+            getDropState: (containerId) =>
+                this.interaction.getDropState(containerId),
+            isDraggable: (nodeId) => this.interaction.isDraggable(nodeId),
+            handleTabSetPointerDown: (tabsetId, event) =>
+                this.interaction.handleTabSetPointerDown(tabsetId, event),
+            handlePanelPointerDown: (tabId) =>
+                this.interaction.handlePanelPointerDown(tabId),
+            handleTabClick: (tabId) => this.interaction.handleTabClick(tabId),
+            handleTabKeyDown: (tabId, event, options) =>
+                this.interaction.handleTabKeyDown(tabId, event, options),
+            handlePanelKeyDown: (tabId, event, panel) =>
+                this.interaction.handlePanelKeyDown(tabId, event, panel),
+            handleDocumentKeyDown: (event) =>
+                this.interaction.handleDocumentKeyDown(event),
         };
     }
 
@@ -414,6 +456,7 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
         this.realtimeResize = options.realtimeResize ?? true;
         this.tabDragSpeed = options.tabDragSpeed ?? 0.3;
         this.onExternalDragHandler = options.onExternalDrag;
+        this.interaction.setKeyMap(options.keyMap);
     }
 
     /** Joins (or leaves) a drag group. Only the main engine joins: popouts share its model. */

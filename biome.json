@@ -15,7 +15,8 @@
             "**/*.jsonc",
             "**/*.css",
             "**/*.mdx",
-            "**/*.md"
+            "**/*.md",
+            "**/*.vue"
         ]
     },
     "formatter": {
@@ -79,6 +80,20 @@
                     },
                     "complexity": {
                         "noStaticOnlyClass": "off"
+                    }
+                }
+            }
+        },
+        {
+            "includes": ["**/*.vue"],
+            "linter": {
+                "rules": {
+                    "correctness": {
+                        "noUnusedImports": "off",
+                        "noUnusedVariables": "off"
+                    },
+                    "style": {
+                        "useVueMultiWordComponentNames": "off"
                     }
                 }
             }

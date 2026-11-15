@@ -545,3 +545,32 @@ describe("the core reference", () => {
         }
     });
 });
+
+describe("the Vue reference", () => {
+    const VUE_SRC = join(ROOT, "packages/vue/src");
+    const vueIndex = read(join(VUE_SRC, "index.ts"));
+    const vueParts = namedExports(read(join(VUE_SRC, "parts.ts")));
+    const mdx = page("vue");
+
+    it("re-exports the core and exports the Dockable namespace from parts.ts", () => {
+        expect(vueIndex).toMatch(/^export \* from "@fragiola\/dockable";$/m);
+        expect(vueIndex).toMatch(/export \* as Dockable from "\.\/parts"/);
+    });
+
+    it("mentions every named export on api/vue.mdx", () => {
+        const names = namedExports(vueIndex).map((entry) => entry.name);
+        expect(names.length).toBeGreaterThan(0);
+        expect(names.filter((name) => !mentions(mdx, name))).toEqual([]);
+    });
+
+    it("lists every part as Dockable.<Part> in its components table", () => {
+        expect(vueParts.map((entry) => entry.name).sort()).toEqual(
+            partExports.map((entry) => entry.name).sort(),
+        );
+        for (const { name } of vueParts) {
+            expect(mdx, `Dockable.${name}`).toMatch(
+                new RegExp(`^\\| \`Dockable\\.${name}\` \\|`, "m"),
+            );
+        }
+    });
+});

@@ -46,6 +46,7 @@ const PORTED = [
     "src/engine/derived.ts",
     "src/engine/overlay.ts",
     "src/engine/windows.ts",
+    "src/engine/interaction.ts",
     "src/dnd/DragDropManager.ts",
     "src/dnd/session.ts",
     "src/dnd/dropCommand.ts",
@@ -100,6 +101,10 @@ const FORBIDDEN =
 const IMPORT_REACT =
     /(?:from\s+|import\s*\(\s*|require\s*\(\s*)["'](?:react|react-dom)(?:\/[^"']*)?["']/;
 
+/** Any UI framework an adapter wraps: the core imports none of them. */
+const IMPORT_FRAMEWORK =
+    /(?:from\s+|import\s*\(\s*|require\s*\(\s*)["'](?:react|react-dom|vue|@vue\/[^"']+|@angular\/[^"']+)(?:\/[^"']*)?["']/;
+
 describe("core package guard", () => {
     it("has no runtime or peer dependencies", () => {
         const pkg = JSON.parse(
@@ -112,6 +117,13 @@ describe("core package guard", () => {
     it("never imports react or react-dom", () => {
         const offenders = listFiles(src).filter((file) =>
             IMPORT_REACT.test(readFileSync(file, "utf8")),
+        );
+        expect(offenders).toEqual([]);
+    });
+
+    it("never imports a framework (Vue, Angular)", () => {
+        const offenders = listFiles(src).filter((file) =>
+            IMPORT_FRAMEWORK.test(readFileSync(file, "utf8")),
         );
         expect(offenders).toEqual([]);
     });
@@ -270,7 +282,7 @@ describe("core package guard", () => {
             "utf8",
         );
         expect(rootLicence).toContain("Copyright (c) 2017 Caplin Systems Ltd");
-        for (const pkg of ["core", "react"]) {
+        for (const pkg of ["core", "react", "vue"]) {
             expect(readFileSync(join(root, "..", pkg, "LICENSE"), "utf8")).toBe(
                 rootLicence,
             );
@@ -287,6 +299,19 @@ describe("core package guard", () => {
             ),
         ).toBe(true);
         expect(IMPORT_REACT.test('import { x } from "./reactive";')).toBe(
+            false,
+        );
+    });
+
+    it("detects a vue or angular import", () => {
+        expect(IMPORT_FRAMEWORK.test('import { h } from "vue";')).toBe(true);
+        expect(
+            IMPORT_FRAMEWORK.test('import { mount } from "@vue/test-utils";'),
+        ).toBe(true);
+        expect(
+            IMPORT_FRAMEWORK.test('import { Component } from "@angular/core";'),
+        ).toBe(true);
+        expect(IMPORT_FRAMEWORK.test('import { x } from "./vue-like";')).toBe(
             false,
         );
     });

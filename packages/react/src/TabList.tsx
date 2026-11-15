@@ -6,14 +6,9 @@ import {
     type DockableTypes,
     getTabStripPath,
     type TabOf,
-    toAriaKeyShortcuts,
 } from "@fragiola/dockable";
 import * as React from "react";
-import {
-    TabListContext,
-    useDockableContext,
-    useLayoutContext,
-} from "./context";
+import { TabListContext, useLayoutContext } from "./context";
 import { useTabOverflow, useTabSetDropState } from "./hooks";
 import { useTabContainer } from "./TabSet";
 import {
@@ -71,7 +66,6 @@ export function TabList<T extends DockableTypes = AnyTypes>(
         overflow = true,
         ...rest
     } = props;
-    const { keyMap } = useDockableContext("TabList");
     const { engine } = useLayoutContext("TabList");
     const id = container.id;
     const vertical = orientation === "vertical";
@@ -92,10 +86,7 @@ export function TabList<T extends DockableTypes = AnyTypes>(
     );
     const { overflowing } = useTabOverflow(container);
 
-    const keyShortcuts = toAriaKeyShortcuts(
-        keyMap.focusNextTabset,
-        keyMap.focusPreviousTabset,
-    );
+    const keyShortcuts = engine.adapter.getKeyShortcuts("tablist");
 
     const drop = useTabSetDropState(engine, id);
     const state: TabListState = {

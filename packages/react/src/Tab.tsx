@@ -5,10 +5,7 @@ import {
     type AnyTypes,
     type DockableTypes,
     getTabButtonPath,
-    hasModifier,
-    matchesKey,
     type TabOf,
-    toAriaKeyShortcuts,
 } from "@fragiola/dockable";
 import * as React from "react";
 import {
@@ -43,30 +40,6 @@ export interface TabProps<T extends DockableTypes = AnyTypes>
     children?: React.ReactNode;
 }
 
-const FOCUSABLE =
-    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-/** focus the first focusable element in `container`, or the container itself */
-function focusFirstIn(container: HTMLElement | null) {
-    if (container) {
-        const focusable = container.querySelector<HTMLElement>(FOCUSABLE);
-        (focusable ?? container).focus();
-    }
-}
-
-/** the keys to the previous and the next tab: a horizontal strip runs from the right in RTL */
-function arrowKeys(
-    orientation: "horizontal" | "vertical",
-    direction: "ltr" | "rtl",
-): [string, string] {
-    if (orientation === "vertical") {
-        return ["ArrowUp", "ArrowDown"];
-    }
-    return direction === "rtl"
-        ? ["ArrowRight", "ArrowLeft"]
-        : ["ArrowLeft", "ArrowRight"];
-}
-
 /**
  * A tab button (`role="tab"`), following the APG tabs pattern with manual activation: arrow keys
  * (along the tab list's orientation, mirrored in RTL), Home and End move focus; click, Enter or
@@ -75,17 +48,15 @@ function arrowKeys(
  */
 export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
     const { node, children, ...rest } = props;
-    const { keyMap, model } = useDockableContext("Tab");
+    const { model } = useDockableContext("Tab");
     const { engine } = useLayoutContext("Tab");
     const { orientation } = React.useContext(TabListContext);
-    const selfRef = React.useRef<HTMLElement | null>(null);
     const id = node.id;
 
     const drag = useDragNode(node);
     const { ref: dragRef, ...dragProps } = drag.props;
     const ref = React.useCallback(
         (element: HTMLElement | null) => {
-            selfRef.current = element;
             dragRef(element); // the tab itself is the drag image
             engine.adapter.registerMeasurable(id, "tabbutton", element);
         },
@@ -94,134 +65,21 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
 
     const container = model.get("node-parent-by", { nodeId: id });
     const containerId = container?.id ?? "";
-    const isSelected = () => model.is("tab-selected", { tabId: id });
-    const selected = isSelected();
+    const selected = model.is("tab-selected", { tabId: id });
 
-    const inBorder = container?.type === "border";
-    const select = () => {
-        if (!isSelected()) {
-            model.run("tab.select", { tabId: id });
-        }
-    };
-    // a click on a border's selected tab closes the border's panel (FlexLayout's toggle)
+    // the core's rules: a press selects (or closes a border's open panel), the APG tab keys and
+    // the key map's tab keys
     const onClick = () => {
-        if (inBorder && isSelected()) {
-            model.run("border.configure", {
-                borderId: containerId,
-                open: false,
-            });
-        } else {
-            select();
-        }
+        engine.adapter.handleTabClick(id);
     };
-    const closeable = () => model.can("tab.close", { tabId: id });
-
-    const focusAdjacentTab = (to: number | "first" | "last") => {
-        const self = selfRef.current;
-        const tablist = self?.closest('[role="tablist"]');
-        if (!self || !tablist) {
-            return false;
-        }
-        const tabs = Array.from(
-            tablist.querySelectorAll<HTMLElement>('[role="tab"]'),
-        );
-        const next =
-            to === "first"
-                ? tabs[0]
-                : to === "last"
-                  ? tabs[tabs.length - 1]
-                  : tabs[tabs.indexOf(self) + to];
-        if (next?.hasAttribute("data-overflow-hidden")) {
-            // a tab hidden by tab overflow: select it, which brings it into the strip, then focus it
-            const target = container?.children.find(
-                (tab) =>
-                    tab.type === "tab" &&
-                    engine.get("tab-button-dom-id-by", {
-                        tabId: tab.id,
-                    }) === next.id,
-            );
-            if (target) {
-                model.run("tab.select", { tabId: target.id });
-                self.ownerDocument.defaultView?.requestAnimationFrame(() =>
-                    self.ownerDocument.getElementById(next.id)?.focus(),
-                );
-            }
-            return true;
-        }
-        next?.focus();
-        return next !== undefined;
-    };
-
-    // move focus into the tab content: the first focusable element, or the panel itself
-    const focusTabContent = () => {
-        const doc = selfRef.current?.ownerDocument;
-        if (!doc) {
-            return;
-        }
-        const focusPanel = () =>
-            focusFirstIn(
-                doc.getElementById(
-                    engine.get("tab-panel-dom-id-by", { tabId: id }),
-                ),
-            );
-        if (isSelected()) {
-            focusPanel();
-        } else {
-            select(); // select first, focus once the panel is shown
-            doc.defaultView?.requestAnimationFrame(focusPanel);
-        }
-    };
-
     const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
-        if (event.defaultPrevented) {
-            return;
-        }
-        const [previousKey, nextKey] = arrowKeys(
+        engine.adapter.handleTabKeyDown(id, event, {
+            element: event.currentTarget,
             orientation,
-            engine.get("direction"),
-        );
-        if (matchesKey(event, keyMap.focusTabToggle)) {
-            focusTabContent();
-            event.preventDefault();
-        } else if (event.key === "Enter" || event.key === " ") {
-            if (isSelected()) {
-                focusTabContent(); // activating an already selected tab enters its content
-            } else {
-                select();
-            }
-            event.preventDefault();
-        } else if (matchesKey(event, keyMap.closeTab) && closeable()) {
-            // move focus to a neighbour before this tab is removed (the previous one for the last)
-            if (!focusAdjacentTab(1)) {
-                focusAdjacentTab(-1);
-            }
-            model.run("tab.close", { tabId: id });
-            event.preventDefault();
-        } else if (hasModifier(event)) {
-            // modified arrows are left for keymap bindings (e.g. tabset cycling)
-        } else if (event.key === previousKey) {
-            focusAdjacentTab(-1);
-            event.preventDefault();
-        } else if (event.key === nextKey) {
-            focusAdjacentTab(1);
-            event.preventDefault();
-        } else if (event.key === "Home") {
-            focusAdjacentTab("first");
-            event.preventDefault();
-        } else if (event.key === "End") {
-            focusAdjacentTab("last");
-            event.preventDefault();
-        }
+        });
     };
 
-    const keyShortcuts = toAriaKeyShortcuts(
-        keyMap.focusTabToggle,
-        // the hint follows the tab's own rule; the key itself asks the model (`closeable`)
-        model.get("tab-settings-by", { tabId: node.id })?.closable &&
-            node.pinned !== true
-            ? keyMap.closeTab
-            : undefined,
-    );
+    const keyShortcuts = engine.adapter.getKeyShortcuts("tab", id);
 
     const overflowHidden = useTabHidden(containerId, id);
     const state: TabState = {

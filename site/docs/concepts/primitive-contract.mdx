@@ -105,3 +105,36 @@ names come from you: see [Accessible names](/docs/getting-started/accessible-nam
 A primitive never adds a class name. Its state is on the element as `data-*` attributes (present
 or absent, never `"false"`) and ARIA. The next page lists them all:
 [State attributes](/docs/concepts/state-attributes).
+
+## In Vue
+
+`@fragiola/dockable-vue` follows the same contract with Vue's own means; the parts render the same
+elements, attributes and structural style ([Vue primitives](/docs/api/vue)).
+
+- **`as` and the `render` slot, never `asChild`.** `as` takes a tag or a component. The `render`
+  scoped slot receives `{ props, state, children }`: bind `props` on your own element, and
+  render the part's content with `<component :is="children" />`.
+
+```vue
+<Dockable.TabSet :node="tabset">
+    <template #render="{ props, state, children }">
+        <section v-bind="props" :aria-current="state.active ? 'true' : undefined">
+            <component :is="children" />
+        </section>
+    </template>
+</Dockable.TabSet>
+```
+
+- **`class` and `style` are fallthrough attributes**, merged under the structural style, as in
+  React (on `Panel` the engine's keys are dropped). There is no function form: style the state
+  with the `data-*` attributes, or with the `render` slot's `state`.
+- **Listeners compose**: the part's own listener runs first, then yours (`@keydown`,
+  `@pointerdown`, `@contextmenu`).
+- **Recursion is slots**: the default scoped slot is the children function
+  (`<Dockable.Row v-slot="{ node }">`, `<Dockable.TabList v-slot="{ tab }">`,
+  `<Dockable.Panels v-slot="{ tab }">`), `#splitter="{ props }"` replaces `renderSplitter`, and
+  `:splitter="false"` renders none.
+- **A template ref on a part is its component instance**: its element is `$el`.
+- **Vue never patches what the engine writes**: panels get their geometry from the engine after
+  each render, and their content is teleported into the tab's moveable element, so moving a tab
+  never remounts it.

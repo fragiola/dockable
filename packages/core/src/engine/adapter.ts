@@ -2,10 +2,16 @@ import type { DragDropManager, OnExternalDrag } from "../dnd/DragDropManager";
 import type { DragGroup } from "../dnd/DragGroup";
 import type { EdgeBand, Orientation } from "../geometry/dock";
 import type { Rect } from "../geometry/rect";
-import type { KeyEventLike } from "../keyboard/keymap";
+import type { KeyEventLike, KeyMap } from "../keyboard/keymap";
 import type { PopoutManager } from "../popout/PopoutManager";
 import type { Model } from "../state/model";
 import type { AnyTypes, DockableTypes } from "../state/types";
+import type {
+    ContainerDropState,
+    KeyEventInput,
+    KeyShortcutsPart,
+    PressInput,
+} from "./interaction";
 import type { LayoutEngine, LayoutEngineSettings } from "./LayoutEngine";
 import type { MeasurableKind } from "./measure";
 import type { MoveableOptions } from "./moveables";
@@ -195,4 +201,55 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     getTabDragSpeed(): number;
     /** the popout windows of the model (owned by the main engine) */
     getPopoutManager(): PopoutManager<T>;
+
+    /** the resolved key map (`setOptions({ keyMap })` on the main engine; every engine reads it) */
+    getKeyMap(): KeyMap;
+    /**
+     * the `aria-keyshortcuts` of a part from the key map: a `"tab"` button's (its focus toggle,
+     * and its close key when the tab can be closed by its rule), a `"tablist"`'s, a `"panel"`'s
+     */
+    getKeyShortcuts(part: KeyShortcutsPart, tabId?: string): string | undefined;
+    /**
+     * what the current drag means for a tab container (a tabset or a border): the same object
+     * until it changes, so it can be a framework's snapshot (`getDragDropManager().subscribe`)
+     */
+    getDropState(containerId: string): ContainerDropState;
+    /** whether a tab or a tabset can be dragged now (its `draggable` setting) */
+    isDraggable(nodeId: string): boolean;
+    /** call on a tabset's `pointerdown`: a primary press makes it the active tabset */
+    handleTabSetPointerDown(tabsetId: string, event: PressInput): void;
+    /** call on a tab panel's `pointerdown`: makes the tab's tabset the active one */
+    handlePanelPointerDown(tabId: string): void;
+    /**
+     * call on a tab button's `click`: selects the tab; on a border's selected tab, closes the
+     * border's panel
+     */
+    handleTabClick(tabId: string): void;
+    /**
+     * call on a tab button's `keydown` (`element` is the button, `orientation` its tab list's):
+     * the APG tabs keys and the key map's tab keys. Returns true when it handled the key (and
+     * prevented its default)
+     */
+    handleTabKeyDown(
+        tabId: string,
+        event: KeyEventInput,
+        options: {
+            element: HTMLElement;
+            orientation: "horizontal" | "vertical";
+        },
+    ): boolean;
+    /**
+     * call on a tab panel's `keydown`: the `focusTabToggle` key focuses the tab button. Returns
+     * true when it did (its default is prevented): then stop the event's propagation
+     */
+    handlePanelKeyDown(
+        tabId: string,
+        event: KeyEventInput,
+        panel: HTMLElement,
+    ): boolean;
+    /**
+     * call on every `keydown` of the root's document: the key map's tabset focus keys, else its
+     * overlay close key. Returns true when it handled the key (and prevented its default)
+     */
+    handleDocumentKeyDown(event: KeyEventInput): boolean;
 }
