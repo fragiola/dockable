@@ -939,6 +939,26 @@ describe("panels and content", () => {
         ).toHaveLength(3);
     });
 
+    it("keeps a moved tab registered: its old element's removal does not unregister the new one", async () => {
+        const model = fresh();
+        let engine: LayoutEngine | undefined;
+        const Probe = defineComponent({
+            name: "TestProbe",
+            setup() {
+                engine = useDockable().engine;
+                return () => null;
+            },
+        });
+        await renderLayout(model, {}, () => [h(Probe)]);
+        // ts0 renders before ts1: the tab's new button mounts before its old one unmounts
+        model.run("tab.move", { tabId: "t2", to: "ts0", index: -1 });
+        await settle();
+        const measurables = engine?.adapter.getRegistrations().measurables;
+        expect(measurables?.get("tabbutton:t2")?.element).toBe(
+            mustPath("/ts0/tb2"),
+        );
+    });
+
     it("keeps the model's listeners at one set, whatever props change (caplin/FlexLayout#504)", async () => {
         const model = fresh();
         let listeners = 0;

@@ -16,6 +16,7 @@ import {
     type PrimitiveProps,
     type SlotFunction,
 } from "./utils/primitive";
+import { registerElement } from "./utils/registration";
 import {
     dataAttributes,
     elementRef,
@@ -73,10 +74,20 @@ export const Tab: DockableComponent<TabProps, TabSlots> = definePrimitive<
             const tabId = id();
             const dragRef = drag.props.value.ref;
             dragRef(element); // the tab itself is the drag image
-            engine.adapter.registerMeasurable(tabId, "tabbutton", element);
+            const unregister = registerElement(
+                engine,
+                `tabbutton:${tabId}`,
+                element,
+                (registered) =>
+                    engine.adapter.registerMeasurable(
+                        tabId,
+                        "tabbutton",
+                        registered,
+                    ),
+            );
             return () => {
                 dragRef(null);
-                engine.adapter.registerMeasurable(tabId, "tabbutton", null);
+                unregister();
             };
         },
         () => [id()],

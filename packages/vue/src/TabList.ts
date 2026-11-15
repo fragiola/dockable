@@ -17,6 +17,7 @@ import {
     type PrimitiveProps,
     type SlotFunction,
 } from "./utils/primitive";
+import { registerElement } from "./utils/registration";
 import {
     dataAttributes,
     elementRef,
@@ -90,32 +91,34 @@ export const TabList: DockableComponent<TabListProps, TabListSlots> =
                     const inBorder = border();
                     const vertical = orientation.value === "vertical";
                     // a border's strip is measured as a whole by Dockable.Border
-                    if (!inBorder) {
-                        engine.adapter.registerMeasurable(
-                            containerId,
-                            "tabstrip",
-                            element,
-                        );
-                    }
+                    const unregisterStrip = inBorder
+                        ? undefined
+                        : registerElement(
+                              engine,
+                              `tabstrip:${containerId}`,
+                              element,
+                              (registered) =>
+                                  engine.adapter.registerMeasurable(
+                                      containerId,
+                                      "tabstrip",
+                                      registered,
+                                  ),
+                          );
                     // the tabs that do not fit in the list are hidden (tab overflow)
-                    engine.adapter.registerTabList(
-                        containerId,
-                        overflow() ? element : null,
-                        vertical,
+                    const unregisterList = registerElement(
+                        engine,
+                        `tablist:${containerId}`,
+                        element,
+                        (registered) =>
+                            engine.adapter.registerTabList(
+                                containerId,
+                                registered && overflow() ? registered : null,
+                                vertical,
+                            ),
                     );
                     return () => {
-                        if (!inBorder) {
-                            engine.adapter.registerMeasurable(
-                                containerId,
-                                "tabstrip",
-                                null,
-                            );
-                        }
-                        engine.adapter.registerTabList(
-                            containerId,
-                            null,
-                            vertical,
-                        );
+                        unregisterStrip?.();
+                        unregisterList();
                     };
                 },
                 () => [id(), border(), orientation.value, overflow()],
