@@ -5,9 +5,7 @@ import {
     type AnyTypes,
     type DockableTypes,
     MAIN_LAYOUT,
-    matchesKey,
     type TabOf,
-    toAriaKeyShortcuts,
 } from "@fragiola/dockable";
 import * as React from "react";
 import { createPortal } from "react-dom";
@@ -18,7 +16,6 @@ import {
     useDockableContext,
 } from "./context";
 import { DragGroupContext } from "./DragGroup";
-import { activateTabset } from "./hooks";
 import {
     type DivPrimitiveProps,
     dataAttributes,
@@ -156,24 +153,20 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const state: PanelState = { selected, visible };
 
     const onPointerDown = () => {
-        const tabset = model.get("node-parent-by", { nodeId: id });
-        if (tabset?.type === "tabset") {
-            activateTabset(model, tabset.id);
-        }
+        mainEngine.adapter.handlePanelPointerDown(id);
     };
 
     // the configured key (pressed anywhere within the tab content) returns focus to the tab button
     const focusToggleKey = keyMap.focusTabToggle;
     const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
-        if (!event.defaultPrevented && matchesKey(event, focusToggleKey)) {
-            const button = event.currentTarget.ownerDocument.getElementById(
-                mainEngine.get("tab-button-dom-id-by", { tabId: id }),
-            );
-            if (button) {
-                button.focus();
-                event.preventDefault();
-                event.stopPropagation();
-            }
+        if (
+            mainEngine.adapter.handlePanelKeyDown(
+                id,
+                event,
+                event.currentTarget,
+            )
+        ) {
+            event.stopPropagation();
         }
     };
 
@@ -186,7 +179,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
             "aria-labelledby": mainEngine.get("tab-button-dom-id-by", {
                 tabId: id,
             }),
-            "aria-keyshortcuts": toAriaKeyShortcuts(focusToggleKey),
+            "aria-keyshortcuts": mainEngine.adapter.getKeyShortcuts("panel"),
             tabIndex: -1,
             ...dataAttributes({
                 "layout-path": layoutEngine.get("layout-path-by", {

@@ -8,7 +8,6 @@ import {
     type KeyMap,
     MAIN_LAYOUT,
     type Model,
-    matchesKey,
     type OnExternalDrag,
     type OpenWindow,
     type PopoutCallback,
@@ -119,6 +118,7 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         tabDragSpeed,
         onExternalDrag,
         dragGroup: dragGroup?.group,
+        keyMap,
         popout: {
             popoutURL,
             supportsPopout,
@@ -173,28 +173,14 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
 
     // from anywhere in the document (tab content included): the focusNextTabset and
     // focusPreviousTabset keys move focus between tabsets, else the closeOverlayBorder key closes
-    // an open overlay border; a press elsewhere in the layout closes it too
-    const { focusNextTabset, focusPreviousTabset, closeOverlayBorder } =
-        resolvedKeyMap;
+    // an open overlay border (the core's rules); a press elsewhere in the layout closes it too
     React.useEffect(() => {
         if (!rootElement) {
             return;
         }
         const doc = rootElement.ownerDocument;
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.defaultPrevented) {
-                return; // content that handled the key keeps it
-            }
-            const direction = matchesKey(event, focusNextTabset)
-                ? "next"
-                : matchesKey(event, focusPreviousTabset)
-                  ? "previous"
-                  : undefined;
-            if (direction && engine.run("focus-tabset", { direction }).ok) {
-                event.preventDefault();
-            } else {
-                engine.adapter.handleOverlayKeyDown(event, closeOverlayBorder);
-            }
+            engine.adapter.handleDocumentKeyDown(event);
         };
         const onPointerDown = (event: PointerEvent) => {
             engine.adapter.handleOverlayPointerDown(event);
@@ -206,13 +192,7 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
             doc.removeEventListener("pointerdown", onPointerDown, true);
             doc.removeEventListener("keydown", onKeyDown);
         };
-    }, [
-        engine,
-        rootElement,
-        focusNextTabset,
-        focusPreviousTabset,
-        closeOverlayBorder,
-    ]);
+    }, [engine, rootElement]);
 
     const [windowLayers, setWindowLayers] = React.useState<
         ReadonlyMap<string, HTMLElement>
