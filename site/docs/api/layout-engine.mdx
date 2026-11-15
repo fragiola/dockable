@@ -106,6 +106,7 @@ the main layout of `model`. Popout windows get their engines from the main one
 | `onExternalDrag` | `OnExternalDrag<T>` | accepts foreign drags (files, links, other libraries) as new tabs (main engine only; popout layouts use the main engine's) |
 | `dragGroup` | `DragGroup` | layouts of other models this layout exchanges tabs with by drag and drop (main engine only). Without one, drags never cross models |
 | `idScope` | `string` | what keeps this layout's DOM ids and window names apart from another layout's on the page (see below). Main engine only |
+| `keyMap` | `KeyMap` | keyboard bindings, merged over `defaultKeyMap`: the keys the parts' handlers answer to and advertise ([Parts' events](#parts-events)). Main engine only: a popout's engine reads the main one's |
 
 `idScope` exists because default node ids (`tab-1`, `window-1`) are the same in every model: two
 layouts on one page would otherwise emit the same `aria-controls` and `aria-labelledby` ids and
@@ -116,14 +117,14 @@ React's `useId()`, so server and client agree. Popout engines share their main e
 
 `engine.adapter.setOptions(settings: LayoutEngineSettings<T>)` updates the options an adapter may change on
 every render. `LayoutEngineSettings<T>` is the subset of `LayoutEngineOptions<T>` that can change:
-`realtimeResize`, `tabDragSpeed`, `popout`, `onExternalDrag` and `dragGroup`. An option left out
+`realtimeResize`, `tabDragSpeed`, `popout`, `onExternalDrag`, `dragGroup` and `keyMap`. An option left out
 goes back to its default. `model`, `measure` and `idScope` are fixed for the engine's life.
 
 ## For adapter authors: `engine.adapter`
 
 Everything else is on `engine.adapter`, a `LayoutEngineAdapter<T>`: the render cycle, element
 registration, the moveable elements, measured geometry, overlay borders, and the drag and popout
-machinery. A framework adapter (React today; Angular and Vue next) calls it; an app never needs
+machinery. A framework adapter (React and Vue today; Angular next) calls it; an app never needs
 it, and the examples never touch it.
 
 | member | description |
@@ -253,6 +254,28 @@ manager.
 | `setSplitterDragging(dragging)` | marks a splitter drag in progress (used by the splitter controller) |
 | `getTabDragSpeed()` | seconds a view may take to animate the drop outline |
 
+### Parts' events
+
+The rules every adapter applies to its parts' events, so no adapter re-implements them (each
+framework only forwards the event): the tab strip's keyboard (the APG tabs pattern with manual
+activation, mirrored in RTL), a tab press, a tabset or panel press, a panel's focus key, the
+document's keys, and the `aria-keyshortcuts` each part advertises. A key handler takes a
+`KeyEventInput` (`key`, the modifiers, `defaultPrevented`, `preventDefault()`: a native
+`KeyboardEvent` or a framework's), a press handler a `PressInput` (`button` and the modifiers).
+
+| method | description |
+| --- | --- |
+| `getKeyMap()` | the resolved `KeyMap` (`setOptions({ keyMap })` on the main engine; every engine of the model reads it) |
+| `getKeyShortcuts(part, tabId?)` | the `aria-keyshortcuts` of a part (a `KeyShortcutsPart`): a `"tab"` button's (the focus toggle, and the close key when the tab's rule lets it close), a `"tablist"`'s (the tabset focus keys), a `"panel"`'s (the focus toggle) |
+| `getDropState(containerId)` | what the current drag means for a tabset or a border, a `ContainerDropState`: `target`, `location`, `index` (the strip insertion index) and `refused`. The same object until it changes, so it can be a framework's snapshot (subscribe with `getDragDropManager().subscribe`) |
+| `isDraggable(nodeId)` | whether a tab or a tabset can be dragged now (its `draggable` setting) |
+| `handleTabSetPointerDown(tabsetId, event)` | call on a tabset's `pointerdown`: a primary press with no modifier makes it the active tabset (`tabset.activate`) |
+| `handlePanelPointerDown(tabId)` | call on a tab panel's `pointerdown`: makes the tab's tabset the active one |
+| `handleTabClick(tabId)` | call on a tab button's `click`: selects the tab (`tab.select`); on a border's selected tab, closes the border's panel (`border.configure`) |
+| `handleTabKeyDown(tabId, event, { element, orientation })` | call on a tab button's `keydown` (`element` is the button, `orientation` its tab list's): arrow keys, Home and End move focus (selecting a tab hidden by overflow first), Enter or Space selects or enters the selected tab's panel, the `focusTabToggle` key enters the panel, the `closeTab` key closes the tab when `model.can("tab.close")`. Returns true when it handled the key (and prevented its default) |
+| `handlePanelKeyDown(tabId, event, panel)` | call on a tab panel's `keydown`: the `focusTabToggle` key focuses the tab button. Returns true when it did (its default prevented): then stop the event's propagation |
+| `handleDocumentKeyDown(event)` | call on every `keydown` of the root's document: the `focusNextTabset`/`focusPreviousTabset` keys run `focus-tabset`, else the `closeOverlayBorder` key closes an open overlay border. A key the content already handled (`defaultPrevented`) is left alone. Returns true when it handled the key |
+
 ### Geometry
 
 The core never touches the global `document` or `window`: all DOM access goes through the root
@@ -297,6 +320,10 @@ selectors work across frameworks. See [Layout paths](/docs/concepts/layout-paths
 | `MeasurableKind` | the kinds of element whose geometry the engine measures: `"row"`, `"tabset"`, `"tabstrip"`, `"tabsetcontent"`, `"tabbutton"`, `"borderheader"`, `"bordercontent"` |
 | `MeasureFunction` | `(element: HTMLElement) => Rect`: measures an element in viewport coordinates |
 | `MoveableOptions` | how a panel hosts its content (see [Moveables](#moveables)) |
+| `ContainerDropState` | what the current drag means for a tab container (see [Parts' events](#parts-events)) |
+| `KeyEventInput` | a keyboard event as the adapter's key handlers read it (see [Parts' events](#parts-events)) |
+| `PressInput` | a pointer press as the adapter's press handlers read it (see [Parts' events](#parts-events)) |
+| `KeyShortcutsPart` | `"tab"`, `"tablist"` or `"panel"`: the part `getKeyShortcuts` answers for |
 | `SizeRange` | the size range of a row or tabset, in px: `minWidth`, `minHeight`, `maxWidth`, `maxHeight` (read-only) |
 | `FlexSizing` | a `SizeRange` plus `grow`: what `"flex-by"` returns |
 | `OverlayPlacement` | an overlay border's insets in px (`top`, `right`, `bottom`, `left`, each optional and read-only): what `"overlay-placement-by"` returns |
