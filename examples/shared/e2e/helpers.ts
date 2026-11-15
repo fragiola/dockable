@@ -1,20 +1,50 @@
-import { expect, type Locator, type Page } from "@playwright/test";
-import { listExampleSlugs } from "../scripts/examples-lib.ts";
-import { THEMES, type ThemeName } from "../src/examples/_themes/themes";
+import {
+    expect,
+    type FrameLocator,
+    type Locator,
+    type Page,
+    test,
+} from "@playwright/test";
+import { examplesApp, listExampleSlugs } from "../scripts/examples-lib.ts";
+import { THEMES, type ThemeName } from "../src/themes/themes.ts";
+import { embedBase, frameworkOf, skipReason } from "./available.ts";
 
-// The examples run in the embed app, addressed by its directory URL (`…/?id=`, §5.1 of the
-// site export contract), alone on the page: the stage is the page's own `data-testid="stage"`,
+// The examples run in a framework's embed app, addressed by its directory URL (`…/?id=`, §5.1 of
+// the site export contract), alone on the page: the stage is the page's own `data-testid="stage"`,
 // and the site's Reset (which reloads the iframe) is a reload.
+//
+// Every framework runs these specs (config.ts). They reach the examples only through what every
+// adapter reproduces: `data-layout-path`, roles and accessible names, `data-*` state and test ids
+// the example sets itself; never a class name or a framework detail.
 
-export const EXAMPLES = listExampleSlugs().map((slug) => ({ slug }));
+/** The framework under test, set by the app's playwright.config.ts. */
+export const FRAMEWORK = frameworkOf(process.env.EXAMPLES_FRAMEWORK);
+/** Where the e2e server mounts its embed (serve.ts). */
+export const EMBED_BASE = embedBase(FRAMEWORK);
+const AVAILABLE = listExampleSlugs(examplesApp(FRAMEWORK));
+/** The framework's examples: a spec loops over these, never over a fixed list. */
+export const EXAMPLES = AVAILABLE.map((slug) => ({ slug }));
 export { THEMES };
 
-/** Opens an example in a theme and waits for its layout to mount. */
+/**
+ * Skips the running test (or, at the top of a spec file, the whole file) when the framework has
+ * not every one of these examples: a framework may ship a subset of them.
+ */
+export function requireExamples(...slugs: string[]) {
+    const reason = skipReason(FRAMEWORK, AVAILABLE, slugs);
+    test.skip(reason !== undefined, reason);
+}
+
+/**
+ * Opens an example in a theme and waits for its layout to mount. Skips the test when the
+ * framework has no such example.
+ */
 export async function openExample(
     page: Page,
     slug: string,
     options: { theme?: ThemeName } = {},
 ) {
+    requireExamples(slug);
     const params = new URLSearchParams({ id: slug });
     if (options.theme) params.set("theme", options.theme);
     await page.goto(`./?${params}`);
@@ -29,6 +59,24 @@ export async function openExample(
         stage.locator('[data-layout-path="/layout"]').first(),
     ).toBeVisible();
     return stage;
+}
+
+/**
+ * Opens an example as fragiola.com shows it: in an iframe of a same-origin page (serve.ts,
+ * /host.html). Skips the test when the framework has no such example (an unknown id is opened
+ * with `page.goto` instead).
+ */
+export async function openHosted(
+    page: Page,
+    query: { id: string; theme?: string },
+): Promise<FrameLocator> {
+    requireExamples(query.id);
+    await page.goto(`/host.html?${new URLSearchParams(query)}`);
+    const frame = page.frameLocator('[data-testid="frame"]');
+    await expect(
+        frame.locator('[data-layout-path="/layout"]').first(),
+    ).toBeVisible();
+    return frame;
 }
 
 /** The site's Reset: it reloads the example's frame. */

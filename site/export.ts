@@ -81,17 +81,11 @@ run([
 const manifests = await buildManifests();
 for (const framework of project.frameworks) {
     const embed = join(out, "embed", framework);
-    run(
-        [
-            "--filter",
-            `examples-${framework}`,
-            "exec",
-            "sh",
-            "-c",
-            `node scripts/generate.ts && vite build --outDir "${embed}" --emptyOutDir`,
-        ],
-        { EMBED_BASE: `${base}/embed/${framework}/` },
-    );
+    // every framework app's `build` builds its embed for EMBED_BASE into EMBED_OUT_DIR
+    run(["--filter", `examples-${framework}`, "run", "build"], {
+        EMBED_BASE: `${base}/embed/${framework}/`,
+        EMBED_OUT_DIR: embed,
+    });
     write(join(embed, "manifest.json"), json(manifests.get(framework)));
 }
 

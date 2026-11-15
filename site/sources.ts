@@ -4,12 +4,13 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildManifest } from "../examples/react/scripts/manifest.ts";
-import { THEMES } from "../examples/react/src/examples/_themes/themes.ts";
+import { examplesApp } from "../examples/shared/scripts/examples-lib.ts";
+import { buildManifest } from "../examples/shared/scripts/manifest.ts";
 import {
     CATEGORIES,
     CATEGORY_TITLES,
-} from "../examples/react/src/examples/meta-types.ts";
+} from "../examples/shared/src/meta-types.ts";
+import { THEMES } from "../examples/shared/src/themes/themes.ts";
 import {
     type DocsConfig,
     type ExamplesConfig,
@@ -21,7 +22,7 @@ import {
 
 export const SITE_DIR = import.meta.dirname;
 export const DOCS_DIR = join(SITE_DIR, "docs");
-const THEMES_DIR = join(SITE_DIR, "../examples/react/src/examples/_themes");
+const THEMES_DIR = join(SITE_DIR, "../examples/shared/src/themes");
 
 const readJson = <T>(file: string): T =>
     JSON.parse(readFileSync(file, "utf-8")) as T;
@@ -36,7 +37,7 @@ export function readConfig(): DocsConfig {
 
 /**
  * examples.json: the categories of meta-types.ts (the contract's `levels`) and the themes of
- * _themes/themes.ts, with their CSS.
+ * themes/themes.ts (both in examples/shared), with their CSS (still published as `_themes/<name>.css`).
  */
 export function buildExamplesConfig(): ExamplesConfig {
     return {
@@ -61,7 +62,7 @@ export function buildExamplesConfig(): ExamplesConfig {
 
 /** Each framework's manifest, by framework. */
 export async function buildManifests(): Promise<Map<string, Manifest>> {
-    return new Map([["react", await buildManifest()]]);
+    return new Map([["react", await buildManifest(examplesApp("react"))]]);
 }
 
 /** The whole export, in memory. */
