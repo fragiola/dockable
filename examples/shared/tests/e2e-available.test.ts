@@ -41,8 +41,8 @@ describe("a spec's examples", () => {
 describe("a complete framework", () => {
     const available = ["hello-layout"];
 
-    it("is React or Vue", () => {
-        expect(COMPLETE_FRAMEWORKS).toEqual(["react", "vue"]);
+    it("is every framework: React, Vue and Angular", () => {
+        expect(COMPLETE_FRAMEWORKS).toEqual(["react", "vue", "angular"]);
     });
 
     it("fails a spec whose example it lacks, instead of skipping it", () => {
@@ -52,9 +52,9 @@ describe("a complete framework", () => {
         expect(skipOrFail("vue", available, ["hello-layout"])).toBeUndefined();
     });
 
-    it("leaves the others skipping", () => {
-        expect(skipOrFail("angular", available, ["popout"])).toBe(
-            "angular has no popout example",
+    it("fails for Angular too", () => {
+        expect(() => skipOrFail("angular", available, ["popout"])).toThrow(
+            /angular has no popout example, but every angular example is required/,
         );
     });
 });

@@ -6,6 +6,18 @@ const tabs = (page: Page, tabset = "/ts0") =>
     path(page, `${tabset}/tabstrip`).locator('[role="tab"]');
 const hiddenCount = (page: Page) =>
     path(page, "/ts0/tabstrip").locator("[data-overflow-hidden]").count();
+/** The hidden count once two reads a frame apart agree. */
+async function settledHiddenCount(page: Page) {
+    let previous = -1;
+    for (;;) {
+        const count = await hiddenCount(page);
+        if (count === previous) return count;
+        previous = count;
+        await page.evaluate(
+            () => new Promise((resolve) => requestAnimationFrame(resolve)),
+        );
+    }
+}
 const trigger = (page: Page) => path(page, "/ts0/button/overflow");
 /** narrows the stage itself: the viewport would also reflow the examples browser around it */
 const stageWidth = (page: Page, width: number) =>
@@ -57,7 +69,8 @@ test("tabs leave the strip one by one as it narrows, and a picked tab comes back
     // a middle width: pick a hidden tab from the select
     await stageWidth(page, 700);
     await expect.poll(() => hiddenCount(page)).toBeGreaterThan(0);
-    const before = await hiddenCount(page);
+    // the strip settles over a frame or two (Angular renders a measure on the next frame)
+    const before = await settledHiddenCount(page);
     await trigger(page).click();
     const option = page.getByRole("option").last();
     const name = ((await option.textContent()) ?? "").trim();
@@ -67,7 +80,7 @@ test("tabs leave the strip one by one as it narrows, and a picked tab comes back
     await expect(picked).toBeVisible();
     await expect(picked).not.toHaveAttribute("data-overflow-hidden");
     // another tab (or two, when the picked one is wider) went to the select in its place
-    expect(await hiddenCount(page)).toBeGreaterThanOrEqual(before);
+    await expect.poll(() => hiddenCount(page)).toBeGreaterThanOrEqual(before);
 
     // widening: every tab back, with the selection kept
     await stageWidth(page, 2600);

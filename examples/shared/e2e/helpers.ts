@@ -29,7 +29,7 @@ export { THEMES };
 /**
  * Skips the running test (or, at the top of a spec file, the whole file) when the framework has
  * not every one of these examples: a framework may ship a subset of them. A complete framework
- * (React, Vue) fails instead.
+ * (React, Vue, Angular) fails instead.
  */
 export function requireExamples(...slugs: string[]) {
     const reason = skipOrFail(FRAMEWORK, AVAILABLE, slugs);

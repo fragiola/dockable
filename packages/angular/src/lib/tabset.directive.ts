@@ -25,7 +25,13 @@ import {
     type TabContainerContext,
 } from "./context";
 import { bindMeasurable, dropStateSignal } from "./internal";
-import { bindStructuralStyle, dataAttr, injectHost, px } from "./utils";
+import {
+    beforeInputs,
+    bindStructuralStyle,
+    dataAttr,
+    injectHost,
+    px,
+} from "./utils";
 
 export interface TabSetState {
     /** the tabset is its layout's active tabset */
@@ -48,6 +54,18 @@ export interface TabSetState {
      */
     dropIndex: number | undefined;
 }
+
+/** A tabset's state before its input is set (see `beforeInputs`). */
+const UNSET_TABSET_STATE: TabSetState = {
+    active: false,
+    maximized: false,
+    hidden: false,
+    empty: false,
+    dropTarget: false,
+    dropLocation: undefined,
+    dropRefused: false,
+    dropIndex: undefined,
+};
 
 /**
  * A tabset: `<div [dockableTabSet]="node">`, a flex item of its row, sized by its weight. Pressing
@@ -93,20 +111,24 @@ export class DockableTabSet<T extends DockableTypes = AnyTypes>
 
     /** what the tabset shows as `data-*` */
     readonly state: Signal<TabSetState> = computed(() => {
-        this.context.revision();
-        const model = this.context.model();
-        const tabsetId = this.containerId();
-        const drop = this.drop();
-        return {
-            active: model.is("tabset-active", { tabsetId }),
-            maximized: model.is("tabset-maximized", { tabsetId }),
-            hidden: model.is("node-hidden-by-maximize", { nodeId: tabsetId }),
-            empty: this.dockableTabSet().children.length === 0,
-            dropTarget: drop.target,
-            dropLocation: drop.location,
-            dropRefused: drop.refused,
-            dropIndex: drop.index,
-        };
+        return beforeInputs(UNSET_TABSET_STATE, () => {
+            this.context.revision();
+            const model = this.context.model();
+            const tabsetId = this.containerId();
+            const drop = this.drop();
+            return {
+                active: model.is("tabset-active", { tabsetId }),
+                maximized: model.is("tabset-maximized", { tabsetId }),
+                hidden: model.is("node-hidden-by-maximize", {
+                    nodeId: tabsetId,
+                }),
+                empty: this.dockableTabSet().children.length === 0,
+                dropTarget: drop.target,
+                dropLocation: drop.location,
+                dropRefused: drop.refused,
+                dropIndex: drop.index,
+            };
+        });
     });
 
     protected readonly data = computed(() => {
@@ -171,17 +193,26 @@ export function injectTabContainer<T extends DockableTypes = AnyTypes>(
             `${part} must be used inside [dockableTabSet] or [dockableBorder]`,
         );
     }
+    // the last node found: a command that removes the container (`layout.load`, a close) changes
+    // the model before the view that renders it is destroyed (a row folds away), and its parts may
+    // read it once more
+    let last: TabContainer<T> | undefined;
+    let lastId: string | undefined;
     return computed(() => {
         context.revision();
         const node = context
             .model()
             .get("node-by", { id: container.containerId() });
-        if (node?.type !== "tabset" && node?.type !== "border") {
-            throw new Error(
-                `${part} must be used inside [dockableTabSet] or [dockableBorder]`,
-            );
+        if (node?.type === "tabset" || node?.type === "border") {
+            last = node as unknown as TabContainer<T>;
+            lastId = node.id;
+            return last;
         }
-        return node as unknown as TabContainer<T>;
+        // only for the container it was found under: another id gets its own node or the error
+        if (last && container.containerId() === lastId) return last;
+        throw new Error(
+            `${part} must be used inside [dockableTabSet] or [dockableBorder]`,
+        );
     });
 }
 

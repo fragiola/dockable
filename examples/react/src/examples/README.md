@@ -55,10 +55,11 @@ looking for its feature would search, and `order` is its place inside the catego
 
 ## Adding an example
 
-An example exists in every framework, with the same id: React (`examples/react`) and Vue
-(`examples/vue`) ship every one, and their tests fail when a slug is in one app and not the other
-(`examples/vue/tests/examples.test.ts`); the shared e2e specs fail, not skip, for an example
-either lacks (`COMPLETE_FRAMEWORKS` in `examples/shared/e2e/available.ts`).
+An example exists in every framework, with the same id: React (`examples/react`), Vue
+(`examples/vue`) and Angular (`examples/angular`) ship every one, and their tests fail when a slug
+is in one app and not another (`examples/{vue,angular}/tests/examples.test.ts`); the shared e2e
+specs fail, not skip, for an example one lacks (`COMPLETE_FRAMEWORKS` in
+`examples/shared/e2e/available.ts`).
 
 1. Create `src/examples/<slug>/index.tsx`, and its metadata in
    `examples/shared/src/meta/<slug>.ts` (see `meta-types.ts`) unless another framework already
@@ -83,6 +84,20 @@ either lacks (`COMPLETE_FRAMEWORKS` in `examples/shared/e2e/available.ts`).
    UI, with the React kit's classes) and `examples/vue/src/examples/_kit`. Check it with
    `pnpm --filter examples-vue dev` (`http://localhost:5181/?id=<slug>`) and its spec against the
    Vue embed (`pnpm --filter examples-vue e2e`).
+5. Write its Angular twin in `examples/angular/src/examples/<slug>/`: `index.ts` (the entry, a
+   standalone component with an inline template, `export default class`, `host: { class:
+   "contents" }`, which puts `[dockableRoot]` on an element), `styles.ts` (the React one,
+   importing `@fragiola/dockable-angular`; bound with `[class]`, never a `class="…"` in the
+   example's files) and one standalone component per part React writes as a function, in its own
+   `.ts`. The same layout JSON, `Types`, logic order, roles, names and test ids; the Angular API
+   differs where the adapter's does (attribute directives on your own elements, `ng-template`
+   directives for children functions, each part's `state()` through `exportAs`, injection
+   functions; UI outside the parts reads the model through `injectModelState`). Its kit is
+   `examples/angular/src/components` (Fragiola UI's pieces over Angular CDK, with the React kit's
+   classes: a trigger directive given the popup's `ng-template`, whose root element is the
+   content) and `examples/angular/src/examples/_kit`. Check it with
+   `pnpm --filter examples-angular dev` (`http://localhost:5182/?id=<slug>`) and its spec against
+   the Angular embed (`pnpm --filter examples-angular e2e`).
 
 ## Anatomy of an example
 

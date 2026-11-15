@@ -16,6 +16,7 @@
 
 @source "../../index.html";
 @source "../examples";
+@source "../components";
 @source "./";
 
 html,

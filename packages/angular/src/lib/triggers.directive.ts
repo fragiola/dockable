@@ -161,6 +161,8 @@ export class DockableTabOverflowTrigger<T extends DockableTypes = AnyTypes> {
     });
 
     protected readonly data = computed(() => {
+        // the path moves with the layout (a tabset inserted before this one): read the revision
+        this.context.revision();
         const count = this.state().hiddenTabs.length;
         return {
             // FlexLayout's path for a tabset's overflow button

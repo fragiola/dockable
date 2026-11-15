@@ -3,10 +3,12 @@
 // see LICENSE.
 
 import {
+    ApplicationRef,
     Component,
     computed,
     Directive,
     effect,
+    inject,
     input,
     type Signal,
     signal,
@@ -19,6 +21,7 @@ import {
     type DockableTypes,
     getSplitterPath,
     type RowNode,
+    type SplitterAria,
     type SplitterController,
     type SplitterControllerState,
 } from "@fragiola/dockable";
@@ -28,6 +31,7 @@ import {
     injectLayoutContext,
 } from "./context";
 import {
+    beforeInputs,
     bindStructuralStyle,
     dataAttr,
     injectHost,
@@ -40,6 +44,21 @@ export interface SplitterState extends SplitterControllerState {
     /** row splitters are hidden while a tabset is maximized */
     hidden: boolean;
 }
+
+/** A splitter's state and ARIA values before its input is set (see `beforeInputs`). */
+const UNSET_SPLITTER_STATE: SplitterState = {
+    dragging: false,
+    previewOffset: undefined,
+    orientation: "horizontal",
+    hidden: false,
+};
+const UNSET_SPLITTER_ARIA: SplitterAria = {
+    orientation: "horizontal",
+    valueNow: undefined,
+    valueMin: undefined,
+    valueMax: undefined,
+    valueText: undefined,
+};
 
 /**
  * A splitter between two children of a row, or between a border's panel and the layout
@@ -56,15 +75,15 @@ export interface SplitterState extends SplitterControllerState {
         role: "separator",
         tabindex: "0",
         "[attr.aria-orientation]": "aria().orientation",
-        "[attr.aria-valuenow]": "aria().valueNow",
-        "[attr.aria-valuemin]": "aria().valueMin",
-        "[attr.aria-valuemax]": "aria().valueMax",
-        "[attr.aria-valuetext]": "aria().valueText",
+        "[attr.aria-valuenow]": "aria().valueNow ?? null",
+        "[attr.aria-valuemin]": "aria().valueMin ?? null",
+        "[attr.aria-valuemax]": "aria().valueMax ?? null",
+        "[attr.aria-valuetext]": "aria().valueText ?? null",
         "[attr.data-layout-path]": "data().path",
         "[attr.data-orientation]": "data().orientation",
         "[attr.data-dragging]": "data().dragging",
         "(pointerdown)": "controller().onPointerDown($event)",
-        "(keydown)": "controller().onKeyDown($event)",
+        "(keydown)": "onKeyDown($event)",
     },
 })
 export class DockableSplitter<T extends DockableTypes = AnyTypes> {
@@ -92,26 +111,28 @@ export class DockableSplitter<T extends DockableTypes = AnyTypes> {
 
     /** what the splitter shows as `data-*` */
     readonly state: Signal<SplitterState> = computed(() => {
-        this.tick();
-        this.context.revision();
-        const controller = this.controller();
-        return {
-            ...controller.getState(),
-            orientation: controller.getAria().orientation,
-            hidden: controller.isHidden(),
-        };
+        return beforeInputs(UNSET_SPLITTER_STATE, () => {
+            this.tick();
+            this.context.revision();
+            const controller = this.controller();
+            return {
+                ...controller.getState(),
+                orientation: controller.getAria().orientation,
+                hidden: controller.isHidden(),
+            };
+        });
     });
 
-    protected readonly aria = computed(() => {
-        this.state();
-        const aria = this.controller().getAria();
-        return {
-            orientation: aria.orientation,
-            valueNow: aria.valueNow ?? null,
-            valueMin: aria.valueMin ?? null,
-            valueMax: aria.valueMax ?? null,
-            valueText: aria.valueText ?? null,
-        };
+    /**
+     * The separator's ARIA values, as its `aria-*` attributes carry them: a template reads them
+     * (`#s="dockableSplitter"`, `s.aria().valueText`) to show where the splitter sits, as React's
+     * `render` and Vue's `#render` hand them over.
+     */
+    readonly aria: Signal<SplitterAria> = computed(() => {
+        return beforeInputs(UNSET_SPLITTER_ARIA, () => {
+            this.state();
+            return this.controller().getAria();
+        });
     });
 
     protected readonly data = computed(() => {
@@ -127,6 +148,23 @@ export class DockableSplitter<T extends DockableTypes = AnyTypes> {
             dragging: dataAttr(state.dragging),
         };
     });
+
+    private readonly app = inject(ApplicationRef);
+
+    /**
+     * A resize from the keyboard is read back at once (a screen reader announces the new value, as
+     * React's and Vue's adapters render it before the key's handlers return): the application
+     * renders now, the measure-and-position cycle included, not on Angular's next frame.
+     */
+    protected onKeyDown(event: KeyboardEvent) {
+        this.controller().onKeyDown(event);
+        if (!event.defaultPrevented) return;
+        try {
+            this.app.tick();
+        } catch {
+            // a key dispatched while the application is already rendering: that render shows it
+        }
+    }
 
     constructor() {
         effect((onCleanup) => {

@@ -1,5 +1,5 @@
 import { Component, input, type OnInit, signal } from "@angular/core";
-import { createModel, type Model } from "@fragiola/dockable";
+import { createModel, MAIN_LAYOUT, type Model } from "@fragiola/dockable";
 import { afterEach, describe, expect, it } from "vitest";
 import { DOCKABLE, injectDockable } from "../src/public-api";
 import { keyDown, mustPath, mustTestId, path, pointerDown } from "./helpers";
@@ -63,6 +63,29 @@ describe("composition and ARIA", () => {
         ]) {
             expect(path(p), p).toBeTruthy();
         }
+    });
+
+    it("moves every path with the layout when a tabset is inserted before them", async () => {
+        const m = model();
+        await renderLayout(m);
+        // a new tabset at the layout's start edge: the first tabset becomes the second
+        m.run("tab.add", {
+            component: "test",
+            label: "Four",
+            data: { name: "Four" },
+            to: MAIN_LAYOUT,
+            location: "start",
+        });
+        await settle();
+        const strip = (p: string) =>
+            [...mustPath(p).querySelectorAll('[role="tab"]')].map((tab) =>
+                tab.textContent?.trim(),
+            );
+        expect(strip("/ts0/tabstrip")).toEqual(["Four"]);
+        expect(strip("/ts1/tabstrip")).toEqual(["One", "Two"]);
+        expect(strip("/ts2/tabstrip")).toEqual(["Three"]);
+        expect(mustPath("/ts1").contains(mustPath("/ts1/content"))).toBe(true);
+        expect(mustPath("/ts2").contains(mustPath("/ts2/content"))).toBe(true);
     });
 
     it('exposes state through data-* only, present or absent, never "false"', async () => {
@@ -167,6 +190,91 @@ describe("composition and ARIA", () => {
         // between the two tabsets
         expect(splitter.previousElementSibling).toBe(mustPath("/ts0"));
         expect(splitter.nextElementSibling).toBe(mustPath("/ts1"));
+    });
+
+    it("lets a class binding on a part's own element read its state", async () => {
+        // Angular applies an element's class bindings before it sets its directives' inputs
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <div dockableRow>
+                        <ng-template [dockableRowChild]="model()" let-node>
+                            @if (node.type === "tabset") {
+                                <div
+                                    [dockableTabSet]="node"
+                                    #set="dockableTabSet"
+                                    [class]="set.state().active ? 'is-active' : 'is-idle'"
+                                >
+                                    <div dockableTabList>
+                                        <ng-template [dockableTabListItem]="model()" let-tab>
+                                            <div
+                                                [dockableTab]="tab"
+                                                #part="dockableTab"
+                                                [class.is-selected]="part.state().selected"
+                                            ></div>
+                                        </ng-template>
+                                    </div>
+                                    <div dockableTabSetContent></div>
+                                </div>
+                            }
+                        </ng-template>
+                        <ng-template dockableRowSplitter let-node="node" let-index="index">
+                            <div
+                                [dockableSplitter]="node"
+                                [index]="index"
+                                #s="dockableSplitter"
+                                [class]="'is-' + s.state().orientation"
+                            ></div>
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class Styled {
+            readonly model = input.required<Model<Types>>();
+        }
+        await render(Styled, { model: model() });
+        expect(mustPath("/ts0/tb0")).toHaveClass("is-selected");
+        expect(mustPath("/ts0/tb1")).not.toHaveClass("is-selected");
+        expect(mustPath("/s0")).toHaveClass("is-vertical");
+        for (const tabset of [mustPath("/ts0"), mustPath("/ts1")]) {
+            expect(tabset).toHaveClass(
+                tabset.hasAttribute("data-active") ? "is-active" : "is-idle",
+            );
+        }
+    });
+
+    it("hands a splitter's ARIA values to its template (aria-valuetext in a readout)", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <div dockableRow>
+                        <ng-template dockableRowChild let-node>
+                            @if (node.type === "tabset") {
+                                <div [dockableTabSet]="node"><div dockableTabSetContent></div></div>
+                            }
+                        </ng-template>
+                        <ng-template dockableRowSplitter let-node="node" let-index="index">
+                            <div [dockableSplitter]="node" [index]="index" #s="dockableSplitter" aria-label="Resize">
+                                <span data-testid="readout">{{ s.aria().valueText }}</span>
+                            </div>
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class Readout {
+            readonly model = input.required<Model<Types>>();
+        }
+        const m = model();
+        await render(Readout, { model: m });
+        const splitter = mustPath("/s0");
+        const readout = () => mustTestId("readout").textContent;
+        const before = readout();
+        expect(before).toMatch(/%$/);
+        expect(before).toBe(splitter.getAttribute("aria-valuetext"));
     });
 });
 
@@ -319,6 +427,15 @@ describe("interaction", () => {
         keyDown(mustPath("/s0"), { key: "ArrowRight" });
         await settle();
         expect(commands.map((c) => c.command)).toContain("row.resize");
+    });
+
+    it("renders a keyboard resize before the key's handlers return", async () => {
+        const m = model();
+        await renderLayout(m);
+        const before = mustPath("/ts0").style.flexGrow;
+        keyDown(mustPath("/s0"), { key: "ArrowLeft" });
+        // no settle: a screen reader (or a test) reads the new value right after the key
+        expect(mustPath("/ts0").style.flexGrow).not.toBe(before);
     });
 });
 
@@ -483,6 +600,46 @@ describe("rows", () => {
                 ],
             },
         });
+
+    it("folds a nested row that rendered with its parent's templates, without an error", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <div dockableRow>
+                        <ng-template [dockableRowChild]="model()" let-node>
+                            @if (node.type === "row") {
+                                <div [dockableRow]="node"></div>
+                            } @else {
+                                <div [dockableTabSet]="node">
+                                    <div dockableTabList>
+                                        <ng-template dockableTabListItem let-tab>
+                                            <div [dockableTab]="tab">{{ tab.label }}</div>
+                                        </ng-template>
+                                    </div>
+                                    <div dockableTabSetContent></div>
+                                </div>
+                            }
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class Recursive {
+            readonly model = input.required<Model<Types>>();
+        }
+        const m = nested();
+        await render(Recursive, { model: m });
+        // t2's tabset empties and goes, and r1 (one child left) folds into its parent
+        m.run("tab.move", { tabId: "t2", to: MAIN_LAYOUT, location: "start" });
+        await settle();
+        expect(m.get("node-by", { id: "ts2" })).toBeUndefined();
+        expect(
+            [...document.querySelectorAll('[role="tab"]')].map(
+                (tab) => tab.textContent,
+            ),
+        ).toEqual(["Three", "One", "Two"]);
+    });
 
     it("renders nested rows through the child template, with their paths and splitters", async () => {
         await renderLayout(nested());

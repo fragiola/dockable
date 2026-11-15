@@ -39,10 +39,14 @@ export class DockableTabSetContent {
         empty: this.tabset().children.length === 0,
     }));
 
-    protected readonly data = computed(() => ({
-        path: `${this.layout.engine().get("layout-path-by", { nodeId: this.id() })}/content`,
-        empty: dataAttr(this.state().empty),
-    }));
+    protected readonly data = computed(() => {
+        // the path moves with the layout (a tabset inserted before this one): read the revision
+        this.context.revision();
+        return {
+            path: `${this.layout.engine().get("layout-path-by", { nodeId: this.id() })}/content`,
+            empty: dataAttr(this.state().empty),
+        };
+    });
 
     constructor() {
         bindMeasurable(

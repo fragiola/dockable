@@ -127,6 +127,8 @@ export class DockableTabList {
     });
 
     protected readonly data = computed(() => {
+        // the path moves with the layout (a tabset inserted before this one): read the revision
+        this.context.revision();
         const state = this.state();
         return {
             path: getTabStripPath(
