@@ -192,6 +192,59 @@ describe("composition and ARIA", () => {
         expect(splitter.nextElementSibling).toBe(mustPath("/ts1"));
     });
 
+    it("lets a class binding on a part's own element read its state", async () => {
+        // Angular applies an element's class bindings before it sets its directives' inputs
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <div dockableRow>
+                        <ng-template [dockableRowChild]="model()" let-node>
+                            @if (node.type === "tabset") {
+                                <div
+                                    [dockableTabSet]="node"
+                                    #set="dockableTabSet"
+                                    [class]="set.state().active ? 'is-active' : 'is-idle'"
+                                >
+                                    <div dockableTabList>
+                                        <ng-template [dockableTabListItem]="model()" let-tab>
+                                            <div
+                                                [dockableTab]="tab"
+                                                #part="dockableTab"
+                                                [class.is-selected]="part.state().selected"
+                                            ></div>
+                                        </ng-template>
+                                    </div>
+                                    <div dockableTabSetContent></div>
+                                </div>
+                            }
+                        </ng-template>
+                        <ng-template dockableRowSplitter let-node="node" let-index="index">
+                            <div
+                                [dockableSplitter]="node"
+                                [index]="index"
+                                #s="dockableSplitter"
+                                [class]="'is-' + s.state().orientation"
+                            ></div>
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class Styled {
+            readonly model = input.required<Model<Types>>();
+        }
+        await render(Styled, { model: model() });
+        expect(mustPath("/ts0/tb0")).toHaveClass("is-selected");
+        expect(mustPath("/ts0/tb1")).not.toHaveClass("is-selected");
+        expect(mustPath("/s0")).toHaveClass("is-vertical");
+        for (const tabset of [mustPath("/ts0"), mustPath("/ts1")]) {
+            expect(tabset).toHaveClass(
+                tabset.hasAttribute("data-active") ? "is-active" : "is-idle",
+            );
+        }
+    });
+
     it("hands a splitter's ARIA values to its template (aria-valuetext in a readout)", async () => {
         @Component({
             imports: [DOCKABLE],

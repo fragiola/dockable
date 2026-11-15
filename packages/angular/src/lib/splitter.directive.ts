@@ -31,6 +31,7 @@ import {
     injectLayoutContext,
 } from "./context";
 import {
+    beforeInputs,
     bindStructuralStyle,
     dataAttr,
     injectHost,
@@ -43,6 +44,21 @@ export interface SplitterState extends SplitterControllerState {
     /** row splitters are hidden while a tabset is maximized */
     hidden: boolean;
 }
+
+/** A splitter's state and ARIA values before its input is set (see `beforeInputs`). */
+const UNSET_SPLITTER_STATE: SplitterState = {
+    dragging: false,
+    previewOffset: undefined,
+    orientation: "horizontal",
+    hidden: false,
+};
+const UNSET_SPLITTER_ARIA: SplitterAria = {
+    orientation: "horizontal",
+    valueNow: undefined,
+    valueMin: undefined,
+    valueMax: undefined,
+    valueText: undefined,
+};
 
 /**
  * A splitter between two children of a row, or between a border's panel and the layout
@@ -95,14 +111,16 @@ export class DockableSplitter<T extends DockableTypes = AnyTypes> {
 
     /** what the splitter shows as `data-*` */
     readonly state: Signal<SplitterState> = computed(() => {
-        this.tick();
-        this.context.revision();
-        const controller = this.controller();
-        return {
-            ...controller.getState(),
-            orientation: controller.getAria().orientation,
-            hidden: controller.isHidden(),
-        };
+        return beforeInputs(UNSET_SPLITTER_STATE, () => {
+            this.tick();
+            this.context.revision();
+            const controller = this.controller();
+            return {
+                ...controller.getState(),
+                orientation: controller.getAria().orientation,
+                hidden: controller.isHidden(),
+            };
+        });
     });
 
     /**
@@ -111,8 +129,10 @@ export class DockableSplitter<T extends DockableTypes = AnyTypes> {
      * `render` and Vue's `#render` hand them over.
      */
     readonly aria: Signal<SplitterAria> = computed(() => {
-        this.state();
-        return this.controller().getAria();
+        return beforeInputs(UNSET_SPLITTER_ARIA, () => {
+            this.state();
+            return this.controller().getAria();
+        });
     });
 
     protected readonly data = computed(() => {

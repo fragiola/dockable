@@ -25,7 +25,12 @@ import {
 } from "./context";
 import { DragNodeBinding } from "./drag-node.directive";
 import { hiddenTabsSignal, registerElement } from "./internal";
-import { bindStructuralStyle, dataAttr, injectHost } from "./utils";
+import {
+    beforeInputs,
+    bindStructuralStyle,
+    dataAttr,
+    injectHost,
+} from "./utils";
 
 export interface TabState {
     /** the tab is its tabset's selected tab */
@@ -39,6 +44,15 @@ export interface TabState {
     /** the tab does not fit in its strip, so it is hidden (tab overflow) */
     overflowHidden: boolean;
 }
+
+/** A tab's state before its input is set (see `beforeInputs`). */
+const UNSET_TAB_STATE: TabState = {
+    selected: false,
+    pinned: false,
+    dragging: false,
+    poppable: false,
+    overflowHidden: false,
+};
 
 /**
  * A tab button (`role="tab"`): `<div [dockableTab]="tab">{{ tab.label }}</div>`, following the APG
@@ -98,16 +112,18 @@ export class DockableTab<T extends DockableTypes = AnyTypes> {
 
     /** what the tab shows as `data-*` */
     readonly state: Signal<TabState> = computed(() => {
-        this.context.revision();
-        const tabId = this.id();
-        return {
-            selected: this.context.model().is("tab-selected", { tabId }),
-            pinned: this.dockableTab().pinned === true,
-            dragging: this.drag.state().dragging,
-            // supported, and the model accepts `tab.popout` for it now
-            poppable: this.layout.engine().can("popout", { nodeId: tabId }),
-            overflowHidden: this.hidden().includes(tabId),
-        };
+        return beforeInputs(UNSET_TAB_STATE, () => {
+            this.context.revision();
+            const tabId = this.id();
+            return {
+                selected: this.context.model().is("tab-selected", { tabId }),
+                pinned: this.dockableTab().pinned === true,
+                dragging: this.drag.state().dragging,
+                // supported, and the model accepts `tab.popout` for it now
+                poppable: this.layout.engine().can("popout", { nodeId: tabId }),
+                overflowHidden: this.hidden().includes(tabId),
+            };
+        });
     });
 
     protected readonly aria = computed(() => {

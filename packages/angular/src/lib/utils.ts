@@ -161,3 +161,20 @@ export function moveBefore(nodes: readonly Node[], anchor: Node): void {
         parent.insertBefore(node, anchor);
     }
 }
+
+/**
+ * What `read` returns, or `fallback` while a required input it reads is not set yet. A part's
+ * `state()` is read by bindings on its own element (`[class]="styles.tab(part.state())"`), and
+ * Angular applies an element's class and style bindings before it sets its directives' inputs: on
+ * the first pass the input throws (NG0950). The read still tracks the input, so the computed that
+ * calls this runs again once the input is set.
+ */
+export function beforeInputs<V>(fallback: V, read: () => V): V {
+    try {
+        return read();
+    } catch (error) {
+        if ((error as { code?: unknown } | null)?.code === -950)
+            return fallback;
+        throw error;
+    }
+}
