@@ -1,5 +1,5 @@
 import { Component, input, type OnInit, signal } from "@angular/core";
-import { createModel, type Model } from "@fragiola/dockable";
+import { createModel, MAIN_LAYOUT, type Model } from "@fragiola/dockable";
 import { afterEach, describe, expect, it } from "vitest";
 import { DOCKABLE, injectDockable } from "../src/public-api";
 import { keyDown, mustPath, mustTestId, path, pointerDown } from "./helpers";
@@ -63,6 +63,29 @@ describe("composition and ARIA", () => {
         ]) {
             expect(path(p), p).toBeTruthy();
         }
+    });
+
+    it("moves every path with the layout when a tabset is inserted before them", async () => {
+        const m = model();
+        await renderLayout(m);
+        // a new tabset at the layout's start edge: the first tabset becomes the second
+        m.run("tab.add", {
+            component: "test",
+            label: "Four",
+            data: { name: "Four" },
+            to: MAIN_LAYOUT,
+            location: "start",
+        });
+        await settle();
+        const strip = (p: string) =>
+            [...mustPath(p).querySelectorAll('[role="tab"]')].map((tab) =>
+                tab.textContent?.trim(),
+            );
+        expect(strip("/ts0/tabstrip")).toEqual(["Four"]);
+        expect(strip("/ts1/tabstrip")).toEqual(["One", "Two"]);
+        expect(strip("/ts2/tabstrip")).toEqual(["Three"]);
+        expect(mustPath("/ts1").contains(mustPath("/ts1/content"))).toBe(true);
+        expect(mustPath("/ts2").contains(mustPath("/ts2/content"))).toBe(true);
     });
 
     it('exposes state through data-* only, present or absent, never "false"', async () => {
