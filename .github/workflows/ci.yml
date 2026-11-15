@@ -1,19 +1,24 @@
 # CI: the Fragiola project jobs, with the Playwright suites split out of Checks.
 #
 #   Checks            Biome, TypeScript, the unit tests and the build (with the .d.ts check).
-#   Package           `pnpm check:package`: builds and packs the packages with pnpm, lints the
-#                     tarballs (dist-only exports, publint, attw), then installs them into a scratch
-#                     Vite + React app outside the workspace that builds and loads its dev server.
+#   Package           `pnpm check:package`: builds and packs every package with pnpm, lints the
+#                     tarballs (dist-only exports, publint, attw), checks each adapter pins the
+#                     core's exact version, then installs each adapter into its own scratch app
+#                     outside the workspace (Vite + React for React) that builds and loads its dev
+#                     server.
 #   Changesets        on a pull request, `pnpm changeset status` fails when the PR changes what a
 #                     package ships (`changedFilePatterns` in .changeset/config.json) without
 #                     adding a changeset. Skipped for the Version Packages PR (changeset-release/*),
 #                     which consumes them.
-#   E2E               the Playwright suites, in parallel jobs: the playground in two shards and
-#                     the examples app. Native HTML5 drags flake under contention, so each
-#                     machine keeps the configs' CI workers (1 and 2): the parallelism comes from
-#                     the jobs and shards, not from workers. The playground's dev server serves
-#                     the packages from source, so its jobs build nothing; the examples suite
-#                     builds the embed against the packages' dist, so its job builds the packages.
+#   E2E               the Playwright suites, in parallel jobs: the playground in two shards, and
+#                     one job per framework's examples app (every `examples/<framework>` with a
+#                     playwright.config.ts, found by the Examples apps job), each running the
+#                     shared specs of examples/shared/e2e against its own embed. Native HTML5
+#                     drags flake under contention, so each machine keeps the configs' CI workers
+#                     (1 and 2): the parallelism comes from the jobs and shards, not from workers.
+#                     The playground's dev server serves the packages from source, so its jobs
+#                     build nothing; an examples suite builds its embed against the packages'
+#                     dist, so its job builds the packages.
 #   Site export       fragiola.com builds /dockable from `pnpm site:export` (contract v1.2,
 #                     fragiola/www CONTRACT.md), built and validated the way www's deploy runs
 #                     it: it fails on anything www would reject.
@@ -124,19 +129,10 @@ jobs:
         include:
           - name: playground 1/2
             id: playground-1
-            package: playground
-            dir: apps/playground
             args: --shard=1/2
           - name: playground 2/2
             id: playground-2
-            package: playground
-            dir: apps/playground
             args: --shard=2/2
-          - name: examples
-            id: examples
-            package: examples-react
-            dir: examples/react
-            args: ""
     steps:
       - uses: actions/checkout@v4
 
@@ -149,24 +145,76 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The examples suite builds the embed against the packages' dist (its playwright.config.ts).
-      - name: Build the packages
-        if: matrix.package == 'examples-react'
-        run: pnpm --filter "./packages/*" build
-
       - name: Install Playwright Chromium
-        working-directory: ${{ matrix.dir }}
+        working-directory: apps/playground
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Playwright
-        run: pnpm --filter ${{ matrix.package }} run e2e ${{ matrix.args }}
+        run: pnpm --filter playground run e2e ${{ matrix.args }}
 
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.id }}
-          path: ${{ matrix.dir }}/playwright-report/
+          path: apps/playground/playwright-report/
+          retention-days: 14
+
+  # The frameworks that have an examples app: every examples/<framework> with a playwright.config.ts
+  # (examples/shared, the specs every framework runs, has none). Adding an app adds its job.
+  examples-apps:
+    name: Examples apps
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      frameworks: ${{ steps.list.outputs.frameworks }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: list
+        run: |
+          frameworks=$(ls examples/*/playwright.config.ts | cut -d/ -f2 | jq -Rnc '[inputs]')
+          echo "frameworks=$frameworks" >> "$GITHUB_OUTPUT"
+          echo "examples apps: $frameworks"
+
+  e2e-examples:
+    name: E2E (examples ${{ matrix.framework }})
+    needs: examples-apps
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: ${{ fromJson(needs.examples-apps.outputs.frameworks) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The examples suite builds the embed against the packages' dist (examplesE2eConfig).
+      - name: Build the packages
+        run: pnpm --filter "./packages/*" build
+
+      - name: Install Playwright Chromium
+        working-directory: examples/${{ matrix.framework }}
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright
+        run: pnpm --filter examples-${{ matrix.framework }} run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-examples-${{ matrix.framework }}
+          path: examples/${{ matrix.framework }}/playwright-report/
           retention-days: 14
 
   site-export:
