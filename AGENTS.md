@@ -16,7 +16,7 @@ This repo is the first of a family (React and Vue today, Angular next), so
 | `packages/vue` | `@fragiola/dockable-vue` | the same primitives as Vue 3 components (plain `.ts` render functions, no SFCs: tsdown builds them with TypeScript 7) and composables, and the whole core re-exported: the one package a Vue app installs | the core (`workspace:*`, published as the exact version); peer `vue` (^3.5) |
 | `apps/playground` | private | the dev app (every site example live, with themes and source), unstyled fixture pages driven by Playwright, `popout.html` | `@fragiola/dockable-react` (the core through it), `examples/react`, `examples-shared` |
 | `examples/react` | private, `examples-react` | the React examples of the site (the embed app, Vite): only what a reader copies | `@fragiola/dockable-react`, `examples-shared` |
-| `examples/vue` | private, `examples-vue` | the Vue examples of the site (the embed app, Vite, single-file components typechecked by `vue-tsc` on TypeScript 6.0.3, pinned in this app only): a subset of the React ones | `@fragiola/dockable-vue`, `examples-shared` |
+| `examples/vue` | private, `examples-vue` | the Vue examples of the site (the embed app, Vite, single-file components typechecked by `vue-tsc` on TypeScript 6.0.3, pinned in this app only): every React one, with a kit of its own (`src/components`: Fragiola UI's pieces over Reka UI, the React kit's classes) | `@fragiola/dockable-vue`, `examples-shared` |
 | `examples/shared` | private, `examples-shared` | what every framework's examples share and no reader copies: each example's metadata, the themes, the embed protocol, the manifest builder, the loader generator, every e2e spec | no framework (a test enforces it) |
 
 A framework app is `examples/<framework>` (package `examples-<framework>`; `Framework` is
@@ -136,6 +136,8 @@ examples/react/     src/examples/<slug>/      the site's React examples (the emb
                     src/components, lib, …    Fragiola UI, vendored (scripts/vendor-fragiola.ts)
 examples/vue/       src/examples/<slug>/      the site's Vue examples: index.vue (+ SFCs, styles.ts)
                     src/styles, src/lib       copied from examples/react (tests/vendored.test.ts)
+                    src/components            the kit: Fragiola UI's pieces over Reka UI (class
+                                              families copied from examples/react)
 examples/shared/    src/meta/<slug>.ts        each example's metadata, for every framework
                     src/themes/, src/embed/   the themes; the embed's messages to the site
                     scripts/                  examples finder, manifest builder, loader generator
@@ -155,7 +157,8 @@ base-free links, the v1.1 MDX vocabulary; `<Framework name="vue">` blocks where 
 the gallery configuration (`examples.json`) and one examples app per framework of
 `site/project.json` (`examples/react` and `examples/vue`, built for `<base>/embed/<framework>/`). Every framework's app shares one metadata source and one e2e suite
 (`examples/shared`): an example has the same id in every framework, and a framework may ship a
-subset of them (the specs of an example it lacks are skipped). `www` owns the shell, the
+subset of them while it is being written (the specs of an example it lacks are skipped); React and
+Vue ship every one (`COMPLETE_FRAMEWORKS`: a spec of an example they lack fails). `www` owns the shell, the
 gallery chrome, the code panel and search. Examples import internal modules through `#/…`
 (never `@/…`).
 

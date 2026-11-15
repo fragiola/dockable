@@ -55,6 +55,11 @@ looking for its feature would search, and `order` is its place inside the catego
 
 ## Adding an example
 
+An example exists in every framework, with the same id: React (`examples/react`) and Vue
+(`examples/vue`) ship every one, and their tests fail when a slug is in one app and not the other
+(`examples/vue/tests/examples.test.ts`); the shared e2e specs fail, not skip, for an example
+either lacks (`COMPLETE_FRAMEWORKS` in `examples/shared/e2e/available.ts`).
+
 1. Create `src/examples/<slug>/index.tsx`, and its metadata in
    `examples/shared/src/meta/<slug>.ts` (see `meta-types.ts`) unless another framework already
    has the example.
@@ -66,7 +71,18 @@ looking for its feature would search, and `order` is its place inside the catego
    examples in `examples/shared/e2e/smoke.spec.ts`; `E2E_ALL_THEMES=1` runs them all), and inside
    an iframe. Add a spec for its main behaviour in `examples/shared/e2e/examples/<slug>.spec.ts`:
    it reaches the example only through `data-layout-path`, roles, accessible names and test ids,
-   so every framework's embed runs it unchanged (a framework without the example skips it).
+   so every framework's embed runs it unchanged.
+4. Write its Vue twin in `examples/vue/src/examples/<slug>/`: `index.vue` (the entry, which
+   renders `<Dockable.Root>`), `styles.ts` (the React one, importing `@fragiola/dockable-vue`),
+   `dockable.ts` (the `Types` registry and `typedDockable<Types>()`, since a template cannot pass
+   a type argument) and one single-file component per part React writes as a function
+   (`LayoutNode.vue` for the recursion, `Splitter.vue`, …). The same layout JSON, `Types`, logic
+   order, roles, names and test ids; the Vue API differs where the adapter's does (`as` and the
+   `render` slot, scoped slots for children functions, no `class` function: `data-*` variants or
+   the slot's `state`). Its kit is `examples/vue/src/components` (Fragiola UI's pieces over Reka
+   UI, with the React kit's classes) and `examples/vue/src/examples/_kit`. Check it with
+   `pnpm --filter examples-vue dev` (`http://localhost:5181/?id=<slug>`) and its spec against the
+   Vue embed (`pnpm --filter examples-vue e2e`).
 
 ## Anatomy of an example
 
