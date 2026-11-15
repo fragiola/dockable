@@ -343,6 +343,15 @@ describe("interaction", () => {
         await settle();
         expect(commands.map((c) => c.command)).toContain("row.resize");
     });
+
+    it("renders a keyboard resize before the key's handlers return", async () => {
+        const m = model();
+        await renderLayout(m);
+        const before = mustPath("/ts0").style.flexGrow;
+        keyDown(mustPath("/s0"), { key: "ArrowLeft" });
+        // no settle: a screen reader (or a test) reads the new value right after the key
+        expect(mustPath("/ts0").style.flexGrow).not.toBe(before);
+    });
 });
 
 describe("panels and content", () => {

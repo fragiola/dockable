@@ -3,10 +3,12 @@
 // see LICENSE.
 
 import {
+    ApplicationRef,
     Component,
     computed,
     Directive,
     effect,
+    inject,
     input,
     type Signal,
     signal,
@@ -64,7 +66,7 @@ export interface SplitterState extends SplitterControllerState {
         "[attr.data-orientation]": "data().orientation",
         "[attr.data-dragging]": "data().dragging",
         "(pointerdown)": "controller().onPointerDown($event)",
-        "(keydown)": "controller().onKeyDown($event)",
+        "(keydown)": "onKeyDown($event)",
     },
 })
 export class DockableSplitter<T extends DockableTypes = AnyTypes> {
@@ -127,6 +129,18 @@ export class DockableSplitter<T extends DockableTypes = AnyTypes> {
             dragging: dataAttr(state.dragging),
         };
     });
+
+    private readonly app = inject(ApplicationRef);
+
+    /**
+     * A resize from the keyboard is read back at once (a screen reader announces the new value, as
+     * React's and Vue's adapters render it before the key's handlers return): the application
+     * renders now, the measure-and-position cycle included, not on Angular's next frame.
+     */
+    protected onKeyDown(event: KeyboardEvent) {
+        this.controller().onKeyDown(event);
+        if (event.defaultPrevented) this.app.tick();
+    }
 
     constructor() {
         effect((onCleanup) => {
