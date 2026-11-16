@@ -3,20 +3,20 @@ import {
     type DropKind,
     type DropLocation,
 } from "@fragiola/dockable";
-import { useIndicator } from "./composables";
-import { useLayoutContext } from "./context";
+import { useIndicator } from "../composables/internal";
+import { useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
+} from "../utils/primitive";
 import {
     dataAttributes,
     px,
     type RenderSlot,
     renderElement,
-} from "./utils/render";
+} from "../utils/render";
 
 export interface DropIndicatorState {
     /** a drop target is under the pointer */

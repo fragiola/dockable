@@ -8,25 +8,25 @@ import type {
     TabsetNode,
 } from "@fragiola/dockable";
 import { type ComputedRef, computed, inject, provide } from "vue";
-import { type TabSetState, useTabSet } from "./composables";
+import { type TabSetState, useTabSet } from "../composables/use-tabset";
 import {
     TabContainerKey,
     typedModel,
     useDockableContext,
     useLayoutContext,
-} from "./context";
+} from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
+} from "../utils/primitive";
 import {
     dataAttributes,
     px,
     type RenderSlot,
     renderElement,
-} from "./utils/render";
+} from "../utils/render";
 
 export type { TabSetState };
 

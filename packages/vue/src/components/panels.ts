@@ -8,12 +8,12 @@ import {
     type TabOf,
 } from "@fragiola/dockable";
 import { Fragment, h } from "vue";
-import { useDockableContext } from "./context";
+import { useDockableContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type SlotFunction,
-} from "./utils/primitive";
+} from "../utils/primitive";
 
 export interface PanelsProps<T extends DockableTypes = AnyTypes> {
     /**

@@ -9,16 +9,20 @@ import type {
     DockableTypes,
 } from "@fragiola/dockable";
 import { type CSSProperties, Fragment, h } from "vue";
-import { BorderContent } from "./BorderContent";
-import { useIndicator } from "./composables";
-import { useDockableContext, useLayoutContext } from "./context";
+import { useIndicator } from "../composables/internal";
+import { useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { dataAttributes, type RenderSlot, renderElement } from "./utils/render";
+} from "../utils/primitive";
+import {
+    dataAttributes,
+    type RenderSlot,
+    renderElement,
+} from "../utils/render";
+import { BorderContent } from "./border-content";
 
 export interface BordersState {
     /** the layout has at least one border showing */

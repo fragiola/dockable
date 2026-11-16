@@ -8,21 +8,22 @@ import {
     type TabOf,
 } from "@fragiola/dockable";
 import { computed, inject } from "vue";
-import { useDragNode, useTabHidden } from "./composables";
-import { TabListKey, useDockableContext, useLayoutContext } from "./context";
+import { useTabHidden } from "../composables/internal";
+import { useDragNode } from "../composables/use-drag-node";
+import { TabListKey, useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { registerElement } from "./utils/registration";
+} from "../utils/primitive";
+import { registerElement } from "../utils/registration";
 import {
     dataAttributes,
     elementRef,
     type RenderSlot,
     renderElement,
-} from "./utils/render";
+} from "../utils/render";
 
 export interface TabState {
     /** the tab is its tabset's selected tab */

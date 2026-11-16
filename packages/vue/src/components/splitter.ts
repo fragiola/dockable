@@ -8,15 +8,19 @@ import {
     getSplitterPath,
     type RowNode,
 } from "@fragiola/dockable";
-import { type SplitterState, useSplitter } from "./composables";
-import { useDockableContext, useLayoutContext } from "./context";
+import { type SplitterState, useSplitter } from "../composables/use-splitter";
+import { useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { dataAttributes, type RenderSlot, renderElement } from "./utils/render";
+} from "../utils/primitive";
+import {
+    dataAttributes,
+    type RenderSlot,
+    renderElement,
+} from "../utils/render";
 
 export type { SplitterState };
 

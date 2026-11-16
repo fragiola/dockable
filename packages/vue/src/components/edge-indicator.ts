@@ -2,20 +2,20 @@
 // (the edge targets shown during a drag); the markup, icons and class names are not copied.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { BorderLocation } from "@fragiola/dockable";
-import { useIndicator } from "./composables";
-import { useLayoutContext } from "./context";
+import { useIndicator } from "../composables/internal";
+import { useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
+} from "../utils/primitive";
 import {
     dataAttributes,
     px,
     type RenderSlot,
     renderElement,
-} from "./utils/render";
+} from "../utils/render";
 
 export interface EdgeIndicatorState {
     edge: BorderLocation;

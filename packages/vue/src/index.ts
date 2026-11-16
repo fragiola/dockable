@@ -1,92 +1,121 @@
 // The whole core, so that a Vue app installs and imports one package. A local export would
 // silently shadow a core name of the same spelling: tests/index.test.ts fails on one.
 export * from "@fragiola/dockable";
-export type { BorderProps, BorderSlots, BorderState } from "./Border";
+export type {
+    BorderProps,
+    BorderSlots,
+    BorderState,
+} from "./components/border";
 export type {
     BorderContentProps,
     BorderContentSlots,
     BorderContentState,
-} from "./BorderContent";
-export type { BordersProps, BordersSlots, BordersState } from "./Borders";
-export {
-    type DragProps,
-    type DropZoneState,
-    type SplitterElementProps,
-    type SplitterState,
-    type TabSetElementProps,
-    type TabSetState,
-    type UseBorderResult,
-    type UseDockableResult,
-    type UseDragNodeResult,
-    type UseDragSourceOptions,
-    type UseDragSourceResult,
-    type UseDropZoneOptions,
-    type UseDropZoneResult,
-    type UseModelStateOptions,
-    type UseSplitterResult,
-    type UseTabOverflowResult,
-    type UseTabSetResult,
-    useBorder,
-    useDockable,
-    useDragNode,
-    useDragSource,
-    useDropZone,
-    useModelState,
-    useSplitter,
-    useTabOverflow,
-    useTabSet,
-} from "./composables";
+} from "./components/border-content";
+export type {
+    BordersProps,
+    BordersSlots,
+    BordersState,
+} from "./components/borders";
 export {
     type DragGroupProps,
     type DragGroupSlots,
     useDragGroup,
-} from "./DragGroup";
+} from "./components/drag-group";
 export type {
     DragSourceProps,
     DragSourceSlots,
     DragSourceState,
-} from "./DragSource";
+} from "./components/drag-source";
 export type {
     DropIndicatorProps,
     DropIndicatorSlots,
     DropIndicatorState,
-} from "./DropIndicator";
-export type { DropZoneProps, DropZoneSlots } from "./DropZone";
+} from "./components/drop-indicator";
+export type { DropZoneProps, DropZoneSlots } from "./components/drop-zone";
 export type {
     EdgeIndicatorProps,
     EdgeIndicatorSlots,
     EdgeIndicatorState,
-} from "./EdgeIndicator";
-export type { PanelProps, PanelSlots, PanelState } from "./Panel";
-export type { PanelsProps, PanelsSlots } from "./Panels";
-export type { PopoutProps, PopoutSlots, PopoutState } from "./Popout";
+} from "./components/edge-indicator";
+export type { PanelProps, PanelSlots, PanelState } from "./components/panel";
+export type { PanelsProps, PanelsSlots } from "./components/panels";
+export type {
+    PopoutProps,
+    PopoutSlots,
+    PopoutState,
+} from "./components/popout";
 export type {
     PopoutTriggerProps,
     PopoutTriggerSlots,
     PopoutTriggerState,
-} from "./PopoutTrigger";
-export * as Dockable from "./parts";
-export type { RootProps, RootSlots, RootState } from "./Root";
+} from "./components/popout-trigger";
+export type { RootProps, RootSlots, RootState } from "./components/root";
 export type {
     RowProps,
     RowSlots,
     RowSplitterProps,
     RowState,
-} from "./Row";
-export type { SplitterProps, SplitterSlots } from "./Splitter";
-export type { TabProps, TabSlots, TabState } from "./Tab";
-export type { TabListProps, TabListSlots, TabListState } from "./TabList";
+} from "./components/row";
+export type { SplitterProps, SplitterSlots } from "./components/splitter";
+export type { TabProps, TabSlots, TabState } from "./components/tab";
+export type {
+    TabListProps,
+    TabListSlots,
+    TabListState,
+} from "./components/tab-list";
 export type {
     TabOverflowTriggerProps,
     TabOverflowTriggerSlots,
     TabOverflowTriggerState,
-} from "./TabOverflowTrigger";
-export type { TabSetProps, TabSetSlots } from "./TabSet";
+} from "./components/tab-overflow-trigger";
+export type { TabSetProps, TabSetSlots } from "./components/tabset";
 export type {
     TabSetContentProps,
     TabSetContentSlots,
     TabSetContentState,
-} from "./TabSetContent";
+} from "./components/tabset-content";
+export { type UseBorderResult, useBorder } from "./composables/use-border";
+export {
+    type UseDockableResult,
+    useDockable,
+} from "./composables/use-dockable";
+export {
+    type DragProps,
+    type UseDragNodeResult,
+    useDragNode,
+} from "./composables/use-drag-node";
+export {
+    type UseDragSourceOptions,
+    type UseDragSourceResult,
+    useDragSource,
+} from "./composables/use-drag-source";
+export {
+    type DropZoneState,
+    type UseDropZoneOptions,
+    type UseDropZoneResult,
+    useDropZone,
+} from "./composables/use-drop-zone";
+export {
+    type UseModelStateOptions,
+    useModelState,
+} from "./composables/use-model-state";
+export {
+    type SplitterElementProps,
+    type SplitterState,
+    type UseSplitterResult,
+    useSplitter,
+} from "./composables/use-splitter";
+export {
+    type UseTabOverflowResult,
+    useTabOverflow,
+} from "./composables/use-tab-overflow";
+export {
+    type TabSetElementProps,
+    type TabSetState,
+    type UseTabSetResult,
+    useTabSet,
+} from "./composables/use-tabset";
+export * as Dockable from "./parts";
 export { type TypedDockable, typedDockable } from "./typed";
 export type {
     DockableComponent,

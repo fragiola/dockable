@@ -17,20 +17,20 @@ import {
     shallowRef,
     Teleport,
 } from "vue";
-import { useDockableContext, useLayoutContext } from "./context";
-import { DragGroupKey } from "./DragGroup";
+import { useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
+} from "../utils/primitive";
 import {
     dataAttributes,
     elementRef,
     type RenderSlot,
     renderElement,
-} from "./utils/render";
+} from "../utils/render";
+import { DragGroupKey } from "./drag-group";
 
 export interface PanelState {
     /** the tab is its tabset's selected tab */

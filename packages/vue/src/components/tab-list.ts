@@ -8,22 +8,23 @@ import {
     type TabOf,
 } from "@fragiola/dockable";
 import { computed, Fragment, h, provide } from "vue";
-import { useDropState, useTabOverflow } from "./composables";
-import { TabListKey, useDockableContext, useLayoutContext } from "./context";
-import { useTabContainer } from "./TabSet";
+import { useDropState } from "../composables/internal";
+import { useTabOverflow } from "../composables/use-tab-overflow";
+import { TabListKey, useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { registerElement } from "./utils/registration";
+} from "../utils/primitive";
+import { registerElement } from "../utils/registration";
 import {
     dataAttributes,
     elementRef,
     type RenderSlot,
     renderElement,
-} from "./utils/render";
+} from "../utils/render";
+import { useTabContainer } from "./tabset";
 
 export interface TabListState {
     orientation: "horizontal" | "vertical";

@@ -1,12 +1,16 @@
-import { useMeasurable } from "./composables";
-import { useDockableContext, useLayoutContext } from "./context";
-import { useTabSetNode } from "./TabSet";
+import { useMeasurable } from "../composables/internal";
+import { useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
-} from "./utils/primitive";
-import { dataAttributes, type RenderSlot, renderElement } from "./utils/render";
+} from "../utils/primitive";
+import {
+    dataAttributes,
+    type RenderSlot,
+    renderElement,
+} from "../utils/render";
+import { useTabSetNode } from "./tabset";
 
 export interface TabSetContentState {
     /** the tabset has no tabs */

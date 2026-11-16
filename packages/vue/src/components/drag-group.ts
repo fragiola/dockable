@@ -21,8 +21,8 @@ import {
     type LayoutContextValue,
     LayoutKey,
     ModelKey,
-} from "./context";
-import type { DockableComponent, SlotFunction } from "./utils/primitive";
+} from "../context";
+import type { DockableComponent, SlotFunction } from "../utils/primitive";
 
 /** What a panel hands the group's host: its content and the context the content needs. */
 interface ContentEntry {

@@ -18,20 +18,20 @@ import {
     Teleport,
     type VNodeChild,
 } from "vue";
-import { LayoutKey, useDockableContext } from "./context";
+import { LayoutKey, useDockableContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
+} from "../utils/primitive";
 import {
     dataAttributes,
     elementRef,
     type RenderSlot,
     renderElement,
     useExternal,
-} from "./utils/render";
+} from "../utils/render";
 
 export interface PopoutState {
     /** the id of the window layout */

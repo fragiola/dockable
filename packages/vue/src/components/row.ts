@@ -8,21 +8,21 @@ import type {
     TabsetNode,
 } from "@fragiola/dockable";
 import { type CSSProperties, Fragment, h, type VNodeChild } from "vue";
-import { useMeasurable } from "./composables";
-import { useDockableContext, useLayoutContext } from "./context";
-import { Splitter } from "./Splitter";
+import { useMeasurable } from "../composables/internal";
+import { useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
+} from "../utils/primitive";
 import {
     dataAttributes,
     px,
     type RenderSlot,
     renderElement,
-} from "./utils/render";
+} from "../utils/render";
+import { Splitter } from "./splitter";
 
 export interface RowState {
     orientation: "horizontal" | "vertical";

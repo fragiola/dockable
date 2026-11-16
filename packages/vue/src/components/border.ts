@@ -4,19 +4,23 @@
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { AnyTypes, BorderNode, DockableTypes } from "@fragiola/dockable";
 import { computed, provide } from "vue";
-import { type BorderContentState, useBorder } from "./composables";
+import { type BorderContentState, useBorder } from "../composables/use-border";
 import {
     TabContainerKey,
     useDockableContext,
     useLayoutContext,
-} from "./context";
+} from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { dataAttributes, type RenderSlot, renderElement } from "./utils/render";
+} from "../utils/primitive";
+import {
+    dataAttributes,
+    type RenderSlot,
+    renderElement,
+} from "../utils/render";
 
 export type { BorderContentState };
 

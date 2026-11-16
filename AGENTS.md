@@ -133,7 +133,13 @@ packages/react/     @fragiola/dockable-react  src/index.ts, src/parts.ts (the Do
                                               holds the hooks only the primitives call
                     src/utils/                merge-props.ts, use-render.ts (the render prop)
                     tests/
-packages/vue/       @fragiola/dockable-vue    src/ (plain .ts, render functions), tests/
+packages/vue/       @fragiola/dockable-vue    plain .ts, render functions: src/index.ts, src/parts.ts,
+                                              src/typed.ts (typedDockable), src/context.ts
+                    src/components/           one primitive per file (root.ts, tabset.ts, tab-list.ts, …)
+                    src/composables/          one public composable per file (use-tabset.ts, …);
+                                              internal.ts holds the ones only the primitives call
+                    src/utils/                primitive.ts, registration.ts, render.ts
+                    tests/
 packages/angular/   @fragiola/dockable-angular  src/lib/ (directives, templates.ts, inject.ts),
                                               src/public-api.ts, tests/, scripts/publish-manifest.ts
 apps/playground/    src/                      the shell: catalog, sidebar, toolbar, stage, source

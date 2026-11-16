@@ -28,7 +28,7 @@ import {
     useId,
     watch,
 } from "vue";
-import { useDragState, useIndicator } from "./composables";
+import { useDragState, useIndicator } from "../composables/internal";
 import {
     type DockableContextValue,
     DockableKey,
@@ -36,21 +36,21 @@ import {
     eraseModel,
     LayoutKey,
     ModelKey,
-} from "./context";
-import { DragGroupKey } from "./DragGroup";
+} from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
+} from "../utils/primitive";
 import {
     dataAttributes,
     elementRef,
     type RenderSlot,
     renderElement,
     useExternal,
-} from "./utils/render";
+} from "../utils/render";
+import { DragGroupKey } from "./drag-group";
 
 export interface RootState {
     /** a tabset of the main layout is maximized */

@@ -1,12 +1,19 @@
 import type { AnyTypes, DockableTypes } from "@fragiola/dockable";
-import { type UseDragSourceOptions, useDragSource } from "./composables";
+import {
+    type UseDragSourceOptions,
+    useDragSource,
+} from "../composables/use-drag-source";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { dataAttributes, type RenderSlot, renderElement } from "./utils/render";
+} from "../utils/primitive";
+import {
+    dataAttributes,
+    type RenderSlot,
+    renderElement,
+} from "../utils/render";
 
 export interface DragSourceState {
     /** a drag started by this source is in progress */

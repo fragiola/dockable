@@ -3,14 +3,18 @@ import {
     type DropZoneState,
     type UseDropZoneOptions,
     useDropZone,
-} from "./composables";
+} from "../composables/use-drop-zone";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { dataAttributes, type RenderSlot, renderElement } from "./utils/render";
+} from "../utils/primitive";
+import {
+    dataAttributes,
+    type RenderSlot,
+    renderElement,
+} from "../utils/render";
 
 export type { DropZoneState };
 

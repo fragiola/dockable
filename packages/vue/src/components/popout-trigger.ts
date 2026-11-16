@@ -1,13 +1,17 @@
 import type { AnyTypes, DockableTypes, TabOf } from "@fragiola/dockable";
-import { useDockableContext, useLayoutContext } from "./context";
-import { useTabSetNode } from "./TabSet";
+import { useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { dataAttributes, type RenderSlot, renderElement } from "./utils/render";
+} from "../utils/primitive";
+import {
+    dataAttributes,
+    type RenderSlot,
+    renderElement,
+} from "../utils/render";
+import { useTabSetNode } from "./tabset";
 
 export interface PopoutTriggerState {
     /** what a press does: open a window (`"popout"`) or dock back into the main layout (`"dock"`) */

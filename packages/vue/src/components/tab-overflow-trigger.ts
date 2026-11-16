@@ -1,20 +1,20 @@
 import type { AnyTypes, DockableTypes, TabOf } from "@fragiola/dockable";
-import { useTabOverflow } from "./composables";
-import { useDockableContext, useLayoutContext } from "./context";
-import { useTabContainer } from "./TabSet";
+import { useTabOverflow } from "../composables/use-tab-overflow";
+import { useDockableContext, useLayoutContext } from "../context";
 import {
     type DockableComponent,
     definePrimitive,
     type PrimitiveProps,
     type SlotFunction,
-} from "./utils/primitive";
-import { registerElement } from "./utils/registration";
+} from "../utils/primitive";
+import { registerElement } from "../utils/registration";
 import {
     dataAttributes,
     elementRef,
     type RenderSlot,
     renderElement,
-} from "./utils/render";
+} from "../utils/render";
+import { useTabContainer } from "./tabset";
 
 export interface TabOverflowTriggerState<T extends DockableTypes = AnyTypes> {
     /** the tabs that do not fit in the strip, in model order: what the menu lists */
