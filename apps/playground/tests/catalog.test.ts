@@ -14,7 +14,7 @@ import {
     fixtures,
     repositoryPath,
     sections,
-} from "../src/catalog.ts";
+} from "../src/shell/catalog";
 
 // The catalog reads examples/react where it lives: every example it lists is one the site shows,
 // none is missing, and there is no second list to keep in step.

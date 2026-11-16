@@ -6,12 +6,12 @@ import {
 } from "@fragiola/dockable-vue";
 import { ExternalLink, PanelRight, Trash2 } from "@lucide/vue";
 import { ref } from "vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
-import Zone from "./Zone.vue";
+import Zone from "./zone.vue";
 
 // Drop zones: elements outside the layout that take a dragged tab. While a drag the zone takes is
 // in progress it has `data-drop-active`; while the pointer is over it, `data-drop-over` (and the

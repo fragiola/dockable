@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
 import { ref } from "vue";
-import Border from "./Border.vue";
-import BorderContent from "./BorderContent.vue";
-import Content from "./Content.vue";
+import Border from "./border.vue";
+import BorderContent from "./border-content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // A side border's tabs read vertically here by default (writing-mode, and half a turn more on a
-// start border that reads "up"; see Border.vue). Nothing in the package imposes it:
+// start border that reads "up"; see border.vue). Nothing in the package imposes it:
 // Dockable.Border only lays its tab list out as a column, and exposes `data-orientation` and
 // `data-tab-direction` for your CSS. The toggle below swaps class names, nothing else.
 

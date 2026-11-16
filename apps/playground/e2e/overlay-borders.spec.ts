@@ -10,7 +10,7 @@ import { checkTab, dragSplitter, findPath, waitForBox } from "./helpers";
 type BorderLocation = "top" | "bottom" | "start" | "end";
 
 const open = async (page: Page) => {
-    await page.goto("/fixtures/borders/?layout=test_overlay");
+    await page.goto("/fixtures/borders/?layout=test-overlay");
     await expect(page.getByRole("tablist")).toHaveCount(3 + 4); // three tabsets, four borders
     return waitForBox(findPath(page, "/ts0"), "ts0");
 };

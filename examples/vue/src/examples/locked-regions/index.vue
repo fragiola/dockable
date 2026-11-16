@@ -11,11 +11,11 @@ import {
 } from "@fragiola/dockable-vue";
 import { Lock } from "@lucide/vue";
 import { ref } from "vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
+import LayoutNode from "./layout-node.vue";
 import { CONSOLE, LOCKED, REFERENCE } from "./regions";
-import Splitter from "./Splitter.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Stop drops into part of the layout, in two layers:

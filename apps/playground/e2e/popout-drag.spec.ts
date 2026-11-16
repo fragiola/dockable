@@ -12,7 +12,7 @@ import {
     waitForPopout,
 } from "./helpers";
 
-const open = async (page: Page, layout = "test_two_tabs") => {
+const open = async (page: Page, layout = "test-two-tabs") => {
     await page.goto(`/fixtures/popout/?layout=${layout}`);
     await waitForBox(findPath(page, "/layout"), "layout root");
 };
@@ -30,7 +30,7 @@ const popoutCount = (context: BrowserContext, page: Page) =>
     context.pages().filter((p) => p !== page && !p.isClosed()).length;
 
 test("drag a tab to a popout window and back", async ({ page, context }) => {
-    await open(page, "test_three_tabs");
+    await open(page, "test-three-tabs");
     const popout = await popOut(page, context, "/ts2"); // "Three" goes to a window
     await expect(page.getByRole("tab")).toHaveText(["One", "Two"]);
 
@@ -56,7 +56,7 @@ test("drag a tab to a popout window and back", async ({ page, context }) => {
 });
 
 test("drag a tabset to a popout window and back", async ({ page, context }) => {
-    await open(page, "test_three_tabs");
+    await open(page, "test-three-tabs");
     const popout = await popOut(page, context, "/ts2");
 
     // the whole /ts1 tabset (its handle) merges into the window's tabset
@@ -84,7 +84,7 @@ test("the target window shows the drop indicator during a cross-window drag", as
     page,
     context,
 }) => {
-    await open(page, "test_three_tabs");
+    await open(page, "test-three-tabs");
     const popout = await popOut(page, context, "/ts2");
     await dragAcrossWindows(
         findTabButton(page, "/ts0", 0),
@@ -120,7 +120,7 @@ test("PopoutTrigger pops a tab out, and docks it back from the window", async ({
 });
 
 test("PopoutTrigger pops a whole tabset out", async ({ page, context }) => {
-    await open(page, "test_three_tabs");
+    await open(page, "test-three-tabs");
     // move "Two" next to "One" so /ts0 holds two tabs
     await dragAcrossWindows(
         findTabButton(page, "/ts1", 0),

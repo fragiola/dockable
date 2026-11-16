@@ -7,10 +7,10 @@ import {
 import { Redo2, Undo2 } from "@lucide/vue";
 import { computed, onMounted, onUnmounted, shallowRef } from "vue";
 import { handleUndoKeys, UndoManager } from "../_kit/undo";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Undo and redo with the examples' UndoManager (`_kit/undo.ts`: the package ships no undo). It

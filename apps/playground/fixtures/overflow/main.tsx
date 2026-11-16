@@ -8,7 +8,7 @@ import {
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { FixtureLayout, Types } from "../../src/fixture/layouts";
-import { renderPanel } from "../../src/fixture/renderNode";
+import { renderPanel } from "../../src/fixture/render-node";
 import "../../src/fixture/fixture.css";
 import "./overflow.css";
 

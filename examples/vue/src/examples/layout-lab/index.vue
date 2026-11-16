@@ -9,18 +9,18 @@ import { Plus } from "@lucide/vue";
 import { ref } from "vue";
 import { CHART_KINDS } from "../_kit/charts";
 import { UndoManager } from "../_kit/undo";
-import Border from "./Border.vue";
-import BorderContent from "./BorderContent.vue";
-import CommandMonitor from "./CommandMonitor.vue";
+import Border from "./border.vue";
+import BorderContent from "./border-content.vue";
+import CommandMonitor from "./command-monitor.vue";
 import { initialLayout, type Veto } from "./commands";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import History from "./History.vue";
-import LayoutNode from "./LayoutNode.vue";
-import ModelEditor from "./ModelEditor.vue";
-import Splitter from "./Splitter.vue";
+import History from "./history.vue";
+import LayoutNode from "./layout-node.vue";
+import ModelEditor from "./model-editor.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
-import VetoControl from "./VetoControl.vue";
+import VetoControl from "./veto-control.vue";
 
 // The model is the source of truth, made visible. Left: the model's JSON (v1), editable (Apply
 // loads it with the `layout.load` command, validated first). Right: the layout it renders. Below:

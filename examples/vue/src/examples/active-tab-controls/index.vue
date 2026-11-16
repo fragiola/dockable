@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
-import Toolbar from "./Toolbar.vue";
+import Toolbar from "./toolbar.vue";
 
 // A toolbar outside the layout acts on the tab the user is looking at: the selected tab of the
 // active tabset. Click another tabset and the toolbar follows it. What it changes (the chart's

@@ -30,7 +30,7 @@ test.describe("static layout", () => {
     test("two tabsets render, with each panel over its content area", async ({
         page,
     }) => {
-        await open(page, "test_two_tabs");
+        await open(page, "test-two-tabs");
         await expect(page.locator('[role="tablist"]')).toHaveCount(2);
         await checkTab(page, "/ts0", 0, true, "One");
         await checkTab(page, "/ts1", 0, true, "Two");
@@ -41,7 +41,7 @@ test.describe("static layout", () => {
     test("three tabsets render, with each panel over its content area", async ({
         page,
     }) => {
-        await open(page, "test_three_tabs");
+        await open(page, "test-three-tabs");
         await expect(page.locator('[role="tablist"]')).toHaveCount(3);
         for (const [i, name] of ["One", "Two", "Three"].entries()) {
             await checkTab(page, `/ts${i}`, 0, true, name);
@@ -50,7 +50,7 @@ test.describe("static layout", () => {
     });
 
     test("a window resize re-positions the panels", async ({ page }) => {
-        await open(page, "test_three_tabs");
+        await open(page, "test-three-tabs");
         const before = await waitForBox(findPath(page, "/ts2/t0"), "/ts2/t0");
         await page.setViewportSize({ width: 900, height: 500 });
         await expect

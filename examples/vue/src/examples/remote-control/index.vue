@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import RemotePanel from "./RemotePanel.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import RemotePanel from "./remote-panel.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // The layout driven from code. The panel on the left lists the tabsets and their tabs

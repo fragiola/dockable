@@ -1,12 +1,12 @@
 import type { TabInit } from "@fragiola/dockable-vue";
 import { h, type VNode } from "vue";
-import ChartPanel from "../_kit/ChartPanel.vue";
+import ChartPanel from "../_kit/chart-panel.vue";
 import { ORDERS } from "../_kit/data";
-import PanelBody from "../_kit/PanelBody.vue";
-import TablePanel from "../_kit/TablePanel.vue";
-import ContactForm from "./ContactForm.vue";
+import PanelBody from "../_kit/panel-body.vue";
+import TablePanel from "../_kit/table-panel.vue";
+import ContactForm from "./contact-form.vue";
 import type { Kind, TabOfKind, Types } from "./dockable";
-import Markdown from "./Markdown.vue";
+import Markdown from "./markdown.vue";
 import * as styles from "./styles";
 
 // The factory: a tab's `component` picks what renders, and its `data` parameterises it. Both

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
-import DottedSplitter from "./DottedSplitter.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
+import DottedSplitter from "./dotted-splitter.vue";
+import LayoutNode from "./layout-node.vue";
 import * as styles from "./styles";
 
 // A splitter with a handle drawn inside it: three dots, stacked along the bar. The splitter is

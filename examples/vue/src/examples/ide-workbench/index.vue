@@ -3,17 +3,17 @@ import { veto } from "@fragiola/dockable-vue";
 import { computed, onUnmounted, ref } from "vue";
 import { Clickable } from "#/components/atoms/clickable";
 import { AlertDialog } from "#/components/ui/alert-dialog";
-import Border from "./Border.vue";
-import BorderContent from "./BorderContent.vue";
+import Border from "./border.vue";
+import BorderContent from "./border-content.vue";
 import { Dockable } from "./dockable";
-import EditorPanel from "./EditorPanel.vue";
-import Explorer from "./Explorer.vue";
-import LayoutNode from "./LayoutNode.vue";
-import ProblemsPanel from "./ProblemsPanel.vue";
-import Splitter from "./Splitter.vue";
-import StatusBar from "./StatusBar.vue";
+import EditorPanel from "./editor-panel.vue";
+import Explorer from "./explorer.vue";
+import LayoutNode from "./layout-node.vue";
+import ProblemsPanel from "./problems-panel.vue";
+import Splitter from "./splitter.vue";
+import StatusBar from "./status-bar.vue";
 import * as styles from "./styles";
-import TerminalPanel from "./TerminalPanel.vue";
+import TerminalPanel from "./terminal-panel.vue";
 import {
     createWorkspace,
     defaultLayout,

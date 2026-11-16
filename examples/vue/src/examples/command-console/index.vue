@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import PanelBody from "../_kit/PanelBody.vue";
-import CommandConsole from "./CommandConsole.vue";
+import PanelBody from "../_kit/panel-body.vue";
+import CommandConsole from "./command-console.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // The layout as data an assistant can drive: every change is a named command with a JSON Schema,

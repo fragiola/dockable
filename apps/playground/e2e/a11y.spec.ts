@@ -59,7 +59,7 @@ test.describe("aria semantics", () => {
     test("splitters are focusable separators with a value", async ({
         page,
     }) => {
-        await open(page, "test_two_tabs");
+        await open(page, "test-two-tabs");
         const splitter = page.getByRole("separator");
         await expect(splitter).toHaveCount(1);
         await expect(splitter).toHaveAttribute("aria-orientation", "vertical");
@@ -94,7 +94,7 @@ test.describe("keyboard operation", () => {
     });
 
     test("configured keys cycle focus between tabsets", async ({ page }) => {
-        await open(page, "test_three_tabs");
+        await open(page, "test-three-tabs");
         await expect(page.getByRole("tablist").first()).toHaveAttribute(
             "aria-keyshortcuts",
             "Control+] Control+[",

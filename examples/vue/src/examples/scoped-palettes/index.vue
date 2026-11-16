@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Fragiola palettes, scoped per tabset. A palette class sets six roles (base, soft, line,
@@ -13,7 +13,7 @@ import * as styles from "./styles";
 //
 // A coloured palette's `base` is a strong fill, so the tabset uses the pairs its roles are made
 // for: `soft` behind `accent` text, and the selected tab as a `base` chip with `contrast` text.
-// The palettes and the menu are in palettes.ts and PaletteMenu.vue.
+// The palettes and the menu are in palettes.ts and palette-menu.vue.
 
 const json: LayoutJson<Types> = {
     version: 1,

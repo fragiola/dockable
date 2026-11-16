@@ -114,7 +114,7 @@ export function appendToLog(
     return [...log, entry].slice(-100);
 }
 
-/** The command the veto switch refuses, while it is on (VetoControl.vue). */
+/** The command the veto switch refuses, while it is on (veto-control.vue). */
 export interface Veto {
     enabled: boolean;
     command: CommandName;

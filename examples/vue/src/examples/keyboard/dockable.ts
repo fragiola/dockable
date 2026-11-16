@@ -11,7 +11,7 @@ export type Types = {
         table: undefined;
         log: undefined;
     };
-    // a tabset's name is its tab list's accessible name (LayoutNode.vue reads `data.name`)
+    // a tabset's name is its tab list's accessible name (layout-node.vue reads `data.name`)
     tabset: { name: string };
 };
 

@@ -58,7 +58,7 @@ export const tabName = "truncate";
 
 /** 12px thick (`w-3`/`h-3`, the engine measures it): a soft track that darkens on hover and
  * takes the ring colour while dragged. `vertical` is a bar between side-by-side panes. It depends
- * on the splitter's state, so WideSplitter.vue applies it in the splitter's `render` slot. */
+ * on the splitter's state, so wide-splitter.vue applies it in the splitter's `render` slot. */
 export const splitter = (state: SplitterState) =>
     cn(
         "group/splitter relative z-10 flex shrink-0 items-center justify-center rounded-full bg-palette-soft outline-none",

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
 import { Dockable, type Types } from "./dockable";
-import Pane from "./Pane.vue";
+import Pane from "./pane.vue";
 import * as styles from "./styles";
 
 // Two layouts with their own models, in one Dockable.DragGroup: drag a tab from one into the

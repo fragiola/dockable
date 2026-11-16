@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "@lucide/vue";
-import Border from "./Border.vue";
-import BorderContent from "./BorderContent.vue";
-import Content from "./Content.vue";
+import Border from "./border.vue";
+import BorderContent from "./border-content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
-import Toolbar from "./Toolbar.vue";
+import Toolbar from "./toolbar.vue";
 
 // Overlay borders (`mode: "overlay"`) open over the layout instead of beside it, and close on a
 // press elsewhere in the layout or on Escape (keyMap.closeOverlayBorder). The toolbar switches a

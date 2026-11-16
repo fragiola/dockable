@@ -10,11 +10,11 @@ import {
 import { RotateCcw, Save } from "@lucide/vue";
 import { ref, watch } from "vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import PaletteItem from "./PaletteItem.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import PaletteItem from "./palette-item.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
-import WidgetContent from "./WidgetContent.vue";
+import WidgetContent from "./widget-content.vue";
 import { GROUPS, isKpi, WIDGETS } from "./widgets";
 
 const STORAGE_KEY = "dockable-examples:dashboard-builder:v2";

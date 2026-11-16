@@ -147,14 +147,16 @@ packages/angular/   @fragiola/dockable-angular  src/public-api.ts, src/lib/docka
                     src/lib/inject/           the injection functions (inject-part.ts: the parts')
                     src/lib/utils/            helpers.ts, signals.ts (the engine's signals), views.ts
                     tests/, scripts/publish-manifest.ts
-apps/playground/    src/                      the shell: catalog, sidebar, toolbar, stage, source
+apps/playground/    src/main.tsx, app.tsx     the entry
+                    src/shell/                the shell: catalog, sidebar, toolbar, stage, source
+                    src/fixture/, layouts/    what the fixtures share; the layouts (test-two-tabs.json, …)
                     src/scenarios/<area>/     dev-only scenarios; src/inspector/ the Inspector
                     fixtures/<name>/          unstyled pages Playwright drives
                     public/popout.html        popout host page
                     e2e/, tests/              Playwright specs, unit tests
 examples/react/     src/examples/<slug>/      the site's React examples (the embed app, Vite)
                     src/components, lib, …    Fragiola UI, vendored (scripts/vendor-fragiola.ts)
-examples/vue/       src/examples/<slug>/      the site's Vue examples: index.vue (+ SFCs, styles.ts)
+examples/vue/       src/examples/<slug>/      the site's Vue examples: index.vue (+ kebab-case SFCs, styles.ts)
                     src/styles, src/lib       copied from examples/react (tests/vendored.test.ts)
                     src/components            the kit: Fragiola UI's pieces over Reka UI (class
                                               families copied from examples/react)
@@ -223,7 +225,7 @@ It shows three things, which are not interchangeable:
   shell keeps its own palette (`palette-shell`), which no example theme overrides.
 - **Scenarios** live in `apps/playground/src/scenarios/<area>/<id>.tsx` and are dev-only: new
   primitives, edge cases, animations, API experiments; never shipped, never linked from
-  `site/docs`. A file is all it takes: `<area>` is one of `AREAS` in `src/catalog.ts` (`layout`,
+  `site/docs`. A file is all it takes: `<area>` is one of `AREAS` in `src/shell/catalog.ts` (`layout`,
   `drag`, `borders`, `popout`, `api`), `<id>` is kebab-case, and the module has **only a default
   export** (anything else costs Fast Refresh); `tests/scenarios.test.ts` enforces it. A scenario
   may import `#/examples/_kit/*` (shared demo content: cards, charts, data) and `#/components/*`,

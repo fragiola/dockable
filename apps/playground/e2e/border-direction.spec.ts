@@ -8,7 +8,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { findPath, waitForBox } from "./helpers";
 
 const open = async (page: Page) => {
-    await page.goto("/fixtures/borders/?layout=test_border_direction");
+    await page.goto("/fixtures/borders/?layout=test-border-direction");
     await expect(findPath(page, "/border/start/tb0")).toBeVisible();
     await expect(findPath(page, "/border/start/tb2")).toBeVisible();
 };

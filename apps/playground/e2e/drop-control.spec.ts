@@ -11,7 +11,7 @@ import {
 } from "./helpers";
 
 const open = async (page: Page, query = "") => {
-    await page.goto(`/fixtures/drop-control/?layout=test_three_tabs${query}`);
+    await page.goto(`/fixtures/drop-control/?layout=test-three-tabs${query}`);
     await waitForBox(findPath(page, "/layout"), "layout root");
     await expect(findAllTabSets(page)).toHaveCount(3);
 };

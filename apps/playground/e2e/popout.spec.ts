@@ -10,7 +10,7 @@ import {
     waitForPopout,
 } from "./helpers";
 
-const open = async (page: Page, layout = "test_two_tabs") => {
+const open = async (page: Page, layout = "test-two-tabs") => {
     // count window.open calls, to prove StrictMode opens a single window
     await page.addInitScript(() => {
         const original = window.open.bind(window);

@@ -2,7 +2,7 @@ import { onUnmounted, shallowRef } from "vue";
 import type * as styles from "./styles";
 
 // A small toast stack, written for this example (no library): what the layout's events turn into.
-// Toasts are announced politely (`aria-live`, in Toaster.vue), close themselves after a few
+// Toasts are announced politely (`aria-live`, in toaster.vue), close themselves after a few
 // seconds, and can carry one action (Undo).
 
 export interface Toast {

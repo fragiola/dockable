@@ -10,12 +10,12 @@ import {
 } from "@fragiola/dockable-vue";
 import { Plus } from "@lucide/vue";
 import { onUnmounted, ref, shallowRef } from "vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
-import Toaster from "./Toaster.vue";
+import Toaster from "./toaster.vue";
 import { type Toast, useToasts } from "./toasts";
 
 // The layout tells the app what happened: `model.subscribe` delivers one event per committed

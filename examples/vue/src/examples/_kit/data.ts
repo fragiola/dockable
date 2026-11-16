@@ -1,5 +1,5 @@
 // Demo content: the orders a table shows, and the lines a growing log appends. The same as
-// examples/react's `_kit/data.tsx`; TablePanel.vue and LogPanel.vue render them.
+// examples/react's `_kit/data.tsx`; table-panel.vue and log-panel.vue render them.
 
 export interface Row {
     id: string;
