@@ -1,11 +1,14 @@
 import type { AnyTypes, DockableTypes } from "@fragiola/dockable";
 import type * as React from "react";
-import { type UseDragSourceOptions, useDragSource } from "./hooks";
+import {
+    type UseDragSourceOptions,
+    useDragSource,
+} from "../hooks/use-drag-source";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
 
 export interface DragSourceState {
     /** a drag started by this source is in progress */

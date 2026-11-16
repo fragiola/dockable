@@ -9,12 +9,12 @@ import type {
 } from "@fragiola/dockable";
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { LayoutContext, typedModel, useDockableContext } from "./context";
+import { LayoutContext, typedModel, useDockableContext } from "../context";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
 
 export interface PopoutState {
     /** the id of the window layout */

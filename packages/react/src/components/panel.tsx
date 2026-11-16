@@ -14,13 +14,13 @@ import {
     LayoutContext,
     ModelContext,
     useDockableContext,
-} from "./context";
-import { DragGroupContext } from "./DragGroup";
+} from "../context";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { DragGroupContext } from "./drag-group";
 
 export interface PanelState {
     /** the tab is its tabset's selected tab */

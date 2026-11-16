@@ -22,14 +22,14 @@ import {
     eraseModel,
     LayoutContext,
     ModelContext,
-} from "./context";
-import { DragGroupContext } from "./DragGroup";
-import { useDragState, useIndicator } from "./hooks";
+} from "../context";
+import { useDragState, useIndicator } from "../hooks/internal";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { DragGroupContext } from "./drag-group";
 
 export interface RootState {
     /** a tabset of the main layout is maximized */

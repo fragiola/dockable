@@ -8,13 +8,13 @@ import type {
     TabsetNode,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { typedModel, useDockableContext, useLayoutContext } from "./context";
-import { type TabSetState, useTabSet } from "./hooks";
+import { typedModel, useDockableContext, useLayoutContext } from "../context";
+import { type TabSetState, useTabSet } from "../hooks/use-tabset";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
 
 export type { TabSetState };
 

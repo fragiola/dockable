@@ -8,7 +8,7 @@ import {
     type TabOf,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { typedModel, useDockableContext } from "./context";
+import { typedModel, useDockableContext } from "../context";
 
 export interface PanelsProps<T extends DockableTypes = AnyTypes> {
     /** renders a tab's panel (a `Dockable.Panel`); `tab.data` narrows on `tab.component` */

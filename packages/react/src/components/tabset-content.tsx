@@ -1,11 +1,11 @@
-import { useLayoutContext } from "./context";
-import { useMeasurable } from "./hooks";
-import { useTabSetNode } from "./TabSet";
+import { useLayoutContext } from "../context";
+import { useMeasurable } from "../hooks/internal";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { useTabSetNode } from "./tabset";
 
 export interface TabSetContentState {
     /** the tabset has no tabs */

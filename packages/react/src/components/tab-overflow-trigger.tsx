@@ -1,13 +1,13 @@
 import type { AnyTypes, DockableTypes, TabOf } from "@fragiola/dockable";
 import * as React from "react";
-import { useLayoutContext } from "./context";
-import { useTabOverflow } from "./hooks";
-import { useTabContainer } from "./TabSet";
+import { useLayoutContext } from "../context";
+import { useTabOverflow } from "../hooks/use-tab-overflow";
 import {
     type ButtonPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { useTabContainer } from "./tabset";
 
 export interface TabOverflowTriggerState<T extends DockableTypes = AnyTypes> {
     /** the tabs that do not fit in the strip, in model order: what the menu lists */

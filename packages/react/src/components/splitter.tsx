@@ -10,13 +10,13 @@ import {
     type SplitterControllerState,
 } from "@fragiola/dockable";
 import type * as React from "react";
-import { useLayoutContext } from "./context";
-import { useSplitter } from "./hooks";
+import { useLayoutContext } from "../context";
+import { useSplitter } from "../hooks/use-splitter";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
 
 export interface SplitterState extends SplitterControllerState {
     /** `"vertical"` for a splitter between side by side children, as its `aria-orientation` */

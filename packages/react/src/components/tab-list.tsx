@@ -8,14 +8,15 @@ import {
     type TabOf,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { TabListContext, useLayoutContext } from "./context";
-import { useTabOverflow, useTabSetDropState } from "./hooks";
-import { useTabContainer } from "./TabSet";
+import { TabListContext, useLayoutContext } from "../context";
+import { useTabSetDropState } from "../hooks/internal";
+import { useTabOverflow } from "../hooks/use-tab-overflow";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { useTabContainer } from "./tabset";
 
 export interface TabListState {
     orientation: "horizontal" | "vertical";

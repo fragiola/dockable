@@ -8,14 +8,14 @@ import type {
     TabsetNode,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { typedModel, useDockableContext, useLayoutContext } from "./context";
-import { useMeasurable } from "./hooks";
-import { Splitter } from "./Splitter";
+import { typedModel, useDockableContext, useLayoutContext } from "../context";
+import { useMeasurable } from "../hooks/internal";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { Splitter } from "./splitter";
 
 export interface RowState {
     orientation: "horizontal" | "vertical";

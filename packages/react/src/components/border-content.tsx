@@ -10,15 +10,16 @@ import {
     OVERLAY_ATTRIBUTE,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { borderAttributes } from "./Border";
-import { useDockableContext, useLayoutContext } from "./context";
-import { useBorder, useMeasurable } from "./hooks";
-import { Splitter } from "./Splitter";
+import { useDockableContext, useLayoutContext } from "../context";
+import { useMeasurable } from "../hooks/internal";
+import { useBorder } from "../hooks/use-border";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { borderAttributes } from "./border";
+import { Splitter } from "./splitter";
 
 /** What a border shows: `Dockable.BorderContent`'s state (`Dockable.Border` adds its tab direction). */
 export interface BorderContentState {

@@ -12,13 +12,14 @@ import {
     TabListContext,
     useDockableContext,
     useLayoutContext,
-} from "./context";
-import { useDragNode, useTabHidden } from "./hooks";
+} from "../context";
+import { useTabHidden } from "../hooks/internal";
+import { useDragNode } from "../hooks/use-drag-node";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
 
 export interface TabState {
     /** the tab is its tabset's selected tab */

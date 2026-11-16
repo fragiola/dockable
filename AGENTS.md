@@ -127,7 +127,12 @@ including a new package's own stub and trust, are in [`docs/releasing.md`](docs/
 
 ```
 packages/core/      @fragiola/dockable        src/, tests/
-packages/react/     @fragiola/dockable-react  src/, tests/
+packages/react/     @fragiola/dockable-react  src/index.ts, src/parts.ts (the Dockable namespace), src/context.ts
+                    src/components/           one primitive per file (root.tsx, tabset.tsx, tab-list.tsx, …)
+                    src/hooks/                one public hook per file (use-tabset.ts, …); internal.ts
+                                              holds the hooks only the primitives call
+                    src/utils/                merge-props.ts, use-render.ts (the render prop)
+                    tests/
 packages/vue/       @fragiola/dockable-vue    src/ (plain .ts, render functions), tests/
 packages/angular/   @fragiola/dockable-angular  src/lib/ (directives, templates.ts, inject.ts),
                                               src/public-api.ts, tests/, scripts/publish-manifest.ts

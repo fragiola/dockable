@@ -4,15 +4,15 @@
 // not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { AnyTypes, BorderNode, DockableTypes } from "@fragiola/dockable";
 import type * as React from "react";
-import type { BorderContentState } from "./BorderContent";
-import { useLayoutContext } from "./context";
-import { useBorder } from "./hooks";
-import { TabContainerContext } from "./TabSet";
+import { useLayoutContext } from "../context";
+import { useBorder } from "../hooks/use-border";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import type { BorderContentState } from "./border-content";
+import { TabContainerContext } from "./tabset";
 
 export interface BorderState extends BorderContentState {
     /** the start border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"` */

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { mergeProps } from "./mergeProps";
+import { mergeProps } from "./merge-props";
 
 /** A callback ref that forwards to every ref in `refs` (function refs and ref objects alike). */
 function mergeRefs<T>(

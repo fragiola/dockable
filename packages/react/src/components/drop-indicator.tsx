@@ -4,13 +4,13 @@ import {
     type DropLocation,
 } from "@fragiola/dockable";
 import type * as React from "react";
-import { useLayoutContext } from "./context";
-import { useIndicator } from "./hooks";
+import { useLayoutContext } from "../context";
+import { useIndicator } from "../hooks/internal";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
 
 export interface DropIndicatorState {
     /** a drop target is under the pointer */

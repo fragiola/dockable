@@ -3,13 +3,13 @@
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { BorderLocation } from "@fragiola/dockable";
 import type * as React from "react";
-import { useLayoutContext } from "./context";
-import { useIndicator } from "./hooks";
+import { useLayoutContext } from "../context";
+import { useIndicator } from "../hooks/internal";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
 
 export interface EdgeIndicatorState {
     edge: BorderLocation;

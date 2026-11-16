@@ -1,11 +1,11 @@
 import type { AnyTypes, DockableTypes } from "@fragiola/dockable";
 import type * as React from "react";
-import { type UseDropZoneOptions, useDropZone } from "./hooks";
+import { type UseDropZoneOptions, useDropZone } from "../hooks/use-drop-zone";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
 
 export interface DropZoneState {
     /** a drag the zone takes is over it */

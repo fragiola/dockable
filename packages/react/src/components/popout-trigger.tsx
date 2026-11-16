@@ -1,12 +1,12 @@
 import type { AnyTypes, DockableTypes, TabOf } from "@fragiola/dockable";
 import type * as React from "react";
-import { useDockableContext, useLayoutContext } from "./context";
-import { useTabSetNode } from "./TabSet";
+import { useDockableContext, useLayoutContext } from "../context";
 import {
     type ButtonPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { useTabSetNode } from "./tabset";
 
 export interface PopoutTriggerState {
     /** what a press does: open a window (`"popout"`) or dock back into the main layout (`"dock"`) */

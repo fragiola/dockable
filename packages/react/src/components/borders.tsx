@@ -9,14 +9,14 @@ import type {
     DockableTypes,
 } from "@fragiola/dockable";
 import * as React from "react";
-import { BorderContent } from "./BorderContent";
-import { typedModel, useDockableContext, useLayoutContext } from "./context";
-import { useIndicator } from "./hooks";
+import { typedModel, useDockableContext, useLayoutContext } from "../context";
+import { useIndicator } from "../hooks/internal";
 import {
     type DivPrimitiveProps,
     dataAttributes,
     useRenderElement,
-} from "./utils/useRender";
+} from "../utils/use-render";
+import { BorderContent } from "./border-content";
 
 export interface BordersState {
     /** the layout has at least one border showing */
