@@ -19,8 +19,8 @@ import {
     type Model,
     type TabInitOf,
 } from "@fragiola/dockable";
-import { dragStateSignal } from "./internal";
-import { booleanInput, dataAttr, injectHost } from "./utils";
+import { booleanInput, dataAttr, injectHost } from "../utils/helpers";
+import { dragStateSignal } from "../utils/signals";
 
 export interface DragSourceState {
     /** a drag started by this source is in progress */

@@ -33,10 +33,10 @@ import {
     injectDockableContext,
     injectLayoutContext,
     type LayoutContext,
-} from "./context";
-import type { TypedBy } from "./templates";
-import { onDestroy } from "./utils";
-import { type SignalContext, signalContext } from "./views";
+} from "../context";
+import { onDestroy } from "../utils/helpers";
+import { type SignalContext, signalContext } from "../utils/views";
+import type { TypedBy } from "./templates.directive";
 
 /** The context of the `[dockablePanels]` template. */
 export interface PanelsContext<T extends DockableTypes = AnyTypes> {

@@ -18,15 +18,15 @@ import {
     MOVEABLE_ATTRIBUTE,
     type TabOf,
 } from "@fragiola/dockable";
-import { type DockableContext, injectDockableContext } from "./context";
-import { DOCKABLE_PANEL_HOST } from "./panels.directive";
+import { type DockableContext, injectDockableContext } from "../context";
 import {
     bindStructuralStyle,
     booleanInput,
     dataAttr,
     injectHost,
     onDestroy,
-} from "./utils";
+} from "../utils/helpers";
+import { DOCKABLE_PANEL_HOST } from "./panels.directive";
 
 export interface PanelState {
     /** the tab is its tabset's selected tab */

@@ -3,10 +3,10 @@ import {
     type DockableContext,
     injectDockableContext,
     injectLayoutContext,
-} from "./context";
-import { bindMeasurable } from "./internal";
+} from "../context";
+import { bindStructuralStyle, dataAttr, injectHost } from "../utils/helpers";
+import { bindMeasurable } from "../utils/signals";
 import { injectTabSetNode } from "./tabset.directive";
-import { bindStructuralStyle, dataAttr, injectHost } from "./utils";
 
 export interface TabSetContentState {
     /** the tabset has no tabs */

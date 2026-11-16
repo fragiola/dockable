@@ -7,8 +7,8 @@ import {
     type LayoutEngine,
     type MeasurableKind,
 } from "@fragiola/dockable";
-import type { DockableContext } from "./context";
-import { fromStore } from "./utils";
+import type { DockableContext } from "../context";
+import { fromStore } from "./helpers";
 
 /** The element each key of an engine was last registered with. */
 const owners = new WeakMap<object, Map<string, HTMLElement>>();

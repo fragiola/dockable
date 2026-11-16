@@ -23,15 +23,15 @@ import {
     injectDockableContext,
     injectLayoutContext,
     type TabContainerContext,
-} from "./context";
-import { bindMeasurable, dropStateSignal } from "./internal";
+} from "../context";
 import {
     beforeInputs,
     bindStructuralStyle,
     dataAttr,
     injectHost,
     px,
-} from "./utils";
+} from "../utils/helpers";
+import { bindMeasurable, dropStateSignal } from "../utils/signals";
 
 export interface TabSetState {
     /** the tabset is its layout's active tabset */

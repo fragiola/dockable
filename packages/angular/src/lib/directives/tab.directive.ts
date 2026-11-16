@@ -22,15 +22,15 @@ import {
     type DockableContext,
     injectDockableContext,
     injectLayoutContext,
-} from "./context";
-import { DragNodeBinding } from "./drag-node.directive";
-import { hiddenTabsSignal, registerElement } from "./internal";
+} from "../context";
 import {
     beforeInputs,
     bindStructuralStyle,
     dataAttr,
     injectHost,
-} from "./utils";
+} from "../utils/helpers";
+import { hiddenTabsSignal, registerElement } from "../utils/signals";
+import { DragNodeBinding } from "./drag-node.directive";
 
 export interface TabState {
     /** the tab is its tabset's selected tab */

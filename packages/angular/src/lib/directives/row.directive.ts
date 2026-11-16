@@ -23,28 +23,28 @@ import {
     type DockableContext,
     injectDockableContext,
     injectLayoutContext,
-} from "./context";
-import { bindMeasurable } from "./internal";
-import { DockableDefaultSplitter } from "./splitter.directive";
-import {
-    DockableRowChild,
-    DockableRowSplitter,
-    type RowChildContext,
-    type RowSplitterContext,
-} from "./templates";
+} from "../context";
 import {
     bindStructuralStyle,
     booleanInput,
     dataAttr,
     injectHost,
     px,
-} from "./utils";
+} from "../utils/helpers";
+import { bindMeasurable } from "../utils/signals";
 import {
     DetachedViews,
     type KeyedItem,
     KeyedViews,
     signalContext,
-} from "./views";
+} from "../utils/views";
+import { DockableDefaultSplitter } from "./splitter.directive";
+import {
+    DockableRowChild,
+    DockableRowSplitter,
+    type RowChildContext,
+    type RowSplitterContext,
+} from "./templates.directive";
 
 export interface RowState {
     orientation: "horizontal" | "vertical";

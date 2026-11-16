@@ -34,16 +34,7 @@ import {
     injectDockableContext,
     injectLayoutContext,
     type TabContainerContext,
-} from "./context";
-import { bindMeasurable, dropStateSignal, indicatorSignal } from "./internal";
-import { DockableDefaultSplitter } from "./splitter.directive";
-import {
-    type BorderSplitterContext,
-    type BorderTemplateContext,
-    DockableBorderSplitter,
-    DockableBordersBar,
-    DockableBordersContent,
-} from "./templates";
+} from "../context";
 import {
     bindStructuralStyle,
     booleanInput,
@@ -53,8 +44,21 @@ import {
     onDestroy,
     px,
     type StructuralStyle,
-} from "./utils";
-import { DetachedViews, signalContext } from "./views";
+} from "../utils/helpers";
+import {
+    bindMeasurable,
+    dropStateSignal,
+    indicatorSignal,
+} from "../utils/signals";
+import { DetachedViews, signalContext } from "../utils/views";
+import { DockableDefaultSplitter } from "./splitter.directive";
+import {
+    type BorderSplitterContext,
+    type BorderTemplateContext,
+    DockableBorderSplitter,
+    DockableBordersBar,
+    DockableBordersContent,
+} from "./templates.directive";
 
 /** What a border shows: `[dockableBorderContent]`'s state (`[dockableBorder]` adds its tab direction). */
 export interface BorderContentState {

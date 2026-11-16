@@ -29,14 +29,14 @@ import {
     type DockableContext,
     injectDockableContext,
     injectLayoutContext,
-} from "./context";
+} from "../context";
 import {
     beforeInputs,
     bindStructuralStyle,
     dataAttr,
     injectHost,
     type StructuralStyle,
-} from "./utils";
+} from "../utils/helpers";
 
 export interface SplitterState extends SplitterControllerState {
     /** `"vertical"` for a splitter between side by side children, as its `aria-orientation` */

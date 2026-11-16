@@ -5,9 +5,14 @@ import {
     type DropKind,
     type DropLocation,
 } from "@fragiola/dockable";
-import { injectLayoutContext } from "./context";
-import { indicatorSignal } from "./internal";
-import { bindStructuralStyle, dataAttr, injectHost, px } from "./utils";
+import { injectLayoutContext } from "../context";
+import {
+    bindStructuralStyle,
+    dataAttr,
+    injectHost,
+    px,
+} from "../utils/helpers";
+import { indicatorSignal } from "../utils/signals";
 
 export interface DropIndicatorState {
     /** a drop target is under the pointer */

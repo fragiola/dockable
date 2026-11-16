@@ -16,9 +16,9 @@ import {
     type DockableContext,
     injectDockableContext,
     injectLayoutContext,
-} from "./context";
-import { dragStateSignal } from "./internal";
-import { injectHost } from "./utils";
+} from "../context";
+import { injectHost } from "../utils/helpers";
+import { dragStateSignal } from "../utils/signals";
 
 /** What a dragged part shows. */
 export interface DragNodeState {

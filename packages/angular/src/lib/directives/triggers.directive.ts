@@ -11,10 +11,10 @@ import {
     type DockableContext,
     injectDockableContext,
     injectLayoutContext,
-} from "./context";
-import { hiddenTabsSignal, registerElement } from "./internal";
+} from "../context";
+import { bindStructuralStyle, injectHost } from "../utils/helpers";
+import { hiddenTabsSignal, registerElement } from "../utils/signals";
 import { injectTabContainer, injectTabSetNode } from "./tabset.directive";
-import { bindStructuralStyle, injectHost } from "./utils";
 
 /** A button element with no `type` of its own gets `type="button"` (it never submits a form). */
 function buttonType(element: HTMLElement): void {

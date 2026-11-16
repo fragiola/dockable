@@ -19,12 +19,19 @@ import {
     type DockableContext,
     injectDockableContext,
     injectLayoutContext,
-} from "./context";
-import { dropStateSignal, hiddenTabsSignal, registerElement } from "./internal";
+} from "../context";
+import { booleanInput, dataAttr, injectHost } from "../utils/helpers";
+import {
+    dropStateSignal,
+    hiddenTabsSignal,
+    registerElement,
+} from "../utils/signals";
+import { KeyedViews, signalContext } from "../utils/views";
 import { injectTabContainer } from "./tabset.directive";
-import { DockableTabListItem, type TabListItemContext } from "./templates";
-import { booleanInput, dataAttr, injectHost } from "./utils";
-import { KeyedViews, signalContext } from "./views";
+import {
+    DockableTabListItem,
+    type TabListItemContext,
+} from "./templates.directive";
 
 export interface TabListState {
     orientation: "horizontal" | "vertical";

@@ -26,10 +26,15 @@ import {
     type DockableContext,
     injectDockableContext,
     type LayoutContext,
-} from "./context";
-import type { TypedBy } from "./templates";
-import { bindStructuralStyle, fromStore, injectHost, onDestroy } from "./utils";
-import { type SignalContext, signalContext } from "./views";
+} from "../context";
+import {
+    bindStructuralStyle,
+    fromStore,
+    injectHost,
+    onDestroy,
+} from "../utils/helpers";
+import { type SignalContext, signalContext } from "../utils/views";
+import type { TypedBy } from "./templates.directive";
 
 export interface PopoutState {
     /** the id of the window layout */

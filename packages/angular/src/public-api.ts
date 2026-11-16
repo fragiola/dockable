@@ -1,6 +1,10 @@
 // The whole core, so that an Angular app installs and imports one package. A local export would
 // silently shadow a core name of the same spelling: tests/index.spec.ts fails on one.
 export * from "@fragiola/dockable";
+export type {
+    DockableContext,
+    LayoutContext,
+} from "./lib/context";
 export {
     type BorderContentState,
     type BorderState,
@@ -8,20 +12,15 @@ export {
     DockableBorder,
     DockableBorderContent,
     DockableBorders,
-} from "./lib/borders.directive";
-export type {
-    DockableContext,
-    LayoutContext,
-} from "./lib/context";
-export { DOCKABLE } from "./lib/dockable";
+} from "./lib/directives/borders.directive";
 export {
     DockableDragGroup,
     injectDragGroup,
-} from "./lib/drag-group.directive";
+} from "./lib/directives/drag-group.directive";
 export {
     DockableDragNode,
     type DragNodeState,
-} from "./lib/drag-node.directive";
+} from "./lib/directives/drag-node.directive";
 export {
     DockableDragSource,
     DockableDropZone,
@@ -29,63 +28,51 @@ export {
     type DropZoneDrop,
     type DropZoneState,
     type NewTabDrop,
-} from "./lib/drag-source.directive";
+} from "./lib/directives/drag-source.directive";
 export {
     DockableDropIndicator,
     DockableEdgeIndicator,
     type DropIndicatorState,
     type EdgeIndicatorState,
-} from "./lib/indicators.directive";
+} from "./lib/directives/indicators.directive";
 export {
-    type InjectDockableResult,
-    type InjectModelStateOptions,
-    type InjectPartResult,
-    type InjectTabOverflowResult,
-    injectBorder,
-    injectDockable,
-    injectDragNode,
-    injectDragSource,
-    injectDropZone,
-    injectModelState,
-    injectSplitter,
-    injectTabOverflow,
-    injectTabSet,
-} from "./lib/inject";
-export { DockablePanel, type PanelState } from "./lib/panel.directive";
+    DockablePanel,
+    type PanelState,
+} from "./lib/directives/panel.directive";
 export {
     DockablePanels,
     type PanelsContext,
     type RenderOnDemand,
-} from "./lib/panels.directive";
+} from "./lib/directives/panels.directive";
 export {
     DockablePopout,
     DockablePopoutLayout,
     type PopoutContext,
     type PopoutState,
-} from "./lib/popout.directive";
+} from "./lib/directives/popout.directive";
 export {
     DockableRoot,
     type PopoutEvent,
     type RootState,
-} from "./lib/root.directive";
-export { DockableRow, type RowState } from "./lib/row.directive";
+} from "./lib/directives/root.directive";
+export { DockableRow, type RowState } from "./lib/directives/row.directive";
 export {
     DockableSplitter,
     type SplitterState,
-} from "./lib/splitter.directive";
-export { DockableTab, type TabState } from "./lib/tab.directive";
+} from "./lib/directives/splitter.directive";
+export { DockableTab, type TabState } from "./lib/directives/tab.directive";
 export {
     DockableTabList,
     type TabListState,
-} from "./lib/tab-list.directive";
+} from "./lib/directives/tab-list.directive";
 export {
     DockableTabSet,
     type TabSetState,
-} from "./lib/tabset.directive";
+} from "./lib/directives/tabset.directive";
 export {
     DockableTabSetContent,
     type TabSetContentState,
-} from "./lib/tabset-content.directive";
+} from "./lib/directives/tabset-content.directive";
 export {
     type BorderSplitterContext,
     type BorderTemplateContext,
@@ -100,10 +87,32 @@ export {
     type RowSplitterProps,
     type TabListItemContext,
     type TypedBy,
-} from "./lib/templates";
+} from "./lib/directives/templates.directive";
 export {
     DockablePopoutTrigger,
     DockableTabOverflowTrigger,
     type PopoutTriggerState,
     type TabOverflowTriggerState,
-} from "./lib/triggers.directive";
+} from "./lib/directives/triggers.directive";
+export { DOCKABLE } from "./lib/dockable";
+export {
+    type InjectDockableResult,
+    injectDockable,
+} from "./lib/inject/inject-dockable";
+export {
+    type InjectModelStateOptions,
+    injectModelState,
+} from "./lib/inject/inject-model-state";
+export {
+    type InjectPartResult,
+    injectBorder,
+    injectDragNode,
+    injectDragSource,
+    injectDropZone,
+    injectSplitter,
+    injectTabSet,
+} from "./lib/inject/inject-part";
+export {
+    type InjectTabOverflowResult,
+    injectTabOverflow,
+} from "./lib/inject/inject-tab-overflow";

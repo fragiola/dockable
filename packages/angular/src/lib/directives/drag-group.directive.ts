@@ -8,8 +8,8 @@ import {
     type ContentViews,
     DOCKABLE_DRAG_GROUP,
     type DragGroupContext,
-} from "./context";
-import { onDestroy } from "./utils";
+} from "../context";
+import { onDestroy } from "../utils/helpers";
 
 /** The content views of a drag group, keyed by moveable element (see {@link ContentViews}). */
 class ContentViewRegistry implements ContentViews {

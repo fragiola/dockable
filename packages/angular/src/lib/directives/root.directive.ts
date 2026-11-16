@@ -35,15 +35,15 @@ import {
     eraseEngine,
     eraseModel,
     type LayoutContext,
-} from "./context";
-import { dragStateSignal, indicatorSignal } from "./internal";
+} from "../context";
 import {
     bindStructuralStyle,
     dataAttr,
     injectHost,
     onDestroy,
     optionalBoolean,
-} from "./utils";
+} from "../utils/helpers";
+import { dragStateSignal, indicatorSignal } from "../utils/signals";
 
 export interface RootState {
     /** a tabset of the main layout is maximized */
