@@ -4,7 +4,7 @@ import type { Component } from "vue";
 import type { Types } from "./data";
 
 // How the dashboard decorates its tabsets: an icon per widget type, a red tab for a KPI below
-// target (TabContent.vue: the icon, the name and a close button; TabSetButtons.vue: maximize /
+// target (tab-content.vue: the icon, the name and a close button; tabset-buttons.vue: maximize /
 // pop out / dock back in the header).
 
 /** A KPI below its target: its tab takes the danger palette and a warning icon. */

@@ -7,10 +7,10 @@ import {
 import { ChartLine, ScrollText, Table2 } from "@lucide/vue";
 import { ref } from "vue";
 import { Select } from "#/components/ui/select";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 const json: LayoutJson<Types> = {

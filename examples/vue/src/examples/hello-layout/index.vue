@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Card from "../_kit/Card.vue";
+import Card from "../_kit/card.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // A layout is JSON: rows split space, tabsets hold tabs. Weights are relative sizes.

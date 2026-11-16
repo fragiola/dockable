@@ -2,11 +2,11 @@
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "@lucide/vue";
 import { ref } from "vue";
-import Border from "./Border.vue";
-import Content from "./Content.vue";
+import Border from "./border.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // A right-to-left page needs nothing from the layout: `dir="rtl"` on an ancestor of the root (here

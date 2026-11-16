@@ -4,7 +4,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { drag, Location, waitForBox } from "./helpers";
 
 const open = async (page: Page, query = "") => {
-    await page.goto(`/fixtures/two-layouts/?layout=test_two_tabs${query}`);
+    await page.goto(`/fixtures/two-layouts/?layout=test-two-tabs${query}`);
     await waitForBox(
         page.getByTestId("layout-a").locator('[data-layout-path="/layout"]'),
         "layout a",

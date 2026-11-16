@@ -26,7 +26,7 @@ const open = async (page: Page, layout: string) => {
 
 test.describe("drag tests two tabs", () => {
     test.beforeEach(async ({ page }) => {
-        await open(page, "test_two_tabs");
+        await open(page, "test-two-tabs");
         await expect(findAllTabSets(page)).toHaveCount(2);
     });
 
@@ -99,7 +99,7 @@ test.describe("drag tests two tabs", () => {
 
 test.describe("three tabs", () => {
     test.beforeEach(async ({ page }) => {
-        await open(page, "test_three_tabs");
+        await open(page, "test-three-tabs");
         await expect(findAllTabSets(page)).toHaveCount(3);
     });
 
@@ -299,7 +299,7 @@ test.describe("drop indicator", () => {
     test("follows the computed target with data-drop-location and data-drop-kind", async ({
         page,
     }) => {
-        await open(page, "test_three_tabs");
+        await open(page, "test-three-tabs");
         const indicator = findPath(page, "/outline");
         await expect(indicator).toBeHidden();
 
@@ -335,7 +335,7 @@ test.describe("drop indicator", () => {
     });
 
     test("marks a layout edge drop with kind edge", async ({ page }) => {
-        await open(page, "test_three_tabs");
+        await open(page, "test-three-tabs");
         const root = await waitForBox(findPath(page, "/layout"), "layout root");
         const drop = await dragOver(
             page,
@@ -356,7 +356,7 @@ test.describe("drop indicator", () => {
 test("panel content state survives a drag into another tabset", async ({
     page,
 }) => {
-    await open(page, "test_three_tabs");
+    await open(page, "test-three-tabs");
     const panel = findPath(page, "/ts0/t0");
     await panel.getByTestId("counter").click();
     await panel.getByTestId("input").fill("kept");

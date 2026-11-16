@@ -1,5 +1,5 @@
 // A simulated fleet of services: a small external store (subscribe / getSnapshot, read by
-// useSimulation.ts) fed by a timer. Deterministic: the same seed gives the same numbers, and
+// use-simulation.ts) fed by a timer. Deterministic: the same seed gives the same numbers, and
 // "trigger an incident" changes the data at once, so nothing waits on a random spike.
 // Nothing here knows about Dockable.
 

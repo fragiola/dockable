@@ -4,7 +4,7 @@ import { cn } from "#/lib/cn";
 // How analytics-dashboard looks: one class string per part, read by the .vue files. Colours come
 // from the palette roles and sizes from the theme's --dk-* tokens, so it works in every theme.
 
-// ─── layout (index.vue, LayoutNode.vue, Splitter.vue) ───
+// ─── layout (index.vue, layout-node.vue, splitter.vue) ───
 
 /** The whole example: the header above, the layout below. */
 export const frame =
@@ -86,7 +86,7 @@ export const splitterGrip = cn(
     "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
 );
 
-// ─── tabs (TabContent.vue, TabSetButtons.vue) ───
+// ─── tabs (tab-content.vue, tabset-buttons.vue) ───
 
 /** The widget's icon (or the warning) in its tab. */
 export const tabIcon = "size-3.5 shrink-0";
@@ -114,7 +114,7 @@ export const dockBackIcon = "size-4";
 
 export const buttonIcon = "size-3.5";
 
-// ─── header (Header.vue) ───
+// ─── header (header.vue) ───
 
 export const header =
     "palette-surface flex flex-wrap items-center gap-3 border-b border-palette-line bg-palette-base px-3 py-2 text-palette-contrast";
@@ -147,7 +147,7 @@ export const addButton = cn(
 
 export const headerIcon = "size-4";
 
-// ─── widgets (ChartWidget.vue, KpiWidget.vue, OrdersWidget.vue) ───
+// ─── widgets (chart-widget.vue, kpi-widget.vue, orders-widget.vue) ───
 
 export const chart = "flex h-full min-h-36 flex-col gap-1 p-3";
 

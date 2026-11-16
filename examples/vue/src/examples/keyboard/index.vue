@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
 import { Tooltip } from "#/components/ui/tooltip";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, keyMap, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 const json: LayoutJson<Types> = {

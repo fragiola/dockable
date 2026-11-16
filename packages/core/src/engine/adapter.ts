@@ -1,9 +1,9 @@
-import type { DragDropManager, OnExternalDrag } from "../dnd/DragDropManager";
-import type { DragGroup } from "../dnd/DragGroup";
+import type { DragDropManager, OnExternalDrag } from "../dnd/drag-drop-manager";
+import type { DragGroup } from "../dnd/drag-group";
 import type { EdgeBand, Orientation } from "../geometry/dock";
 import type { Rect } from "../geometry/rect";
 import type { KeyEventLike, KeyMap } from "../keyboard/keymap";
-import type { PopoutManager } from "../popout/PopoutManager";
+import type { PopoutManager } from "../popout/popout-manager";
 import type { Model } from "../state/model";
 import type { AnyTypes, DockableTypes } from "../state/types";
 import type {
@@ -12,7 +12,7 @@ import type {
     KeyShortcutsPart,
     PressInput,
 } from "./interaction";
-import type { LayoutEngine, LayoutEngineSettings } from "./LayoutEngine";
+import type { LayoutEngine, LayoutEngineSettings } from "./layout-engine";
 import type { MeasurableKind } from "./measure";
 import type { MoveableOptions } from "./moveables";
 

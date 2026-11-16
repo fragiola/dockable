@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import HairlineSplitter from "./HairlineSplitter.vue";
-import LayoutNode from "./LayoutNode.vue";
+import HairlineSplitter from "./hairline-splitter.vue";
+import LayoutNode from "./layout-node.vue";
 import * as styles from "./styles";
 
 const json: LayoutJson<Types> = {

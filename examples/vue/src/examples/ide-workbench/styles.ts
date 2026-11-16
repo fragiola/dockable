@@ -5,7 +5,7 @@ import type { Problem } from "./files";
 // How ide-workbench looks: one class string per part, read by index.vue and its components. Colours come from
 // the palette roles and sizes from the theme's --dk-* tokens, so it works in every theme.
 
-// ─── workbench (index.vue, StatusBar.vue) ───
+// ─── workbench (index.vue, status-bar.vue) ───
 
 export const workbench =
     "flex min-h-0 flex-1 flex-col font-(family-name:--dk-font)";
@@ -56,7 +56,7 @@ export const statusPath = "ms-auto";
 
 export const saveButton = "palette-blue";
 
-// ─── borders (Border.vue, BorderContent.vue) ───
+// ─── borders (border.vue, border-content.vue) ───
 
 export const border = cn(
     "palette-surface shrink-0 bg-palette-base text-palette-contrast",
@@ -91,7 +91,7 @@ export const borderContent = cn(
     "data-overlay:data-[location=top]:border-b data-overlay:data-[location=bottom]:border-t",
 );
 
-// ─── splitter (Splitter.vue) ───
+// ─── splitter (splitter.vue) ───
 
 /** `--dk-splitter-size` thick (the engine measures it), with a wider grab area (`::after`). */
 export const splitter = cn(
@@ -119,7 +119,7 @@ export const splitterGrip = cn(
     "group-data-[orientation=horizontal]/splitter:h-1 group-data-[orientation=horizontal]/splitter:w-8",
 );
 
-// ─── tabsets (WorkbenchTabSet.vue) ───
+// ─── tabsets (workbench-tabset.vue) ───
 
 export const tabset =
     "palette-raised rounded-(--dk-radius) border-(length:--dk-border) border-palette-line bg-palette-base text-palette-contrast shadow-(--dk-shadow) data-active:border-(--dk-tabset-active-line) data-maximized:shadow-none";
@@ -144,7 +144,7 @@ export const maximizeIcon = "size-3.5";
 export const emptyState =
     "grid h-full place-items-center p-4 text-center text-sm text-palette-accent/85";
 
-// ─── tabs (WorkbenchTab.vue, TabIcon.vue) ───
+// ─── tabs (workbench-tab.vue, tab-icon.vue) ───
 
 export const tab = cn(
     "group/tab relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 ps-2.5 pe-1",
@@ -178,7 +178,7 @@ export const closeIcon = (dirty: boolean) =>
             : "opacity-0 group-hover/tab:opacity-100 group-data-selected/tab:opacity-100",
     );
 
-// ─── explorer (Explorer.vue, FileIcon.vue) ───
+// ─── explorer (explorer.vue, file-icon.vue) ───
 
 /** A file type's colour, through a palette (so every theme recolours it). */
 export type FileTone = "orange" | "green" | "purple" | "blue";
@@ -232,7 +232,7 @@ export const fileName = "truncate";
 export const fileModified =
     "ms-auto size-2 shrink-0 rounded-full bg-palette-accent";
 
-// ─── editor (EditorPanel.vue) ───
+// ─── editor (editor-panel.vue) ───
 
 export const editor = "flex h-full flex-col";
 
@@ -256,7 +256,7 @@ export const lineNumbers =
 export const editorText =
     "min-h-full min-w-0 flex-1 resize-none bg-transparent py-2 pe-4 whitespace-pre text-palette-contrast outline-none [field-sizing:content]";
 
-// ─── terminal (TerminalPanel.vue) ───
+// ─── terminal (terminal-panel.vue) ───
 
 export const terminal =
     "flex min-h-full flex-col p-2 font-mono text-xs leading-5";
@@ -269,7 +269,7 @@ export const terminalPrompt = "text-palette-accent/85";
 
 export const terminalInput = "min-w-0 flex-1 bg-transparent outline-none";
 
-// ─── problems (ProblemsPanel.vue) ───
+// ─── problems (problems-panel.vue) ───
 
 export const problems = "py-1 text-[13px]";
 

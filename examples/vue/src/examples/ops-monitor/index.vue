@@ -11,11 +11,11 @@ import { Siren } from "@lucide/vue";
 import { ref, watchEffect } from "vue";
 import { Select } from "#/components/ui/select";
 import { Switch } from "#/components/ui/switch";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
 import { createSimulation, SERVICES, type ServiceId } from "./simulation";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 import { INCIDENT_TABSET } from "./tabs";
 

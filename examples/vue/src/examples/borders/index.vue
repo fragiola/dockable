@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Border from "./Border.vue";
-import BorderContent from "./BorderContent.vue";
-import Content from "./Content.vue";
+import Border from "./border.vue";
+import BorderContent from "./border-content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Borders are part of the model (`borders` in its JSON): a strip of tabs on one side of the

@@ -14,7 +14,7 @@ import {
 } from "./helpers";
 
 const open = async (page: Page) => {
-    await page.goto("/fixtures/external/?layout=test_two_tabs");
+    await page.goto("/fixtures/external/?layout=test-two-tabs");
     await waitForBox(findPath(page, "/layout"), "layout root");
     await expect(findAllTabSets(page)).toHaveCount(2);
 };

@@ -7,12 +7,12 @@ import {
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { layoutFromQuery, type Types } from "../../src/fixture/layouts";
-import { renderNode, renderPanel } from "../../src/fixture/renderNode";
+import { renderNode, renderPanel } from "../../src/fixture/render-node";
 import "../../src/fixture/fixture.css";
 import "./borders.css";
 
 /**
- * Borders around the layout (Epic #21). `?layout=` picks the layout (test_overlay by default),
+ * Borders around the layout (Epic #21). `?layout=` picks the layout (test-overlay by default),
  * `?edgeDockMargin=` sets the layout default of that name, `?thin` makes the tab strips 12px tall
  * (gap 11). Like FlexLayout's demo, the page exposes the model on `window.__dockable`, so the specs
  * can run commands directly (`border.configure`). The start border's tab direction is the
@@ -44,7 +44,7 @@ const EDGES = ["top", "bottom", "start", "end"] as const;
 
 function App() {
     const [model] = useState(() => {
-        const json = layoutFromQuery("test_overlay");
+        const json = layoutFromQuery("test-overlay");
         const margin = params.get("edgeDockMargin");
         if (margin !== null) {
             json.defaults = {

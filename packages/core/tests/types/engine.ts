@@ -1,6 +1,6 @@
 // Type fixtures (compiled by `pnpm typecheck`, never run): the engine's verbs are typed by their
 // keys, a command never runs through `engine.run`, and the surface is the verbs plus `adapter`.
-import type { LayoutEngine } from "../../src/engine/LayoutEngine";
+import type { LayoutEngine } from "../../src/engine/layout-engine";
 import type { Model } from "../../src/state/model";
 
 /** Uses values, so fixtures do not trip noUnusedLocals. */

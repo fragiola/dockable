@@ -7,7 +7,7 @@ import {
     scenarioPath,
     scenarioTitle,
     sections,
-} from "../src/catalog.ts";
+} from "../src/shell/catalog";
 
 // ─── The scenario convention ────────────────────────────────────────────────
 // src/scenarios/<area>/<id>.tsx, default export only. The sidebar reads everything from the path,

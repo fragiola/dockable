@@ -10,7 +10,7 @@ import {
 import { type ReactNode, StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Types } from "../../src/fixture/layouts";
-import { renderPanel } from "../../src/fixture/renderNode";
+import { renderPanel } from "../../src/fixture/render-node";
 import "../../src/fixture/fixture.css";
 import "./rtl.css";
 

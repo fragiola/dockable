@@ -2,7 +2,7 @@
 // tabs hidden by tab overflow) and src/view/layout/LayoutInternal.tsx (the observers that drive
 // it), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
-import { computeTabOverflow } from "../overflow/tabOverflow";
+import { computeTabOverflow } from "../overflow/tab-overflow";
 import type { Model } from "../state/model";
 import type { DockableTypes } from "../state/types";
 import type { Measure } from "./measure";

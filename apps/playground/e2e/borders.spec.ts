@@ -21,7 +21,7 @@ const tabNames = (page: Page, path: string) =>
 test("a split border opens on a tab click, shrinks the layout, and closes on a second click", async ({
     page,
 }) => {
-    await open(page, "layout=test_overlay");
+    await open(page, "layout=test-overlay");
     const before = await waitForBox(findPath(page, "/main"), "main");
     await findPath(page, "/border/end/tb0").click();
     await expect(findPath(page, "/border/end")).toHaveAttribute(
@@ -42,7 +42,7 @@ test("a split border opens on a tab click, shrinks the layout, and closes on a s
 });
 
 test("a border's splitter resizes it with the keyboard", async ({ page }) => {
-    await open(page, "layout=test_overlay");
+    await open(page, "layout=test-overlay");
     await findPath(page, "/border/bottom/tb0").click();
     const splitter = findPath(page, "/border/bottom/s-1");
     await expect(splitter).toHaveAttribute("aria-valuenow", "200");
@@ -59,7 +59,7 @@ test("a border's splitter resizes it with the keyboard", async ({ page }) => {
 test("a tab dropped on a border's strip joins the border, and keeps its content", async ({
     page,
 }) => {
-    await open(page, "layout=test_overlay");
+    await open(page, "layout=test-overlay");
     await findPath(page, "/ts0/t0").getByTestId("counter").click();
     await drag(
         page,
@@ -77,7 +77,7 @@ test("a tab dropped on a border's strip joins the border, and keeps its content"
 test("a tab dropped on an open border's panel joins the border", async ({
     page,
 }) => {
-    await open(page, "layout=test_overlay");
+    await open(page, "layout=test-overlay");
     await findPath(page, "/border/bottom/tb0").click();
     await drag(
         page,
@@ -94,7 +94,7 @@ test("a tab dropped on an open border's panel joins the border", async ({
 test("a border's tab dragged into a tabset leaves the border", async ({
     page,
 }) => {
-    await open(page, "layout=test_overlay");
+    await open(page, "layout=test-overlay");
     await drag(
         page,
         findPath(page, "/border/top/tb0"),
@@ -111,7 +111,7 @@ test("a border's tab dragged into a tabset leaves the border", async ({
 test("an empty auto-hide border appears while a drag nears its edge, and takes the drop", async ({
     page,
 }) => {
-    await open(page, "layout=test_autohide_borders");
+    await open(page, "layout=test-autohide-borders");
     await expect(findPath(page, "/border/start")).toBeVisible(); // has a tab
     await expect(findPath(page, "/border/end")).toHaveCount(0);
     const main = await waitForBox(findPath(page, "/main"), "main");
@@ -131,7 +131,7 @@ test("an empty auto-hide border appears while a drag nears its edge, and takes t
 test("an auto-hide border revealed by a drag hides again when the drag moves away", async ({
     page,
 }) => {
-    await open(page, "layout=test_autohide_borders");
+    await open(page, "layout=test-autohide-borders");
     const main = await waitForBox(findPath(page, "/main"), "main");
     const drag = await dragOverPoint(page, findPath(page, "/ts0/tb1"), {
         x: main.x + 40,
@@ -149,7 +149,7 @@ test("an auto-hide border revealed by a drag hides again when the drag moves awa
 test("the edge indicators show during a drag, and mark the edge a drop would dock to", async ({
     page,
 }) => {
-    await open(page, "layout=test_overlay");
+    await open(page, "layout=test-overlay");
     await expect(findPath(page, "/edge/top")).toBeHidden();
     const main = await waitForBox(findPath(page, "/main"), "main");
     const drag = await dragOverPoint(page, findPath(page, "/ts0/tb0"), {
@@ -193,7 +193,7 @@ test("the edge indicators show during a drag, and mark the edge a drop would doc
 test("gap 11: a thin strip at the top edge docks to the edge by default, and takes the drop with a smaller edgeDockMargin", async ({
     page,
 }) => {
-    await open(page, "layout=test_border_direction&thin");
+    await open(page, "layout=test-border-direction&thin");
     const main = await waitForBox(findPath(page, "/main"), "main");
     const strip = await waitForBox(findPath(page, "/ts0/tabstrip"), "strip");
     // the strip's centre (where the drop aims) is inside the 10px top band
@@ -210,7 +210,7 @@ test("gap 11: a thin strip at the top edge docks to the edge by default, and tak
     );
     await drop();
 
-    await open(page, "layout=test_border_direction&thin&edgeDockMargin=3");
+    await open(page, "layout=test-border-direction&thin&edgeDockMargin=3");
     const drop2 = await dragOver(
         page,
         findPath(page, "/border/end/tb0"),

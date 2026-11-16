@@ -2,8 +2,8 @@
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
 import { Dockable, type Types } from "./dockable";
 import { renderFactory, TEMPLATES } from "./factory";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Tabs whose `component` field selects their content (see factory.ts). Content renders on

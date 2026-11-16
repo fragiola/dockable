@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
-// A Fragiola ContextMenu on every tab (MenuTab.vue). The package provides the commands and
+// A Fragiola ContextMenu on every tab (menu-tab.vue). The package provides the commands and
 // `model.can`, which says whether a command would apply; the menu (and its text) is the
 // consumer's.
 

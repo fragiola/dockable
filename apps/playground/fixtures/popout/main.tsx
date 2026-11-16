@@ -12,7 +12,7 @@ import {
 import { type ReactNode, StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { layoutFromQuery, type Types } from "../../src/fixture/layouts";
-import { TabContent } from "../../src/fixture/TabContent";
+import { TabContent } from "../../src/fixture/tab-content";
 import "../../src/fixture/fixture.css";
 
 /** drags a whole tabset (the lower-layer hook: tabsets have no built-in drag handle) */

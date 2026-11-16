@@ -2,7 +2,7 @@ import { createModel, Dockable } from "@fragiola/dockable-react";
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { layoutFromQuery, type Types } from "../../src/fixture/layouts";
-import { renderNode, renderPanel } from "../../src/fixture/renderNode";
+import { renderNode, renderPanel } from "../../src/fixture/render-node";
 import "../../src/fixture/fixture.css";
 
 const params = new URLSearchParams(window.location.search);

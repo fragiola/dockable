@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import FramedSplitter from "./FramedSplitter.vue";
-import LayoutNode from "./LayoutNode.vue";
+import FramedSplitter from "./framed-splitter.vue";
+import LayoutNode from "./layout-node.vue";
 import * as styles from "./styles";
 
 // A thin line with a framed handle on it: a pill with a border, a shadow and two grip lines,

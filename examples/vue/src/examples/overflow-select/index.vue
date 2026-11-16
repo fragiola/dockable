@@ -4,10 +4,10 @@ import {
     type LayoutJson,
     type TabJson,
 } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Two answers to a strip with more tabs than fit, chosen per tabset by its data.

@@ -1,9 +1,9 @@
 import type { LayoutJson, TabsetJson } from "@fragiola/dockable-react";
-import testAutohideBorders from "../layouts/test_autohide_borders.json";
-import testBorderDirection from "../layouts/test_border_direction.json";
-import testOverlay from "../layouts/test_overlay.json";
-import testThreeTabs from "../layouts/test_three_tabs.json";
-import testTwoTabs from "../layouts/test_two_tabs.json";
+import testAutohideBorders from "../layouts/test-autohide-borders.json";
+import testBorderDirection from "../layouts/test-border-direction.json";
+import testOverlay from "../layouts/test-overlay.json";
+import testThreeTabs from "../layouts/test-three-tabs.json";
+import testTwoTabs from "../layouts/test-two-tabs.json";
 
 /**
  * The fixtures' type registry: one component with no data (a tab's label is the text every strip
@@ -69,7 +69,7 @@ const multi: FixtureLayout = {
 };
 
 /** weights that would put the splitter at 10%, held at 300px by the first tabset's min width */
-const min_width: FixtureLayout = {
+const minWidth: FixtureLayout = {
     version: 1,
     root: {
         type: "row",
@@ -91,17 +91,17 @@ const min_width: FixtureLayout = {
 
 export const layouts: Record<string, FixtureLayout> = {
     multi,
-    min_width,
-    test_two_tabs: testTwoTabs as FixtureLayout,
-    test_three_tabs: testThreeTabs as FixtureLayout,
+    "min-width": minWidth,
+    "test-two-tabs": testTwoTabs as FixtureLayout,
+    "test-three-tabs": testThreeTabs as FixtureLayout,
     big,
-    test_overlay: testOverlay as FixtureLayout,
-    test_border_direction: testBorderDirection as FixtureLayout,
-    test_autohide_borders: testAutohideBorders as FixtureLayout,
+    "test-overlay": testOverlay as FixtureLayout,
+    "test-border-direction": testBorderDirection as FixtureLayout,
+    "test-autohide-borders": testAutohideBorders as FixtureLayout,
 };
 
-/** the layout named by the `layout` query parameter (default: test_two_tabs) */
-export function layoutFromQuery(fallback = "test_two_tabs"): FixtureLayout {
+/** the layout named by the `layout` query parameter (default: test-two-tabs) */
+export function layoutFromQuery(fallback = "test-two-tabs"): FixtureLayout {
     const name =
         new URLSearchParams(window.location.search).get("layout") ?? fallback;
     const json = layouts[name];

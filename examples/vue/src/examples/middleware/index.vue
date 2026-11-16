@@ -8,10 +8,10 @@ import {
 } from "@fragiola/dockable-vue";
 import { reactive, ref, shallowRef, useId, watch } from "vue";
 import { Switch } from "#/components/ui/switch";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type LogEntry, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Middleware is how an app adds its own rules to the layout. Each one wraps every command, whoever

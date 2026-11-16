@@ -2,7 +2,7 @@
 // (overlay borders and keyboard focus), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { CommandResult } from "../commands/types";
-import type { DragDropManager } from "../dnd/DragDropManager";
+import type { DragDropManager } from "../dnd/drag-drop-manager";
 import { contains } from "../geometry/rect";
 import { type KeyEventLike, matchesKey } from "../keyboard/keymap";
 import { borderShown, resolveBorder } from "../state/defaults";
@@ -10,7 +10,7 @@ import type { Model } from "../state/model";
 import type { AnyBorder } from "../state/tree";
 import type { DockableTypes } from "../state/types";
 import type { Derived } from "./derived";
-import type { SharedView } from "./LayoutEngine";
+import type { SharedView } from "./layout-engine";
 import { type Measure, tabContainerOf } from "./measure";
 import { notFound, refused } from "./results";
 import type { OverlayPlacement } from "./verbs";

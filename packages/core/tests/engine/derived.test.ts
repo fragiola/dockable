@@ -6,8 +6,8 @@ import {
     type LayoutEngine,
     type LayoutJson,
 } from "../../src";
-import { computePaths } from "../../src/paths";
-import { sizeRanges } from "../../src/split/split";
+import { computePaths } from "../../src/dom/paths";
+import { sizeRanges } from "../../src/splitter/split";
 import {
     freshModel,
     mountTwoTabsets,
@@ -16,11 +16,11 @@ import {
     twoTabsets,
 } from "./fixture";
 
-vi.mock(import("../../src/paths"), async (original) => {
+vi.mock(import("../../src/dom/paths"), async (original) => {
     const module = await original();
     return { ...module, computePaths: vi.fn(module.computePaths) };
 });
-vi.mock(import("../../src/split/split"), async (original) => {
+vi.mock(import("../../src/splitter/split"), async (original) => {
     const module = await original();
     return { ...module, sizeRanges: vi.fn(module.sizeRanges) };
 });

@@ -6,10 +6,10 @@ import {
 } from "@fragiola/dockable-vue";
 import { Undo2 } from "@lucide/vue";
 import { ref } from "vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // A control room: each tabset can go to its own window ("screen"), tabs can be dragged between

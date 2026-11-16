@@ -203,8 +203,8 @@ function sourceOf(module: string): string {
 }
 
 const CORE_FILES = [
-    "splitter/SplitterController.ts",
-    "dnd/DragDropManager.ts",
+    "splitter/splitter-controller.ts",
+    "dnd/drag-drop-manager.ts",
     "state/types.ts",
 ];
 
@@ -459,7 +459,7 @@ describe("the core reference", () => {
     });
 
     it("documents every member of the engine, and every member of its adapter", () => {
-        const source = read(join(CORE_SRC, "engine/LayoutEngine.ts"));
+        const source = read(join(CORE_SRC, "engine/layout-engine.ts"));
         const start = source.indexOf("export class LayoutEngine");
         const body = source.slice(start, source.indexOf("\n}\n", start));
         // the public members: everything not private (TypeScript private, or `#`)

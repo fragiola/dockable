@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Controls from "./Controls.vue";
-import Counter from "./Counter.vue";
+import Controls from "./controls.vue";
+import Counter from "./counter.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Controls outside the layout drive what is inside it. The switcher above the layout selects a

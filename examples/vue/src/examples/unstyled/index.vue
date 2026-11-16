@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
+import LayoutNode from "./layout-node.vue";
 import * as styles from "./styles";
 
 // The layout with no CSS: no primitive gets a class, and each renders a plain `div` with only

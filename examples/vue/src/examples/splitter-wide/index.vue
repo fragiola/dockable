@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
+import LayoutNode from "./layout-node.vue";
 import * as styles from "./styles";
-import WideSplitter from "./WideSplitter.vue";
+import WideSplitter from "./wide-splitter.vue";
 
 const json: LayoutJson<Types> = {
     version: 1,

@@ -1,7 +1,7 @@
 import type { DropIndicatorState } from "@fragiola/dockable-vue";
 import { cn } from "#/lib/cn";
 
-// How hello-layout looks: one class string per part, read by index.vue and LayoutNode.vue. Colours come from the
+// How hello-layout looks: one class string per part, read by index.vue and layout-node.vue. Colours come from the
 // palette roles and sizes from the theme's --dk-* tokens, so it works in every theme.
 
 /** The root needs a size; the gutter goes on this wrapper (padding on the root would not move

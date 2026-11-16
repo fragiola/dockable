@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import RestoreOnEscape from "./RestoreOnEscape.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import RestoreOnEscape from "./restore-on-escape.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Maximize a tabset three ways: its header button, a double-click on the empty part of its strip,

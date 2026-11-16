@@ -11,7 +11,7 @@ const open = async (page: Page, layout: string, extra = "") => {
 
 test.describe("splitter", () => {
     test("pointer drag resizes in realtime", async ({ page }) => {
-        await open(page, "test_two_tabs");
+        await open(page, "test-two-tabs");
         const before = await waitForBox(findPath(page, "/ts0"), "/ts0");
         await dragSplitter(page, findPath(page, "/s0"), false, 100);
         const after = await waitForBox(findPath(page, "/ts0"), "/ts0");
@@ -28,7 +28,7 @@ test.describe("splitter", () => {
     test("outline drag previews on the splitter and commits on release", async ({
         page,
     }) => {
-        await open(page, "test_two_tabs", "&realtime=false");
+        await open(page, "test-two-tabs", "&realtime=false");
         const splitter = findPath(page, "/s0");
         const before = await waitForBox(findPath(page, "/ts0"), "/ts0");
         const sr = await waitForBox(splitter, "/s0");
@@ -60,7 +60,7 @@ test.describe("splitter", () => {
     });
 
     test("arrow keys resize a focused splitter", async ({ page }) => {
-        await open(page, "test_two_tabs");
+        await open(page, "test-two-tabs");
         const splitter = findPath(page, "/s0");
         const before = await waitForBox(findPath(page, "/ts0"), "/ts0");
         await expect(splitter).toHaveAttribute("aria-valuenow", /\d+/);
@@ -83,7 +83,7 @@ test.describe("splitter", () => {
     test("announces where a min width holds the splitter, not the weights", async ({
         page,
     }) => {
-        await open(page, "min_width");
+        await open(page, "min-width");
         const row = await waitForBox(findPath(page, "/row"), "/row");
         const first = await waitForBox(findPath(page, "/ts0"), "/ts0");
         expect(first.width).toBeCloseTo(300, 0);

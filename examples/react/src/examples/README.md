@@ -77,7 +77,7 @@ specs fail, not skip, for an example one lacks (`COMPLETE_FRAMEWORKS` in
    renders `<Dockable.Root>`), `styles.ts` (the React one, importing `@fragiola/dockable-vue`),
    `dockable.ts` (the `Types` registry and `typedDockable<Types>()`, since a template cannot pass
    a type argument) and one single-file component per part React writes as a function
-   (`LayoutNode.vue` for the recursion, `Splitter.vue`, …). The same layout JSON, `Types`, logic
+   (`layout-node.vue` for the recursion, `splitter.vue`, …). The same layout JSON, `Types`, logic
    order, roles, names and test ids; the Vue API differs where the adapter's does (`as` and the
    `render` slot, scoped slots for children functions, no `class` function: `data-*` variants or
    the slot's `state`). Its kit is `examples/vue/src/components` (Fragiola UI's pieces over Reka

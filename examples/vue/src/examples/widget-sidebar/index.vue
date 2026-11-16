@@ -2,11 +2,11 @@
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
 import { ref } from "vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
-import WidgetContent from "./WidgetContent.vue";
-import WidgetSource from "./WidgetSource.vue";
+import WidgetContent from "./widget-content.vue";
+import WidgetSource from "./widget-source.vue";
 import { WIDGETS } from "./widgets";
 
 const json: LayoutJson<Types> = {

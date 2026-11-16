@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { createModel, type LayoutJson } from "@fragiola/dockable-vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // No drop outline at all (the root has no `Dockable.DropIndicator`): the targets show themselves.
@@ -84,7 +84,7 @@ const model = createModel<Types>(json);
                     <Content :tab="tab" />
                 </Dockable.Panel>
             </Dockable.Panels>
-            <!-- no Dockable.DropIndicator: the highlights in TabSet.vue replace the outline -->
+            <!-- no Dockable.DropIndicator: the highlights in tabset.vue replace the outline -->
         </Dockable.Root>
     </div>
 </template>

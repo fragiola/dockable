@@ -2,13 +2,13 @@
 import { createModel } from "@fragiola/dockable-vue";
 import { onUnmounted, provide, ref, shallowRef } from "vue";
 import { handleUndoKeys, UndoManager } from "../_kit/undo";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { DEFAULT_FILTERS, type Filters, layout } from "./data";
 import { Dockable, type Types } from "./dockable";
 import { FiltersKey } from "./filters";
-import Header from "./Header.vue";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import Header from "./header.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // A sales dashboard. The header (filters, "Add widget", undo/redo) lives outside the layout;

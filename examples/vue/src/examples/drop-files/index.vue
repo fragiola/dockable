@@ -7,11 +7,11 @@ import {
 } from "@fragiola/dockable-vue";
 import { FolderOpen } from "@lucide/vue";
 import { shallowRef } from "vue";
-import Content from "./Content.vue";
+import Content from "./content.vue";
 import { Dockable, type Types } from "./dockable";
 import { kindOf, numericColumns, parseCsv, sampleFiles } from "./files";
-import LayoutNode from "./LayoutNode.vue";
-import Splitter from "./Splitter.vue";
+import LayoutNode from "./layout-node.vue";
+import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 // Open files from the desktop by dropping them on the layout. A file dragged in from outside the

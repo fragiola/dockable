@@ -2,7 +2,7 @@
 // src/view/TabSet.tsx and src/view/layout/LayoutInternal.tsx (APG keyboard handling of the tab
 // strip, roving focus, tabset activation, document key handling), with React, JSX and CSS class
 // names removed. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
-import type { DragDropManager, DropLocation } from "../dnd/DragDropManager";
+import type { DragDropManager, DropLocation } from "../dnd/drag-drop-manager";
 import {
     hasModifier,
     type KeyEventLike,
