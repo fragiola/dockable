@@ -127,10 +127,26 @@ including a new package's own stub and trust, are in [`docs/releasing.md`](docs/
 
 ```
 packages/core/      @fragiola/dockable        src/, tests/
-packages/react/     @fragiola/dockable-react  src/, tests/
-packages/vue/       @fragiola/dockable-vue    src/ (plain .ts, render functions), tests/
-packages/angular/   @fragiola/dockable-angular  src/lib/ (directives, templates.ts, inject.ts),
-                                              src/public-api.ts, tests/, scripts/publish-manifest.ts
+packages/react/     @fragiola/dockable-react  src/index.ts, src/parts.ts (the Dockable namespace), src/context.ts
+                    src/components/           one primitive per file (root.tsx, tabset.tsx, tab-list.tsx, …)
+                    src/hooks/                one public hook per file (use-tabset.ts, …); internal.ts
+                                              holds the hooks only the primitives call
+                    src/utils/                merge-props.ts, use-render.ts (the render prop)
+                    tests/
+packages/vue/       @fragiola/dockable-vue    plain .ts, render functions: src/index.ts, src/parts.ts,
+                                              src/typed.ts (typedDockable), src/context.ts
+                    src/components/           one primitive per file (root.ts, tabset.ts, tab-list.ts, …)
+                    src/composables/          one public composable per file (use-tabset.ts, …);
+                                              internal.ts holds the ones only the primitives call
+                    src/utils/                primitive.ts, registration.ts, render.ts
+                    tests/
+packages/angular/   @fragiola/dockable-angular  src/public-api.ts, src/lib/dockable.ts (the DOCKABLE
+                                              array), src/lib/context.ts (the tokens)
+                    src/lib/directives/       one file per primitive family (root.directive.ts, …);
+                                              templates.directive.ts holds the template directives
+                    src/lib/inject/           the injection functions (inject-part.ts: the parts')
+                    src/lib/utils/            helpers.ts, signals.ts (the engine's signals), views.ts
+                    tests/, scripts/publish-manifest.ts
 apps/playground/    src/                      the shell: catalog, sidebar, toolbar, stage, source
                     src/scenarios/<area>/     dev-only scenarios; src/inspector/ the Inspector
                     fixtures/<name>/          unstyled pages Playwright drives
@@ -241,6 +257,10 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 ## Conventions
 
 - Biome: 4-space indent, double quotes, LF, trailing newline, organized imports.
+- The adapters' sources are kebab-case files grouped by responsibility (components or directives,
+  hooks / composables / injection functions, utils; "Repository layout"): a primitive has the same
+  file name in React and Vue (Angular's keep the `.directive.ts` suffix), and an entry imports each
+  module directly (no barrel files).
 - TypeScript strict with `noUncheckedIndexedAccess` and `verbatimModuleSyntax`.
   Do not relax it; a blanket `!` on every index access is not a fix.
 - Pin dependencies to exact versions published at least 7 days ago.

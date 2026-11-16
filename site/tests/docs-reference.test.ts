@@ -66,29 +66,37 @@ function mentionsKey(mdx: string, key: string): boolean {
 
 /** The reference page of each module of the React package. */
 const MODULE_PAGES: Record<string, string> = {
-    "./Root": "root",
-    "./Row": "row",
-    "./TabSet": "tabset",
-    "./TabList": "tablist",
-    "./TabOverflowTrigger": "tab-overflow-trigger",
-    "./Tab": "tab",
-    "./TabSetContent": "tabset-content",
-    "./Panels": "panels",
-    "./Panel": "panel",
-    "./Splitter": "splitter",
-    "./Borders": "borders",
-    "./Border": "border",
-    "./BorderContent": "border-content",
-    "./EdgeIndicator": "edge-indicator",
-    "./DragGroup": "drag-group",
-    "./DragSource": "drag-source",
-    "./DropIndicator": "drop-indicator",
-    "./DropZone": "drop-zone",
-    "./Popout": "popout",
-    "./PopoutTrigger": "popout-trigger",
-    "./hooks": "hooks",
+    "./components/root": "root",
+    "./components/row": "row",
+    "./components/tabset": "tabset",
+    "./components/tab-list": "tablist",
+    "./components/tab-overflow-trigger": "tab-overflow-trigger",
+    "./components/tab": "tab",
+    "./components/tabset-content": "tabset-content",
+    "./components/panels": "panels",
+    "./components/panel": "panel",
+    "./components/splitter": "splitter",
+    "./components/borders": "borders",
+    "./components/border": "border",
+    "./components/border-content": "border-content",
+    "./components/edge-indicator": "edge-indicator",
+    "./components/drag-group": "drag-group",
+    "./components/drag-source": "drag-source",
+    "./components/drop-indicator": "drop-indicator",
+    "./components/drop-zone": "drop-zone",
+    "./components/popout": "popout",
+    "./components/popout-trigger": "popout-trigger",
+    "./hooks/use-dockable": "hooks",
+    "./hooks/use-model-state": "hooks",
+    "./hooks/use-tabset": "hooks",
+    "./hooks/use-border": "hooks",
+    "./hooks/use-tab-overflow": "hooks",
+    "./hooks/use-splitter": "hooks",
+    "./hooks/use-drag-node": "hooks",
+    "./hooks/use-drag-source": "hooks",
+    "./hooks/use-drop-zone": "hooks",
     "./context": "hooks",
-    "./utils/useRender": "root",
+    "./utils/use-render": "root",
 };
 
 interface Export {
@@ -300,7 +308,7 @@ describe("the React reference", () => {
             }
         }
         const common = allFields(
-            read(join(REACT_SRC, "utils/useRender.ts")),
+            read(join(REACT_SRC, "utils/use-render.ts")),
             "PrimitiveProps",
         );
         expect(common).toEqual(["render", "className", "style", "ref"]);

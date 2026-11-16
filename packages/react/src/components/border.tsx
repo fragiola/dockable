@@ -1,0 +1,90 @@
+// Behaviour adapted from FlexLayout (https://github.com/caplin/FlexLayout), src/view/BorderTabSet.tsx,
+// src/view/BorderTab.tsx and src/view/layout/BorderContainer.tsx (which borders show, the frame's
+// nesting, the content area's size, split and overlay placement); the markup and class names are
+// not copied. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+import type { AnyTypes, BorderNode, DockableTypes } from "@fragiola/dockable";
+import type * as React from "react";
+import { useLayoutContext } from "../context";
+import { useBorder } from "../hooks/use-border";
+import {
+    type DivPrimitiveProps,
+    dataAttributes,
+    useRenderElement,
+} from "../utils/use-render";
+import type { BorderContentState } from "./border-content";
+import { TabContainerContext } from "./tabset";
+
+export interface BorderState extends BorderContentState {
+    /** the start border's tab direction (the `tabDirection` prop): `"up"` (default) or `"down"` */
+    tabDirection: "up" | "down" | undefined;
+}
+
+/** the data attributes of a border's state, shared by its strip and its content */
+export function borderAttributes(state: BorderContentState) {
+    return {
+        location: state.location,
+        orientation: state.orientation,
+        open: state.open,
+        overlay: state.overlay,
+        docked: !state.overlay,
+        empty: state.empty,
+    };
+}
+
+export interface BorderProps<T extends DockableTypes = AnyTypes>
+    extends DivPrimitiveProps<BorderState> {
+    node: BorderNode<T>;
+    /**
+     * the start border's tab direction, exposed as `data-tab-direction` for your styles (rotating the
+     * labels is yours): `"up"` (default) or `"down"`
+     */
+    tabDirection?: "up" | "down" | undefined;
+    /** the strip's content: a `Dockable.TabList`, and any buttons */
+    children?: React.ReactNode;
+}
+
+/**
+ * A border's strip: the bar on one side of the layout that holds its tabs. Place a
+ * `Dockable.TabList` inside (it runs vertically in a start or end border). Clicking a tab opens
+ * the border's panel; clicking the selected tab closes it. Render it from `Dockable.Borders`'s `renderBar`.
+ *
+ * The strip is only structural flex: rotating the tab labels of a side border (`writing-mode`, a
+ * transform) is styling, and yours.
+ */
+export function Border<T extends DockableTypes = AnyTypes>(
+    props: BorderProps<T>,
+) {
+    const { node, tabDirection, children, ...rest } = props;
+    const { engine } = useLayoutContext("Border");
+    const border = useBorder(node);
+    const state: BorderState = {
+        ...border.state,
+        tabDirection:
+            node.location === "start" ? (tabDirection ?? "up") : undefined,
+    };
+    const element = useRenderElement("div", rest, {
+        state,
+        ref: border.props.ref,
+        props: {
+            ...dataAttributes({
+                "layout-path": engine.get("layout-path-by", {
+                    nodeId: node.id,
+                }),
+                ...borderAttributes(state),
+                "tab-direction": state.tabDirection,
+                "drop-target": state.dropTarget,
+                "drop-refused": state.dropRefused,
+            }),
+            children,
+        },
+        style: {
+            display: "flex",
+            flexDirection: state.orientation === "vertical" ? "column" : "row",
+        },
+    });
+    return (
+        <TabContainerContext.Provider value={node.id}>
+            {element}
+        </TabContainerContext.Provider>
+    );
+}
