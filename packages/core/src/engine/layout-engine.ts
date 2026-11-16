@@ -6,11 +6,11 @@
 // The engine reads the model's immutable state, keeps every piece of view state (rects, moveable
 // elements, scroll, "rendered") keyed by node id, and changes the layout only through commands.
 import type { CommandEvent, CommandResult } from "../commands/types";
-import { DragDropManager, type OnExternalDrag } from "../dnd/DragDropManager";
-import type { DragGroup } from "../dnd/DragGroup";
+import { DragDropManager, type OnExternalDrag } from "../dnd/drag-drop-manager";
+import type { DragGroup } from "../dnd/drag-group";
 import type { KeyMap } from "../keyboard/keymap";
-import { PopoutManager, type PopoutOptions } from "../popout/PopoutManager";
-import { flexGrow } from "../split/split";
+import { PopoutManager, type PopoutOptions } from "../popout/popout-manager";
+import { flexGrow } from "../splitter/split";
 import type { Model } from "../state/model";
 import type { QueryArgs } from "../state/queries";
 import { type AnyTypes, type DockableTypes, MAIN_LAYOUT } from "../state/types";

@@ -10,7 +10,7 @@
 //   /ts0/tabstrip
 //   /s0          splitter after the first child of the root row (/r0/s1 inside a nested row)
 //   /border/start, /border/start/t0, /border/start/tb0
-import type { AnyBorder, AnyRow } from "./state/tree";
+import type { AnyBorder, AnyRow } from "../state/tree";
 
 /**
  * The path of every node of a layout: rows `/r<i>`, tabsets `/ts<i>` and tabs `/t<i>` by their

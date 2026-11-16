@@ -15,7 +15,7 @@ import { resolveBorder } from "../state/defaults";
 import type { Model } from "../state/model";
 import type { AnyBorder } from "../state/tree";
 import type { DockableTypes, TabContainer } from "../state/types";
-import type { SharedView } from "./LayoutEngine";
+import type { SharedView } from "./layout-engine";
 
 /** The kinds of element whose geometry the engine measures. */
 export type MeasurableKind =

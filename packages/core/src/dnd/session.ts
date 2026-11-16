@@ -1,7 +1,7 @@
 // Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/view/layout/DragDropManager.tsx
 // (the page's drag state), with React, JSX and class names removed. Copyright (c) 2017 Caplin
 // Systems Ltd. MIT licence, see LICENSE.
-import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { LayoutEngine } from "../engine/layout-engine";
 import type { TabInitOf } from "../state/json";
 import type { Model } from "../state/model";
 import type {
@@ -10,8 +10,8 @@ import type {
     TabOf,
     TabsetNode,
 } from "../state/types";
-import type { DragDropManager } from "./DragDropManager";
-import type { DropZoneOptions } from "./dropZones";
+import type { DragDropManager } from "./drag-drop-manager";
+import type { DropZoneOptions } from "./drop-zones";
 
 /** What is being dragged. */
 export type DragSubject<T extends DockableTypes = AnyTypes> =

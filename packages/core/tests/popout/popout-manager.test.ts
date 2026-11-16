@@ -9,7 +9,7 @@ import {
     POPOUT_ATTRIBUTE,
     type PopoutOptions,
 } from "../../src";
-import { WINDOW_RECT_POLL_INTERVAL_MS } from "../../src/popout/PopoutManager";
+import { WINDOW_RECT_POLL_INTERVAL_MS } from "../../src/popout/popout-manager";
 import { ADOPTED_STYLES_ATTRIBUTE, StyleMirror } from "../../src/popout/styles";
 
 const json: LayoutJson = {

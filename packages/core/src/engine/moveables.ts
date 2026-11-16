@@ -3,7 +3,7 @@
 // class names removed. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { Model } from "../state/model";
 import type { DockableTypes } from "../state/types";
-import type { SharedView } from "./LayoutEngine";
+import type { SharedView } from "./layout-engine";
 import { type Measure, tabContainerOf } from "./measure";
 
 /** How a panel hosts its content (a view option, not layout state). */

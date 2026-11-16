@@ -8,7 +8,7 @@ import {
     type LayoutEngine,
     type SplitterController,
 } from "../../src";
-import { splitterBounds } from "../../src/split/split";
+import { splitterBounds } from "../../src/splitter/split";
 import {
     freshModel,
     mountTwoTabsets,

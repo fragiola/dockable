@@ -3,11 +3,15 @@
 // Ltd. MIT licence, see LICENSE.
 import type { PayloadOf } from "../commands/types";
 import type { DropCandidate } from "../drop/resolve";
-import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { LayoutEngine } from "../engine/layout-engine";
 import type { TabInit } from "../state/json";
 import type { Model } from "../state/model";
 import type { AnyTypes } from "../state/types";
-import { canTransfer, type TransferPlacement, transferPlan } from "./DragGroup";
+import {
+    canTransfer,
+    type TransferPlacement,
+    transferPlan,
+} from "./drag-group";
 import type { DragEventLike, DragState } from "./session";
 
 /** A command a drop runs, as the manager prepares it. */

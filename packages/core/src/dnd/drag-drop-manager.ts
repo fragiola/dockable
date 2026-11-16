@@ -23,19 +23,19 @@ import {
     type DropGeometry,
     dropCandidates,
 } from "../drop/resolve";
-import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { LayoutEngine } from "../engine/layout-engine";
 import type { MeasurableKind } from "../engine/measure";
 import { MOVEABLE_ATTRIBUTE } from "../engine/moveables";
 import { inlineRect, inlineX } from "../geometry/direction";
 import type { DockLocation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect, rect, rectEquals } from "../geometry/rect";
-import { enablePointerOnIFrames } from "../splitter/SplitterController";
+import { enablePointerOnIFrames } from "../splitter/splitter-controller";
 import { borderShown, resolveLayout } from "../state/defaults";
 import type { TabInitOf } from "../state/json";
 import type { Model } from "../state/model";
 import type { AnyTypes, DockableTypes } from "../state/types";
-import { type DropCommand, DropCommands } from "./dropCommand";
-import { type DropZoneOptions, registerDropZone } from "./dropZones";
+import { type DropCommand, DropCommands } from "./drop-command";
+import { type DropZoneOptions, registerDropZone } from "./drop-zones";
 import {
     attachedMains,
     type DragEventLike,

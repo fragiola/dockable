@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { elementOf } from "../src/dom/nodes";
+import { elementOf } from "../../src/dom/nodes";
 
 describe("elementOf", () => {
     it("is the element itself, a text node's parent, or null", () => {

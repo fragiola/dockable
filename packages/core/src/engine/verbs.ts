@@ -1,4 +1,4 @@
-import type { FlexSizing } from "../split/split";
+import type { FlexSizing } from "../splitter/split";
 import type { NoPayload } from "../state/queries";
 
 /**

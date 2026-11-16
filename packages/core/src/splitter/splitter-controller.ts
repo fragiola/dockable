@@ -9,12 +9,15 @@
 //
 // A splitter between side by side children works from the start side: in RTL it reads the rects,
 // the pointer and the arrow keys mirrored, and mirrors the preview offset back.
-import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { LayoutEngine } from "../engine/layout-engine";
 import type { MeasurableKind } from "../engine/measure";
 import { type Direction, inlineRect, inlineX } from "../geometry/direction";
 import type { BorderLocation, Orientation } from "../geometry/dock";
 import { EMPTY_RECT, type Rect } from "../geometry/rect";
 import { hasModifier } from "../keyboard/keymap";
+import { resolveBorder } from "../state/defaults";
+import type { AnyBorder, AnyRow } from "../state/tree";
+import type { AnyTypes, DockableTypes } from "../state/types";
 import {
     borderSplitSize,
     borderSplitterBounds,
@@ -23,10 +26,7 @@ import {
     type SplitInitials,
     splitterBounds,
     splitterInitials,
-} from "../split/split";
-import { resolveBorder } from "../state/defaults";
-import type { AnyBorder, AnyRow } from "../state/tree";
-import type { AnyTypes, DockableTypes } from "../state/types";
+} from "./split";
 
 /** The ARIA attributes of a splitter (`role="separator"`). */
 export interface SplitterAria {

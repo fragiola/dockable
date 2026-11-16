@@ -7,8 +7,8 @@ import {
     getTabButtonPath,
     getTabPanelId,
     getTabStripPath,
-} from "../src";
-import { computePaths, windowPath } from "../src/paths";
+} from "../../src";
+import { computePaths, windowPath } from "../../src/dom/paths";
 
 // the three-tabs layout from FlexLayout's demo, with the last tabset nested in a column
 const model = createModel({

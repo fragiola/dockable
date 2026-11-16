@@ -1,4 +1,4 @@
-import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { LayoutEngine } from "../engine/layout-engine";
 import type { DockLocation } from "../geometry/dock";
 import type { TabInit } from "../state/json";
 import type { Model, ModelHandle } from "../state/model";

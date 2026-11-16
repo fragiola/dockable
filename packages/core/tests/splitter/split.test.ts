@@ -10,7 +10,7 @@ import {
     splitterBounds,
     splitterInitials,
     tabsetRange,
-} from "../../src/split/split";
+} from "../../src/splitter/split";
 import type { AnyRow, AnyTabset } from "../../src/state/tree";
 
 const free: SizeRange = {

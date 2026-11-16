@@ -12,7 +12,7 @@
 //   layout (FlexLayout's "float" close policy is not kept);
 // - the window opener is injectable (`openWindow`);
 // - nothing names or titles the window unless the consumer provides a title.
-import type { LayoutEngine } from "../engine/LayoutEngine";
+import type { LayoutEngine } from "../engine/layout-engine";
 import { type Rect, rectEquals } from "../geometry/rect";
 import type { AnyTypes, DockableTypes, WindowLayout } from "../state/types";
 import { mirrorRootAttributes, StyleMirror } from "./styles";

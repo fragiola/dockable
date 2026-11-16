@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createModel, type LayoutJson, MAIN_LAYOUT } from "../src";
+import { createModel, type LayoutJson, MAIN_LAYOUT } from "../../src";
 
 // root row: ts0 (tab a) | nested row r1 (ts1 above ts2)
 const json: LayoutJson = {

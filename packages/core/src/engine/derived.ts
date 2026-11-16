@@ -1,6 +1,13 @@
 // Ported from FlexLayout (https://github.com/caplin/FlexLayout), src/view/layout/LayoutController.tsx
 // (the paths and size ranges a layout renders with), with React, JSX and CSS class names removed.
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
+
+import {
+    computePaths,
+    getTabButtonId,
+    getTabPanelId,
+    windowPath,
+} from "../dom/paths";
 import { inlineRect } from "../geometry/direction";
 import {
     type EdgeBand,
@@ -9,22 +16,16 @@ import {
     type Orientation,
 } from "../geometry/dock";
 import {
-    computePaths,
-    getTabButtonId,
-    getTabPanelId,
-    windowPath,
-} from "../paths";
-import {
     type FlexSizing,
     flexGrow,
     type SizeRange,
     sizeRanges,
-} from "../split/split";
+} from "../splitter/split";
 import { resolveLayout } from "../state/defaults";
 import type { Model } from "../state/model";
 import type { AnyRow, AnyState } from "../state/tree";
 import type { DockableTypes } from "../state/types";
-import type { SharedView } from "./LayoutEngine";
+import type { SharedView } from "./layout-engine";
 import type { Measure } from "./measure";
 
 function rowOrientations(

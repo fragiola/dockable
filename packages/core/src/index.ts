@@ -41,7 +41,7 @@ export {
     type DropLocation,
     type ExternalDrag,
     type OnExternalDrag,
-} from "./dnd/DragDropManager";
+} from "./dnd/drag-drop-manager";
 export {
     DragGroup,
     type Transfer,
@@ -49,8 +49,8 @@ export {
     type TransferListener,
     type TransferMeta,
     type TransferRequest,
-} from "./dnd/DragGroup";
-export type { DropZoneOptions } from "./dnd/dropZones";
+} from "./dnd/drag-group";
+export type { DropZoneOptions } from "./dnd/drop-zones";
 export {
     type DragEventLike,
     type DragSourceKind,
@@ -58,6 +58,14 @@ export {
     type DragSubject,
     type NewTabDropped,
 } from "./dnd/session";
+export {
+    DROP_INDICATOR_PATH,
+    getSplitterPath,
+    getTabButtonId,
+    getTabButtonPath,
+    getTabPanelId,
+    getTabStripPath,
+} from "./dom/paths";
 export type { LayoutEngineAdapter } from "./engine/adapter";
 export type {
     ContainerDropState,
@@ -70,7 +78,7 @@ export {
     type LayoutEngine,
     type LayoutEngineOptions,
     type LayoutEngineSettings,
-} from "./engine/LayoutEngine";
+} from "./engine/layout-engine";
 export type { MeasurableKind, MeasureFunction } from "./engine/measure";
 export { MOVEABLE_ATTRIBUTE, type MoveableOptions } from "./engine/moveables";
 export { OVERLAY_ATTRIBUTE } from "./engine/overlay";
@@ -108,22 +116,14 @@ export {
     computeTabOverflow,
     type TabOverflowInput,
     type TabOverflowResult,
-} from "./overflow/tabOverflow";
-export {
-    DROP_INDICATOR_PATH,
-    getSplitterPath,
-    getTabButtonId,
-    getTabButtonPath,
-    getTabPanelId,
-    getTabStripPath,
-} from "./paths";
+} from "./overflow/tab-overflow";
 export {
     type OpenWindow,
     POPOUT_ATTRIBUTE,
     type PopoutCallback,
     PopoutManager,
     type PopoutOptions,
-} from "./popout/PopoutManager";
+} from "./popout/popout-manager";
 export type { FromSchema } from "./schema/from-schema";
 export { layoutSchema } from "./schema/layout";
 export type {
@@ -132,13 +132,13 @@ export type {
     JsonValue,
     ValidationIssue,
 } from "./schema/types";
-export type { FlexSizing, SizeRange } from "./split/split";
+export type { FlexSizing, SizeRange } from "./splitter/split";
 export {
     createSplitterController,
     type SplitterAria,
     type SplitterController,
     type SplitterControllerState,
-} from "./splitter/SplitterController";
+} from "./splitter/splitter-controller";
 export {
     BUILT_IN,
     type ResolvedBorder,
