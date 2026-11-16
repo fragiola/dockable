@@ -1,6 +1,6 @@
 {
     "name": "@fragiola/dockable-vue",
-    "version": "0.0.0",
+    "version": "0.3.0",
     "description": "Composable, unstyled Vue primitives for @fragiola/dockable.",
     "keywords": [
         "vue",

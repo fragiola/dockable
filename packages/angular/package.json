@@ -1,6 +1,6 @@
 {
     "name": "@fragiola/dockable-angular",
-    "version": "0.0.0",
+    "version": "0.3.0",
     "description": "Composable, unstyled Angular directives for @fragiola/dockable.",
     "keywords": [
         "angular",
