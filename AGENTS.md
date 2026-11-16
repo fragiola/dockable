@@ -104,7 +104,7 @@ Do not "fix" these.
 | command | does |
 |---|---|
 | `pnpm install` | install dependencies |
-| `pnpm check` | Biome lint + format + assist (non-mutating), then builds the core and checks that `site/docs/api/commands.mdx` matches the registry (`check:commands`) |
+| `pnpm check` | Biome lint + format + assist (non-mutating), then the source layout over `git ls-files` (`check:layout`, `scripts/check-layout.ts`: kebab-case names, and only the entries at the root of a package's `src/`), then builds the core and checks that `site/docs/api/commands.mdx` matches the registry (`check:commands`) |
 | `pnpm check:fix` | Biome check with auto-fix |
 | `pnpm typecheck` | `pnpm -r typecheck` (TypeScript 7, no emit; `examples/vue` runs `vue-tsc` on its own TypeScript 6.0.3; `packages/angular` and `examples/angular` run `ngc` with strict templates on their own TypeScript 6.0.3) |
 | `pnpm test` | Vitest: `core` (node), `react` (jsdom), `vue` (jsdom, `@vue/test-utils`), `angular` (jsdom, `@analogjs/vitest-angular`, zoneless TestBed), `playground`, `examples-shared`, `examples-react`, `examples-vue`, `examples-angular`, `site` |
@@ -259,10 +259,17 @@ The source and reference is [caplin/FlexLayout](https://github.com/caplin/FlexLa
 ## Conventions
 
 - Biome: 4-space indent, double quotes, LF, trailing newline, organized imports.
-- The adapters' sources are kebab-case files grouped by responsibility (components or directives,
-  hooks / composables / injection functions, utils; "Repository layout"): a primitive has the same
-  file name in React and Vue (Angular's keep the `.directive.ts` suffix), and an entry imports each
-  module directly (no barrel files).
+- **Source layout** (the Fragiola guidelines, `repository.md#source-layout`; `pnpm check:layout`
+  enforces it):
+  - Every file and folder name is kebab-case, everywhere: packages, tests, apps, examples
+    (Vue single-file components included), scripts. Only the fixed names (`README.md`,
+    `AGENTS.md`, `LICENSE`, …), a tool's dot names and the `_` prefix (`_kit`) are exempt.
+  - The files are grouped in folders by responsibility, and the root of a package's `src/` holds
+    only its entries (`index.ts`, `parts.ts`, `typed.ts`, `context.ts`, `public-api.ts`). The core
+    has one folder per domain, and its `tests/` mirror `src/`. The adapters group components or
+    directives, hooks / composables / injection functions, and utils.
+  - A primitive has the same file name in React and Vue (Angular's keep the `.directive.ts`
+    suffix). An entry imports each module directly: no barrel files.
 - TypeScript strict with `noUncheckedIndexedAccess` and `verbatimModuleSyntax`.
   Do not relax it; a blanket `!` on every index access is not a fix.
 - Pin dependencies to exact versions published at least 7 days ago.

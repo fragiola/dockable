@@ -17,7 +17,8 @@
     "scripts": {
         "format": "biome format --write",
         "lint": "biome lint",
-        "check": "biome check && pnpm check:commands",
+        "check": "biome check && pnpm check:layout && pnpm check:commands",
+        "check:layout": "node scripts/check-layout.ts",
         "check:commands": "pnpm --filter @fragiola/dockable build && node packages/core/scripts/generate-command-docs.ts --check",
         "check:fix": "biome check --write",
         "typecheck": "pnpm -r typecheck",
