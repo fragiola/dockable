@@ -115,7 +115,7 @@ Do not "fix" these.
 | `pnpm e2e` | Playwright (Chromium) against the playground, then the shared examples specs (`examples/shared/e2e`) against each framework's examples app, one after the other |
 | `pnpm --filter examples-vue dev` | the Vue examples app alone on <http://localhost:5181> (`?id=<slug>&theme=<name>`; `PORT` moves it). `pnpm --filter examples-react dev` is the React one (5180), `pnpm --filter examples-angular dev` the Angular one (5182) |
 | `pnpm dev` | the playground on <http://localhost:5173>: every example and scenario live, the Inspector, the fixtures (`PLAYGROUND_PORT` moves it) |
-| `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.2, `../www/CONTRACT.md`), self-validated: one embed and one manifest per framework of `site/project.json` |
+| `pnpm site:export --base /dockable --out <dir>` | the site export for fragiola.com (contract v1.7, `../www/CONTRACT.md`), self-validated: one embed and one manifest per framework of `site/project.json` |
 | `pnpm site:dev --base /dockable --port <n>` | every framework's examples app with hot reload, under the base `www` proxies in dev: one Vite dev server per framework on a free port, behind a Node proxy on `--port` (`site/dev-proxy.ts`) |
 
 Releasing is a merge: `.github/workflows/release.yml` opens the Version Packages PR, and merging it
@@ -199,7 +199,7 @@ docs/                                         reports
 ## The site (fragiola.com)
 
 The docs and examples are served by `fragiola.com`, built by the `www` repo from this repo's
-**site export** (`../www/CONTRACT.md`, v1.2). This repo only provides: the pages (`site/docs`,
+**site export** (`../www/CONTRACT.md`, v1.7). This repo only provides: the pages (`site/docs`,
 base-free links, the v1.1 MDX vocabulary; `<Framework name="vue">` and `<Framework name="angular">`
 blocks where the code differs),
 the gallery configuration (`examples.json`) and one examples app per framework of
@@ -221,6 +221,11 @@ setext, none in a blockquote or list); every image has alt text. Frontmatter is 
 landing's `title` is its `<title>` as is ("Dockable — …"). `project.json` carries `keywords`
 (1–8 lowercase topics, structured data only). Every HTML file of the examples app (`index.html`, `public/popout.html`) carries
 `<meta name="robots" content="noindex">`.
+
+v1.7 reserves the base-free link `/ai` (optionally `/ai#anchor`): the site's AI agents docs (the
+MCP server and the agent skills, written by `www`), the same for every project; anything below it
+(`/ai/x`) fails `site:export`. The landing's `<Hero>` orders its actions examples (primary), the
+agent (`/ai`, secondary), then the docs (ghost); GitHub stays in the header and footer.
 
 In dev the playground resolves both packages to their sources through the
 `@fragiola/source` export condition (`SOURCE_CONDITION` in `scripts/source-condition.ts`, the
