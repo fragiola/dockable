@@ -15,6 +15,7 @@ const REPRESENTATIVE = [
     "popout", // popout triggers
     "overflow-select", // the tab overflow and a portalled select (the popup theme hook)
     "analytics-dashboard", // the theme-heavy one: charts (the chart theme hook), menus, selects
+    "trading-workstation", // the landing's showcase: live SVG charts, borders, popout and maximize
 ];
 
 // a framework may ship a subset of the examples: a representative one it lacks is skipped with

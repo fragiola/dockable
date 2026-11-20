@@ -71,6 +71,7 @@ const KIT_FILES = [
     "charts.tsx",
     "data.tsx",
     "rename-field.tsx",
+    "trading.ts",
     "undo.ts",
 ];
 

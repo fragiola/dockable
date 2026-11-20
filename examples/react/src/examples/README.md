@@ -9,7 +9,8 @@ src/examples/
   <slug>/styles.ts     how it looks: one class string (or state function) per part
   <slug>/*.ts(x)       optional sibling files, shown in the code panel
   _kit/                shared demo content and app logic (cards, charts, tables, the rename
-                       field, the undo manager); no Dockable assembly, no styles
+                       field, the undo manager, the seeded trading feed); no Dockable assembly,
+                       no styles
 ```
 
 What every framework's examples share, and no reader copies, lives once in
