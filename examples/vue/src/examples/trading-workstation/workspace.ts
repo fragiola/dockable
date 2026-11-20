@@ -72,7 +72,7 @@ export const defaultLayout: LayoutJson<Types> = {
             {
                 type: "tabset",
                 id: "market",
-                weight: 24,
+                weight: 26,
                 children: [
                     {
                         id: "watchlist",
@@ -90,7 +90,7 @@ export const defaultLayout: LayoutJson<Types> = {
             {
                 type: "tabset",
                 id: "chart-area",
-                weight: 48,
+                weight: 46,
                 children: [
                     {
                         id: CHART_TAB,
