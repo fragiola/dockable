@@ -149,21 +149,28 @@ export function trackBadges(
     const update = () => {
         if (writing) return;
         writing = true;
-        const snapshot = feed.getSnapshot();
-        const latest = snapshot.news[0]?.id ?? 0;
-        if (
-            model.get("node-by", { id: NEWS_TAB }) &&
-            model.is("tab-selected", { tabId: NEWS_TAB })
-        ) {
-            seen = latest;
+        try {
+            const snapshot = feed.getSnapshot();
+            const latest = snapshot.news[0]?.id ?? 0;
+            if (
+                model.get("node-by", { id: NEWS_TAB }) &&
+                model.is("tab-selected", { tabId: NEWS_TAB })
+            ) {
+                seen = latest;
+            }
+            write(
+                NEWS_TAB,
+                "unread",
+                snapshot.news.filter((headline) => headline.id > seen).length,
+            );
+            write(
+                POSITIONS_TAB,
+                "pnl",
+                totalPnlOf(snapshot) >= 0 ? "up" : "down",
+            );
+        } finally {
+            writing = false;
         }
-        write(
-            NEWS_TAB,
-            "unread",
-            snapshot.news.filter((headline) => headline.id > seen).length,
-        );
-        write(POSITIONS_TAB, "pnl", totalPnlOf(snapshot) >= 0 ? "up" : "down");
-        writing = false;
     };
     update();
     const stopFeed = feed.subscribe(update);
