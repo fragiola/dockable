@@ -10,15 +10,28 @@
 #                     package ships (`changedFilePatterns` in .changeset/config.json) without
 #                     adding a changeset. Skipped for the Version Packages PR (changeset-release/*),
 #                     which consumes them.
-#   E2E               the Playwright suites, in parallel jobs: the playground in two shards, and
-#                     one job per framework's examples app (every `examples/<framework>` with a
-#                     playwright.config.ts, found by the Examples apps job), each running the
-#                     shared specs of examples/shared/e2e against its own embed. Native HTML5
-#                     drags flake under contention, so each machine keeps the configs' CI workers
-#                     (1 and 2): the parallelism comes from the jobs and shards, not from workers.
+#   Changes           the E2E suites the pull request can affect (scripts/e2e-suites.ts, a
+#                     `git diff` against the base; Epic #163, from fragiola/data-grid): none for
+#                     docs only (site/docs, *.md, AGENTS.md); packages/react or examples/react: the
+#                     playground and examples react; packages/vue or examples/vue: examples vue;
+#                     packages/angular or examples/angular: examples angular; anything else (the
+#                     core, examples/shared, the playground, the lockfile, root configs, .github,
+#                     scripts, site) and a manual run: every suite. Only those may skip: a new rule
+#                     names what it skips, never what it runs. It also lists the frameworks with an
+#                     examples app (every `examples/<framework>` with a playwright.config.ts).
+#   E2E               the Playwright suites it selects, in parallel jobs, in Playwright's image
+#                     (mcr.microsoft.com/playwright, the tag of @playwright/test, checked by
+#                     site/tests/ci-workflow.test.ts: no browser install): the playground
+#                     (Chromium) in two shards, and one job per framework's examples app
+#                     (Chromium), each running the shared specs of examples/shared/e2e against its
+#                     own embed. Native HTML5 drags flake under contention, so each machine keeps
+#                     the configs' CI workers (1 and 2): the parallelism comes from the jobs and
+#                     shards, not from workers. Shard a suite only when its test step alone passes
+#                     about 3 minutes (a shard costs ~20-40 s of container start and install).
 #                     The playground's dev server serves the packages from source, so its jobs
 #                     build nothing; an examples suite builds its embed against the packages'
-#                     dist, so its job builds the packages.
+#                     dist, so its job builds the packages. A job the Changes job skips blocks
+#                     nothing (main has no required checks).
 #   Site export       fragiola.com builds /dockable from `pnpm site:export` (contract v1.2,
 #                     fragiola/www CONTRACT.md), built and validated the way www's deploy runs
 #                     it: it fails on anything www would reject.
@@ -119,10 +132,42 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: pnpm changeset status --since="origin/$BASE_REF"
 
-  e2e:
-    name: E2E (${{ matrix.name }})
+  changes:
+    name: Changes
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
+    outputs:
+      playground: ${{ steps.suites.outputs.playground }}
+      examples: ${{ steps.suites.outputs.examples }}
+    steps:
+      # a pull request checks out its merge commit: its first parent is the base it merges into
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - id: suites
+        run: |
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            node scripts/e2e-suites.ts --diff HEAD^1
+          else
+            node scripts/e2e-suites.ts --all
+          fi
+
+  # The E2E jobs run in Playwright's image, whose browsers and system libraries match
+  # @playwright/test (its tag follows the version; site/tests/ci-workflow.test.ts checks it), so
+  # they install nothing.
+  e2e:
+    name: E2E (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.playground == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
     strategy:
       fail-fast: false
       matrix:
@@ -145,10 +190,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium
-        working-directory: apps/playground
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Run Playwright
         run: pnpm --filter playground run e2e ${{ matrix.args }}
 
@@ -160,32 +201,18 @@ jobs:
           path: apps/playground/playwright-report/
           retention-days: 14
 
-  # The frameworks that have an examples app: every examples/<framework> with a playwright.config.ts
-  # (examples/shared, the specs every framework runs, has none). Adding an app adds its job.
-  examples-apps:
-    name: Examples apps
-    if: github.event_name != 'push'
-    runs-on: ubuntu-latest
-    outputs:
-      frameworks: ${{ steps.list.outputs.frameworks }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: list
-        run: |
-          frameworks=$(ls examples/*/playwright.config.ts | cut -d/ -f2 | jq -Rnc '[inputs]')
-          echo "frameworks=$frameworks" >> "$GITHUB_OUTPUT"
-          echo "examples apps: $frameworks"
-
   e2e-examples:
     name: E2E (examples ${{ matrix.framework }})
-    needs: examples-apps
-    if: github.event_name != 'push'
+    needs: changes
+    if: needs.changes.outputs.examples != '[]' && needs.changes.outputs.examples != ''
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
     strategy:
       fail-fast: false
       matrix:
-        framework: ${{ fromJson(needs.examples-apps.outputs.frameworks) }}
+        framework: ${{ fromJson(needs.changes.outputs.examples) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -201,10 +228,6 @@ jobs:
       # The examples suite builds the embed against the packages' dist (examplesE2eConfig).
       - name: Build the packages
         run: pnpm --filter "./packages/*" build
-
-      - name: Install Playwright Chromium
-        working-directory: examples/${{ matrix.framework }}
-        run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Playwright
         run: pnpm --filter examples-${{ matrix.framework }} run e2e
