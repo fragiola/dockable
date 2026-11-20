@@ -152,6 +152,17 @@ describe("the contract checks", () => {
         ).toContain("repository must be an https:// URL");
     });
 
+    it("order the landing's Hero actions examples, the AI agent, then the docs (v1.7)", () => {
+        const hrefs = [
+            ...(site.pages.get("index") ?? "").matchAll(/\bhref: "([^"]+)"/g),
+        ].map((match) => match[1]);
+        expect(hrefs).toEqual([
+            "/examples",
+            "/ai",
+            "/docs/getting-started/introduction",
+        ]);
+    });
+
     it("reject broken, relative and anchorless links", () => {
         expect(problemsOf("[x](/docs/nope)").join()).toContain(
             "no page /docs/nope",
@@ -166,6 +177,25 @@ describe("the contract checks", () => {
             'no example "nope"',
         );
         expect(problemsOf("[x](#nope)").join()).toContain("no heading #nope");
+    });
+
+    it("accept the reserved /ai link of v1.7, and nothing below it", () => {
+        expect(problemsOf("[x](/ai)")).toEqual([]);
+        expect(problemsOf("[x](/ai#set-it-up-in-your-client)")).toEqual([]);
+        expect(
+            validateSite(
+                withPage(
+                    "index",
+                    `${LANDING}\n\n<Hero title="t" actions={[{ label: "x", href: "/ai#y", variant: "secondary" }]} />\n`,
+                ),
+            ),
+        ).toEqual([]);
+        expect(problemsOf("[x](/ai/x)").join()).toContain(
+            "no page /ai/x: the AI agents docs are linked as /ai",
+        );
+        expect(problemsOf("[x](/ai/docs/mcp)").join()).toContain(
+            "no page /ai/docs/mcp",
+        );
     });
 
     it("reject a code block without a language, and ESM", () => {
