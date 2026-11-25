@@ -110,7 +110,7 @@ Things that turned out **not** to be missing:
   template" (context default) would remove the repetition without taking the recursion away
   from the developer.
 - **`renderSplitter` defaults.** The default splitter is correct but invisible until styled,
-  and the only way to style all of them is to pass `renderSplitter` everywhere (gap 6).
+  and the only way to style all of them is to pass `renderSplitter` everywhere.
 - **`getLabel`.** Only the splitter's accessible name uses it in the skeleton. The keys are
   enum values (`dockable.splitter`), so a consumer writes a `Partial<Record<DockableLabel,
   string>>` map. That is fine, but the map must be kept complete by hand as parts add keys.
@@ -119,7 +119,7 @@ Things that turned out **not** to be missing:
 - **Tab location.** `TabSet` forces `flex-direction: column` (structural), so a bottom tab
   strip means ordering the markup (`TabSetContent` before the strip), not a style.
 - **Popout theming.** Everything that makes the page look right (root attributes, body
-  classes) has to be repeated by hand for the popout document (gap 3).
+  classes) has to be repeated by hand for the popout document.
 
 ## 4. Deviations from FlexLayout made during the Epic
 
@@ -181,15 +181,15 @@ Things that turned out **not** to be missing:
    - The border splitter path is already in `SplitterController` (ARIA in px, keyboard), and
      the engine already measures `borderheader`/`bordercontent`.
    - Port the overlay reveal during drags (`checkForBorderToShow`).
-   - Take gap 8 (drop-target highlight) and gap 11 (edge band) here, together with
+   - Take the drop-target highlight and the edge band here, together with
      `Dockable.EdgeIndicator`.
 2. **Tab overflow and groups.** `TabOverflowHook`, `Dockable.OverflowTrigger`, and group pills.
-   The engine already measures `grouppill`/`groupendmarker`. Gap 10 (strip-start drops)
-   belongs here.
+   The engine already measures `grouppill`/`groupendmarker`. Strip-start drops belong
+   here.
 3. **Float windows.** `Dockable.Float`: the engine's `updateRect` already looks for
    `data-dockable-float`, and the drag manager already has the float branch
    (`startDockLayoutDrag`). Flip the popout close policy default to `"float"`.
-   Known limitation until then: a window layout can end up with no window and no renderer.
+   Until then, a window layout can end up with no window and no renderer.
    With the `"float"` policy, a closed popout becomes a float, which this slice does not
    render. With `"dock"`, the same happens when `onAction` vetoes the dock-back moves. Either
    way its tabs are unreachable. The float slice must render floats and decide what a vetoed
@@ -197,12 +197,12 @@ Things that turned out **not** to be missing:
 4. **Full popout.**
    - Dragging between windows (the static `DragState` is already shared) and popout of whole
      tabsets.
-   - Gap 3 (root attribute mirroring) and gap 7 (`PopoutTrigger`).
+   - Root attribute mirroring and `PopoutTrigger`.
    - The remaining `popout-*` Playwright specs.
 5. **Playwright suite.** Port the rest of `tests-playwright/` against `data-layout-path`. Keep
    the 1px nudge in the drag helpers.
 
 Cross-cutting, to schedule before any slice declares RTL support:
 
-- gaps 4 and 5 (re-measure on direction change, logical splitter and drop math);
-- gaps 1, 2 and 6 (tabset state on `Tab`/`Panel`, and splitter defaults from `Root`).
+- re-measure on direction change, logical splitter and drop math;
+- tabset state on `Tab`/`Panel`, and splitter defaults from `Root`.

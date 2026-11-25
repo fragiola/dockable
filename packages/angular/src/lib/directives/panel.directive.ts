@@ -33,6 +33,8 @@ export interface PanelState {
     selected: boolean;
     /** the panel is shown (selected, and not hidden by another tabset being maximized) */
     visible: boolean;
+    /** the tab's tabset is its layout's active tabset (always false in a border) */
+    tabsetActive: boolean;
 }
 
 /**
@@ -55,6 +57,7 @@ export interface PanelState {
         "[attr.data-layout-path]": "data().path",
         "[attr.data-selected]": "data().selected",
         "[attr.data-visible]": "data().visible",
+        "[attr.data-tabset-active]": "data().tabsetActive",
         "(pointerdown)": "onPointerDown()",
         "(keydown)": "onKeyDown($event)",
     },
@@ -104,6 +107,9 @@ export class DockablePanel<T extends DockableTypes = AnyTypes> {
             selected: this.context.model().is("tab-selected", { tabId }),
             // the engine's own rule, so the state always matches what it displays
             visible: this.context.engine().is("tab-panel-visible", { tabId }),
+            tabsetActive: this.context
+                .model()
+                .is("tab-in-active-tabset", { tabId }),
         };
     });
 
@@ -127,6 +133,7 @@ export class DockablePanel<T extends DockableTypes = AnyTypes> {
             }),
             selected: dataAttr(state.selected),
             visible: dataAttr(state.visible),
+            tabsetActive: dataAttr(state.tabsetActive),
         };
     });
 

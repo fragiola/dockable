@@ -84,28 +84,55 @@ const splitterClassName = [
 ```
 
 `relative z-10` keeps the grab area above the tabsets and panels it overlaps (panels are
-absolutely positioned in the root and would otherwise cover it). This is gap 9 in
-[Limitations](/docs/limitations): the pattern works; a `SplitterHandle` part is not scheduled.
+absolutely positioned in the root and would otherwise cover it). The engine measures the 1px
+element, so the split maths stays exact while the grab area is as wide as you make it.
 
 <Example id="splitter-hairline" />
 
 ## Style every splitter
 
-`renderSplitter` is a prop of each `Row`. Pass it to the root row, to every nested row in your
-recursion, and to the row inside `Dockable.Popout` (gap 6):
+Give `renderSplitter` to `Dockable.Root`: every row of the model's layouts renders its splitters
+with it, the root row, every nested row of your recursion and the rows inside `Dockable.Popout`.
+A row's own `renderSplitter` wins over the root's (one row styled differently), and
+`splitter={false}` on a row still renders none.
+
+<Framework name="react">
 
 ```tsx
-import type { RowNode, TabsetNode } from "@fragiola/dockable-react";
-
-function renderNode(child: TabsetNode<Types> | RowNode<Types>): ReactNode {
-    if (child.type === "tabset") return <MyTabSet node={child} />;
-    return (
-        <Dockable.Row node={child} renderSplitter={renderSplitter}>
-            {renderNode}
-        </Dockable.Row>
-    );
-}
+<Dockable.Root model={model} renderSplitter={renderSplitter}>
+    <Dockable.Row<Types>>{renderNode}</Dockable.Row>
+    {/* … */}
+</Dockable.Root>
 ```
+
+</Framework>
+
+<Framework name="vue">
+
+```vue
+<Dockable.Root :model="model">
+    <template #splitter="{ props }">
+        <Dockable.Splitter v-bind="props" aria-label="Resize" class="splitter" />
+    </template>
+    <Dockable.Row v-slot="{ node }"><LayoutNode :node="node" /></Dockable.Row>
+</Dockable.Root>
+```
+
+</Framework>
+
+<Framework name="angular">
+
+```html
+<div [dockableRoot]="model">
+    <!-- directly in the root: every row with no splitter template of its own -->
+    <ng-template dockableRowSplitter let-node="node" let-index="index">
+        <div [dockableSplitter]="node" [index]="index" aria-label="Resize" class="splitter"></div>
+    </ng-template>
+    <div dockableRow>…</div>
+</div>
+```
+
+</Framework>
 
 Or skip `renderSplitter` and style the default splitter with a stylesheet:
 `[role="separator"][data-orientation="vertical"] { width: 4px; }` reaches every one. The default

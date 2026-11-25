@@ -41,7 +41,10 @@ export interface RowProps<T extends DockableTypes = AnyTypes>
     node?: RowNode<T> | undefined;
     /** renders a child: a tabset or a nested row */
     children: (child: TabsetNode<T> | RowNode<T>) => React.ReactNode;
-    /** renders the splitter between two children (defaults to `<Dockable.Splitter />`) */
+    /**
+     * renders the splitter between two children; default: the root's `renderSplitter`, else
+     * `<Dockable.Splitter />`
+     */
     renderSplitter?:
         | ((props: RowSplitterProps<T>) => React.ReactNode)
         | undefined;
@@ -50,11 +53,48 @@ export interface RowProps<T extends DockableTypes = AnyTypes>
 }
 
 /**
+ * The splitter renderer `Dockable.Root` gives every row (`renderSplitter` on the root). Erased to
+ * `AnyTypes`: the root's prop is typed by its registry.
+ */
+export const RowSplitterContext = React.createContext<
+    RenderRowSplitter | undefined
+>(undefined);
+
+type RenderRowSplitter<T extends DockableTypes = AnyTypes> = (
+    props: RowSplitterProps<T>,
+) => React.ReactNode;
+
+/** The root's splitter renderer with its registry erased (see `eraseModel`). */
+export function eraseRenderSplitter<T extends DockableTypes>(
+    render: RenderRowSplitter<T> | undefined,
+): RenderRowSplitter | undefined {
+    return render as unknown as RenderRowSplitter | undefined;
+}
+
+/** The erased splitter renderer seen with the registry `T` the row declares. */
+function typedRenderSplitter<T extends DockableTypes>(
+    render: RenderRowSplitter | undefined,
+): RenderRowSplitter<T> | undefined {
+    return render as unknown as RenderRowSplitter<T> | undefined;
+}
+
+/**
  * A row (or column) of the layout. Lays its children out with flex, sized by their weights,
- * calls the child function per child and inserts a splitter between children.
+ * calls the child function per child and inserts a splitter between children (its own
+ * `renderSplitter`, else the root's, else a `Dockable.Splitter`).
  */
 export function Row<T extends DockableTypes = AnyTypes>(props: RowProps<T>) {
-    const { node, children, renderSplitter, splitter = true, ...rest } = props;
+    const {
+        node,
+        children,
+        renderSplitter: ownRenderSplitter,
+        splitter = true,
+        ...rest
+    } = props;
+    const rootRenderSplitter = typedRenderSplitter<T>(
+        React.useContext(RowSplitterContext),
+    );
+    const renderSplitter = ownRenderSplitter ?? rootRenderSplitter;
     const { model } = useDockableContext("Row");
     const { engine, layoutId } = useLayoutContext("Row");
     const row = node ?? typedModel<T>(model).get("root-row", { layoutId });

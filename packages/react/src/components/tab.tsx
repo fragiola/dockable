@@ -24,6 +24,8 @@ import {
 export interface TabState {
     /** the tab is its tabset's selected tab */
     selected: boolean;
+    /** the tab's tabset is its layout's active tabset (always false in a border) */
+    tabsetActive: boolean;
     /** the tab is pinned */
     pinned: boolean;
     /** the tab is being dragged */
@@ -39,6 +41,12 @@ export interface TabProps<T extends DockableTypes = AnyTypes>
     node: TabOf<T>;
     /** the tab button's content; the primitive renders no text of its own */
     children?: React.ReactNode;
+    /**
+     * called when the key map's `renameTab` key (`F2` by default) is pressed on the tab button and
+     * the model allows renaming the tab (tabset tabs only): show your rename UI, then run
+     * `tab.rename` with the new `label`. Without it the key does nothing.
+     */
+    onRenameRequest?: ((tab: TabOf<T>) => void) | undefined;
 }
 
 /**
@@ -48,7 +56,7 @@ export interface TabProps<T extends DockableTypes = AnyTypes>
  * children.
  */
 export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
-    const { node, children, ...rest } = props;
+    const { node, children, onRenameRequest, ...rest } = props;
     const { model } = useDockableContext("Tab");
     const { engine } = useLayoutContext("Tab");
     const { orientation } = React.useContext(TabListContext);
@@ -77,14 +85,20 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
         engine.adapter.handleTabKeyDown(id, event, {
             element: event.currentTarget,
             orientation,
+            onRenameRequest: onRenameRequest
+                ? () => onRenameRequest(node)
+                : undefined,
         });
     };
 
-    const keyShortcuts = engine.adapter.getKeyShortcuts("tab", id);
+    const keyShortcuts = engine.adapter.getKeyShortcuts("tab", id, {
+        rename: onRenameRequest !== undefined,
+    });
 
     const overflowHidden = useTabHidden(containerId, id);
     const state: TabState = {
         selected,
+        tabsetActive: model.is("tab-in-active-tabset", { tabId: id }),
         pinned: node.pinned === true,
         dragging: drag.state.dragging,
         // supported, and the model accepts `tab.popout` for it now
@@ -108,6 +122,7 @@ export function Tab<T extends DockableTypes = AnyTypes>(props: TabProps<T>) {
                     engine.get("layout-path-by", { nodeId: id }),
                 ),
                 selected,
+                "tabset-active": state.tabsetActive,
                 pinned: state.pinned,
                 dragging: state.dragging,
                 poppable: state.poppable,

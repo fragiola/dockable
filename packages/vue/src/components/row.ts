@@ -7,7 +7,14 @@ import type {
     RowNode,
     TabsetNode,
 } from "@fragiola/dockable";
-import { type CSSProperties, Fragment, h, type VNodeChild } from "vue";
+import {
+    type CSSProperties,
+    Fragment,
+    h,
+    type InjectionKey,
+    inject,
+    type VNodeChild,
+} from "vue";
 import { useMeasurable } from "../composables/internal";
 import { useDockableContext, useLayoutContext } from "../context";
 import {
@@ -55,15 +62,24 @@ export interface RowSlots<T extends DockableTypes = AnyTypes>
     /** renders a child: a tabset or a nested row */
     default?: SlotFunction<{ node: TabsetNode<T> | RowNode<T> }>;
     /**
-     * renders the splitter between two children (defaults to `<Dockable.Splitter v-bind="props" />`):
-     * `props` is the splitter's `{ node, index }`
+     * renders the splitter between two children: `props` is the splitter's `{ node, index }`.
+     * Default: the root's `#splitter` slot, else `<Dockable.Splitter v-bind="props" />`
      */
     splitter?: SlotFunction<{ props: RowSplitterProps<T> }>;
 }
 
 /**
+ * The root's `#splitter` slot, given to every row with none of its own (a getter: the root's slots
+ * are read at render time).
+ */
+export const RowSplitterKey: InjectionKey<
+    () => SlotFunction<{ props: RowSplitterProps }> | undefined
+> = Symbol("DockableRowSplitter");
+
+/**
  * A row (or column) of the layout. Lays its children out with flex, sized by their weights,
- * renders the default slot per child and inserts a splitter between children.
+ * renders the default slot per child and inserts a splitter between children (its own `#splitter`
+ * slot, else the root's, else a `Dockable.Splitter`).
  */
 export const Row: DockableComponent<RowProps, RowSlots> = definePrimitive<
     RowProps,
@@ -84,7 +100,9 @@ export const Row: DockableComponent<RowProps, RowSlots> = definePrimitive<
             return row;
         };
         const ref = useMeasurable(engine, () => current().id, "row");
+        const rootSplitter = inject(RowSplitterKey, () => undefined);
         return () => {
+            const splitterSlot = slots.splitter ?? rootSplitter();
             revision.value;
             const row = current();
             const id = row.id;
@@ -102,8 +120,8 @@ export const Row: DockableComponent<RowProps, RowSlots> = definePrimitive<
                         h(
                             Fragment,
                             { key: `splitter:${child.id}` },
-                            slots.splitter
-                                ? slots.splitter({ props: splitterProps })
+                            splitterSlot
+                                ? splitterSlot({ props: splitterProps })
                                 : [h(Splitter, splitterProps)],
                         ),
                     );

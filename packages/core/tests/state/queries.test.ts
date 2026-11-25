@@ -362,6 +362,22 @@ describe("model.is", () => {
         expect(m.is("tabset-active", { tabsetId: "ts3" })).toBe(true);
     });
 
+    it("tab-in-active-tabset: a tab of its layout's active tabset", () => {
+        const m = model();
+        expect(m.is("tab-in-active-tabset", { tabId: "c" })).toBe(true);
+        expect(m.is("tab-in-active-tabset", { tabId: "b" })).toBe(false);
+        expect(m.is("tab-in-active-tabset", { tabId: "d" })).toBe(false); // a border's
+        expect(m.is("tab-in-active-tabset", { tabId: "ts1" })).toBe(false);
+        expect(m.is("tab-in-active-tabset", { tabId: "nope" })).toBe(false);
+        must(m.run("tabset.activate", { tabsetId: "ts0" }));
+        expect(m.is("tab-in-active-tabset", { tabId: "a" })).toBe(true);
+        expect(m.is("tab-in-active-tabset", { tabId: "b" })).toBe(true);
+        // a window's tabs follow their own layout's active tabset
+        must(m.run("tabset.activate", { tabsetId: "ts3" }));
+        expect(m.is("tab-in-active-tabset", { tabId: "e" })).toBe(true);
+        expect(m.is("tab-in-active-tabset", { tabId: "a" })).toBe(true);
+    });
+
     it("node-hidden-by-maximize: every tabset and row off the maximized tabset's path", () => {
         const m = model();
         must(m.run("tabset.maximize", { tabsetId: "ts1", value: true }));
@@ -511,6 +527,7 @@ describe("the key lists", () => {
         const isFields: { [K in keyof ModelIsMap]: keyof ModelIsMap[K] } = {
             "tab-selected": "tabId",
             "tab-pinned": "tabId",
+            "tab-in-active-tabset": "tabId",
             "tabset-active": "tabsetId",
             "tabset-maximized": "tabsetId",
             "tabset-empty": "tabsetId",

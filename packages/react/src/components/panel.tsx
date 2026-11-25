@@ -27,6 +27,8 @@ export interface PanelState {
     selected: boolean;
     /** the panel is shown (selected, and not hidden by another tabset being maximized) */
     visible: boolean;
+    /** the tab's tabset is its layout's active tabset (always false in a border) */
+    tabsetActive: boolean;
 }
 
 export interface PanelProps<T extends DockableTypes = AnyTypes>
@@ -150,7 +152,8 @@ export function Panel<T extends DockableTypes = AnyTypes>(
     const selected = model.is("tab-selected", { tabId: id });
     // the engine's own rule, so the state always matches what it displays
     const visible = mainEngine.is("tab-panel-visible", { tabId: id });
-    const state: PanelState = { selected, visible };
+    const tabsetActive = model.is("tab-in-active-tabset", { tabId: id });
+    const state: PanelState = { selected, visible, tabsetActive };
 
     const onPointerDown = () => {
         mainEngine.adapter.handlePanelPointerDown(id);
@@ -187,6 +190,7 @@ export function Panel<T extends DockableTypes = AnyTypes>(
                 }),
                 selected,
                 visible,
+                "tabset-active": tabsetActive,
             }),
             onPointerDown,
             onKeyDown: focusToggleKey ? onKeyDown : undefined,

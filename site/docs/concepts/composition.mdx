@@ -111,9 +111,9 @@ The popout windows render the same structure: pass the same function to the `Row
 
 - `splitter={false}` renders none (the row cannot be resized by the user).
 
-`renderSplitter` is per row: pass it to **every** `Row`, the nested ones in your recursion and
-the one in `Popout` ([Limitations](/docs/limitations), gap 6). The [Splitters guide](/docs/guides/splitters)
-styles them.
+Give `renderSplitter` to `Dockable.Root` instead and it reaches **every** row, the nested ones in
+your recursion and the ones in `Popout`; a row's own `renderSplitter` (or `splitter={false}`)
+still wins. The [Splitters guide](/docs/guides/splitters) styles them.
 
 ## The panel layer
 

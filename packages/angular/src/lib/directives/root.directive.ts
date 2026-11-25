@@ -5,6 +5,7 @@
 import {
     afterRenderEffect,
     computed,
+    contentChild,
     Directive,
     effect,
     forwardRef,
@@ -13,6 +14,7 @@ import {
     output,
     type Signal,
     signal,
+    type TemplateRef,
     untracked,
 } from "@angular/core";
 import {
@@ -44,6 +46,7 @@ import {
     optionalBoolean,
 } from "../utils/helpers";
 import { dragStateSignal, indicatorSignal } from "../utils/signals";
+import { DockableRowSplitter } from "./templates.directive";
 
 export interface RootState {
     /** a tabset of the main layout is maximized */
@@ -140,6 +143,21 @@ export class DockableRoot<T extends DockableTypes = AnyTypes>
     readonly popoutClose = output<PopoutEvent<T>>();
 
     private readonly host = injectHost();
+    /**
+     * `<ng-template dockableRowSplitter>` directly in the root: the splitters of every row of the
+     * model's layouts (nested rows and popouts included) that has no splitter template of its own
+     */
+    private readonly splitterTemplate = contentChild(DockableRowSplitter, {
+        descendants: false,
+    });
+    readonly rowSplitter: Signal<
+        { template: TemplateRef<unknown> } | undefined
+    > = computed(
+        () =>
+            this.splitterTemplate() as
+                | { template: TemplateRef<unknown> }
+                | undefined,
+    );
     private readonly dragGroup = inject(DOCKABLE_DRAG_GROUP, {
         optional: true,
     });

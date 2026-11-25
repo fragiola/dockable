@@ -60,7 +60,7 @@ export interface TypedDockable<T extends DockableTypes> {
     Panels: DockableComponent<PanelsProps<T>, PanelsSlots<T>>;
     Popout: DockableComponent<PopoutProps, PopoutSlots<T>>;
     PopoutTrigger: DockableComponent<PopoutTriggerProps<T>, PopoutTriggerSlots>;
-    Root: DockableComponent<RootProps<T>, RootSlots>;
+    Root: DockableComponent<RootProps<T>, RootSlots<T>>;
     Row: DockableComponent<RowProps<T>, RowSlots<T>>;
     Splitter: DockableComponent<SplitterProps<T>, SplitterSlots>;
     Tab: DockableComponent<TabProps<T>, TabSlots>;

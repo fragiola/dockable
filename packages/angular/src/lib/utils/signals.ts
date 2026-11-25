@@ -1,4 +1,12 @@
-import { effect, type Signal, untracked } from "@angular/core";
+import {
+    computed,
+    effect,
+    type OutputRef,
+    type OutputRefSubscription,
+    type Signal,
+    signal,
+    untracked,
+} from "@angular/core";
 import {
     type ContainerDropState,
     DragDropManager,
@@ -113,4 +121,36 @@ export function hiddenTabsSignal(
         () => engine().adapter.subscribeOverflow,
         () => engine().adapter.getHiddenTabs(containerId()),
     );
+}
+
+/**
+ * A directive output (declared in its `outputs`) that knows whether anything listens to it, as a
+ * signal: a part whose behaviour depends on a handler being given (the tab's rename key, and its
+ * `aria-keyshortcuts`) reads `listened()`. `output()` keeps its listeners private.
+ */
+export class ListenedOutput<T> implements OutputRef<T> {
+    private readonly listeners = new Set<(value: T) => void>();
+    private readonly count = signal(0);
+    /** whether the output has a listener */
+    readonly listened: Signal<boolean> = computed(() => this.count() > 0);
+
+    subscribe(callback: (value: T) => void): OutputRefSubscription {
+        // a wrapper per subscription, so the same function bound twice is counted twice
+        const listener = (value: T) => callback(value);
+        this.listeners.add(listener);
+        this.count.update((n) => n + 1);
+        return {
+            unsubscribe: () => {
+                if (this.listeners.delete(listener)) {
+                    this.count.update((n) => n - 1);
+                }
+            },
+        };
+    }
+
+    emit(value: T): void {
+        for (const listener of [...this.listeners]) {
+            listener(value);
+        }
+    }
 }

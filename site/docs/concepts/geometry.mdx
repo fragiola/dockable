@@ -50,11 +50,11 @@ The panels live in a **panel layer**: they are portalled into the root, after it
 children. That has consequences you style around:
 
 - a tabset's `border-radius` or `overflow: hidden` does **not** clip its panel (they are
-  siblings, not parent and child). Repeat the radius on the panel, or use square tabsets
-  ([Limitations](/docs/limitations), gap 2);
+  siblings, not parent and child). Repeat the radius on the panel, or use square tabsets;
 - a panel paints **above** earlier absolutely positioned siblings, including the drop indicator,
-  unless you give those a `z-index` (gap 12);
-- a panel cannot be styled from its tabset's state with a descendant selector.
+  unless you give those a `z-index`;
+- a panel cannot be styled from its tabset's state with a descendant selector: it carries
+  `data-tabset-active` itself.
 
 The engine writes this geometry directly to the DOM. React never reconciles it, so a resize or a
 live splitter drag repositions panels without re-rendering anything.

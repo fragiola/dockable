@@ -2,7 +2,6 @@
 import type { RowNode, TabsetNode } from "@fragiola/dockable-vue";
 import { Dockable, type Types } from "./dockable";
 import PopoutButton from "./popout-button.vue";
-import Splitter from "./splitter.vue";
 import * as styles from "./styles";
 
 defineProps<{ node: TabsetNode<Types> | RowNode<Types> }>();
@@ -12,9 +11,6 @@ defineProps<{ node: TabsetNode<Types> | RowNode<Types> }>();
     <Dockable.Row v-if="node.type === 'row'" :node="node">
         <template #default="{ node: child }">
             <LayoutNode :node="child" />
-        </template>
-        <template #splitter="{ props }">
-            <Splitter v-bind="props" />
         </template>
     </Dockable.Row>
     <!-- A tabset: a card with the strip of tabs and its buttons on top, and the measured content

@@ -30,6 +30,11 @@ import {
     useRenderElement,
 } from "../utils/use-render";
 import { DragGroupContext } from "./drag-group";
+import {
+    eraseRenderSplitter,
+    RowSplitterContext,
+    type RowSplitterProps,
+} from "./row";
 
 export interface RootState {
     /** a tabset of the main layout is maximized */
@@ -81,6 +86,14 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
      * your own) is the content's: it is not asked about.
      */
     onExternalDrag?: OnExternalDrag<T> | undefined;
+    /**
+     * renders the splitter between two children of every row of the model's layouts (the root
+     * row, nested rows and the rows of `Dockable.Popout`); a row's own `renderSplitter` wins, and
+     * `splitter={false}` on a row still renders none. Default: `<Dockable.Splitter />`
+     */
+    renderSplitter?:
+        | ((props: RowSplitterProps<T>) => React.ReactNode)
+        | undefined;
     children?: React.ReactNode;
 }
 
@@ -103,6 +116,7 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         openWindow,
         popoutMirrorRoot,
         onExternalDrag,
+        renderSplitter,
         children,
         ...rest
     } = props;
@@ -267,7 +281,11 @@ export function Root<T extends DockableTypes = AnyTypes>(props: RootProps<T>) {
         <ModelContext.Provider value={model}>
             <DockableContext.Provider value={context}>
                 <LayoutContext.Provider value={layoutContext}>
-                    {element}
+                    <RowSplitterContext.Provider
+                        value={eraseRenderSplitter(renderSplitter)}
+                    >
+                        {element}
+                    </RowSplitterContext.Provider>
                 </LayoutContext.Provider>
             </DockableContext.Provider>
         </ModelContext.Provider>

@@ -95,3 +95,83 @@ describe("[dockablePopoutTrigger]", () => {
         expect(commands.map((c) => c.command)).toContain("tabset.popout");
     });
 });
+
+const borderModel = () =>
+    createModel<Types>({
+        ...structuredClone(twoTabsets),
+        defaults: { tab: { poppable: true } },
+        borders: [
+            {
+                location: "bottom",
+                selected: 0,
+                children: [
+                    {
+                        id: "terminal",
+                        component: "test",
+                        label: "Terminal",
+                        data: { name: "Terminal" },
+                    },
+                ],
+            },
+        ],
+    });
+
+@Component({
+    imports: [DOCKABLE],
+    template: `
+        <div [dockableRoot]="model()" [supportsPopout]="true">
+            <div dockableBorders>
+                <ng-template [dockableBordersBar]="model()" let-border>
+                    <div [dockableBorder]="border">
+                        <div dockableTabList>
+                            <ng-template dockableTabListItem let-tab>
+                                <div [dockableTab]="tab"></div>
+                            </ng-template>
+                        </div>
+                        <button dockablePopoutTrigger [target]="target()" aria-label="Pop out"></button>
+                    </div>
+                </ng-template>
+                <div dockableRow>
+                    <ng-template dockableRowChild let-node>
+                        @if (node.type === "tabset") {
+                            <div [dockableTabSet]="node"><div dockableTabSetContent></div></div>
+                        }
+                    </ng-template>
+                </div>
+            </div>
+        </div>
+    `,
+})
+class BorderTriggerLayout {
+    readonly model = input.required<Model<Types>>();
+    readonly target = input<"tab" | "tabset">("tab");
+}
+
+describe("[dockablePopoutTrigger] in a border", () => {
+    it("pops the border's selected tab out", async () => {
+        const model = borderModel();
+        const commands = recordCommands(model);
+        await render(BorderTriggerLayout, { model });
+        const trigger = mustPath("/border/bottom/button/popout");
+        expect(trigger).toHaveAttribute("data-mode", "popout");
+        expect(trigger.style.display).toBe("");
+        trigger.click();
+        await settle();
+        expect(commands).toContainEqual(
+            expect.objectContaining({
+                command: "tab.popout",
+                payload: expect.objectContaining({ tabId: "terminal" }),
+            }),
+        );
+    });
+
+    it("is hidden with target=tabset: a border is not a tabset", async () => {
+        await render(BorderTriggerLayout, {
+            model: borderModel(),
+            target: "tabset",
+        });
+        expect(mustPath("/border/bottom/button/popout").style.display).toBe(
+            "none",
+        );
+    });
+});

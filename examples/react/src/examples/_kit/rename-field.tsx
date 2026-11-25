@@ -69,8 +69,7 @@ export function RenameField({
                 setInvalid(false);
             }}
             onKeyDown={(event) => {
-                // the tab handles Enter, Space, arrows, Home and End itself: keep them in the field
-                event.stopPropagation();
+                // the tab leaves the keys typed in the field to it
                 if (event.key === "Enter") {
                     finish(true, event.currentTarget);
                 } else if (event.key === "Escape") {

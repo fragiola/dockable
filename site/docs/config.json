@@ -297,10 +297,6 @@
             "label": "More",
             "pages": [
                 {
-                    "label": "Known limitations",
-                    "path": "limitations"
-                },
-                {
                     "label": "Found a problem?",
                     "href": "https://github.com/fragiola/dockable/issues",
                     "external": true

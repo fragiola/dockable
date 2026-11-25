@@ -70,3 +70,10 @@ test("a popout takes the example theme, and closing it docks the tab back", asyn
         "Chat",
     ]);
 });
+
+test("the root's splitter renders the row's splitter", async ({ page }) => {
+    await openExample(page, "popout");
+    const splitter = path(page, "/s0");
+    await expect(splitter).toHaveAttribute("role", "separator");
+    await expect(splitter).toHaveAccessibleName("Resize");
+});

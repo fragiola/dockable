@@ -31,7 +31,7 @@ TypeScript narrows on it.
 | --- | --- | --- | --- |
 | `node` | `RowNode<T>` | the layout's root row | the row to render; defaults to the root row of the enclosing layout (then pass the model's registry as the type argument: `<Dockable.Row<Types>>`) |
 | `children` | `(child: TabsetNode<T> \| RowNode<T>) => ReactNode` | required | renders a child: a tabset or a nested row |
-| `renderSplitter` | `(props: RowSplitterProps<T>) => ReactNode` | `<Dockable.Splitter />` | renders the splitter between two children (defaults to `<Dockable.Splitter />`) |
+| `renderSplitter` | `(props: RowSplitterProps<T>) => ReactNode` | the root's `renderSplitter`, else `<Dockable.Splitter />` | renders the splitter between two children |
 | `splitter` | `boolean` | `true` | `false` renders no splitters |
 
 With a `node`, `T` is inferred from it. With none, the row reads the root row from the model in
@@ -79,5 +79,6 @@ tabsets inside), both from the engine (`engine.get("flex-by", { nodeId })`), `ov
   and a row nested in a row takes the opposite orientation.
 - A `Row` with no `node` inside `Dockable.Popout` renders the window layout's root row.
 - A splitter drag runs `row.resize` (see [Dockable.Splitter](/docs/api/splitter)).
-- `renderSplitter` applies to this row only: pass it to every row
-  ([Limitations](/docs/limitations), gap 6).
+- A row with no `renderSplitter` of its own renders its splitters with the one given to
+  `Dockable.Root`, so one declaration on the root reaches every row, the rows of `Dockable.Popout`
+  included. `splitter={false}` still renders none.

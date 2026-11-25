@@ -1,5 +1,5 @@
 // Borders (Epic #21): opening, resizing, drops into and out of borders, the auto-hide reveal during
-// a drag, the edge indicators, and the edge docking margin (gap 11).
+// a drag, the edge indicators, and the edge docking margin.
 import { expect, type Page, test } from "@playwright/test";
 import {
     drag,
@@ -190,7 +190,7 @@ test("the edge indicators show during a drag, and mark the edge a drop would doc
     expect(docked.y).toBeLessThan(main.y + 20);
 });
 
-test("gap 11: a thin strip at the top edge docks to the edge by default, and takes the drop with a smaller edgeDockMargin", async ({
+test("a thin strip at the top edge docks to the edge by default, and takes the drop with a smaller edgeDockMargin", async ({
     page,
 }) => {
     await open(page, "layout=test-border-direction&thin");

@@ -11,7 +11,7 @@ import {
     type RenderSlot,
     renderElement,
 } from "../utils/render";
-import { useTabSetNode } from "./tabset";
+import { useTabContainer } from "./tabset";
 
 export interface PopoutTriggerState {
     /** what a press does: open a window (`"popout"`) or dock back into the main layout (`"dock"`) */
@@ -22,9 +22,12 @@ export interface PopoutTriggerState {
 
 export interface PopoutTriggerProps<T extends DockableTypes = AnyTypes>
     extends PrimitiveProps {
-    /** `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset */
+    /**
+     * `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset (not in a border:
+     * there the trigger renders nothing)
+     */
     target?: "tab" | "tabset" | undefined;
-    /** the tab to act on; default: the enclosing tabset's selected tab */
+    /** the tab to act on; default: the enclosing tabset's (or border's) selected tab */
     node?: TabOf<T> | undefined;
 }
 
@@ -34,10 +37,10 @@ export interface PopoutTriggerSlots extends RenderSlot<PopoutTriggerState> {
 }
 
 /**
- * A button, inside `Dockable.TabSet`, that pops the selected tab (or the whole tabset) out into a
- * window, and, in a window, docks it back into the main layout. It renders nothing when neither
- * is possible (popouts unsupported, the model refuses it, no tab): `tab.popout` / `tabset.popout`
- * decide, through `model.can`. It has no name of its own: give it an `aria-label`, or name it
+ * A button, inside `Dockable.TabSet` or `Dockable.Border`, that pops the selected tab (or the
+ * whole tabset) out into a window, and, in a window, docks it back into the main layout. It
+ * renders nothing when neither is possible (popouts unsupported, the model refuses it, no tab):
+ * `tab.popout` / `tabset.popout` decide, through `model.can`. It has no name of its own: give it an `aria-label`, or name it
  * from the state in the `render` slot when the two actions need different names.
  */
 export const PopoutTrigger: DockableComponent<
@@ -47,15 +50,23 @@ export const PopoutTrigger: DockableComponent<
     "PopoutTrigger",
     ["target", "node", "as"],
     (props, { attrs, slots }) => {
-        const tabset = useTabSetNode("PopoutTrigger");
+        const container = useTabContainer("PopoutTrigger");
         const { model, revision } = useDockableContext("PopoutTrigger");
         const { engine } = useLayoutContext("PopoutTrigger");
-        const subject = () =>
-            (props.target ?? "tab") === "tabset"
-                ? tabset.value.id
-                : (props.node?.id ??
-                  model.get("selected-tab-by", { tabsetId: tabset.value.id })
-                      ?.id);
+        const subject = () => {
+            const { id, type } = container.value;
+            if ((props.target ?? "tab") === "tabset") {
+                // a border is not a tabset: it has no window of its own
+                return type === "border" ? undefined : id;
+            }
+            return (
+                props.node?.id ??
+                model.get(
+                    "selected-tab-by",
+                    type === "border" ? { borderId: id } : { tabsetId: id },
+                )?.id
+            );
+        };
         const modeOf = (nodeId: string | undefined) =>
             nodeId === undefined
                 ? undefined
@@ -90,7 +101,7 @@ export const PopoutTrigger: DockableComponent<
                     type: "button",
                     ...dataAttributes({
                         // FlexLayout's path for a tabset's pop out button
-                        "layout-path": `${engine.get("layout-path-by", { nodeId: tabset.value.id })}/button/popout`,
+                        "layout-path": `${engine.get("layout-path-by", { nodeId: container.value.id })}/button/popout`,
                         mode: state.mode,
                         target,
                     }),

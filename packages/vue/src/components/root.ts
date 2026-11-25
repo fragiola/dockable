@@ -51,6 +51,7 @@ import {
     useExternal,
 } from "../utils/render";
 import { DragGroupKey } from "./drag-group";
+import { RowSplitterKey, type RowSplitterProps } from "./row";
 
 export interface RootState {
     /** a tabset of the main layout is maximized */
@@ -100,9 +101,17 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
     onExternalDrag?: OnExternalDrag<T> | undefined;
 }
 
-export interface RootSlots extends RenderSlot<RootState> {
+export interface RootSlots<T extends DockableTypes = AnyTypes>
+    extends RenderSlot<RootState> {
     /** the layout: a `Dockable.Row` (or `Dockable.Borders`), `Dockable.Panels`, indicators, … */
     default?: SlotFunction<Record<never, never>>;
+    /**
+     * renders the splitter between two children of every row of the model's layouts (the root
+     * row, nested rows and the rows of `Dockable.Popout`): `props` is the splitter's
+     * `{ node, index }`. A row's own `#splitter` slot wins, and `:splitter="false"` on a row still
+     * renders none. Default: `<Dockable.Splitter v-bind="props" />`
+     */
+    splitter?: SlotFunction<{ props: RowSplitterProps<T> }>;
 }
 
 const ROOT_PROPS = [
@@ -260,6 +269,7 @@ const RootLayout = definePrimitive<RootProps, RootSlots>(
         provide(DockableKey, context);
         provide(LayoutKey, { layoutId: MAIN_LAYOUT, engine });
         provide(ModelKey, model);
+        provide(RowSplitterKey, () => slots.splitter);
 
         return () => {
             engine.adapter.setOptions({

@@ -58,7 +58,7 @@
     background: rgb(255 0 0 / 0.7);
 }
 
-/* gap 11: a strip thinner than the top edge band */
+/* a strip thinner than the top edge band */
 :root[data-thin] [role="tablist"] {
     min-height: 12px;
     font-size: 10px;

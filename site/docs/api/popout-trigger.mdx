@@ -1,10 +1,10 @@
 ---
 title: Dockable.PopoutTrigger
-description: A button that pops the selected tab, or the whole tabset, out into a window, and docks it back from the window.
+description: A button that pops the selected tab of a tabset or a border, or a whole tabset, out into a window, and docks it back from the window.
 ---
 
-"A button, inside `Dockable.TabSet`, that pops the selected tab (or the whole tabset) out into a
-window, and, in a window, docks it back into the main layout. It renders nothing when neither is
+"A button, inside `Dockable.TabSet` or `Dockable.Border`, that pops the selected tab (or the
+whole tabset) out into a window, and, in a window, docks it back into the main layout. It renders nothing when neither is
 possible (popouts unsupported, the model refuses it, no tab): the engine decides
 (`engine.get("popout-mode-by", { nodeId })`). It has no name of its own: give it an `aria-label`, or name it
 from the state when the two actions need different names
@@ -53,8 +53,8 @@ state is what opens the native window: the root's popout manager opens one for e
 
 | prop | type | default | description |
 | --- | --- | --- | --- |
-| `target` | `"tab" \| "tabset"` | `"tab"` | `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset |
-| `node` | `TabOf<T>` | the tabset's selected tab | the tab to act on; default: the enclosing tabset's selected tab |
+| `target` | `"tab" \| "tabset"` | `"tab"` | `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset (not in a border: there the trigger renders nothing) |
+| `node` | `TabOf<T>` | the selected tab | the tab to act on; default: the enclosing tabset's (or border's) selected tab |
 | `children` | `ReactNode` | none | the button's content (an icon); the primitive renders no text of its own |
 
 ## State
@@ -70,13 +70,17 @@ state is what opens the native window: the root's popout manager opens one for e
 
 | attribute | value |
 | --- | --- |
-| `data-layout-path` | `<tabset path>/button/popout`, e.g. `/ts0/button/popout` |
+| `data-layout-path` | `<tabset or border path>/button/popout`, e.g. `/ts0/button/popout`, `/border/bottom/button/popout` |
 | `data-mode` | `"popout"` or `"dock"` |
 | `data-target` | `"tab"` or `"tabset"` |
 | `aria-label` | none of its own: pass yours, or set it from `state.mode` in `render` |
 | `type` | `"button"` |
 
 ## Notes
+
+- In a border's strip it pops the border's selected tab out: put it in `Dockable.Border`, next to
+  the `TabList`. A border is not a tabset, so `target="tabset"` renders nothing there. Docking the
+  tab back from its window moves it into the main layout's active tabset, not into the border.
 
 - In the main layout it renders when `engine.can("popout", { nodeId: id })` is true: popouts are supported
   (`supportsPopout`) and `model.can("tab.popout", { tabId })` (or `tabset.popout`) accepts it. The

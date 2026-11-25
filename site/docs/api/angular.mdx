@@ -81,7 +81,7 @@ them, with the node as the template's `let-` variable:
 | template directive | inside | context (`let-…`) |
 | --- | --- | --- |
 | `DockableRowChild` (`dockableRowChild`) | `[dockableRow]` | `$implicit` and `node`: a tabset or a row, a `RowChildContext` |
-| `DockableRowSplitter` (`dockableRowSplitter`) | `[dockableRow]` | `node` and `index`, and `$implicit` as `RowSplitterProps`: a `RowSplitterContext` |
+| `DockableRowSplitter` (`dockableRowSplitter`) | `[dockableRow]`, or directly in `[dockableRoot]` for every row with no splitter template of its own (popouts included) | `node` and `index`, and `$implicit` as `RowSplitterProps`: a `RowSplitterContext` |
 | `DockableTabListItem` (`dockableTabListItem`) | `[dockableTabList]` | `$implicit` and `tab`: a `TabListItemContext` |
 | `DockablePanels` (`dockablePanels`) | `[dockableRoot]`, once | `$implicit` and `tab`: a `PanelsContext` |
 | `DockablePopout` (`dockablePopout`) | `[dockableRoot]`, once | `$implicit` and `layout`: a `PopoutContext` (its root element is a `[dockablePopoutLayout]`) |
@@ -105,7 +105,7 @@ A bare `dockableRowChild` types it by `AnyTypes` (`TypedBy<T>` is what the input
 | `className`, `style` | your `class` and `style`, untouched; structural keys win. `className={(state) => …}` is a `[class]` binding on the state, or a `data-*` selector |
 | `onKeyDown`, `onPointerDown`, … | your listeners (`(keydown)`, `(pointerdown)`), run after the part's own |
 | children functions (`Row`, `TabList`, `Panels`, `Popout`) | the template directives above |
-| `renderSplitter` (`Row`, `BorderContent`) | `<ng-template dockableRowSplitter>`, `<ng-template dockableBorderSplitter>` |
+| `renderSplitter` (`Root`, `Row`, `BorderContent`) | `<ng-template dockableRowSplitter>` (directly in the root for every row, or in a row), `<ng-template dockableBorderSplitter>` |
 | `splitter={false}` | `[splitter]="false"` |
 | `renderBar`, `renderContent` (`Borders`) | `<ng-template dockableBordersBar>`, `<ng-template dockableBordersContent>`; the frame's other children are the main layout |
 | `onPopoutOpen`, `onPopoutClose` | the outputs `(popoutOpen)` and `(popoutClose)`, with a `PopoutEvent` (`layout`, `window`, `document`) |

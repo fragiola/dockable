@@ -21,7 +21,10 @@
 export interface KeyMap {
     /** closes the focused tab button's tab (when the tab is closeable) */
     closeTab?: string;
-    /** starts renaming the focused tab button's tab (when `model.can("tab.rename")` allows it, tabset tabs only) */
+    /**
+     * asks to rename the focused tab button's tab: calls the tab's rename handler (the app renders
+     * the rename UI), when it has one and `model.can("tab.rename")` allows it; tabset tabs only
+     */
     renameTab?: string;
     /** toggles focus between the selected tab button and its content; off by default */
     focusTabToggle?: string;

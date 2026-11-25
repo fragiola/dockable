@@ -96,14 +96,14 @@ attribute.
   inline (structural style), and inline wins. Size with weights instead.
 - **`min-height: 30px` on the tab list** (or a lower `edgeDockMargin`): a thin strip at the top
   of the layout falls inside the 10px top-edge docking band, so drops aimed at it dock to the
-  layout edge instead (gap 11).
+  layout edge instead.
 - **`z-index` on the drop indicator**: panels are portalled into the root after the indicator
-  and would paint over it (gap 12). Its `pointer-events: none` is structural (an indicator under
+  and would paint over it. Its `pointer-events: none` is structural (an indicator under
   the pointer would steal the drag's events).
 - **Transitions on the indicator only**: the core never animates. The indicator's state carries
   `tabDragSpeed` (default 0.3s) if you want to read the duration from the layout.
 - **A border on tabsets, no radius**: a tabset's `border-radius` does not clip its panel (panels
-  are siblings in the panel layer, gap 2). For rounded tabsets, repeat the inner radius on the
+  are siblings in the panel layer). For rounded tabsets, repeat the inner radius on the
   panel's bottom corners.
 
 ## CSS modules, vanilla-extract, styled-components

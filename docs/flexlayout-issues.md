@@ -4,9 +4,7 @@ This report surveys the issue tracker of [caplin/FlexLayout](https://github.com/
 the library Dockable was ported from, and records what Dockable does about each recurring problem.
 Every concrete bug Dockable claims to avoid has a regression test named after the issue
 (`caplin/FlexLayout#<n>`); the [regression matrix](#regression-matrix) maps each one to its test.
-Dockable's design record is [`engine-v2-design.md`](./engine-v2-design.md), and what it does not
-do yet is listed, from the docs' side, in
-[`site/docs/limitations.mdx`](../site/docs/limitations.mdx).
+Dockable's design record is [`engine-v2-design.md`](./engine-v2-design.md).
 
 The survey was taken on 2026-09-30 against the source of `flexlayout-react` 0.11.0
 (`../FlexLayout`, read-only). The issue states and the stats below were fetched again on
@@ -34,8 +32,7 @@ Each theme gets one verdict for Dockable:
 - **addressed**: Dockable takes a concrete step, and what is left is named.
 - **by design**: the behaviour is intended, or cannot arise in a headless library (no CSS, no
   text, no rendered menus); the docs say how an app changes it when it can.
-- **not built**: the feature does not exist yet, and
-  [`limitations.mdx`](../site/docs/limitations.mdx) lists it.
+- **not built**: Dockable has no such feature.
 
 | theme | issues | verdict |
 |---|---|---|
@@ -388,7 +385,7 @@ left (the rows mirror, the tab strips run from the right), and since
 [#118](https://github.com/fragiola/dockable/issues/118) it responds that way too: the engine reads
 its root's direction (`engine.get("direction")`), so splitter drags and keys, side, edge and strip
 drops (#225's tab bar positions included) and overlay borders follow the screen, and a runtime
-`dir` flip repositions the panels (gaps 4 and 5 of `limitations.mdx`, solved). The RTL fixture's
+`dir` flip repositions the panels. The RTL fixture's
 spec (`apps/playground/e2e/rtl.spec.ts`) drives each of them.
 
 ## T15 Tab strip, overflow, borders, menus
@@ -436,24 +433,6 @@ further: every command has a name, a description and a JSON Schema (`model.get("
 `model.dispatch({ command, payload, transient? }, { meta })` validates untrusted JSON before
 anything changes. That is what an assistant, a socket or a command palette needs to drive the
 layout.
-
-## Not built yet
-
-The verdicts above that say "not built", with the issues behind them. `limitations.mdx` lists the
-same features from the docs' side.
-
-- **Floats** (T9): floating windows inside the page. [caplin/FlexLayout#11](https://github.com/caplin/FlexLayout/issues/11), [caplin/FlexLayout#61](https://github.com/caplin/FlexLayout/issues/61), [caplin/FlexLayout#126](https://github.com/caplin/FlexLayout/issues/126),
-  [caplin/FlexLayout#296](https://github.com/caplin/FlexLayout/issues/296).
-- **Tab groups**: pills grouping tabs in a strip; a tabset or border holds tabs only.
-- **Fill and fixed sizes** (T11): a tabset that fills the remaining space, fixed pixel sizes, sizes
-  that follow the screen. [caplin/FlexLayout#351](https://github.com/caplin/FlexLayout/issues/351), [caplin/FlexLayout#56](https://github.com/caplin/FlexLayout/issues/56), [caplin/FlexLayout#162](https://github.com/caplin/FlexLayout/issues/162),
-  [caplin/FlexLayout#470](https://github.com/caplin/FlexLayout/issues/470).
-- **Cross-window tab drag** (T12): dragging a tab to another browser tab or window.
-  [caplin/FlexLayout#203](https://github.com/caplin/FlexLayout/issues/203).
-- **Several open tabs per border** (T15): a border shows one selected tab at a time.
-  [caplin/FlexLayout#210](https://github.com/caplin/FlexLayout/issues/210).
-- **A popout document hook** (T8) for libraries that portal into the global `document`.
-  [caplin/FlexLayout#161](https://github.com/caplin/FlexLayout/issues/161), [caplin/FlexLayout#512](https://github.com/caplin/FlexLayout/issues/512).
 
 ## Regression matrix
 

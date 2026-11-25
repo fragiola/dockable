@@ -17,7 +17,7 @@ test("a tabset's palette menu recolours the tabset and its panel", async ({
     await page.getByRole("menuitemradio", { name: "Green" }).click();
     await expect.poll(() => background(tabset)).not.toBe(blue);
 
-    // the panel lives outside the tabset (gap 2) but takes the same palette
+    // the panel lives outside the tabset (the panel layer) but takes the same palette
     await expect(content).toHaveAttribute("data-palette", "palette-green");
     expect(await background(content)).toBe(await background(tabset));
 

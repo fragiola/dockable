@@ -84,7 +84,8 @@ it):
 </Dockable.PopoutTrigger>
 ```
 
-`target="tabset"` moves the whole tabset into one window. `Tab` also exposes
+`target="tabset"` moves the whole tabset into one window. In a border, put the trigger in
+`Dockable.Border`, next to its `TabList`: it pops the border's selected tab out. `Tab` also exposes
 `data-poppable`, for a button that lives in the tab.
 
 From code, two commands create a window layout:

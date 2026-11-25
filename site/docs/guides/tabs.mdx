@@ -159,9 +159,17 @@ if (value.trim() !== "") {
 }
 ```
 
-The editing UI is yours: an input that replaces the tab's label on double click (or F2),
-committing on Enter or blur. The input lives inside the `Tab`, so stop its key and pointer events
-from reaching the tab (the tab handles arrows, Enter and Space, and starts drags on pointer down).
+The editing UI is yours: an input that replaces the tab's label on double click, committing on
+Enter or blur. The `renameTab` key (`F2`) opens it too: give the tab an `onRenameRequest` (Vue
+`@rename-request`, Angular `(renameRequest)`), which the tab calls when the model allows the rename.
+The input can live inside the `Tab`: keys typed in it stay its own (arrows, Home, End, Enter and
+Space are not tab keys there), and a press in it selects text instead of dragging the tab.
+
+```tsx
+<Dockable.Tab node={tab} onDoubleClick={() => startRename(tab)} onRenameRequest={startRename}>
+    {editing ? <RenameField tab={tab} /> : tab.label}
+</Dockable.Tab>
+```
 
 <Example id="rename-tabs" />
 

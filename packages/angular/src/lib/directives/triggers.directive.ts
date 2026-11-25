@@ -14,7 +14,7 @@ import {
 } from "../context";
 import { bindStructuralStyle, injectHost } from "../utils/helpers";
 import { hiddenTabsSignal, registerElement } from "../utils/signals";
-import { injectTabContainer, injectTabSetNode } from "./tabset.directive";
+import { injectTabContainer } from "./tabset.directive";
 
 /** A button element with no `type` of its own gets `type="button"` (it never submits a form). */
 function buttonType(element: HTMLElement): void {
@@ -31,9 +31,9 @@ export interface PopoutTriggerState {
 }
 
 /**
- * A button, inside `[dockableTabSet]`, that pops the selected tab (or the whole tabset) out into a
- * window, and, in a window, docks it back into the main layout: `<button dockablePopoutTrigger
- * aria-label="Pop out">`. It is hidden (`display: none`) when neither is possible (popouts
+ * A button, inside `[dockableTabSet]` or `[dockableBorder]`, that pops the selected tab (or the
+ * whole tabset) out into a window, and, in a window, docks it back into the main layout:
+ * `<button dockablePopoutTrigger aria-label="Pop out">`. It is hidden (`display: none`) when neither is possible (popouts
  * unsupported, the model refuses it, no tab): `tab.popout` / `tabset.popout` decide, through
  * `model.can`. It has no name of its own: give it an `aria-label`, or name it from its `state()`
  * (`#trigger="dockablePopoutTrigger"`) when the two actions need different names.
@@ -49,24 +49,35 @@ export interface PopoutTriggerState {
     },
 })
 export class DockablePopoutTrigger<T extends DockableTypes = AnyTypes> {
-    /** `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset */
+    /**
+     * `"tab"` (default) pops out one tab; `"tabset"` pops out the whole tabset (not in a border:
+     * there the trigger stays hidden)
+     */
     readonly target = input<"tab" | "tabset" | undefined>(undefined);
-    /** the tab to act on; default: the enclosing tabset's selected tab */
+    /** the tab to act on; default: the enclosing tabset's (or border's) selected tab */
     readonly node = input<TabOf<T> | undefined>(undefined);
 
     private readonly context: DockableContext = injectDockableContext(
         "[dockablePopoutTrigger]",
     );
     private readonly layout = injectLayoutContext("[dockablePopoutTrigger]");
-    private readonly tabset = injectTabSetNode("[dockablePopoutTrigger]");
-    private readonly subject = computed(() =>
-        (this.target() ?? "tab") === "tabset"
-            ? this.tabset().id
-            : (this.node()?.id ??
-              this.context
-                  .model()
-                  .get("selected-tab-by", { tabsetId: this.tabset().id })?.id),
-    );
+    private readonly container = injectTabContainer("[dockablePopoutTrigger]");
+    private readonly subject = computed(() => {
+        const { id, type } = this.container();
+        if ((this.target() ?? "tab") === "tabset") {
+            // a border is not a tabset: it has no window of its own
+            return type === "border" ? undefined : id;
+        }
+        return (
+            this.node()?.id ??
+            this.context
+                .model()
+                .get(
+                    "selected-tab-by",
+                    type === "border" ? { borderId: id } : { tabsetId: id },
+                )?.id
+        );
+    });
     private readonly mode = computed(() => {
         this.context.revision();
         const nodeId = this.subject();
@@ -85,7 +96,7 @@ export class DockablePopoutTrigger<T extends DockableTypes = AnyTypes> {
         const state = this.state();
         return {
             // FlexLayout's path for a tabset's pop out button
-            path: `${this.layout.engine().get("layout-path-by", { nodeId: this.tabset().id })}/button/popout`,
+            path: `${this.layout.engine().get("layout-path-by", { nodeId: this.container().id })}/button/popout`,
             mode: state?.mode ?? null,
             target: state?.target ?? null,
         };
