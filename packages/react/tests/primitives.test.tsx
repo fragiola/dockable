@@ -123,6 +123,12 @@ describe("composition and ARIA", () => {
         });
         expect(mustPath("/ts0")).toHaveAttribute("data-active", "");
         expect(mustPath("/ts1")).not.toHaveAttribute("data-active");
+        // a tab and its panel follow their tabset
+        expect(mustPath("/ts0/tb0")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts0/tb1")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts0/t0")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts1/tb0")).not.toHaveAttribute("data-tabset-active");
+        expect(mustPath("/ts1/t0")).not.toHaveAttribute("data-tabset-active");
 
         act(() => {
             model.run("tabset.maximize", { tabsetId: "ts1", value: true });
@@ -188,6 +194,56 @@ describe("render, refs and props", () => {
         expect(root.tagName).toBe("SECTION");
         expect(root.style.position).toBe("relative");
         expect(mustPath("/row").tagName).toBe("MAIN");
+    });
+
+    it("calls onRenameRequest on the rename key, and names the key only then", () => {
+        const model = fresh();
+        const onRenameRequest = vi.fn();
+        const { rerender } = render(
+            <Dockable.Root model={model}>
+                <Dockable.Row>
+                    {(child) =>
+                        child.type === "tabset" ? (
+                            <Dockable.TabSet node={child}>
+                                <Dockable.TabList>
+                                    {(tab) => (
+                                        <Dockable.Tab
+                                            node={tab}
+                                            onRenameRequest={onRenameRequest}
+                                        >
+                                            <input aria-label="name" />
+                                        </Dockable.Tab>
+                                    )}
+                                </Dockable.TabList>
+                            </Dockable.TabSet>
+                        ) : null
+                    }
+                </Dockable.Row>
+            </Dockable.Root>,
+        );
+        const tab0 = mustPath("/ts0/tb0");
+        expect(tab0).toHaveAttribute("aria-keyshortcuts", "Control+Delete F2");
+        fireEvent.keyDown(tab0, { key: "F2" });
+        expect(onRenameRequest).toHaveBeenCalledTimes(1);
+        expect(onRenameRequest.mock.calls[0]?.[0]).toMatchObject({
+            id: model.get("selected-tab-by", { tabsetId: "ts0" })?.id,
+        });
+        // keys typed in the input stay the input's
+        const input = tab0.querySelector("input");
+        if (!input) throw new Error("no input");
+        fireEvent.keyDown(input, { key: "F2" });
+        fireEvent.keyDown(input, { key: "ArrowRight" });
+        expect(onRenameRequest).toHaveBeenCalledTimes(1);
+        expect(document.activeElement).not.toBe(mustPath("/ts0/tb1"));
+        rerender(
+            <Dockable.Root model={model}>
+                <Dockable.Row>{bareTabset}</Dockable.Row>
+            </Dockable.Root>,
+        );
+        expect(mustPath("/ts0/tb0")).toHaveAttribute(
+            "aria-keyshortcuts",
+            "Control+Delete",
+        );
     });
 
     it("calls render={(props, state) => ...} with the props and the state", () => {
