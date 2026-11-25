@@ -76,7 +76,7 @@ describe("edge docking bands", () => {
         expect(engine.adapter.edgeBands()).toEqual([]);
     });
 
-    it("decide where a drop docks to an edge: a smaller margin frees a strip at the top (gap 11)", () => {
+    it("decide where a drop docks to an edge: a smaller margin frees a strip at the top", () => {
         const s = setup(withBorders([]));
         const manager = s.engine.adapter.getDragDropManager();
         const over = (x: number, y: number) => {

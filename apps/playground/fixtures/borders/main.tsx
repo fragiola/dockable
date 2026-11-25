@@ -14,7 +14,7 @@ import "./borders.css";
 /**
  * Borders around the layout (Epic #21). `?layout=` picks the layout (test-overlay by default),
  * `?edgeDockMargin=` sets the layout default of that name, `?thin` makes the tab strips 12px tall
- * (gap 11). Like FlexLayout's demo, the page exposes the model on `window.__dockable`, so the specs
+ * (thinner than the top edge band). Like FlexLayout's demo, the page exposes the model on `window.__dockable`, so the specs
  * can run commands directly (`border.configure`). The start border's tab direction is the
  * `Dockable.Border` prop, read from the border's data: `border.configure` with
  * `data: { tabDirection }` switches it.
