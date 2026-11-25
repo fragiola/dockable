@@ -29,12 +29,18 @@ import {
     dataAttr,
     injectHost,
 } from "../utils/helpers";
-import { hiddenTabsSignal, registerElement } from "../utils/signals";
+import {
+    hiddenTabsSignal,
+    ListenedOutput,
+    registerElement,
+} from "../utils/signals";
 import { DragNodeBinding } from "./drag-node.directive";
 
 export interface TabState {
     /** the tab is its tabset's selected tab */
     selected: boolean;
+    /** the tab's tabset is its layout's active tabset (always false in a border) */
+    tabsetActive: boolean;
     /** the tab is pinned */
     pinned: boolean;
     /** the tab is being dragged */
@@ -48,6 +54,7 @@ export interface TabState {
 /** A tab's state before its input is set (see `beforeInputs`). */
 const UNSET_TAB_STATE: TabState = {
     selected: false,
+    tabsetActive: false,
     pinned: false,
     dragging: false,
     poppable: false,
@@ -59,10 +66,15 @@ const UNSET_TAB_STATE: TabState = {
  * tabs pattern with manual activation: arrow keys (along the tab list's orientation, mirrored in
  * RTL), Home and End move focus; click, Enter or Space selects. Enter or Space on the selected tab
  * moves focus into its panel. It renders only its own content, and is its tab's drag handle.
+ *
+ * `(renameRequest)` is emitted with the tab when the key map's `renameTab` key (`F2` by default)
+ * is pressed on the tab button and the model allows renaming it (tabset tabs only): show your
+ * rename UI, then run `tab.rename` with the new `label`. With no listener the key does nothing.
  */
 @Directive({
     selector: "[dockableTab]",
     exportAs: "dockableTab",
+    outputs: ["renameRequest"],
     host: {
         role: "tab",
         "[attr.id]": "aria().id",
@@ -73,6 +85,7 @@ const UNSET_TAB_STATE: TabState = {
         "[attr.draggable]": "drag.draggable()",
         "[attr.data-layout-path]": "data().path",
         "[attr.data-selected]": "data().selected",
+        "[attr.data-tabset-active]": "data().tabsetActive",
         "[attr.data-pinned]": "data().pinned",
         "[attr.data-dragging]": "data().dragging",
         "[attr.data-poppable]": "data().poppable",
@@ -85,6 +98,8 @@ const UNSET_TAB_STATE: TabState = {
 })
 export class DockableTab<T extends DockableTypes = AnyTypes> {
     readonly dockableTab = input.required<TabOf<T>>();
+    /** the rename key was pressed and the model allows renaming the tab */
+    readonly renameRequest = new ListenedOutput<TabOf<T>>();
 
     private readonly context: DockableContext =
         injectDockableContext("[dockableTab]");
@@ -117,6 +132,9 @@ export class DockableTab<T extends DockableTypes = AnyTypes> {
             const tabId = this.id();
             return {
                 selected: this.context.model().is("tab-selected", { tabId }),
+                tabsetActive: this.context
+                    .model()
+                    .is("tab-in-active-tabset", { tabId }),
                 pinned: this.dockableTab().pinned === true,
                 dragging: this.drag.state().dragging,
                 // supported, and the model accepts `tab.popout` for it now
@@ -135,7 +153,10 @@ export class DockableTab<T extends DockableTypes = AnyTypes> {
             id: engine.get("tab-button-dom-id-by", { tabId }),
             selected: state.selected ? "true" : "false",
             controls: engine.get("tab-panel-dom-id-by", { tabId }),
-            keyShortcuts: engine.adapter.getKeyShortcuts("tab", tabId) ?? null,
+            keyShortcuts:
+                engine.adapter.getKeyShortcuts("tab", tabId, {
+                    rename: this.renameRequest.listened(),
+                }) ?? null,
             tabindex: engine.is("tab-tabbable", { tabId }) ? "0" : "-1",
         };
     });
@@ -149,6 +170,7 @@ export class DockableTab<T extends DockableTypes = AnyTypes> {
                     .get("layout-path-by", { nodeId: this.id() }),
             ),
             selected: dataAttr(state.selected),
+            tabsetActive: dataAttr(state.tabsetActive),
             pinned: dataAttr(state.pinned),
             dragging: dataAttr(state.dragging),
             poppable: dataAttr(state.poppable),
@@ -193,6 +215,9 @@ export class DockableTab<T extends DockableTypes = AnyTypes> {
         this.layout.engine().adapter.handleTabKeyDown(this.id(), event, {
             element: this.host,
             orientation: this.list?.() ?? "horizontal",
+            onRenameRequest: this.renameRequest.listened()
+                ? () => this.renameRequest.emit(this.dockableTab())
+                : undefined,
         });
     }
 }

@@ -110,6 +110,72 @@ describe("composition and ARIA", () => {
         expect(mustPath("/ts0/t0")).toHaveAttribute("data-visible", "");
     });
 
+    it("marks a tab and its panel when their tabset is the active one", async () => {
+        const m = model();
+        await renderLayout(m);
+        m.run("tabset.activate", { tabsetId: "ts0" });
+        await settle();
+        expect(mustPath("/ts0/tb0")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts0/tb1")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts0/t0")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts1/tb0")).not.toHaveAttribute("data-tabset-active");
+        expect(mustPath("/ts1/t0")).not.toHaveAttribute("data-tabset-active");
+        m.run("tabset.activate", { tabsetId: "ts1" });
+        await settle();
+        expect(mustPath("/ts0/tb0")).not.toHaveAttribute("data-tabset-active");
+        expect(mustPath("/ts1/tb0")).toHaveAttribute("data-tabset-active", "");
+    });
+
+    it("emits renameRequest on the rename key, and names the key only then", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <div dockableRow>
+                        <ng-template dockableRowChild let-node>
+                            @if (node.type === "tabset") {
+                                <div [dockableTabSet]="node">
+                                    <div dockableTabList>
+                                        <ng-template dockableTabListItem let-tab>
+                                            <div [dockableTab]="tab" (renameRequest)="requests.push($event.id)">
+                                                <input aria-label="name" />
+                                            </div>
+                                        </ng-template>
+                                    </div>
+                                </div>
+                            }
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class Renaming {
+            readonly model = input.required<Model<Types>>();
+            readonly requests: string[] = [];
+        }
+        const m = model();
+        const fixture = await render(Renaming, { model: m });
+        const tab = mustPath("/ts0/tb0");
+        expect(tab).toHaveAttribute("aria-keyshortcuts", "Control+Delete F2");
+        keyDown(tab, { key: "F2" });
+        const selected = m.get("selected-tab-by", { tabsetId: "ts0" })?.id;
+        expect(fixture.componentInstance.requests).toEqual([selected]);
+        // keys typed in the input stay the input's
+        const field = tab.querySelector("input");
+        if (!field) throw new Error("no input");
+        keyDown(field, { key: "F2" });
+        keyDown(field, { key: "ArrowRight" });
+        expect(fixture.componentInstance.requests).toEqual([selected]);
+    });
+
+    it("a tab with no rename listener leaves the rename key alone", async () => {
+        await renderLayout(model());
+        expect(mustPath("/ts0/tb0")).toHaveAttribute(
+            "aria-keyshortcuts",
+            "Control+Delete",
+        );
+    });
+
     it("marks an empty tabset", async () => {
         const m = model();
         await renderLayout(m);
