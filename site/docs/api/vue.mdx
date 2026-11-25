@@ -48,7 +48,7 @@ export const Dockable = typedDockable<Types>();
 | `onKeyDown`, `onPointerDown`, … | listeners (`@keydown`, `@pointerdown`), run after the primitive's own |
 | `ref` | a template ref on a part is its component instance; the element is its `$el` |
 | children functions (`Row`, `TabList`, `Panels`, `Popout`) | the default scoped slot: `v-slot="{ node }"`, `v-slot="{ tab }"`, `v-slot="{ layout }"` |
-| `renderSplitter` (`Row`, `BorderContent`) | the `#splitter="{ props }"` slot: `<Dockable.Splitter v-bind="props" aria-label="Resize" />` |
+| `renderSplitter` (`Root`, `Row`, `BorderContent`) | the `#splitter="{ props }"` slot: `<Dockable.Splitter v-bind="props" aria-label="Resize" />`; on `Root` it renders every row's splitters |
 | `splitter={false}` | `:splitter="false"` |
 | `renderBar`, `renderContent` (`Borders`) | the `#bar="{ border }"` and `#content="{ border }"` slots; the default slot is the main layout |
 | `<Dockable.Panels<Types>>` and the other type arguments | `typedDockable<Types>().Panels` |
