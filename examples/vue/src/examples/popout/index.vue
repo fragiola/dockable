@@ -60,12 +60,13 @@ const model = createModel<Types>(json);
             popout-mirror-root
             :class="styles.root"
         >
+            <!-- one splitter for every row: this window's and each popout's -->
+            <template #splitter="{ props }">
+                <Splitter v-bind="props" />
+            </template>
             <Dockable.Row>
                 <template #default="{ node }">
                     <LayoutNode :node="node" />
-                </template>
-                <template #splitter="{ props }">
-                    <Splitter v-bind="props" />
                 </template>
             </Dockable.Row>
             <!-- Every tab's content, in this window or a popout, positioned by the engine. -->
@@ -91,9 +92,6 @@ const model = createModel<Types>(json);
                 <Dockable.Row>
                     <template #default="{ node }">
                         <LayoutNode :node="node" />
-                    </template>
-                    <template #splitter="{ props }">
-                        <Splitter v-bind="props" />
                     </template>
                 </Dockable.Row>
                 <!-- a window shows its own outline during a drag into it -->

@@ -67,13 +67,11 @@ export default function Popout() {
                 // copies <html> and <body>'s attributes (light/dark, the example theme) into each
                 // popout window, kept in sync
                 popoutMirrorRoot
+                // one splitter for every row: this window's and each popout's
+                renderSplitter={(props) => <Splitter {...props} />}
                 className={styles.root}
             >
-                <Dockable.Row<Types>
-                    renderSplitter={(props) => <Splitter {...props} />}
-                >
-                    {renderNode}
-                </Dockable.Row>
+                <Dockable.Row<Types>>{renderNode}</Dockable.Row>
                 {/* Every tab's content, in this window or a popout, positioned by the engine. */}
                 <Dockable.Panels<Types>>
                     {(tab) => (
@@ -94,13 +92,7 @@ export default function Popout() {
                 <Dockable.Popout<Types> className={styles.popout}>
                     {() => (
                         <>
-                            <Dockable.Row<Types>
-                                renderSplitter={(props) => (
-                                    <Splitter {...props} />
-                                )}
-                            >
-                                {renderNode}
-                            </Dockable.Row>
+                            <Dockable.Row<Types>>{renderNode}</Dockable.Row>
                             {/* a window shows its own outline during a drag into it */}
                             <Dockable.DropIndicator
                                 className={styles.dropIndicator}
@@ -115,14 +107,7 @@ export default function Popout() {
 
 function renderNode(node: TabsetNode<Types> | RowNode<Types>) {
     if (node.type === "row") {
-        return (
-            <Dockable.Row
-                node={node}
-                renderSplitter={(props) => <Splitter {...props} />}
-            >
-                {renderNode}
-            </Dockable.Row>
-        );
+        return <Dockable.Row node={node}>{renderNode}</Dockable.Row>;
     }
     return <TabSet node={node} />;
 }

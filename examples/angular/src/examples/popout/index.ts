@@ -62,6 +62,17 @@ const json: LayoutJson<Types> = {
                 popoutMirrorRoot
                 [class]="styles.root"
             >
+                <!-- one splitter for every row: this window's and each popout's -->
+                <ng-template dockableRowSplitter let-node="node" let-index="index">
+                    <div
+                        [dockableSplitter]="node"
+                        [index]="index"
+                        aria-label="Resize"
+                        [class]="styles.splitter"
+                    >
+                        <span aria-hidden="true" [class]="styles.splitterGrip"></span>
+                    </div>
+                </ng-template>
                 <div dockableRow>
                     <ng-template [dockableRowChild]="model" let-node>
                         @if (node.type === "row") {
@@ -69,16 +80,6 @@ const json: LayoutJson<Types> = {
                         } @else {
                             <example-popout-tabset [node]="node" />
                         }
-                    </ng-template>
-                    <ng-template dockableRowSplitter let-node="node" let-index="index">
-                        <div
-                            [dockableSplitter]="node"
-                            [index]="index"
-                            aria-label="Resize"
-                            [class]="styles.splitter"
-                        >
-                            <span aria-hidden="true" [class]="styles.splitterGrip"></span>
-                        </div>
                     </ng-template>
                 </div>
                 <!-- Every tab's content, in this window or a popout, positioned by the engine. -->
@@ -108,16 +109,6 @@ const json: LayoutJson<Types> = {
                                 } @else {
                                     <example-popout-tabset [node]="node" />
                                 }
-                            </ng-template>
-                            <ng-template dockableRowSplitter let-node="node" let-index="index">
-                                <div
-                                    [dockableSplitter]="node"
-                                    [index]="index"
-                                    aria-label="Resize"
-                                    [class]="styles.splitter"
-                                >
-                                    <span aria-hidden="true" [class]="styles.splitterGrip"></span>
-                                </div>
                             </ng-template>
                         </div>
                         <!-- a window shows its own outline during a drag into it -->
