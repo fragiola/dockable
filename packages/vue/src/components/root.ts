@@ -101,7 +101,8 @@ export interface RootProps<T extends DockableTypes = AnyTypes>
     onExternalDrag?: OnExternalDrag<T> | undefined;
 }
 
-export interface RootSlots extends RenderSlot<RootState> {
+export interface RootSlots<T extends DockableTypes = AnyTypes>
+    extends RenderSlot<RootState> {
     /** the layout: a `Dockable.Row` (or `Dockable.Borders`), `Dockable.Panels`, indicators, … */
     default?: SlotFunction<Record<never, never>>;
     /**
@@ -110,7 +111,7 @@ export interface RootSlots extends RenderSlot<RootState> {
      * `{ node, index }`. A row's own `#splitter` slot wins, and `:splitter="false"` on a row still
      * renders none. Default: `<Dockable.Splitter v-bind="props" />`
      */
-    splitter?: SlotFunction<{ props: RowSplitterProps }>;
+    splitter?: SlotFunction<{ props: RowSplitterProps<T> }>;
 }
 
 const ROOT_PROPS = [
