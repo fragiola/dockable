@@ -707,6 +707,80 @@ describe("rows", () => {
         ).toEqual(["Three", "One", "Two"]);
     });
 
+    it("renders every row's splitters with a dockableRowSplitter template given in the root", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <ng-template dockableRowSplitter let-node="node" let-index="index">
+                        <div [dockableSplitter]="node" [index]="index" [attr.data-testid]="'root-' + node.id"></div>
+                    </ng-template>
+                    <div dockableRow>
+                        <ng-template [dockableRowChild]="model()" let-node>
+                            @if (node.type === "row") {
+                                <div [dockableRow]="node">
+                                    <ng-template [dockableRowChild]="model()" let-child>
+                                        <div [dockableTabSet]="child"><div dockableTabSetContent></div></div>
+                                    </ng-template>
+                                    @if (own()) {
+                                        <ng-template dockableRowSplitter let-row="node" let-at="index">
+                                            <div [dockableSplitter]="row" [index]="at" data-testid="own"></div>
+                                        </ng-template>
+                                    }
+                                </div>
+                            } @else {
+                                <div [dockableTabSet]="node"><div dockableTabSetContent></div></div>
+                            }
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class RootSplitter {
+            readonly model = input.required<Model<Types>>();
+            readonly own = input(false);
+        }
+        await render(RootSplitter, { model: nested() });
+        // the root row, and the nested row with a child template of its own but no splitter one
+        expect(mustPath("/s0")).toHaveAttribute("data-testid", "root-row");
+        expect(mustPath("/r1/s0")).toHaveAttribute("data-testid", "root-r1");
+    });
+
+    it("lets a row's own dockableRowSplitter win over the root's", async () => {
+        @Component({
+            imports: [DOCKABLE],
+            template: `
+                <div [dockableRoot]="model()">
+                    <ng-template dockableRowSplitter let-node="node" let-index="index">
+                        <div [dockableSplitter]="node" [index]="index" data-testid="root"></div>
+                    </ng-template>
+                    <div dockableRow>
+                        <ng-template [dockableRowChild]="model()" let-node>
+                            @if (node.type === "row") {
+                                <div [dockableRow]="node">
+                                    <ng-template [dockableRowChild]="model()" let-child>
+                                        <div [dockableTabSet]="child"><div dockableTabSetContent></div></div>
+                                    </ng-template>
+                                    <ng-template dockableRowSplitter let-row="node" let-at="index">
+                                        <div [dockableSplitter]="row" [index]="at" data-testid="own"></div>
+                                    </ng-template>
+                                </div>
+                            } @else {
+                                <div [dockableTabSet]="node"><div dockableTabSetContent></div></div>
+                            }
+                        </ng-template>
+                    </div>
+                </div>
+            `,
+        })
+        class OwnSplitter {
+            readonly model = input.required<Model<Types>>();
+        }
+        await render(OwnSplitter, { model: nested() });
+        expect(mustPath("/s0")).toHaveAttribute("data-testid", "root");
+        expect(mustPath("/r1/s0")).toHaveAttribute("data-testid", "own");
+    });
+
     it("renders nested rows through the child template, with their paths and splitters", async () => {
         await renderLayout(nested());
         expect(mustPath("/r1")).toHaveAttribute("data-orientation", "vertical");

@@ -1,4 +1,9 @@
-import { InjectionToken, inject, type Signal } from "@angular/core";
+import {
+    InjectionToken,
+    inject,
+    type Signal,
+    type TemplateRef,
+} from "@angular/core";
 import type {
     AnyTypes,
     DockableTypes,
@@ -31,6 +36,13 @@ export interface DockableContext {
     setLayer(layoutId: string, element: HTMLElement | null): void;
     /** measures the layout of `engine` once the current render is over */
     scheduleMeasure(engine: LayoutEngine): void;
+    /**
+     * the `<ng-template dockableRowSplitter>` given directly in the root: every row with no
+     * splitter template of its own (or inherited from its parent row) renders its splitters with it
+     */
+    readonly rowSplitter: Signal<
+        { template: TemplateRef<unknown> } | undefined
+    >;
 }
 
 export const DOCKABLE = new InjectionToken<DockableContext>("Dockable");
