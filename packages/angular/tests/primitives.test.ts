@@ -720,7 +720,9 @@ describe("rows", () => {
                             @if (node.type === "row") {
                                 <div [dockableRow]="node">
                                     <ng-template [dockableRowChild]="model()" let-child>
-                                        <div [dockableTabSet]="child"><div dockableTabSetContent></div></div>
+                                        @if (child.type === "tabset") {
+                                            <div [dockableTabSet]="child"><div dockableTabSetContent></div></div>
+                                        }
                                     </ng-template>
                                     @if (own()) {
                                         <ng-template dockableRowSplitter let-row="node" let-at="index">
@@ -759,7 +761,9 @@ describe("rows", () => {
                             @if (node.type === "row") {
                                 <div [dockableRow]="node">
                                     <ng-template [dockableRowChild]="model()" let-child>
-                                        <div [dockableTabSet]="child"><div dockableTabSetContent></div></div>
+                                        @if (child.type === "tabset") {
+                                            <div [dockableTabSet]="child"><div dockableTabSetContent></div></div>
+                                        }
                                     </ng-template>
                                     <ng-template dockableRowSplitter let-row="node" let-at="index">
                                         <div [dockableSplitter]="row" [index]="at" data-testid="own"></div>
