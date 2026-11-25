@@ -1,5 +1,39 @@
 # @fragiola/dockable-angular
 
+## 0.4.0
+
+### Minor Changes
+
+- [#176](https://github.com/fragiola/dockable/pull/176) [`53417bd`](https://github.com/fragiola/dockable/commit/53417bdb390173710679ebd394588e6e66aaf0a5) Thanks [@maurodesouza](https://github.com/maurodesouza)! - One splitter renderer for every row, and a pop out button in a border.
+  
+  - `renderSplitter` on `Dockable.Root` (Vue: the root's `#splitter` slot; Angular: an
+    `<ng-template dockableRowSplitter>` directly in `[dockableRoot]`) renders the splitters of every
+    row of the model's layouts: the root row, nested rows and the rows of `Dockable.Popout`. A row's
+    own `renderSplitter` still wins, and `splitter={false}` still renders none.
+  - `Dockable.PopoutTrigger` (`[dockablePopoutTrigger]`) works inside `Dockable.Border` too: it pops
+    the border's selected tab out. `target="tabset"` renders nothing there (hidden in Angular).
+
+- [#176](https://github.com/fragiola/dockable/pull/176) [`004b19f`](https://github.com/fragiola/dockable/commit/004b19fc37be3c2c9954dcf3d3870e7a0f3f1f0c) Thanks [@maurodesouza](https://github.com/maurodesouza)! - A tab and its panel follow their tabset, `F2` asks the app to rename a tab, and a tab button can
+  host an editor.
+  
+  - `Tab` and `Panel` carry `data-tabset-active` (and `tabsetActive` in their state) while their
+    tabset is its layout's active tabset, answered by the new `model.is("tab-in-active-tabset", { tabId })`.
+    "The selected tab of the active tabset" is `[data-tabset-active][data-selected]`, with no ancestor
+    selector, and a panel can be styled by its tabset's state.
+  - The key map's `renameTab` key (`F2`) acts: on a tab button it calls the tab's rename handler
+    (React `onRenameRequest`, Vue `@rename-request`, Angular `(renameRequest)`) when the model allows
+    renaming the tab (tabset tabs only), and `aria-keyshortcuts` names the key only then. The rename UI
+    stays the app's.
+  - An editor inside a tab button (an `input`, a `textarea`, a `select`, `contenteditable`) keeps its
+    keys and its pointer: they are not tab keys there, and a press in it selects text instead of
+    dragging the tab. `engine.adapter.handleTabKeyDown` takes `onRenameRequest`, and
+    `engine.adapter.getKeyShortcuts("tab", tabId, { rename })` the handler's presence.
+
+### Patch Changes
+
+- Updated dependencies [[`004b19f`](https://github.com/fragiola/dockable/commit/004b19fc37be3c2c9954dcf3d3870e7a0f3f1f0c)]:
+  - @fragiola/dockable@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
