@@ -67,8 +67,8 @@ interface RowTemplates {
  * `<div [dockableRow]="node">`. Lays its children out with flex, sized by their weights, renders
  * its `<ng-template dockableRowChild let-node>` per child and inserts a splitter between children
  * (a `<ng-template dockableRowSplitter>` in the row, else one directly in the root, replaces the
- * default one; `[splitter]="false"` renders none). A nested row with no child template of its own renders with its parent row's templates,
- * so the recursion is one template: `@if (node.type === "row") { <div [dockableRow]="node"></div> }`.
+ * default one; `[splitter]="false"` renders none). A nested row with no child template of its
+ * own renders with its parent row's templates, so the recursion is one template: `@if (node.type === "row") { <div [dockableRow]="node"></div> }`.
  */
 @Directive({
     selector: "[dockableRow]",

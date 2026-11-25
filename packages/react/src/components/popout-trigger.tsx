@@ -31,8 +31,8 @@ export interface PopoutTriggerProps<T extends DockableTypes = AnyTypes>
 /**
  * A button, inside `Dockable.TabSet` or `Dockable.Border`, that pops the selected tab (or the
  * whole tabset) out into a window, and, in a window, docks it back into the main layout. It
- * renders nothing when neither is possible (popouts unsupported, the model refuses it, no tab): `tab.popout` / `tabset.popout`
- * decide, through `model.can`. It has no name of its own: give it an `aria-label`, or name it
+ * renders nothing when neither is possible (popouts unsupported, the model refuses it, no tab):
+ * `tab.popout` / `tabset.popout` decide, through `model.can`. It has no name of its own: give it an `aria-label`, or name it
  * from the state when the two actions need different names
  * (`render={(props, state) => <button {...props} aria-label={state.mode === "dock" ? … : …} />}`).
  */

@@ -32,8 +32,8 @@ export interface PopoutTriggerState {
 
 /**
  * A button, inside `[dockableTabSet]` or `[dockableBorder]`, that pops the selected tab (or the
- * whole tabset) out into a window, and, in a window, docks it back into the main layout: `<button dockablePopoutTrigger
- * aria-label="Pop out">`. It is hidden (`display: none`) when neither is possible (popouts
+ * whole tabset) out into a window, and, in a window, docks it back into the main layout:
+ * `<button dockablePopoutTrigger aria-label="Pop out">`. It is hidden (`display: none`) when neither is possible (popouts
  * unsupported, the model refuses it, no tab): `tab.popout` / `tabset.popout` decide, through
  * `model.can`. It has no name of its own: give it an `aria-label`, or name it from its `state()`
  * (`#trigger="dockablePopoutTrigger"`) when the two actions need different names.
