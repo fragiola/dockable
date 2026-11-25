@@ -74,8 +74,8 @@ re-renders when the model changes. Prefer `data-pinned:` when an attribute exist
 - **Give the root a size**: `min-h-0 flex-1` in a sized flex column
   ([Sizing](/docs/getting-started/sizing)). Put padding on a wrapper, not on the root.
 - **Give tab strips a minimum height** (`min-h-7` or so), or lower `defaults.layout.edgeDockMargin`:
-  a very thin strip at the top of the layout falls inside the 10px top-edge docking band (gap 11).
-- **Stack the drop indicator**: `z-10` (panels are portalled after it, gap 12).
+  a very thin strip at the top of the layout falls inside the 10px top-edge docking band.
+- **Stack the drop indicator**: `z-10` (panels are portalled after it).
 - **Don't fight structural style**: `flex-grow`, `display` or geometry you set with utilities on a
   `Row`, `TabSet` or `Panel` loses to the primitive's inline style. Size things with weights.
 

@@ -79,8 +79,7 @@ region its colour and each kind of drop its fill:
 
 Panels are portalled into the root **after** its other children. Absolutely positioned siblings
 without a `z-index` paint in DOM order, so an indicator without one paints **under** the panels
-and is hidden over tab content. Give it a `z-index` (`z-10` above). This is gap 12 in
-[Limitations](/docs/limitations).
+and is hidden over tab content. Give it a `z-index` (`z-10` above).
 
 `pointer-events: none` is structural on purpose: an indicator under the pointer would take the
 drag's enter and leave events from the layout, and the browser would cancel the drop.
@@ -97,7 +96,7 @@ drag's enter and leave events from the layout, and the browser would cancel the 
 
 - **Keep tab strips at least ~30px tall, or lower `edgeDockMargin`.** The layout's top edge has
   a 10px docking band (`defaults.layout.edgeDockMargin`); a thin strip at the top of the layout
-  falls inside it, and drops aimed at the strip dock to the layout edge instead (gap 11).
+  falls inside it, and drops aimed at the strip dock to the layout edge instead.
   `Dockable.EdgeIndicator` shows the bands during a drag ([Borders](/docs/guides/borders)).
 - **Edge docking** can be turned off in the layout's defaults, `defaults.layout.edgeDock: false`
   (or at run time with `layout.configure`).

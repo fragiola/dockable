@@ -84,8 +84,8 @@ const splitterClassName = [
 ```
 
 `relative z-10` keeps the grab area above the tabsets and panels it overlaps (panels are
-absolutely positioned in the root and would otherwise cover it). This is gap 9 in
-[Limitations](/docs/limitations): the pattern works; a `SplitterHandle` part is not scheduled.
+absolutely positioned in the root and would otherwise cover it). The engine measures the 1px
+element, so the split maths stays exact while the grab area is as wide as you make it.
 
 <Example id="splitter-hairline" />
 
