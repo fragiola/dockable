@@ -987,6 +987,102 @@ describe("hooks", () => {
         expect(screen.queryByRole("separator")).toBeNull();
     });
 
+    it("Root's renderSplitter reaches nested rows; a row's own renderSplitter and splitter={false} win", () => {
+        const model = createModel<Types>({
+            version: 1,
+            root: {
+                type: "row",
+                children: [
+                    {
+                        type: "tabset",
+                        children: [
+                            {
+                                component: "test",
+                                label: "A",
+                                data: { name: "A" },
+                            },
+                        ],
+                    },
+                    {
+                        type: "row",
+                        children: [
+                            {
+                                type: "tabset",
+                                children: [
+                                    {
+                                        component: "test",
+                                        label: "B",
+                                        data: { name: "B" },
+                                    },
+                                ],
+                            },
+                            {
+                                type: "tabset",
+                                children: [
+                                    {
+                                        component: "test",
+                                        label: "C",
+                                        data: { name: "C" },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+        const nested = (own: "inherit" | "own" | "none") =>
+            function renderChild(
+                child: TabsetNode<Types> | RowNode<Types>,
+            ): React.ReactNode {
+                return child.type === "row" ? (
+                    <Dockable.Row<Types>
+                        node={child}
+                        splitter={own !== "none"}
+                        renderSplitter={
+                            own === "own"
+                                ? ({ index }) => (
+                                      <hr data-testid={`own-${index}`} />
+                                  )
+                                : undefined
+                        }
+                    >
+                        {renderChild}
+                    </Dockable.Row>
+                ) : (
+                    renderNode(child)
+                );
+            };
+        const layout = (own: "inherit" | "own" | "none") => (
+            <Dockable.Root<Types>
+                model={model}
+                renderSplitter={({ node, index }) => (
+                    <hr data-testid={`root-${node.id}-${index}`} />
+                )}
+            >
+                <Dockable.Row<Types>>{nested(own)}</Dockable.Row>
+            </Dockable.Root>
+        );
+        const rootRow = model.get("root-row", {})?.id ?? "";
+        const nestedRow = model.get("root-row", {})?.children[1]?.id ?? "";
+        const { rerender } = render(layout("inherit"));
+        expect(screen.getByTestId(`root-${rootRow}-1`)).toBeInTheDocument();
+        expect(screen.getByTestId(`root-${nestedRow}-1`)).toBeInTheDocument();
+        // no default splitter left (a Dockable.Splitter carries a layout path)
+        expect(
+            document.querySelector('[role="separator"][data-layout-path]'),
+        ).toBeNull();
+
+        rerender(layout("own"));
+        expect(screen.getByTestId(`root-${rootRow}-1`)).toBeInTheDocument();
+        expect(screen.getByTestId("own-1")).toBeInTheDocument();
+        expect(screen.queryByTestId(`root-${nestedRow}-1`)).toBeNull();
+
+        rerender(layout("none"));
+        expect(screen.queryByTestId("own-1")).toBeNull();
+        expect(screen.queryByTestId(`root-${nestedRow}-1`)).toBeNull();
+    });
+
     it("renders nested rows through the child function", () => {
         const model = createModel<Types>({
             version: 1,

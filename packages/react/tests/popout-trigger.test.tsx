@@ -183,3 +183,98 @@ describe("Dockable.PopoutTrigger", () => {
         });
     });
 });
+
+const withBorder: LayoutJson<Types> = {
+    ...structuredClone(json),
+    borders: [
+        {
+            location: "bottom",
+            selected: 0,
+            children: [
+                {
+                    id: "terminal",
+                    component: "test",
+                    label: "Terminal",
+                    data: { name: "Terminal" },
+                },
+            ],
+        },
+    ],
+};
+
+function BorderLayout({
+    model,
+    target,
+}: {
+    model: Model<Types>;
+    target?: "tab" | "tabset";
+}) {
+    return (
+        <Dockable.Root model={model} supportsPopout>
+            <Dockable.Borders<Types>
+                renderBar={(border) => (
+                    <Dockable.Border node={border}>
+                        <Dockable.TabList<Types>>
+                            {(tab) => <Dockable.Tab node={tab} />}
+                        </Dockable.TabList>
+                        <Dockable.PopoutTrigger
+                            target={target}
+                            data-testid="border-trigger"
+                            aria-label="Pop out"
+                        />
+                    </Dockable.Border>
+                )}
+            >
+                <Dockable.Row<Types>>
+                    {(child) =>
+                        child.type === "tabset" ? (
+                            <Dockable.TabSet node={child}>
+                                <Dockable.TabSetContent />
+                            </Dockable.TabSet>
+                        ) : null
+                    }
+                </Dockable.Row>
+            </Dockable.Borders>
+        </Dockable.Root>
+    );
+}
+
+describe("Dockable.PopoutTrigger in a border", () => {
+    it("pops the border's selected tab out", () => {
+        const model = createModel<Types>(structuredClone(withBorder));
+        const commands = vetoPopouts(model);
+        render(<BorderLayout model={model} />);
+        const trigger = screen.getByTestId("border-trigger");
+        expect(trigger).toHaveAttribute("data-mode", "popout");
+        expect(trigger).toHaveAttribute(
+            "data-layout-path",
+            "/border/bottom/button/popout",
+        );
+        fireEvent.click(trigger);
+        expect(commands).toContainEqual({
+            command: "tab.popout",
+            payload: expect.objectContaining({ tabId: "terminal" }),
+            transient: false,
+        });
+    });
+
+    it("renders nothing with target=tabset: a border is not a tabset", () => {
+        render(
+            <BorderLayout
+                model={createModel<Types>(structuredClone(withBorder))}
+                target="tabset"
+            />,
+        );
+        expect(screen.queryByTestId("border-trigger")).toBeNull();
+    });
+
+    it("renders nothing when the border has no selected tab", () => {
+        const json = structuredClone(withBorder);
+        const border = json.borders?.[0];
+        if (border) {
+            border.selected = -1;
+        }
+        render(<BorderLayout model={createModel<Types>(json)} />);
+        expect(screen.queryByTestId("border-trigger")).toBeNull();
+    });
+});
