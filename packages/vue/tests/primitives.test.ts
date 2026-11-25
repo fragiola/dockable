@@ -268,6 +268,137 @@ describe("composition and ARIA", () => {
     });
 });
 
+describe("the root's #splitter slot", () => {
+    const nestedModel = () =>
+        createModel<Types>({
+            version: 1,
+            root: {
+                type: "row",
+                children: [
+                    {
+                        type: "tabset",
+                        children: [
+                            {
+                                component: "test",
+                                label: "A",
+                                data: { name: "A" },
+                            },
+                        ],
+                    },
+                    {
+                        type: "row",
+                        children: [
+                            {
+                                type: "tabset",
+                                children: [
+                                    {
+                                        component: "test",
+                                        label: "B",
+                                        data: { name: "B" },
+                                    },
+                                ],
+                            },
+                            {
+                                type: "tabset",
+                                children: [
+                                    {
+                                        component: "test",
+                                        label: "C",
+                                        data: { name: "C" },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    const rootSplitter = ({
+        props,
+    }: {
+        props: { node: RowNode<Types>; index: number };
+    }) => [h("hr", { "data-testid": `root-${props.node.id}-${props.index}` })];
+    const byTestId = (id: string) =>
+        document.querySelector(`[data-testid="${id}"]`);
+
+    it("renders every row's splitters, nested rows included", async () => {
+        const model = nestedModel();
+        await app(() =>
+            h(
+                Dockable.Root,
+                { model },
+                {
+                    default: () => [
+                        h(Dockable.Row, null, { default: nodeSlot }),
+                    ],
+                    splitter: rootSplitter,
+                },
+            ),
+        );
+        const root = model.get("root-row", {});
+        const nested = root?.children[1]?.id ?? "";
+        expect(byTestId(`root-${root?.id}-1`)).not.toBeNull();
+        expect(byTestId(`root-${nested}-1`)).not.toBeNull();
+        expect(
+            document.querySelector('[role="separator"][data-layout-path]'),
+        ).toBeNull();
+    });
+
+    it("gives way to a row's own #splitter slot and to :splitter=false", async () => {
+        const model = nestedModel();
+        await app(() =>
+            h(
+                Dockable.Root,
+                { model },
+                {
+                    default: () => [
+                        h(
+                            Dockable.Row,
+                            { splitter: false },
+                            { default: nodeSlot },
+                        ),
+                    ],
+                    splitter: rootSplitter,
+                },
+            ),
+        );
+        const root = model.get("root-row", {});
+        expect(byTestId(`root-${root?.id}-1`)).toBeNull();
+        // the nested row has no slot of its own: it takes the root's
+        expect(byTestId(`root-${root?.children[1]?.id}-1`)).not.toBeNull();
+    });
+
+    it("a row's own slot wins", async () => {
+        const model = nestedModel();
+        await app(() =>
+            h(
+                Dockable.Root,
+                { model },
+                {
+                    default: () => [
+                        h(Dockable.Row, null, {
+                            default: nodeSlot,
+                            splitter: ({
+                                props,
+                            }: {
+                                props: { index: number };
+                            }) => [
+                                h("hr", {
+                                    "data-testid": `own-${props.index}`,
+                                }),
+                            ],
+                        }),
+                    ],
+                    splitter: rootSplitter,
+                },
+            ),
+        );
+        const root = model.get("root-row", {});
+        expect(byTestId("own-1")).not.toBeNull();
+        expect(byTestId(`root-${root?.id}-1`)).toBeNull();
+    });
+});
+
 describe("as, render slot and attributes", () => {
     it("replaces the element with `as`, keeping the primitive's props", async () => {
         await app(() =>

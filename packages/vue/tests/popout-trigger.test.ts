@@ -1,4 +1,5 @@
 import {
+    type BorderNode,
     createModel,
     type LayoutJson,
     type Model,
@@ -242,5 +243,125 @@ describe("Dockable.PopoutTrigger", () => {
             payload: expect.objectContaining({ tabsetId: "ts0" }),
             transient: false,
         });
+    });
+});
+
+const withBorder: LayoutJson<Types> = {
+    ...structuredClone(json),
+    borders: [
+        {
+            location: "bottom",
+            selected: 0,
+            children: [
+                {
+                    id: "terminal",
+                    component: "test",
+                    label: "Terminal",
+                    data: { name: "Terminal" },
+                },
+            ],
+        },
+    ],
+};
+
+function borderLayout(model: Model<Types>, target?: "tab" | "tabset") {
+    return defineComponent({
+        setup: () => () =>
+            h(
+                Dockable.Root,
+                { model, supportsPopout: true },
+                {
+                    default: () => [
+                        h(Dockable.Borders, null, {
+                            bar: ({
+                                border,
+                            }: {
+                                border: BorderNode<Types>;
+                            }) => [
+                                h(
+                                    Dockable.Border,
+                                    { node: border },
+                                    {
+                                        default: () => [
+                                            h(Dockable.TabList, null, {
+                                                default: ({
+                                                    tab,
+                                                }: {
+                                                    tab: TabOf<Types>;
+                                                }) => [
+                                                    h(Dockable.Tab, {
+                                                        node: tab,
+                                                    }),
+                                                ],
+                                            }),
+                                            h(Dockable.PopoutTrigger, {
+                                                target,
+                                                "data-testid": "border-trigger",
+                                                "aria-label": "Pop out",
+                                            }),
+                                        ],
+                                    },
+                                ),
+                            ],
+                            default: () => [
+                                h(Dockable.Row, null, {
+                                    default: ({
+                                        node: child,
+                                    }: {
+                                        node:
+                                            | TabsetNode<Types>
+                                            | RowNode<Types>;
+                                    }) =>
+                                        child.type === "tabset"
+                                            ? [
+                                                  h(
+                                                      Dockable.TabSet,
+                                                      { node: child },
+                                                      {
+                                                          default: () => [
+                                                              h(
+                                                                  Dockable.TabSetContent,
+                                                              ),
+                                                          ],
+                                                      },
+                                                  ),
+                                              ]
+                                            : [],
+                                }),
+                            ],
+                        }),
+                    ],
+                },
+            ),
+    });
+}
+
+describe("Dockable.PopoutTrigger in a border", () => {
+    it("pops the border's selected tab out", async () => {
+        const model = createModel<Types>(structuredClone(withBorder));
+        const commands = vetoPopouts(model);
+        await render(borderLayout(model));
+        const trigger = testId("border-trigger");
+        expect(trigger).toHaveAttribute("data-mode", "popout");
+        expect(trigger).toHaveAttribute(
+            "data-layout-path",
+            "/border/bottom/button/popout",
+        );
+        await click(trigger);
+        expect(commands).toContainEqual({
+            command: "tab.popout",
+            payload: expect.objectContaining({ tabId: "terminal" }),
+            transient: false,
+        });
+    });
+
+    it("renders nothing with target=tabset: a border is not a tabset", async () => {
+        await render(
+            borderLayout(
+                createModel<Types>(structuredClone(withBorder)),
+                "tabset",
+            ),
+        );
+        expect(byTestId("border-trigger")).toBeNull();
     });
 });
