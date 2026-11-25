@@ -419,8 +419,8 @@ export class LayoutEngine<T extends DockableTypes = AnyTypes> {
             getTabDragSpeed: () => this.getTabDragSpeed(),
             getPopoutManager: () => this.getPopoutManager(),
             getKeyMap: () => this.interaction.getKeyMap(),
-            getKeyShortcuts: (part, tabId) =>
-                this.interaction.getKeyShortcuts(part, tabId),
+            getKeyShortcuts: (part, tabId, options) =>
+                this.interaction.getKeyShortcuts(part, tabId, options),
             getDropState: (containerId) =>
                 this.interaction.getDropState(containerId),
             isDraggable: (nodeId) => this.interaction.isDraggable(nodeId),

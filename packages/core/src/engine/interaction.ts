@@ -3,6 +3,7 @@
 // strip, roving focus, tabset activation, document key handling), with React, JSX and CSS class
 // names removed. Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { DragDropManager, DropLocation } from "../dnd/drag-drop-manager";
+import { isEditable } from "../dom/nodes";
 import {
     hasModifier,
     type KeyEventLike,
@@ -30,6 +31,8 @@ export interface ContainerDropState {
 /** A keyboard event as a key handler of the adapter reads it (native or a framework's). */
 export interface KeyEventInput extends KeyEventLike {
     readonly defaultPrevented: boolean;
+    /** where the key was pressed: a key from an editor inside the part is left to the editor */
+    readonly target?: EventTarget | null;
     preventDefault(): void;
 }
 
@@ -213,8 +216,10 @@ export class Interaction<T extends DockableTypes> {
      * A key pressed on a tab button (`element`): arrow keys along `orientation` (mirrored in RTL),
      * Home and End move focus between tabs; Enter or Space selects, or, on the selected tab, moves
      * focus into its panel; the `focusTabToggle` key moves focus into the panel; the `closeTab`
-     * key closes the tab when the model allows it. Returns true when the key was handled (its
-     * default is prevented).
+     * key closes the tab when the model allows it; the `renameTab` key calls `onRenameRequest`
+     * when it is given and the model allows renaming the tab. A key pressed in an editor inside the
+     * button (an input, a `contenteditable`) is not handled. Returns true when the key was handled
+     * (its default is prevented).
      */
     handleTabKeyDown(
         tabId: string,
@@ -222,9 +227,10 @@ export class Interaction<T extends DockableTypes> {
         options: {
             element: HTMLElement;
             orientation: "horizontal" | "vertical";
+            onRenameRequest?: (() => void) | undefined;
         },
     ): boolean {
-        if (event.defaultPrevented) {
+        if (event.defaultPrevented || isEditable(event.target ?? null)) {
             return false;
         }
         const { element, orientation } = options;
@@ -247,6 +253,14 @@ export class Interaction<T extends DockableTypes> {
             } else {
                 this.select(tabId);
             }
+            return handled();
+        }
+        if (
+            options.onRenameRequest &&
+            matchesKey(event, keyMap.renameTab) &&
+            this.canRename(tabId)
+        ) {
+            options.onRenameRequest();
             return handled();
         }
         if (
@@ -326,10 +340,25 @@ export class Interaction<T extends DockableTypes> {
         return this.host.handleOverlayKeyDown(event, keyMap.closeOverlayBorder);
     }
 
-    /** the `aria-keyshortcuts` of a part (a tab's names its own close key) */
+    /** a tabset tab the model lets be renamed (the `renameTab` key's rule) */
+    private canRename(tabId: string): boolean {
+        const tab = this.model.get("node-by", { id: tabId });
+        return (
+            tab?.type === "tab" &&
+            this.model.get("node-parent-by", { nodeId: tabId })?.type ===
+                "tabset" &&
+            this.model.can("tab.rename", { tabId, label: tab.label })
+        );
+    }
+
+    /**
+     * the `aria-keyshortcuts` of a part (a tab's names its own close key, and its rename key when
+     * `options.rename` says the tab has a rename handler)
+     */
     getKeyShortcuts(
         part: KeyShortcutsPart,
         tabId?: string,
+        options?: { rename?: boolean | undefined },
     ): string | undefined {
         const keyMap = this.getKeyMap();
         if (part === "tablist") {
@@ -351,9 +380,14 @@ export class Interaction<T extends DockableTypes> {
             tab.pinned !== true &&
             this.model.get("tab-settings-by", { tabId: tab.id })?.closable ===
                 true;
+        const renamable =
+            options?.rename === true &&
+            tab?.type === "tab" &&
+            this.canRename(tab.id);
         return toAriaKeyShortcuts(
             keyMap.focusTabToggle,
             closable ? keyMap.closeTab : undefined,
+            renamable ? keyMap.renameTab : undefined,
         );
     }
 

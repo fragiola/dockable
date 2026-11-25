@@ -158,6 +158,31 @@ describe("drag start", () => {
         expect(DragDropManager.getDragState()?.subject.kind).toBe("tabset");
     });
 
+    it("leaves a drag from an editor inside the source (a text selection) to the editor", () => {
+        const s = setup();
+        const input = document.body.appendChild(
+            document.createElement("input"),
+        );
+        const event = dragEvent("dragstart", 40, 35);
+        Object.defineProperty(event, "target", { value: input });
+        s.manager.startDrag(event, "t0");
+        expect(event.defaultPrevented).toBe(true);
+        expect(DragDropManager.getDragState()).toBeUndefined();
+    });
+
+    it("a press in an editor inside a draggable tab turns its dragging off until the press ends", () => {
+        const s = setup();
+        s.tb0.draggable = true;
+        const input = s.tb0.appendChild(document.createElement("input"));
+        input.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+        expect(s.tb0.draggable).toBe(false);
+        document.dispatchEvent(new Event("pointerup"));
+        expect(s.tb0.draggable).toBe(true);
+        // a press on the tab itself leaves it draggable
+        s.tb0.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+        expect(s.tb0.draggable).toBe(true);
+    });
+
     it("notifies drag subscribers on start and end", () => {
         const s = setup();
         const listener = vi.fn();

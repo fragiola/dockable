@@ -206,9 +206,15 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     getKeyMap(): KeyMap;
     /**
      * the `aria-keyshortcuts` of a part from the key map: a `"tab"` button's (its focus toggle,
-     * and its close key when the tab can be closed by its rule), a `"tablist"`'s, a `"panel"`'s
+     * its close key when the tab can be closed by its rule, and its rename key when
+     * `options.rename` says the tab has a rename handler and the model allows renaming it), a
+     * `"tablist"`'s, a `"panel"`'s
      */
-    getKeyShortcuts(part: KeyShortcutsPart, tabId?: string): string | undefined;
+    getKeyShortcuts(
+        part: KeyShortcutsPart,
+        tabId?: string,
+        options?: { rename?: boolean | undefined },
+    ): string | undefined;
     /**
      * what the current drag means for a tab container (a tabset or a border): the same object
      * until it changes, so it can be a framework's snapshot (`getDragDropManager().subscribe`)
@@ -227,7 +233,8 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
     handleTabClick(tabId: string): void;
     /**
      * call on a tab button's `keydown` (`element` is the button, `orientation` its tab list's):
-     * the APG tabs keys and the key map's tab keys. Returns true when it handled the key (and
+     * the APG tabs keys and the key map's tab keys (`renameTab` calls `onRenameRequest`). A key
+     * from an editor inside the button is left alone. Returns true when it handled the key (and
      * prevented its default)
      */
     handleTabKeyDown(
@@ -236,6 +243,7 @@ export interface LayoutEngineAdapter<T extends DockableTypes = AnyTypes> {
         options: {
             element: HTMLElement;
             orientation: "horizontal" | "vertical";
+            onRenameRequest?: (() => void) | undefined;
         },
     ): boolean;
     /**

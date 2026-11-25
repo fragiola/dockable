@@ -174,6 +174,8 @@ export interface ModelIsMap {
     "tab-selected": { tabId: string };
     /** a tab is pinned */
     "tab-pinned": { tabId: string };
+    /** a tab's tabset is its layout's active tabset (a border's tab has no tabset: false) */
+    "tab-in-active-tabset": { tabId: string };
     /** a tabset is its layout's active tabset */
     "tabset-active": { tabsetId: string };
     /** a tabset is its layout's maximized tabset */
@@ -454,6 +456,16 @@ const QUESTIONS: Questions = {
     "tab-pinned": (source, { tabId }) => {
         const found = node(source, tabId);
         return found?.type === "tab" && found.pinned === true;
+    },
+    "tab-in-active-tabset": (source, { tabId }) => {
+        const parent = source.index.parent(tabId);
+        const layout = source.index.layoutOf(tabId);
+        return (
+            node(source, tabId)?.type === "tab" &&
+            parent !== undefined &&
+            layout !== undefined &&
+            layoutTabset(source, layout, "active")?.id === parent
+        );
     },
     "tabset-active": (source, { tabsetId }) => {
         const layout = source.index.layoutOf(tabsetId);

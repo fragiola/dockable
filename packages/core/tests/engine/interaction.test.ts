@@ -103,6 +103,14 @@ describe("the interaction keys of the adapter", () => {
         expect(engine.adapter.getKeyShortcuts("panel")).toBe("F6");
         model.run("tab.pin", { tabId: "t0", value: true });
         expect(engine.adapter.getKeyShortcuts("tab", "t0")).toBe("F6");
+        // the rename key, only for a tab with a rename handler that the model lets be renamed
+        expect(
+            engine.adapter.getKeyShortcuts("tab", "t1", { rename: true }),
+        ).toBe("F6 Control+Delete F2");
+        model.run("tab.configure", { tabId: "t1", renamable: false });
+        expect(
+            engine.adapter.getKeyShortcuts("tab", "t1", { rename: true }),
+        ).toBe("F6 Control+Delete");
     });
 
     it("drop state: none, and the same object while nothing changes", () => {
@@ -202,6 +210,62 @@ describe("the interaction keys of the adapter", () => {
             { element: b1, orientation: "horizontal" },
         );
         expect(model.get("node-by", { id: "t1" })).toBeUndefined();
+    });
+
+    it("the rename key calls the rename handler when the model allows renaming the tab", () => {
+        const { engine, model } = setup();
+        const [b0] = tabStrip(engine, ["t0"]);
+        if (!b0) throw new Error("no button");
+        const options = { element: b0, orientation: "horizontal" as const };
+        // no handler: the key is not ours
+        expect(engine.adapter.handleTabKeyDown("t0", key("F2"), options)).toBe(
+            false,
+        );
+        let requests = 0;
+        const onRenameRequest = () => {
+            requests++;
+        };
+        const f2 = key("F2");
+        expect(
+            engine.adapter.handleTabKeyDown("t0", f2, {
+                ...options,
+                onRenameRequest,
+            }),
+        ).toBe(true);
+        expect(f2.prevented).toBe(true);
+        expect(requests).toBe(1);
+        model.run("tab.configure", { tabId: "t0", renamable: false });
+        expect(
+            engine.adapter.handleTabKeyDown("t0", key("F2"), {
+                ...options,
+                onRenameRequest,
+            }),
+        ).toBe(false);
+        expect(requests).toBe(1);
+    });
+
+    it("a key pressed in an editor inside the tab button is left to the editor", () => {
+        const { engine, model } = setup();
+        const [b0, b1] = tabStrip(engine, ["t0", "t1"]);
+        if (!b0 || !b1) throw new Error("no buttons");
+        const input = b1.appendChild(document.createElement("input"));
+        input.focus();
+        const options = { element: b1, orientation: "horizontal" as const };
+        for (const k of ["ArrowLeft", "Home", "End", "Enter", " "]) {
+            const event = { ...key(k), target: input };
+            expect(engine.adapter.handleTabKeyDown("t1", event, options)).toBe(
+                false,
+            );
+        }
+        expect(
+            engine.adapter.handleTabKeyDown(
+                "t1",
+                { ...key("Delete", { ctrlKey: true }), target: input },
+                options,
+            ),
+        ).toBe(false);
+        expect(document.activeElement).toBe(input);
+        expect(model.get("node-by", { id: "t1" })).toBeDefined();
     });
 
     it("the panel's focus toggle key returns focus to the tab button", () => {

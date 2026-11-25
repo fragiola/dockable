@@ -17,7 +17,7 @@
 //   is the content's, never offered to `onExternalDrag` (caplin/FlexLayout#350, #497);
 // - drop zones: consumer elements that take a layout drag and hand it to the consumer.
 
-import { elementOf } from "../dom/nodes";
+import { elementOf, isEditable } from "../dom/nodes";
 import {
     type DropCandidate,
     type DropGeometry,
@@ -304,6 +304,11 @@ export class DragDropManager {
         id: string,
         dragImage?: Element | null,
     ) => {
+        if (isEditable(event.target)) {
+            // a drag from an editor inside the source (selecting text) is the editor's
+            event.preventDefault();
+            return;
+        }
         const model = this.engine.adapter.model;
         const node = model.get("node-by", { id });
         if (node?.type !== "tab" && node?.type !== "tabset") {
@@ -402,6 +407,29 @@ export class DragDropManager {
                 }
             }, 0);
         };
+        // a press in an editor inside a draggable part (an input in a tab button) selects text: the
+        // browser would hand the gesture to the draggable ancestor, so it is not draggable until
+        // the press ends
+        const onEditorPress = (event: PointerEvent) => {
+            if (!isEditable(event.target)) {
+                return;
+            }
+            const source = elementOf(event.target)?.closest<HTMLElement>(
+                '[draggable="true"]',
+            );
+            if (!source || !element.contains(source)) {
+                return;
+            }
+            source.draggable = false;
+            const restore = () => {
+                source.draggable = true;
+                doc.removeEventListener("pointerup", restore, true);
+                doc.removeEventListener("pointercancel", restore, true);
+            };
+            doc.addEventListener("pointerup", restore, true);
+            doc.addEventListener("pointercancel", restore, true);
+        };
+        element.addEventListener("pointerdown", onEditorPress, true);
         doc.addEventListener("dragstart", onDocumentDragStart, true);
         doc.addEventListener("dragstart", onDocumentDragStarted);
         doc.addEventListener("pointerdown", onDocumentPointer, true);
@@ -424,6 +452,7 @@ export class DragDropManager {
                     managers?.splice(index, 1);
                 }
             }
+            element.removeEventListener("pointerdown", onEditorPress, true);
             element.removeEventListener("dragenter", onDragEnter);
             element.removeEventListener("dragleave", onDragLeave);
             element.removeEventListener("dragover", onDragOver);

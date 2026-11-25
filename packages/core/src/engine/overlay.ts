@@ -3,6 +3,7 @@
 // Copyright (c) 2017 Caplin Systems Ltd. MIT licence, see LICENSE.
 import type { CommandResult } from "../commands/types";
 import type { DragDropManager } from "../dnd/drag-drop-manager";
+import { isEditable } from "../dom/nodes";
 import { contains } from "../geometry/rect";
 import { type KeyEventLike, matchesKey } from "../keyboard/keymap";
 import { borderShown, resolveBorder } from "../state/defaults";
@@ -232,13 +233,7 @@ export class Overlay<T extends DockableTypes> {
             return refused("focus is not in this layout");
         }
         // leave text editing contexts alone
-        const tag = active.tagName;
-        if (
-            tag === "INPUT" ||
-            tag === "TEXTAREA" ||
-            (active as HTMLElement).isContentEditable ||
-            active.closest('[role="menu"]')
-        ) {
+        if (isEditable(active) || active.closest('[role="menu"]')) {
             return refused("focus is in a text field or a menu");
         }
         if (
