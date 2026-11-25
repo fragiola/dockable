@@ -176,6 +176,12 @@ describe("composition and ARIA", () => {
         await settle();
         expect(mustPath("/ts0")).toHaveAttribute("data-active", "");
         expect(mustPath("/ts1")).not.toHaveAttribute("data-active");
+        // a tab and its panel follow their tabset
+        expect(mustPath("/ts0/tb0")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts0/tb1")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts0/t0")).toHaveAttribute("data-tabset-active", "");
+        expect(mustPath("/ts1/tb0")).not.toHaveAttribute("data-tabset-active");
+        expect(mustPath("/ts1/t0")).not.toHaveAttribute("data-tabset-active");
 
         model.run("tabset.maximize", { tabsetId: "ts1", value: true });
         await settle();
@@ -353,6 +359,50 @@ describe("as, render slot and attributes", () => {
         expect(mustPath("/ts0/tb1")).toHaveAttribute(
             "data-was-selected",
             "false",
+        );
+    });
+
+    it("calls onRenameRequest on the rename key, and names the key only then", async () => {
+        const model = fresh();
+        const onRenameRequest = vi.fn();
+        await app(() =>
+            h(
+                Dockable.Root,
+                { model },
+                {
+                    default: () => [
+                        h(Dockable.Row, null, {
+                            default: tabsetsWith(() => ({ onRenameRequest }), {
+                                default: () => [
+                                    h("input", { "aria-label": "name" }),
+                                ],
+                            }),
+                        }),
+                    ],
+                },
+            ),
+        );
+        const tab0 = mustPath("/ts0/tb0");
+        expect(tab0).toHaveAttribute("aria-keyshortcuts", "Control+Delete F2");
+        keyDown(tab0, { key: "F2" });
+        expect(onRenameRequest).toHaveBeenCalledTimes(1);
+        expect(onRenameRequest.mock.calls[0]?.[0]).toMatchObject({
+            id: model.get("selected-tab-by", { tabsetId: "ts0" })?.id,
+        });
+        // keys typed in the input stay the input's
+        const input = tab0.querySelector("input");
+        if (!input) throw new Error("no input");
+        keyDown(input, { key: "F2" });
+        keyDown(input, { key: "ArrowRight" });
+        expect(onRenameRequest).toHaveBeenCalledTimes(1);
+        expect(document.activeElement).not.toBe(mustPath("/ts0/tb1"));
+    });
+
+    it("a tab with no rename handler leaves the rename key alone", async () => {
+        await renderLayout(fresh());
+        expect(mustPath("/ts0/tb0")).toHaveAttribute(
+            "aria-keyshortcuts",
+            "Control+Delete",
         );
     });
 

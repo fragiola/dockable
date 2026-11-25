@@ -28,6 +28,8 @@ import {
 export interface TabState {
     /** the tab is its tabset's selected tab */
     selected: boolean;
+    /** the tab's tabset is its layout's active tabset (always false in a border) */
+    tabsetActive: boolean;
     /** the tab is pinned */
     pinned: boolean;
     /** the tab is being dragged */
@@ -41,6 +43,12 @@ export interface TabState {
 export interface TabProps<T extends DockableTypes = AnyTypes>
     extends PrimitiveProps {
     node: TabOf<T>;
+    /**
+     * called (`@rename-request`) when the key map's `renameTab` key (`F2` by default) is pressed on
+     * the tab button and the model allows renaming the tab (tabset tabs only): show your rename
+     * UI, then run `tab.rename` with the new `label`. Without it the key does nothing.
+     */
+    onRenameRequest?: ((tab: TabOf<T>) => void) | undefined;
 }
 
 export interface TabSlots extends RenderSlot<TabState> {
@@ -57,7 +65,7 @@ export interface TabSlots extends RenderSlot<TabState> {
 export const Tab: DockableComponent<TabProps, TabSlots> = definePrimitive<
     TabProps,
     TabSlots
->("Tab", ["node", "as"], (props, { attrs, slots }) => {
+>("Tab", ["node", "as", "onRenameRequest"], (props, { attrs, slots }) => {
     const { model, revision, keyMap } = useDockableContext("Tab");
     const { engine } = useLayoutContext("Tab");
     const list = inject(TabListKey, null);
@@ -101,9 +109,13 @@ export const Tab: DockableComponent<TabProps, TabSlots> = definePrimitive<
     const onKeydown = (event: KeyboardEvent) => {
         const element = event.currentTarget as HTMLElement | null;
         if (element) {
+            const onRenameRequest = props.onRenameRequest;
             engine.adapter.handleTabKeyDown(id(), event, {
                 element,
                 orientation: orientation.value,
+                onRenameRequest: onRenameRequest
+                    ? () => onRenameRequest(props.node)
+                    : undefined,
             });
         }
     };
@@ -116,6 +128,7 @@ export const Tab: DockableComponent<TabProps, TabSlots> = definePrimitive<
         const { ref: _dragRef, ...dragProps } = drag.props.value;
         const state: TabState = {
             selected,
+            tabsetActive: model.is("tab-in-active-tabset", { tabId }),
             pinned: props.node.pinned === true,
             dragging: drag.state.value.dragging,
             // supported, and the model accepts `tab.popout` for it now
@@ -137,6 +150,7 @@ export const Tab: DockableComponent<TabProps, TabSlots> = definePrimitive<
                 "aria-keyshortcuts": engine.adapter.getKeyShortcuts(
                     "tab",
                     tabId,
+                    { rename: props.onRenameRequest !== undefined },
                 ),
                 tabindex: engine.is("tab-tabbable", { tabId }) ? 0 : -1,
                 ...dataAttributes({
@@ -144,6 +158,7 @@ export const Tab: DockableComponent<TabProps, TabSlots> = definePrimitive<
                         engine.get("layout-path-by", { nodeId: tabId }),
                     ),
                     selected,
+                    "tabset-active": state.tabsetActive,
                     pinned: state.pinned,
                     dragging: state.dragging,
                     poppable: state.poppable,
