@@ -37,9 +37,8 @@ export const strip =
 export const tabList =
     "flex min-w-0 flex-1 items-end gap-(--dk-tab-gap) overflow-hidden bg-(--dk-strip-bg) ps-(--dk-strip-padding) pt-[calc(var(--dk-strip-padding)/2)]";
 
-/** A tab does not know whether its tabset is active: `in-data-active:` reads the enclosing
- * TabSet's data-active (`:where([data-active]) &`), so the focused tab is
- * `in-data-active:data-selected:`. */
+/** A tab knows whether its tabset is active (`data-tabset-active`), so the focused tab is
+ * `data-tabset-active:data-selected:`. */
 export const tab = cn(
     "relative flex h-(--dk-tab-height) max-w-60 shrink-0 cursor-pointer select-none items-center gap-1.5 px-3",
     "rounded-t-(--dk-tab-radius) font-(family-name:--dk-tab-font) text-(length:--dk-tab-size) text-palette-accent/85",
@@ -49,13 +48,13 @@ export const tab = cn(
     "opacity-50 transition-opacity duration-(--dk-motion)",
     // the focused tab: full opacity, bold, and a 2px frame in the ring colour (outline-solid: the
     // tab is outline-none otherwise)
-    "in-data-active:data-selected:opacity-100 in-data-active:data-selected:font-semibold in-data-active:data-selected:text-palette-contrast",
-    "in-data-active:data-selected:outline-2 in-data-active:data-selected:outline-solid in-data-active:data-selected:-outline-offset-2 in-data-active:data-selected:outline-palette-ring",
+    "data-tabset-active:data-selected:opacity-100 data-tabset-active:data-selected:font-semibold data-tabset-active:data-selected:text-palette-contrast",
+    "data-tabset-active:data-selected:outline-2 data-tabset-active:data-selected:outline-solid data-tabset-active:data-selected:-outline-offset-2 data-tabset-active:data-selected:outline-palette-ring",
     // keyboard focus: a dashed frame (no ring), so it never reads as "the focused tab"
     "focus-visible:opacity-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-dashed focus-visible:outline-palette-contrast",
-    // the active tabset's marker, drawn as the selected tab's ::after (`in-data-active:` reads
-    // the enclosing TabSet's data-active); the theme sets its colour and display
-    "after:pointer-events-none after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:rounded-full after:bg-(--dk-tab-marker-color) in-data-active:data-selected:after:[display:var(--dk-tab-marker)]",
+    // the active tabset's marker, drawn as the selected tab's ::after; the theme sets its colour
+    // and display
+    "after:pointer-events-none after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:rounded-full after:bg-(--dk-tab-marker-color) data-tabset-active:data-selected:after:[display:var(--dk-tab-marker)]",
 );
 
 export const tabName = "truncate";

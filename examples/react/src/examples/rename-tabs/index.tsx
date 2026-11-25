@@ -185,13 +185,8 @@ function RenamableTab({
             node={tab}
             className={styles.tab}
             onDoubleClick={start}
-            onKeyDown={(event) => {
-                if (event.key === "F2") {
-                    start();
-                }
-            }}
-            // no drag while editing, so the mouse can select text in the field
-            draggable={editing ? false : undefined}
+            // the key map's rename key (F2): the tab calls it when the model allows the rename
+            onRenameRequest={start}
         >
             {editing ? (
                 <RenameField

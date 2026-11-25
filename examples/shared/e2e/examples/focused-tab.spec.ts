@@ -20,6 +20,14 @@ test("the focused tab is at full opacity with a frame, every other tab is faded"
     const outline = path(page, "/r1/ts0/tb0"); // selected, in another tabset
 
     await expect(path(page, "/ts0")).toHaveAttribute("data-active", "");
+    // a tab and its panel carry their tabset's active state
+    await expect(editor).toHaveAttribute("data-tabset-active", "");
+    await expect(preview).toHaveAttribute("data-tabset-active", "");
+    await expect(path(page, "/ts0/t0")).toHaveAttribute(
+        "data-tabset-active",
+        "",
+    );
+    await expect(outline).not.toHaveAttribute("data-tabset-active");
     await expect.poll(async () => (await style(editor)).opacity).toBe("1");
     expect((await style(editor)).outline).toBeGreaterThan(0);
     expect((await style(editor)).outlineStyle).toBe("solid");
@@ -35,6 +43,8 @@ test("the focused tab is at full opacity with a frame, every other tab is faded"
     await outline.click();
     await expect(path(page, "/r1/ts0")).toHaveAttribute("data-active", "");
     await expect(path(page, "/ts0")).not.toHaveAttribute("data-active");
+    await expect(outline).toHaveAttribute("data-tabset-active", "");
+    await expect(editor).not.toHaveAttribute("data-tabset-active");
     await expect.poll(async () => (await style(outline)).opacity).toBe("1");
     await page.mouse.move(0, 0); // away from the tabs
     await page

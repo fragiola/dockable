@@ -83,12 +83,12 @@ const json: LayoutJson<Types> = {
                                 <div [class]="styles.strip">
                                     <div dockableTabList aria-label="Tabs" [class]="styles.tabList">
                                         <ng-template [dockableTabListItem]="model" let-tab>
-                                            <!-- the tab keeps its own draggable (a binding of ours would fight the part's) -->
+                                            <!-- the key map's rename key (F2): the tab emits renameRequest when the model allows it -->
                                             <div
                                                 [dockableTab]="tab"
                                                 [class]="styles.tab"
                                                 (dblclick)="start(tab)"
-                                                (keydown)="onKeydown($event, tab)"
+                                                (renameRequest)="start($event)"
                                             >
                                                 @if (editing() === tab.id) {
                                                     <kit-rename-field
@@ -154,12 +154,6 @@ export default class RenameTabs {
     protected start(tab: TabOf<Types>) {
         if (this.model.can("tab.rename", { tabId: tab.id, label: tab.label })) {
             this.editing.set(tab.id);
-        }
-    }
-
-    protected onKeydown(event: KeyboardEvent, tab: TabOf<Types>) {
-        if (event.key === "F2") {
-            this.start(tab);
         }
     }
 

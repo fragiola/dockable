@@ -20,12 +20,6 @@ function start() {
     }
 }
 
-function onKeydown(event: KeyboardEvent) {
-    if (event.key === "F2") {
-        start();
-    }
-}
-
 function commit(name: string) {
     model.run("tab.rename", { tabId: props.tab.id, label: name });
     props.setEditing(null);
@@ -33,14 +27,12 @@ function commit(name: string) {
 </script>
 
 <template>
-    <!-- no drag while editing, so the mouse can select text in the field (bound only then: an
-         undefined `draggable` attribute would replace the tab's own) -->
+    <!-- the key map's rename key (F2): the tab emits rename-request when the model allows it -->
     <Dockable.Tab
         :node="tab"
         :class="styles.tab"
-        v-bind="editing ? { draggable: false } : {}"
         @dblclick="start"
-        @keydown="onKeydown"
+        @rename-request="start"
     >
         <RenameField
             v-if="editing"

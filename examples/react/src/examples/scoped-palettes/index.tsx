@@ -208,10 +208,10 @@ function PaletteMenu({ tabset }: { tabset: TabsetNode<Types> }) {
 }
 
 /**
- * The panel's content in its tabset's palette. Panels live in a layer outside their tabset
- * (gap 2), so they cannot inherit its palette: the content repeats it, read from the model. (It
- * goes on the content rather than on the `Dockable.Panel`: the panel keeps `palette-raised`, which
- * an added `palette-surface` cannot override, since the surface rules come first in the
+ * The panel's content in its tabset's palette. Panels live in a layer outside their tabset (the
+ * panel layer), so they cannot inherit its palette: the content repeats it, read from the model.
+ * (It goes on the content rather than on the `Dockable.Panel`: the panel keeps `palette-raised`,
+ * which an added `palette-surface` cannot override, since the surface rules come first in the
  * stylesheet.)
  */
 function Content({ tab }: { tab: TabOf<Types> }) {

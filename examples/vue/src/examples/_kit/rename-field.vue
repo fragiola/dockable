@@ -45,8 +45,7 @@ function finish(commit: boolean, element: HTMLInputElement) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-    // the tab handles Enter, Space, arrows, Home and End itself: keep them in the field
-    event.stopPropagation();
+    // the tab leaves the keys typed in the field to it
     const element = event.currentTarget as HTMLInputElement;
     if (event.key === "Enter") {
         finish(true, element);
