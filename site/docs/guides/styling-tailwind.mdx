@@ -25,26 +25,29 @@ Tailwind v4 turns every attribute into a variant. The primitives expose their st
 Valued attributes take the bracket form: `data-[orientation=vertical]:w-px`,
 `data-[drop-kind=edge]:border-dashed`.
 
-## State of an ancestor: `in-data-*` and `group`
+## The tabset's state on a tab: `data-tabset-active`
 
-`Tab` does not know whether its tabset is active (gap 1 in [Limitations](/docs/limitations)).
-Read it from the ancestor instead. `in-data-active:` matches when **any ancestor** has
-`data-active`. A marker under the selected tab of the active tabset needs no element of its own:
-draw it as the tab's `::after`, shown when the tab is `data-selected` inside an active tabset:
+A `Tab` (and its `Panel`) carries `data-tabset-active` while its tabset is the active one, so
+"the selected tab of the active tabset" is two variants on the tab. A marker under it needs no
+element of its own: draw it as the tab's `::after`:
 
 ```tsx
 <Dockable.Tab
     node={tab}
-    className="relative … after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:bg-palette-ring in-data-active:data-selected:after:block"
+    className="relative … after:absolute after:inset-x-2 after:bottom-0 after:hidden after:h-0.5 after:bg-palette-ring data-tabset-active:data-selected:after:block"
 >
     {tab.label}
 </Dockable.Tab>
 ```
 
-In plain CSS, the same rule is `[data-active] [role="tab"][data-selected]::after { … }`.
-
-`group` on the `TabSet` and `group-data-active:` on a descendant work the same way. The
+In plain CSS, the same rule is `[role="tab"][data-tabset-active][data-selected]::after { … }`. The
 [`focused-tab`](/examples/focused-tab) example is built on this.
+
+## State of an ancestor: `in-data-*` and `group`
+
+Any other state of an ancestor reads the same way from below: `in-data-maximized:` matches when
+**any ancestor** has `data-maximized`, and `group` on the `TabSet` with `group-data-maximized:` on
+a descendant scopes it to that tabset.
 
 ## `className` as a function
 

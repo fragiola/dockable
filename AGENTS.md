@@ -339,8 +339,8 @@ Every primitive (`Dockable.Root`, `Row`, `TabSet`, `TabList`, `Tab`, `TabSetCont
   splitter's preview `transform`, and `pointer-events` where it is hit-testing (`none` on the drop
   and edge indicators and an overlay border's content, `auto` on a border's splitter).
 - **State only through `data-*` and ARIA**, present or absent (never `"false"`):
-  `data-selected`, `data-active`, `data-maximized`, `data-orientation`, `data-dragging`,
-  `data-pinned`, `data-visible`, `data-empty`, `data-root`, and on borders `data-location`,
+  `data-selected`, `data-active`, `data-tabset-active` (on a tab and its panel), `data-maximized`,
+  `data-orientation`, `data-dragging`, `data-pinned`, `data-visible`, `data-empty`, `data-root`, and on borders `data-location`,
   `data-open`, `data-overlay`/`data-docked`, `data-tab-direction`.
 - **`data-layout-path` on every element**: `/layout` (Root), `/row` (root row), `/r0`, `/ts0`,
   `/ts0/tabstrip`, `/ts0/content`, `/ts0/tb0`, `/ts0/t0`, `/s0`; with borders `/borders`, `/main`,

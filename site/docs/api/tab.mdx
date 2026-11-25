@@ -30,6 +30,7 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | --- | --- | --- | --- |
 | `node` | `TabOf<T>` | required | the tab to render |
 | `children` | `ReactNode` | none | the tab button's content; the primitive renders no text of its own |
+| `onRenameRequest` | `(tab: TabOf<T>) => void` | none | called on the `renameTab` key (`F2`) when the model allows renaming the tab (tabset tabs only): show your rename UI, then run `tab.rename`. Without it the key does nothing. Vue: `@rename-request`; Angular: `(renameRequest)` |
 
 ## State
 
@@ -38,6 +39,7 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | field | type | description |
 | --- | --- | --- |
 | `selected` | `boolean` | the tab is its tabset's selected tab (`model.is("tab-selected", { tabId })`) |
+| `tabsetActive` | `boolean` | the tab's tabset is its layout's active tabset (`model.is("tab-in-active-tabset", { tabId })`); `false` in a border |
 | `pinned` | `boolean` | the tab is pinned (`tab.pinned === true`) |
 | `dragging` | `boolean` | the tab is being dragged |
 | `poppable` | `boolean` | the tab can be popped out into a window: popouts are supported and `model.can("tab.popout", { tabId })` accepts it now |
@@ -49,6 +51,7 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | --- | --- |
 | `data-layout-path` | the tab button path: `/ts0/tb1` |
 | `data-selected` | the selected tab |
+| `data-tabset-active` | its tabset is its layout's active tabset |
 | `data-pinned` | pinned |
 | `data-dragging` | being dragged |
 | `data-poppable` | popouts are supported and the model accepts `tab.popout` for it (`model.can`: its resolved `poppable`, and every middleware) |
@@ -57,7 +60,7 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | `role` | `"tab"` |
 | `aria-selected` | `true` or `false` |
 | `aria-controls` | its panel's id (`engine.get("tab-panel-dom-id-by", { tabId: tab.id })`) |
-| `aria-keyshortcuts` | `focusTabToggle` and, when its resolved `closable` is true and it is not pinned, `closeTab` |
+| `aria-keyshortcuts` | `focusTabToggle`; `closeTab` when its resolved `closable` is true and it is not pinned; `renameTab` when it has an `onRenameRequest` and the model allows renaming it |
 | `tabIndex` | `0` on the tab stop (the selected tab, or the first tab when none is: `engine.is("tab-tabbable", { tabId })`), else `-1` |
 | `draggable` | the tab's resolved `draggable` (`model.get("tab-settings-by", { tabId })?.draggable`) |
 
@@ -69,6 +72,7 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 | Home / End | focus the first/last tab |
 | Enter, Space | select; on the selected tab, move focus into its panel |
 | `closeTab` (`Ctrl+Delete`) | run `tab.close` when `model.can` accepts it, focusing a neighbour first |
+| `renameTab` (`F2`) | call `onRenameRequest` when it is given and `model.can("tab.rename", …)` accepts the tab |
 | `focusTabToggle` (off by default) | move focus into the tab's content |
 
 ## Behaviour
@@ -80,6 +84,9 @@ text is the app's (`tab.data`), and what it may do is asked of the model (`model
 - It is the drag source for its tab ([`useDragNode`](/docs/api/hooks#usedragnode)), and the
   element the browser snapshots as the drag image.
 - The engine measures it (for drop hit-testing within the strip).
+- An editor inside it (an `input`, a `textarea`, a `select`, `contenteditable`) keeps what is typed
+  and pressed in it: those keys are not tab keys, and a press in the editor selects text instead of
+  starting a drag.
 
 ## Tab overflow
 

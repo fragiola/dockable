@@ -54,6 +54,7 @@ it, and from the style of a `render` element: `position`, `inset`, `left`, `top`
 | --- | --- | --- |
 | `selected` | `boolean` | the tab is its tabset's selected tab (`model.is("tab-selected", { tabId })`) |
 | `visible` | `boolean` | the panel is shown (selected, and not hidden by another tabset being maximized): `engine.is("tab-panel-visible", { tabId: tab.id })` |
+| `tabsetActive` | `boolean` | the tab's tabset is its layout's active tabset (`model.is("tab-in-active-tabset", { tabId })`); `false` in a border |
 
 ## Data attributes and ARIA
 
@@ -62,6 +63,7 @@ it, and from the style of a `render` element: `position`, `inset`, `left`, `top`
 | `data-layout-path` | the tab's panel path: `/ts0/t1` |
 | `data-selected` | the selected tab |
 | `data-visible` | shown |
+| `data-tabset-active` | its tabset is its layout's active tabset |
 | `id` | `engine.get("tab-panel-dom-id-by", { tabId: tab.id })`, unique on the page (`getTabPanelId(id, scope)`: `dockable-<scope>tab-<id>`) |
 | `role` | `"tabpanel"` |
 | `aria-labelledby` | its tab button's id |
@@ -87,6 +89,7 @@ and `display` directly.
 ## Styling notes
 
 The panel is not a child of its tabset: the tabset's `border-radius` and `overflow` do not clip
-it, and tabset state selectors do not reach it (gap 2). It paints over absolutely positioned
+it, and tabset state selectors do not reach it: it carries its tabset's `data-tabset-active`
+itself. It paints over absolutely positioned
 siblings that come before it in the root, so give overlays (the drop indicator) a `z-index`
 (gap 12).
